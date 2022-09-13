@@ -1,24 +1,8 @@
-from flask import Flask, render_template, redirect, url_for
-from forms import CourseForm
+from flask import Flask
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your secret key'
 
+@app.route('/')
+def hello_world():
+    return 'Hello from Flask!'
 
-courses_list = [{
-    'title': 'Python 101',
-    'description': 'Learn Python basics',
-    'price': 34,
-    'available': True,
-    'level': 'Beginner'
-    }]
-
-
-@app.route('/', methods=('GET', 'POST'))
-def index():
-    form = CourseForm()
-    return render_template('index1.html', form=form)
-
-
-if __name__ == '__main__':
-   app.run(debug = True)
