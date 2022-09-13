@@ -1,17 +1,8 @@
 from flask import Flask
-
 from flask import Flask, render_template, request, url_for, flash, redirect
+from sheets_scrape import *
 
 app = Flask(__name__)
-
-@app.route('/')
-def hello_world():
-    return 'Hello from Flask!'
-
-@app.route('/')
-@app.route('/index/')
-def hello():
-    return '<h1>Hello, World!</h1>'
 
 @app.route('/about/')
 def about():
@@ -64,3 +55,5 @@ def create():
             return redirect(url_for('index'))
 
     return render_template('create.html')
+
+
