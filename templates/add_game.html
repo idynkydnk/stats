@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Add a Game {% endblock %}</h1>
+    <form method="post">
+        <label for="date">Date</label>
+        <br>
+        <input type="text" name="date"
+               placeholder="Date"
+               value="{{ request.form['date'] }}"></input>
+        <br>
+
+        <label for="winner1">Winner 1</label>
+        <br>
+        <input type="text" name="winner1"
+               placeholder="Winner 1"
+               value="{{ request.form['winner1'] }}"></input>
+        <br>
+
+        <label for="winner2">Winner 2</label>
+        <br>
+        <input type="text" name="winner2"
+               placeholder="Winner 2"
+               value="{{ request.form['winner2'] }}"></input>
+        <br>
+
+        <label for="loser1">Loser 1</label>
+        <br>
+        <input type="text" name="loser1"
+               placeholder="Loser 1"
+               value="{{ request.form['loser1'] }}"></input>
+        <br>        
+
+        <label for="loser2">Loser 2</label>
+        <br>
+        <input type="text" name="loser2"
+               placeholder="Loser 2"
+               value="{{ request.form['loser2'] }}"></input>
+        <br>     
+
+        <label for="winner_score">Winner's score</label>
+        <br>
+        <input type="number" name="winner_score"
+               placeholder="Winner's Score"
+               value="{{ request.form['winner_score'] }}"></input>
+        <br>  
+
+        <label for="loser_score">Loser's Score</label>
+        <br>
+        <input type="number" name="loser_score"
+               placeholder="Loser's Score"
+               value="{{ request.form['loser_score'] }}"></input>
+        <br>  
+
+
+
+        <button type="submit">Submit</button>
+    </form>
+{% endblock %}

@@ -35,9 +35,16 @@ messages = [{'title': 'Message One',
              'content': 'Message Two Content'}
             ]
 
+games = [['9/20/22', 'Kyle Thomson', 'Chris Dedo', 'Justin Chow', 'Brian Fung', 21, 12],
+            ['9/12/22', 'Kyle Thomson', 'Chris Dedo', 'Brian Oneill', 'Chris Gregory', 21, 16]]
+
 @app.route('/')
 def index():
     return render_template('index.html', messages=messages)
+
+@app.route('/index1')
+def index1():
+    return render_template('index1.html', games=games)
 
 
 @app.route('/create/', methods=('GET', 'POST'))
@@ -56,4 +63,23 @@ def create():
 
     return render_template('create.html')
 
+@app.route('/add_game/', methods=('GET', 'POST'))
+def add_game():
+    if request.method == 'POST':
+        date = request.form['date']
+        winner1 = request.form['winner1']
+        winner2 = request.form['winner2']
+        loser1 = request.form['loser1']
+        loser2 = request.form['loser2']
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+
+        if not winner1:
+            flash('All fields required!')
+        else:
+            games.append([date, winner1, winner2, loser1, loser2, winner_score, loser_score])
+            return redirect(url_for('index1'))
+
+    return render_template('add_game.html')
 
