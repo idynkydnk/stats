@@ -87,7 +87,7 @@ def update_all_players(games_data):
 		update_losers(x[3], x[4])
 
 def all_player_stats():
-	database = r"stats.db"
+	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	cur = conn.cursor()
 	cur.execute("SELECT * FROM players")
