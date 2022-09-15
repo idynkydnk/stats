@@ -46,6 +46,11 @@ def index():
 def index1():
     return render_template('index1.html', games=games)
 
+@app.route('/stats/')
+def stats():
+    stats = all_player_stats()
+    return render_template('stats.html', stats=stats)
+
 
 @app.route('/create/', methods=('GET', 'POST'))
 def create():

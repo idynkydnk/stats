@@ -86,6 +86,15 @@ def update_all_players(games_data):
 		update_winners(x[1], x[2])
 		update_losers(x[3], x[4])
 
+def all_player_stats():
+	database = r"stats.db"
+	conn = create_connection(database)
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM players")
+	row = cur.fetchall()
+
+	return row
+
 def main():
 	enter_data_into_database(scrape_database())
 
