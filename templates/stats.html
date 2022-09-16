@@ -5,15 +5,56 @@
     {% for player in stats %}
         <div class='message'>
         	<table>
+        		<thead>
+    				<tr>
+      					<th scope="col" colspan="1">Player</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Games</th>
+    				</tr>
+  				</thead>
         		<tbody>
         			<tr>
             			<th>{{ player[1] }}</th>
             			<th>{{ player[2] }}</th>
             			<th>{{ player[3] }}</th>
             			<th>{{ "{:.2f}".format(player[4]) }}</th>
+            			<th>{{ player[2] + player[3] }}</th>
             		</tr>
             	</tbody>
             </table>
         </div>
     {% endfor %}
 {% endblock %}
+
+
+
+
+<table>
+  <caption>Today's Stats</caption>
+  <thead>
+    <tr>
+      <th scope="col" colspan="1">Player</th>
+      <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+      <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+      <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+      <th class="numbered_stats" scope="col" colspan="1">Points</th>
+    </tr>
+  </thead>
+  <tbody>
+      <% @todays_stats.each do |stat| %>
+    <tr>
+        <td class="player_link"><a href="/players/<%= stat[:player] %>" > <%= stat[:player] %></a></td>
+        <td class="numbered_stats"><%= stat[:wins] %></td>
+        <td class="numbered_stats"><%= stat[:losses] %></td>
+        <td class="numbered_stats"><%= stat[:win_percentage] %>%</td>
+        <% if stat[:score] > 0 %>
+          <td class="numbered_stats">+<%= stat[:score] %></td>
+        <% else %>
+          <td class="numbered_stats"><%= stat[:score] %></td>
+        <% end %>
+    </tr>
+      <% end %>
+  </tbody>
+</table>
