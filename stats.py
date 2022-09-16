@@ -48,7 +48,7 @@ def index1():
 
 @app.route('/stats/')
 def stats():
-    stats = all_player_stats()
+    stats = player_stats_over(30)
     return render_template('stats.html', stats=stats)
 
 

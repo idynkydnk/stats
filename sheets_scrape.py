@@ -98,6 +98,23 @@ def all_player_stats():
 	row.sort(key=lambda x: x[4], reverse=True)
 	return row
 
+
+def player_stats_over(minimum_games):
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM players")
+	row = cur.fetchall()
+	for player in row.copy():
+		if (player[2] + player[3]) < minimum_games:
+			row.remove(player)
+	
+	row.sort(key=lambda x: x[4], reverse=True)
+	return row	
+
 def main():
 	enter_data_into_database(scrape_database())
 
