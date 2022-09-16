@@ -1,0 +1,74 @@
+body {
+  padding-top: 0px;
+  padding-bottom: 40px;
+  background-color: #B0B0B0;
+}
+
+h1 {
+  max-width: 330px;
+  padding: 2px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.message {
+    padding: 10px;
+    margin: 5px;
+    background-color: #f3f3f3
+}
+
+nav a {
+  max-width: 330px;
+  padding: 2px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.alert {
+    padding: 20px;
+    margin: 5px;
+    color: #970020;
+    background-color: #ffd5de;
+}
+
+table {
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+th, td {
+  border-bottom: 1px solid #ddd;
+  height: 30px;
+}
+
+body {
+  padding-top: 0px;
+  padding-bottom: 40px;
+  background-color: #B0B0B0;
+}
+
+p {
+  font-size: 16px;
+}
+
+.stats {
+  max-width: 330px;
+  margin: 0 auto;
+}
+
+
+h1 {
+  max-width: 330px;
+  padding: 2px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h2 {
+  max-width: 100%;
+  padding: 1px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 15px;
+}

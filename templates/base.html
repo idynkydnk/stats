@@ -3,35 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %} {% endblock %} - FlaskApp</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <style>
-        .message {
-            padding: 10px;
-            margin: 5px;
-            background-color: #f3f3f3
-        }
-        nav a {
-            color: #d64161;
-            font-size: 3em;
-            margin-left: 50px;
-            text-decoration: none;
-        }
-
-        .alert {
-            padding: 20px;
-            margin: 5px;
-            color: #970020;
-            background-color: #ffd5de;
-        }
 
     </style>
 </head>
 <body>
     <nav>
-        <a href="{{ url_for('index') }}">FlaskApp</a>
-        <a href="{{ url_for('create') }}">Create</a>
-        <a href="{{ url_for('add_game') }}">Add Game</a>
-        <a href="{{ url_for('stats') }}">Stats</a>
-        <a href="#">About</a>
+        <h1><a href="{{ url_for('add_game') }}">Add Game</a> - <a href="{{ url_for('stats') }}">Stats</a></h1>
     </nav>
     <hr>
     <div class="content">

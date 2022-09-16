@@ -4,10 +4,16 @@
     <h1>{% block title %} Stats {% endblock %}</h1>
     {% for player in stats %}
         <div class='message'>
-            <h3>{{ player[1] }}</h3>
-            <p>{{ player[2] }}</p>
-            <p>{{ player[3] }}</p>
-            <p>{{ player[4] }}</p>
+        	<table>
+        		<tbody>
+        			<tr>
+            			<th>{{ player[1] }}</th>
+            			<th>{{ player[2] }}</th>
+            			<th>{{ player[3] }}</th>
+            			<th>{{ player[4] }}</th>
+            		</tr>
+            	</tbody>
+            </table>
         </div>
     {% endfor %}
 {% endblock %}
