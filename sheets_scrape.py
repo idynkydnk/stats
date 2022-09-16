@@ -95,7 +95,7 @@ def all_player_stats():
 	cur = conn.cursor()
 	cur.execute("SELECT * FROM players")
 	row = cur.fetchall()
-
+	row.sort(key=lambda x: x[4], reverse=True)
 	return row
 
 def main():

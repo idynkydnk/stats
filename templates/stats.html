@@ -1,1 +1,13 @@
-    {% print(stats) %}
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Stats {% endblock %}</h1>
+    {% for player in stats %}
+        <div class='message'>
+            <h3>{{ player[1] }}</h3>
+            <p>{{ player[2] }}</p>
+            <p>{{ player[3] }}</p>
+            <p>{{ player[4] }}</p>
+        </div>
+    {% endfor %}
+{% endblock %}
