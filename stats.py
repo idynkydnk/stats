@@ -40,7 +40,7 @@ games = [['9/20/22', 'Kyle Thomson', 'Chris Dedo', 'Justin Chow', 'Brian Fung', 
 
 @app.route('/')
 def index():
-    return render_template('index.html', messages=messages)
+    return render_template('index1.html', messages=messages)
 
 @app.route('/index1')
 def index1():
