@@ -40,11 +40,8 @@ games = [['9/20/22', 'Kyle Thomson', 'Chris Dedo', 'Justin Chow', 'Brian Fung', 
 
 @app.route('/')
 def index():
-    return render_template('index1.html', messages=messages)
-
-@app.route('/index1')
-def index1():
-    return render_template('index1.html', games=games)
+    stats = player_stats_over(30)
+    return render_template('stats.html', stats=stats)
 
 @app.route('/stats/')
 def stats():
