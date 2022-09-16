@@ -48,6 +48,11 @@ def stats():
     stats = player_stats_over(30)
     return render_template('stats.html', stats=stats)
 
+@app.route('/games/')
+def games():
+    games = all_games()
+    return render_template('games.html', games=games)
+
 
 @app.route('/create/', methods=('GET', 'POST'))
 def create():

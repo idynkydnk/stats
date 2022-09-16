@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Stats {% endblock %}</h1>
+    {% for game in games %}
+        <div class='message'>
+        	<table>
+        		<thead>
+    				<tr>
+      					<th scope="col" colspan="1">All Games</th>
+    				</tr>
+  				</thead>
+        		<tbody>
+        			<tr>
+            			<th>{{ game[1] }}</th>
+            			<th>{{ game[2] }}</th>
+            			<th>{{ game[3] }}</th>
+            			<th>{{ game[4] }}</th>
+            			<th>{{ game[5] }}</th>
+                        <th>{{ game[6] }}</th>
+                        <th>{{ game[7] }}</th>
+            		</tr>
+            	</tbody>
+            </table>
+        </div>
+    {% endfor %}
+{% endblock %}

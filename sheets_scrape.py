@@ -115,6 +115,17 @@ def player_stats_over(minimum_games):
 	row.sort(key=lambda x: x[4], reverse=True)
 	return row	
 
+def all_games():
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM games")
+	row = cur.fetchall()
+	return row
+
 def main():
 	enter_data_into_database(scrape_database())
 
