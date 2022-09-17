@@ -194,6 +194,14 @@ def year_games(past_year):
 	row = cur.fetchall()
 	return row
 
+def grab_all_years():
+	games = all_games()
+	years = []
+	for game in games:
+		if game[1][0:4] not in years:
+			years.append(game[1][0:4])
+	return years
+
 def main():
 	enter_data_into_database(scrape_database())
 

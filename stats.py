@@ -6,6 +6,11 @@ from datetime import datetime, date
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
+@app.context_processor
+def all_years():
+    all_years = grab_all_years()
+    return dict(all_years=all_years)
+
 @app.route('/add/<int:n1>/<int:n2>/')
 def add(n1, n2):
     return '<h1>{}</h1>'.format(n1 + n2)
@@ -26,7 +31,8 @@ def index():
 def stats(year):
     minimum_games = 20
     stats = stats_per_year(year, minimum_games)
-    return render_template('stats.html', stats=stats, minimum_games=minimum_games, year=year)
+    rare_stats = rare_stats_per_year(year, minimum_games)
+    return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 @app.route('/games/')
 def games():
