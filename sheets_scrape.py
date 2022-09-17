@@ -137,7 +137,7 @@ def current_year_games():
 	row = cur.fetchall()
 	return row
 
-def stats_per_year(year):
+def stats_per_year(year, minimum_games):
 	games = year_games(year)
 	players = all_players(games)
 	stats = []
@@ -149,7 +149,8 @@ def stats_per_year(year):
 			elif player == game[5] or player == game[6]:
 				losses += 1
 		win_percentage = wins / (wins + losses)
-		stats.append([player, wins, losses, win_percentage])
+		if wins + losses > minimum_games:
+			stats.append([player, wins, losses, win_percentage])
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
