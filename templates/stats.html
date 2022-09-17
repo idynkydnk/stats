@@ -2,7 +2,9 @@
 
 {% block content %}
     <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
+    <br>
         	<table>
+                <caption> {{ minimum_games }}+ games</caption>
         		<thead>
     				<tr>
                         <th class="numbered_stats" scope="col" colspan="1">#</th>
@@ -15,7 +17,6 @@
   				</thead>
         		<tbody>
         			{% for player in stats %}
-                    {% if player[1]+ player[2] > minimum_games %}
         			<tr>
                         <td>{{ loop.index }}</td>
             			<td>{{ player[0] }}</td>
@@ -24,9 +25,36 @@
             			<td>{{ "{:.2f}".format(player[3]) }}</td>
             			<td>{{ player[1] + player[2] }}</td>
             		</tr>
-                    {% endif %}
             		{% endfor %}
             	</tbody>
+            </table>
+            <br>
+            <br>
+            <br>
+            <table>
+                <caption>Less than {{ minimum_games }} games</caption>
+                <thead>
+                    <tr>
+                        <th class="numbered_stats" scope="col" colspan="1">#</th>
+                        <th scope="col" colspan="1">Player</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in rare_stats %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ player[0] }}</td>
+                        <td>{{ player[1] }}</td>
+                        <td>{{ player[2] }}</td>
+                        <td>{{ "{:.2f}".format(player[3]) }}</td>
+                        <td>{{ player[1] + player[2] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
 {% endblock %}

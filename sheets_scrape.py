@@ -149,7 +149,23 @@ def stats_per_year(year, minimum_games):
 			elif player == game[5] or player == game[6]:
 				losses += 1
 		win_percentage = wins / (wins + losses)
-		if wins + losses > minimum_games:
+		if wins + losses >= minimum_games:
+			stats.append([player, wins, losses, win_percentage])
+	stats.sort(key=lambda x: x[3], reverse=True)
+	return stats
+def rare_stats_per_year(year, minimum_games):
+	games = year_games(year)
+	players = all_players(games)
+	stats = []
+	for player in players:
+		wins, losses = 0, 0
+		for game in games:
+			if player == game[2] or player == game[3]:
+				wins += 1
+			elif player == game[5] or player == game[6]:
+				losses += 1
+		win_percentage = wins / (wins + losses)
+		if wins + losses < minimum_games:
 			stats.append([player, wins, losses, win_percentage])
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats

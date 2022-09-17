@@ -19,7 +19,8 @@ def past_year_games(year):
 def index():
     minimum_games = 20
     stats = stats_per_year(str(date.today().year), minimum_games)
-    return render_template('stats.html', stats=stats, minimum_games=minimum_games, year=str(date.today().year))
+    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
+    return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=str(date.today().year))
 
 @app.route('/stats/<year>/')
 def stats(year):
