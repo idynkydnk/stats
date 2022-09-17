@@ -126,6 +126,29 @@ def all_games():
 	row = cur.fetchall()
 	return row
 
+def current_year_games():
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
+	row = cur.fetchall()
+	return row
+	
+
+def year_games(past_year):
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	cur = conn.cursor()
+	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (past_year,))
+	row = cur.fetchall()
+	return row
+
 def main():
 	enter_data_into_database(scrape_database())
 

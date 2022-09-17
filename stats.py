@@ -1,12 +1,10 @@
 from flask import Flask
 from flask import Flask, render_template, request, url_for, flash, redirect
 from sheets_scrape import *
+from datetime import datetime, date
 
 app = Flask(__name__)
-
-@app.route('/about/')
-def about():
-    return '<h3>This is a Flask web application.</h3>'
+app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 @app.route('/capitalize/<word>/')
 def capitalize(word):
@@ -25,22 +23,14 @@ def greet_user(user_id):
       abort(404)
    return '<h2>Hi {}</h2>'.format(users[user_id])
 
-
-
-app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
-
-messages = [{'title': 'Message One',
-             'content': 'Message One Content'},
-            {'title': 'Message Two',
-             'content': 'Message Two Content'}
-            ]
-
-games = [['9/20/22', 'Kyle Thomson', 'Chris Dedo', 'Justin Chow', 'Brian Fung', 21, 12],
-            ['9/12/22', 'Kyle Thomson', 'Chris Dedo', 'Brian Oneill', 'Chris Gregory', 21, 16]]
+@app.route('/year/<year>/')
+def past_year_games(year):
+    past_year_games = year_games(year)
+    return render_template('games.html', games=past_year_games)
 
 @app.route('/')
 def index():
-    stats = player_stats_over(30)
+    stats = current_year_games()
     return render_template('stats.html', stats=stats)
 
 @app.route('/stats/')
@@ -50,9 +40,9 @@ def stats():
 
 @app.route('/games/')
 def games():
-    games = all_games()
+    print(date.today().year)
+    games = year_games(str(date.today().year))
     return render_template('games.html', games=games)
-
 
 @app.route('/create/', methods=('GET', 'POST'))
 def create():

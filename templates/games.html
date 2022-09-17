@@ -1,16 +1,22 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>{% block title %} Stats {% endblock %}</h1>
-    {% for game in games %}
+    <h1>{% block title %} {{ games[1][1][0:4] }} Games {% endblock %}</h1>
         <div class='message'>
         	<table>
         		<thead>
     				<tr>
-      					<th scope="col" colspan="1">All Games</th>
+      					<th scope="col" colspan="1">Date</th>
+                        <th scope="col" colspan="1">Winners</th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1">Losers</th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1"></th>
     				</tr>
   				</thead>
         		<tbody>
+                {% for game in games %}
         			<tr>
             			<th>{{ game[1] }}</th>
             			<th>{{ game[2] }}</th>
@@ -20,8 +26,8 @@
                         <th>{{ game[6] }}</th>
                         <th>{{ game[7] }}</th>
             		</tr>
+                {% endfor %}
             	</tbody>
             </table>
         </div>
-    {% endfor %}
 {% endblock %}
