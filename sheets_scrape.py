@@ -136,7 +136,35 @@ def current_year_games():
 	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
 	row = cur.fetchall()
 	return row
-	
+
+def stats_per_year(year):
+	games = year_games(year)
+	players = all_players(games)
+	stats = []
+	for player in players:
+		wins, losses = 0, 0
+		for game in games:
+			if player == game[2] or player == game[3]:
+				wins += 1
+			elif player == game[5] or player == game[6]:
+				losses += 1
+		win_percentage = wins / (wins + losses)
+		stats.append([player, wins, losses, win_percentage])
+	stats.sort(key=lambda x: x[3], reverse=True)
+	return stats
+
+def all_players(games):
+	players = []
+	for game in games:
+		if game[2] not in players:
+			players.append(game[2])
+		if game[3] not in players:
+			players.append(game[3])
+		if game[5] not in players:
+			players.append(game[5])
+		if game[6] not in players:
+			players.append(game[6])
+	return players
 
 def year_games(past_year):
 	database = '/home/Idynkydnk/stats/stats.db'
