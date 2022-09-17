@@ -17,7 +17,7 @@ def past_year_games(year):
 
 @app.route('/')
 def index():
-    stats = player_stats_over(25)
+    stats = stats_per_year(str(date.today().year))
     return render_template('stats.html', stats=stats)
 
 @app.route('/stats/<year>/')
