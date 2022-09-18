@@ -24,6 +24,13 @@ nav a {
   text-align: center;
 }
 
+td a {
+  max-width: 330px;
+  padding: 2px;
+  margin: 0 auto;
+  text-align: center;
+}
+
 .alert {
     padding: 20px;
     margin: 5px;
@@ -57,20 +64,17 @@ p {
   margin: 0 auto;
 }
 
-
-h1 {
-  max-width: 330px;
-  padding: 2px;
-  margin: 0 auto;
-  text-align: center;
-}
-
 h2 {
   max-width: 100%;
   padding: 1px;
   margin: 0 auto;
   text-align: center;
   font-size: 15px;
+}
+
+caption {
+  text-align: center;
+  font-size: 18px;
 }
 
 .numbered_stats {
