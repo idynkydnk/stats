@@ -1,6 +1,7 @@
 from flask import Flask
 from flask import Flask, render_template, request, url_for, flash, redirect
-from sheets_scrape import *
+from database_functions import *
+from stat_functions import *
 from datetime import datetime, date
 
 app = Flask(__name__)
@@ -66,12 +67,11 @@ def add_game():
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-
-        if not winner1:
+        if not date or not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            games.append([date, winner1, winner2, loser1, loser2, winner_score, loser_score])
-            return redirect(url_for('index1'))
+            add_game_stats([date, winner1, winner2, loser1, loser2, winner_score, loser_score])
+            return redirect(url_for('add_game'))
 
     return render_template('add_game.html')
 
