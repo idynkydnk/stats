@@ -20,25 +20,24 @@ def add_game_stats(game):
 	all_games.append(full_game)
 	enter_data_into_database(all_games)
 
-def all_player_stats():
+def set_cur():
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
 		conn = create_connection(database)
 	cur = conn.cursor()
+	return cur	
+
+def all_player_stats():
+	cur = set_cur()
 	cur.execute("SELECT * FROM players")
 	row = cur.fetchall()
 	row.sort(key=lambda x: x[4], reverse=True)
 	return row
 
 def player_stats_over(minimum_games):
-	database = '/home/Idynkydnk/stats/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	cur = conn.cursor()
+	cur = set_cur()
 	cur.execute("SELECT * FROM players")
 	row = cur.fetchall()
 	for player in row.copy():
@@ -49,23 +48,13 @@ def player_stats_over(minimum_games):
 	return row	
 
 def all_games():
-	database = '/home/Idynkydnk/stats/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	cur = conn.cursor()
+	cur = set_cur()
 	cur.execute("SELECT * FROM games")
 	row = cur.fetchall()
 	return row
 
 def current_year_games():
-	database = '/home/Idynkydnk/stats/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	cur = conn.cursor()
+	cur = set_cur()
 	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
 	row = cur.fetchall()
 	return row
@@ -118,12 +107,7 @@ def all_players(games):
 	return players
 
 def year_games(past_year):
-	database = '/home/Idynkydnk/stats/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	cur = conn.cursor()
+	cur = set_cur()
 	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (past_year,))
 	row = cur.fetchall()
 	return row

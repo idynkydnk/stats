@@ -73,6 +73,17 @@ def enter_data_into_database(games_data):
 		update_winners(x[1], x[2])
 		update_losers(x[3], x[4])
 
+
+def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score):
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	with conn: 
+		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score);
+		create_game(conn, game)
+
 def update_winners(winner1, winner2):
 	update_player_stats(winner1, "win")
 	update_player_stats(winner2, "win")
