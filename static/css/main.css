@@ -75,7 +75,15 @@ caption {
   margin: 0 auto;
 }
 
+.player_name {
+  font-size: 16px;
+  text-align: left;
+}
 
+.rank {
+  font-size: 16px;
+  text-align: center;
+}
 
 
 
