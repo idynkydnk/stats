@@ -18,7 +18,10 @@
         		<tbody>
                 {% for game in games %}
         			<tr>
-            			<th>{{ game[1] }}</th>
+            			<th>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}
+                            {% if game[1]|length > 14 %}
+                                {{ game[1][11:16] }}
+                            {% endif %}</th>
             			<th>{{ game[2] }}</th>
             			<th>{{ game[3] }}</th>
             			<th>{{ game[4] }}</th>

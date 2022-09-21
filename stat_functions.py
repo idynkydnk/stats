@@ -3,13 +3,14 @@ from datetime import datetime, date
 
 def add_game_stats(game):
 	all_games = []
-	date1 = game[0]
-	date1 = str(date1)
+	#date1 = game[0]
+	#date1 = str(date1)
 	full_game = []
-	year1 = int(date1[6:10])
-	month1 = int(date1[0:2])
-	day1 = int(date1[3:5])
-	game_date = date(year1, month1, day1)
+	#year1 = int(date1[6:10])
+	#month1 = int(date1[0:2])
+	#day1 = int(date1[3:5])
+	#game_date = date(year1, month1, day1)
+	game_date = game[0]
 	full_game.append(game_date)
 	full_game.append(game[1])
 	full_game.append(game[2])
@@ -98,6 +99,7 @@ def all_scores():
 	n = 23
 	for i in range(n+1):
 		lst.append(i)
+	lst.sort(reverse=True)
 	return(lst)
 
 def all_players(games):
@@ -117,6 +119,7 @@ def year_games(past_year):
 	cur = set_cur()
 	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (past_year,))
 	row = cur.fetchall()
+	row.sort(reverse=True)
 	return row
 
 def grab_all_years():
