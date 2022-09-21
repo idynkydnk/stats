@@ -2,13 +2,12 @@
 
 {% block content %}
     <h1>{% block title %} {{ games[1][1][0:4] }} Games {% endblock %}</h1>
-        <div class='message'>
+        <div>
         	<table>
         		<thead>
     				<tr>
       					<th scope="col" colspan="1">Date</th>
                         <th scope="col" colspan="1">Winners</th>
-                        <th scope="col" colspan="1"></th>
                         <th scope="col" colspan="1"></th>
                         <th scope="col" colspan="1">Losers</th>
                         <th scope="col" colspan="1"></th>
@@ -18,16 +17,14 @@
         		<tbody>
                 {% for game in games %}
         			<tr>
-            			<th>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}
+            			<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}
                             {% if game[1]|length > 14 %}
                                 {{ game[1][11:16] }}
-                            {% endif %}</th>
-            			<th>{{ game[2] }}</th>
-            			<th>{{ game[3] }}</th>
-            			<th>{{ game[4] }}</th>
-            			<th>{{ game[5] }}</th>
-                        <th>{{ game[6] }}</th>
-                        <th>{{ game[7] }}</th>
+                            {% endif %}</td>
+            			<td>{{ game[2] }}<br>{{ game[3] }}</td>
+            			<td>{{ game[4] }}</td>
+                        <td>{{ game[5] }}<br>{{ game[6] }}</td>
+                        <td>{{ game[7] }}</td>
             		</tr>
                 {% endfor %}
             	</tbody>
