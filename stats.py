@@ -40,26 +40,13 @@ def games():
     games = year_games(str(date.today().year))
     return render_template('games.html', games=games)
 
-@app.route('/create/', methods=('GET', 'POST'))
-def create():
-    if request.method == 'POST':
-        title = request.form['title']
-        content = request.form['content']
-
-        if not title:
-            flash('Title is required!')
-        elif not content:
-            flash('Content is required!')
-        else:
-            messages.append({'title': title, 'content': content})
-            return redirect(url_for('index'))
-
-    return render_template('create.html')
-
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():
+    scores = all_scores()
+    games = year_games(str(date.today().year))
+    players = all_players(games)
     if request.method == 'POST':
-        date = request.form['date']
+        game_date = request.form['game_date']
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
         loser1 = request.form['loser1']
@@ -67,11 +54,11 @@ def add_game():
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-        if not date or not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
+        if not game_date or not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            add_game_stats([date, winner1, winner2, loser1, loser2, winner_score, loser_score])
+            add_game_stats([game_date, winner1, winner2, loser1, loser2, winner_score, loser_score])
             return redirect(url_for('add_game'))
 
-    return render_template('add_game.html')
+    return render_template('add_game.html', players=players, scores=scores)
 

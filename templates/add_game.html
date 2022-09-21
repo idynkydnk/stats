@@ -4,41 +4,95 @@
     <h1>{% block title %} Add a Game {% endblock %}</h1>
     <div>
        <form method="post">
-              <input type="text" name="date"
+              <input type="text" name="game_date"
                      placeholder="Date"
-                     value="{{ request.form['date'] }}"></input>
+                     value="{{ request.form['game_date'] }}">
 
-               <br>
-               <input type="text" name="winner1"
-                      placeholder="Winner 1"
-                      value="{{ request.form['winner1'] }}"></input>
+              <br>
+              <input type="text" name="winner1"
+                     placeholder="Winner 1"
+                     value="{{ request.form['winner1'] }}"
+                     list="players">
+              <datalist id="players">
+                     {% for player in players %}
+                            <option value= "{{ player }}">
+                     {% endfor %}
+              </datalist>
 
-               <br>
-               <input type="text" name="winner2"
-                      placeholder="Winner 2"
-                      value="{{ request.form['winner2'] }}"></input>
+              <br>
+              <input type="text" name="winner2"
+                     placeholder="Winner 2"
+                     value="{{ request.form['winner2'] }}"
+                     list="players">
+              <datalist id="players">
+                     {% for player in players %}
+                            <option value= "{{ player }}">
+                     {% endfor %}
+              </datalist>
 
-               <br>
-               <input type="text" name="loser1"
-                      placeholder="Loser 1"
-                      value="{{ request.form['loser1'] }}"></input>
-               <br>        
-               <input type="text" name="loser2"
-                      placeholder="Loser 2"
-                      value="{{ request.form['loser2'] }}"></input>
+              <br>
+              <input type="text" name="loser1"
+                     placeholder="Loser 1"
+                     value="{{ request.form['loser1'] }}"
+                     list="players">
+              <datalist id="players">
+                     {% for player in players %}
+                            <option value= "{{ player }}">
+                     {% endfor %}
+              </datalist>
+              <br>        
+              <input type="text" name="loser2"
+                     placeholder="Loser 2"
+                     value="{{ request.form['loser2'] }}"
+                     list="players">
+              <datalist id="players">
+                     {% for player in players %}
+                            <option value= "{{ player }}">
+                     {% endfor %}
+              </datalist>
 
-               <br>
-               <input type="number" name="winner_score"
-                      placeholder="Winner's Score"
-                      value="{{ request.form['winner_score'] }}"></input>
+              <br>
+              <input type="number" name="winner_score"
+                     placeholder="Winner's Score"
+                     value="{{ request.form['winner_score'] }}"
+                     list="scores">
+              <datalist id="scores">
+                     {% for score in scores %}
+                            <option value= "{{ score }}">
+                     {% endfor %}
+              </datalist>
 
-               <br>
-               <input type="number" name="loser_score"
-                      placeholder="Loser's Score"
-                      value="{{ request.form['loser_score'] }}"></input>
-               <br>  
 
-               <input type="submit" value="Submit">
+              <br>
+              <label for="loser_score"></label>
+              <input type="number" placeholder="Loser's Score" value="{{ request.form['loser_score'] }}" list="scores" name="loser_score">
+              <datalist id="scores">
+                     {% for player in players %}
+                            <option value= {{player}}>
+                     {% endfor %}
+                     <option value="21">
+                     <option value="20">
+                     <option value="19">
+                     <option value="18">
+                     <option value="17">
+                     <option value="16">
+                     <option value="15">
+                     <option value="14">
+                     <option value="13">
+                     <option value="12">
+                     <option value="11">
+                     <option value="10">
+                     <option value="9">
+                     <option value="8">
+              </datalist>
+              <br>
+
+
+       
+
+
+              
+              <input type="submit" value="Submit">
            </form>
        </div>
 {% endblock %}

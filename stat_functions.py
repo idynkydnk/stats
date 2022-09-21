@@ -93,6 +93,13 @@ def rare_stats_per_year(year, minimum_games):
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
+def all_scores():
+	lst = []
+	n = 23
+	for i in range(n+1):
+		lst.append(i)
+	return(lst)
+
 def all_players(games):
 	players = []
 	for game in games:
