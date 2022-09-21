@@ -1,7 +1,7 @@
 import requests
 from datetime import date
 from bs4 import BeautifulSoup
-from stats_database_code import *
+from create_games_database import *
 
 
 def scrape_database():
@@ -70,8 +70,6 @@ def scrape_database():
 def enter_data_into_database(games_data):
 	for x in games_data:
 		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6])
-		update_winners(x[1], x[2])
-		update_losers(x[3], x[4])
 
 
 def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score):
@@ -83,19 +81,6 @@ def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_sc
 	with conn: 
 		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score);
 		create_game(conn, game)
-
-def update_winners(winner1, winner2):
-	update_player_stats(winner1, "win")
-	update_player_stats(winner2, "win")
-
-def update_losers(loser1, loser2):
-	update_player_stats(loser1, "loss")
-	update_player_stats(loser2, "loss")
-
-def update_all_players(games_data):
-	for x in games_data:
-		update_winners(x[1], x[2])
-		update_losers(x[3], x[4])
 
 def main():
 	enter_data_into_database(scrape_database())

@@ -30,24 +30,6 @@ def set_cur():
 	cur = conn.cursor()
 	return cur	
 
-def all_player_stats():
-	cur = set_cur()
-	cur.execute("SELECT * FROM players")
-	row = cur.fetchall()
-	row.sort(key=lambda x: x[4], reverse=True)
-	return row
-
-def player_stats_over(minimum_games):
-	cur = set_cur()
-	cur.execute("SELECT * FROM players")
-	row = cur.fetchall()
-	for player in row.copy():
-		if (player[2] + player[3]) < minimum_games:
-			row.remove(player)
-	
-	row.sort(key=lambda x: x[4], reverse=True)
-	return row	
-
 def all_games():
 	cur = set_cur()
 	cur.execute("SELECT * FROM games")

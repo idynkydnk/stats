@@ -38,7 +38,6 @@ def stats(year):
 @app.route('/games/')
 def games():
     games = year_games(str(date.today().year))
-    print(games[0])
     return render_template('games.html', games=games)
 
 @app.route('/add_game/', methods=('GET', 'POST'))
