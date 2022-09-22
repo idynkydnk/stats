@@ -8,7 +8,7 @@
 </head>
 <body>
     <nav>
-        <h1><a href="{{ url_for('add_game') }}">Add Game</a> <a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a></h1>
+        <h1><a href="{{ url_for('edit_games') }}">Edit Games</a><a href="{{ url_for('add_game') }}">Add Game</a> <a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a></h1>
         <h2>
             {% for year in all_years %}
                 <a href="{{ url_for('stats', year=year) }}">{{ year }}</a>

@@ -18,9 +18,9 @@ def add_game_stats(game):
 
 def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2):
 	date1 = game_date
-	year1 = int(date1[6:10])
-	month1 = int(date1[0:2])
-	day1 = int(date1[3:5])
+	year1 = int(date1[0:4])
+	month1 = int(date1[5:7])
+	day1 = int(date1[8:10])
 	game_date = date(year1, month1, day1)
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)

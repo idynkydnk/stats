@@ -97,6 +97,18 @@ input[type=text], select {
   box-sizing: border-box;
 }
 
+input[type=date], select {
+  max-width: 330px;
+  width: 100%;
+  text-align: center;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
 input[type=number], select {
   max-width: 330px;
   width: 100%;
