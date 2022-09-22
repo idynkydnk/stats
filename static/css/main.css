@@ -109,6 +109,10 @@ input[type=date], select {
   box-sizing: border-box;
 }
 
+input[type="date"] {
+  min-height: 2.5rem;
+}
+
 input[type=number], select {
   max-width: 330px;
   width: 100%;
