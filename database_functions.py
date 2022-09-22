@@ -73,16 +73,16 @@ def enter_data_into_database(games_data):
 		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7])
 
 
+## MUST SWITCH THIS
 def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-	database = '/home/Idynkydnk/stats/stats.db'
+	database = r'stats.db'
 	conn = create_connection(database)
 	if conn is None:
-		database = r'stats.db'
+		database = '/home/Idynkydnk/stats/stats.db'
 		conn = create_connection(database)
 	with conn: 
 		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
 		create_game(conn, game)
-
 
 
 def main():

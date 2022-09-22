@@ -68,7 +68,11 @@ def edit_games():
 
 @app.route('/edit/<int:id>/update',methods = ['GET','POST'])
 def update(id):
+    game_id = id
     game = find_game(id)
+    scores = all_scores()
+    games = year_games(str(date.today().year))
+    players = all_players(games)
     if request.method == 'POST':
         game_date = request.form['game_date']
         winner1 = request.form['winner1']
@@ -81,10 +85,10 @@ def update(id):
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            update_game([game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, datetime.now()])
+            update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
             return redirect(url_for('edit_games'))
  
-    return render_template('edit_game.html', game=game)
+    return render_template('edit_game.html', game=game, players=players, scores=scores)
 
 
 

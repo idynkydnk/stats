@@ -51,26 +51,6 @@ def database_update_game(conn, game):
     cur.execute(sql, game)
     conn.commit()
 
-def update_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    with conn: 
-        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
-        database_update_game(conn, game)
-
-#def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-
-#    database = r"stats.db"
-
-#    conn = create_connection(database)
-#    with conn: 
-#        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
-#        create_game(conn, game)
-
-
 def main():
     database = r"stats.db"
 

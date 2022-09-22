@@ -3,13 +3,7 @@ from datetime import datetime, date
 
 def add_game_stats(game):
 	all_games = []
-	#date1 = game[0]
-	#date1 = str(date1)
 	full_game = []
-	#year1 = int(date1[6:10])
-	#month1 = int(date1[0:2])
-	#day1 = int(date1[3:5])
-	#game_date = date(year1, month1, day1)
 	game_date = game[0]
 	full_game.append(game_date)
 	full_game.append(game[1])
@@ -22,15 +16,20 @@ def add_game_stats(game):
 	all_games.append(full_game)
 	enter_data_into_database(all_games)
 
-def update_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    with conn: 
-        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
-        database_update_game(conn, game)
+def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2):
+	date1 = game_date
+	year1 = int(date1[6:10])
+	month1 = int(date1[0:2])
+	day1 = int(date1[3:5])
+	game_date = date(year1, month1, day1)
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		database = r'stats.db'
+		conn = create_connection(database)
+	with conn: 
+		game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2);
+		database_update_game(conn, game)
 
 def set_cur():
 	database = '/home/Idynkydnk/stats/stats.db'

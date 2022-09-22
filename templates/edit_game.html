@@ -1,24 +1,55 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>{% block title %} {{ game[0] }} Game {% endblock %}</h1>
-        <div>
-        	<table>
-        		<thead>
-    				<tr>
-      					<th scope="col" colspan="1">Date</th>
-                        <th scope="col" colspan="1">Winners</th>
-                        <th scope="col" colspan="1"></th>
-                        <th scope="col" colspan="1">Losers</th>
-                        <th scope="col" colspan="1"></th>
-                        <th scope="col" colspan="1"></th>
-    				</tr>
-  				</thead>
-        		<tbody>
-        			<tr>
-            			<td>{{ game }}</td>
-            		</tr>
-            	</tbody>
-            </table>
-        </div>
+    <h1>{% block title %} Edit Game {% endblock %}</h1>
+    <h2>{{game[0]}}</h2>
+    <div>
+       <form method="post">
+              <datalist id="players">
+                     {% for player in players %}
+                            <option value= "{{ player }}">
+                     {% endfor %}
+              </datalist>
+              <datalist id="scores">
+                     {% for score in scores %}
+                            <option value= "{{ score }}">
+                     {% endfor %}
+              </datalist>
+              <input type="text" name="game_date"
+                     placeholder="Date"
+                     value="{{ request.form['game_date'] }}">
+              <br>
+              <input type="text" name="winner1"
+                     placeholder="Winner 1"
+                     value="{{ request.form['winner1'] }}"
+                     list="players">
+              <br>
+              <input type="text" name="winner2"
+                     placeholder="Winner 2"
+                     value="{{ request.form['winner2'] }}"
+                     list="players">
+              <br>
+              <input type="text" name="loser1"
+                     placeholder="Loser 1"
+                     value="{{ request.form['loser1'] }}"
+                     list="players">
+              <br>        
+              <input type="text" name="loser2"
+                     placeholder="Loser 2"
+                     value="{{ request.form['loser2'] }}"
+                     list="players">
+              <br>
+              <input type="number" name="winner_score"
+                     placeholder="Winner's Score"
+                     value="{{ request.form['winner_score'] }}"
+                     list="scores">
+              <br>
+              <input type="number" name="loser_score"
+                     placeholder="Loser's Score"
+                     value="{{ request.form['loser_score'] }}"
+                     list="scores">
+              <br>      
+              <input type="submit" value="Submit">
+           </form>
+       </div>
 {% endblock %}
