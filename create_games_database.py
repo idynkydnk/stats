@@ -29,20 +29,46 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_game(conn, game):
-    sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score)
-              VALUES(?,?,?,?,?,?,?) '''
+    sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at)
+              VALUES(?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()
 
-def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score):
+def database_update_game(conn, game):
+    sql = ''' UPDATE games
+              SET id = ? ,
+                    game_date = ?,
+                    winner1 = ?,
+                    winner2 = ?,
+                    winner_score = ?,
+                    loser1 = ?,
+                    loser2 = ?,
+                    loser_score = ?,
+                    updated_at = ? 
+              WHERE id = ?'''
+    cur = conn.cursor()
+    cur.execute(sql, game)
+    conn.commit()
 
-    database = r"stats.db"
-
+def update_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
+    database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
     with conn: 
-        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score);
-        create_game(conn, game)
+        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
+        database_update_game(conn, game)
+
+#def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
+
+#    database = r"stats.db"
+
+#    conn = create_connection(database)
+#    with conn: 
+#        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
+#        create_game(conn, game)
 
 
 def main():
@@ -56,7 +82,8 @@ def main():
                                     winner_score integer NOT NULL,
                                     loser1 text NOT NULL,
                                     loser2 text NOT NULL,
-                                    loser_score integer NOT NULL
+                                    loser_score integer NOT NULL,
+                                    updated_at DATETIME NOT NULL
                                 );"""
 
     # create a database connection

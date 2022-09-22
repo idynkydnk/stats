@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} {{ game[0] }} Game {% endblock %}</h1>
+        <div>
+        	<table>
+        		<thead>
+    				<tr>
+      					<th scope="col" colspan="1">Date</th>
+                        <th scope="col" colspan="1">Winners</th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1">Losers</th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1"></th>
+    				</tr>
+  				</thead>
+        		<tbody>
+        			<tr>
+            			<td>{{ game }}</td>
+            		</tr>
+            	</tbody>
+            </table>
+        </div>
+{% endblock %}

@@ -18,8 +18,19 @@ def add_game_stats(game):
 	full_game.append(game[4])
 	full_game.append(game[5])
 	full_game.append(game[6])
+	full_game.append(game[7])
 	all_games.append(full_game)
 	enter_data_into_database(all_games)
+
+def update_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    with conn: 
+        game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
+        database_update_game(conn, game)
 
 def set_cur():
 	database = '/home/Idynkydnk/stats/stats.db'
@@ -111,3 +122,9 @@ def grab_all_years():
 		if game[1][0:4] not in years:
 			years.append(game[1][0:4])
 	return years
+
+def find_game(id):
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE id=?", (id,))
+	row = cur.fetchall()
+	return row

@@ -1,5 +1,5 @@
 import requests
-from datetime import date
+from datetime import date, datetime
 from bs4 import BeautifulSoup
 from create_games_database import *
 
@@ -60,6 +60,7 @@ def scrape_database():
 				loser_score = int(loser_score)
 				full_game.append(winner_score)
 				full_game.append(loser_score)
+				full_game.append(datetime.now())
 
 		if len(full_game) > 1:
 			all_games.append(full_game)
@@ -69,18 +70,20 @@ def scrape_database():
 
 def enter_data_into_database(games_data):
 	for x in games_data:
-		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6])
+		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7])
 
 
-def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score):
+def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
 		conn = create_connection(database)
 	with conn: 
-		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score);
+		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at);
 		create_game(conn, game)
+
+
 
 def main():
 	enter_data_into_database(scrape_database())
