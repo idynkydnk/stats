@@ -66,7 +66,7 @@ def edit_games():
     games = year_games(str(date.today().year))
     return render_template('edit_games.html', games=games)
 
-@app.route('/edit/<int:id>/update',methods = ['GET','POST'])
+@app.route('/edit/<int:id>/',methods = ['GET','POST'])
 def update(id):
     game_id = id
     game = find_game(id)
@@ -89,6 +89,16 @@ def update(id):
             return redirect(url_for('edit_games'))
  
     return render_template('edit_game.html', game=game, players=players, scores=scores)
+
+@app.route('/delete/<int:id>/',methods = ['GET','POST'])
+def delete_game(id):
+    game_id = id
+    game = find_game(id)
+    if request.method == 'POST':
+        remove_game(game_id)
+        return redirect(url_for('edit_games'))
+ 
+    return render_template('delete_game.html', game=game)
 
 
 

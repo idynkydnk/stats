@@ -51,6 +51,12 @@ def database_update_game(conn, game):
     cur.execute(sql, game)
     conn.commit()
 
+def database_delete_game(conn, game_id):
+    sql = 'DELETE FROM games WHERE id=?'
+    cur = conn.cursor()
+    cur.execute(sql, (game_id,))
+    conn.commit()
+
 def main():
     database = r"stats.db"
 
