@@ -4,12 +4,13 @@
     <h1>{% block title %} {{ player }} {{ year }} Stats {% endblock %}</h1>
     <br>
         <div>
+            {% if partner_stats %}
         	<table>
-                <caption> {{ minimum_games }}+ games</caption>
+                <h1>Stats with...</h1>
         		<thead>
     				<tr>
                         <th class="rank" scope="col" colspan="1">#</th>
-      					<th class="player_name" scope="col" colspan="1">Player</th>
+      					<th class="player_name" scope="col" colspan="1">Partner</th>
       					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
       					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
       					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
@@ -31,13 +32,46 @@
             </table>
             <br>
             <br>
-            <br>
+            {% endif %}
+            {% if opponent_stats %}
             <table>
-                <caption>Less than {{ minimum_games }} games</caption>
+                <h1>Stats against...</h1>
                 <thead>
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>
-                        <th class="player_name" scope="col" colspan="1">Player</th>
+                        <th class="player_name" scope="col" colspan="1">Opponent</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in opponent_stats %}
+                    <tr>
+                        <td class="rank">{{ loop.index }}</td>
+                        <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stat['opponent'] ) }}">{{ stat['opponent'] }}</a></td>
+                        <td>{{ stat['wins'] }}</td>
+                        <td>{{ stat['losses'] }}</td>
+                        <td>{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
+                        <td>{{ stat['total_games'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            {% endif %}
+            <table>          
+                <h2>Less than {{ minimum_games }} games</h2>
+                <h1>Stats with...</h1> 
+                <thead>
+                    <tr>
+                        <th class="rank" scope="col" colspan="1">#</th>
+                        <th class="player_name" scope="col" colspan="1">Partner</th>
                         <th class="numbered_stats" scope="col" colspan="1">Wins</th>
                         <th class="numbered_stats" scope="col" colspan="1">Losses</th>
                         <th class="numbered_stats" scope="col" colspan="1">Win %</th>
@@ -49,6 +83,33 @@
                     <tr>
                         <td class="rank">{{ loop.index }}</td>
                         <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stat['partner'] ) }}">{{ stat['partner'] }}</a></td>
+                        <td>{{ stat['wins'] }}</td>
+                        <td>{{ stat['losses'] }}</td>
+                        <td>{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
+                        <td>{{ stat['total_games'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <br>
+            <br>
+            <table>
+                <h1>Stats against...</h1>
+                <thead>
+                    <tr>
+                        <th class="rank" scope="col" colspan="1">#</th>
+                        <th class="player_name" scope="col" colspan="1">Opponent</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in rare_opponent_stats %}
+                    <tr>
+                        <td class="rank">{{ loop.index }}</td>
+                        <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stat['opponent'] ) }}">{{ stat['opponent'] }}</a></td>
                         <td>{{ stat['wins'] }}</td>
                         <td>{{ stat['losses'] }}</td>
                         <td>{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
