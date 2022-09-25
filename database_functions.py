@@ -25,7 +25,7 @@ def scrape_database():
 				year1 = int(date1[6:10])
 				month1 = int(date1[0:2])
 				day1 = int(date1[3:5])
-				game_date = date(year1, month1, day1)
+				game_date = datetime(year1, month1, day1)
 				full_game.append(game_date)
 		game_tds = game.find_all("td")
 		x = 0

@@ -77,6 +77,29 @@ def stats_per_year(year, minimum_games):
 			stats.append([player, wins, losses, win_percentage])
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
+
+def todays_stats():
+	games = todays_games()
+	players = all_players(games)
+	stats = []
+	for player in players:
+		wins, losses = 0, 0
+		for game in games:
+			if player == game[2] or player == game[3]:
+				wins += 1
+			elif player == game[5] or player == game[6]:
+				losses += 1
+		win_percentage = wins / (wins + losses)
+		stats.append([player, wins, losses, win_percentage])
+	stats.sort(key=lambda x: x[3], reverse=True)
+	return stats
+
+def todays_games():
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE game_date > date('now','-1 day')")
+	row = cur.fetchall()
+	row.sort(reverse=True)
+	return row
 	
 def rare_stats_per_year(year, minimum_games):
 	games = year_games(year)
@@ -136,3 +159,16 @@ def find_game(id):
 	cur.execute("SELECT * FROM games WHERE id=?", (id,))
 	row = cur.fetchall()
 	return row
+
+def games_from_player_by_year(year, name):
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
+	row = cur.fetchall()
+	return row
+
+def partner_stats_by_year(year, name, games, minimum_games):
+	for game in games:
+		print(game)
+		
+def opponent_stats_by_year(year, name, games, minimum_games):
+	print(year)

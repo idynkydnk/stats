@@ -4,33 +4,6 @@
     <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
     <br>
         <div>
-            <table>
-                <caption>Today's games</caption>
-                <thead>
-                    <tr>
-                        <th class="rank" scope="col" colspan="1">#</th>
-                        <th class="player_name" scope="col" colspan="1">Player</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Wins</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Losses</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Win %</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for player in todays_stats %}
-                    <tr>
-                        <td class="rank">{{ loop.index }}</td>
-                        <td class="player_name">{{ player[0] }}</td>
-                        <td>{{ player[1] }}</td>
-                        <td>{{ player[2] }}</td>
-                        <td>{{ "{:.2f}".format(player[3]) }}</td>
-                        <td>{{ player[1] + player[2] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <br>
-            <br>
         	<table>
                 <caption> {{ minimum_games }}+ games</caption>
         		<thead>

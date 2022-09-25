@@ -12,10 +12,6 @@ def all_years():
     all_years = grab_all_years()
     return dict(all_years=all_years)
 
-@app.route('/add/<int:n1>/<int:n2>/')
-def add(n1, n2):
-    return '<h1>{}</h1>'.format(n1 + n2)
-
 @app.route('/year/<year>/')
 def past_year_games(year):
     past_year_games = year_games(year)
@@ -24,9 +20,10 @@ def past_year_games(year):
 @app.route('/')
 def index():
     minimum_games = 20
+    t_stats = todays_stats()
     stats = stats_per_year(str(date.today().year), minimum_games)
     rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
-    return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=str(date.today().year))
+    return render_template('stats.html', todays_stats=t_stats, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=str(date.today().year))
 
 @app.route('/stats/<year>/')
 def stats(year):
@@ -34,6 +31,15 @@ def stats(year):
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+@app.route('/player/<year>/<name>')
+def player_stats(year, name):
+    minimum_games = 10
+    games = games_from_player_by_year(year, name)
+    partner_stats = partner_stats_by_year(year, name, games, minimum_games)
+    oppenent_stats = opponent_stats_by_year(year, name, games, minimum_games)
+    rare_stats = rare_player_stats_by_year(year, name, games, minimum_games)
+    return render_template('player.html', stats=stats, year=year, player=name, )
 
 @app.route('/games/')
 def games():
