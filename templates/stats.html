@@ -20,7 +20,7 @@
                     {% for player in todays_stats %}
                     <tr>
                         <td class="rank">{{ loop.index }}</td>
-                        <td class="player_name">{{ player[0] }}</td>
+                        <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
                         <td>{{ "{:.2f}".format(player[3]) }}</td>
@@ -47,7 +47,7 @@
         			{% for player in stats %}
         			<tr>
                         <td class="rank">{{ loop.index }}</td>
-            			<td class="player_name">{{ player[0] }}</td>
+            			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
             			<td>{{ player[1] }}</td>
             			<td>{{ player[2] }}</td>
             			<td>{{ "{:.2f}".format(player[3]) }}</td>
@@ -75,7 +75,7 @@
                     {% for player in rare_stats %}
                     <tr>
                         <td class="rank">{{ loop.index }}</td>
-                        <td class="player_name">{{ player[0] }}</td>
+                        <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
                         <td>{{ "{:.2f}".format(player[3]) }}</td>

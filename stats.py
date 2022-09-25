@@ -38,8 +38,8 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     partner_stats = partner_stats_by_year(year, name, games, minimum_games)
     oppenent_stats = opponent_stats_by_year(year, name, games, minimum_games)
-    rare_stats = rare_player_stats_by_year(year, name, games, minimum_games)
-    return render_template('player.html', stats=stats, year=year, player=name, )
+    rare_partner_stats = rare_partner_stats_by_year(year, name, games, minimum_games)
+    return render_template('player.html', partner_stats=partner_stats, rare_partner_stats=rare_partner_stats, year=year, player=name, minimum_games=minimum_games)
 
 @app.route('/games/')
 def games():
