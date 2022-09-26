@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %} {% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <meta name="viewport" content="width=device-width" />
 </head>
@@ -15,7 +14,6 @@
             {% endfor %}
         </h2>
     </nav>
-    <hr>
     <div class="content">
         {% for message in get_flashed_messages() %}
             <div class="alert">{{ message }}</div>
