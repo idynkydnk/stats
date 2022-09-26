@@ -9,6 +9,7 @@ h1 {
   padding: 2px;
   margin: 0 auto;
   text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 h2 {
@@ -17,6 +18,7 @@ h2 {
   margin: 0 auto;
   text-align: center;
   font-size: 15px;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 nav a {
@@ -24,6 +26,7 @@ nav a {
   padding: 2px;
   margin: 0 auto;
   text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 td a {
@@ -32,6 +35,7 @@ td a {
   margin: 0 auto;
   text-align: center;
   font-size: 15px;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 table {
