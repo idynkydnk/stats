@@ -15,7 +15,7 @@ def all_years():
 @app.route('/year/<year>/')
 def past_year_games(year):
     past_year_games = year_games(year)
-    return render_template('games.html', games=past_year_games)
+    return render_template('games.html', games=past_year_games, year=year)
 
 @app.route('/')
 def index():
@@ -47,7 +47,8 @@ def player_stats(year, name):
 @app.route('/games/')
 def games():
     games = year_games(str(date.today().year))
-    return render_template('games.html', games=games)
+    year = str(date.today().year)
+    return render_template('games.html', games=games, year=year)
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():

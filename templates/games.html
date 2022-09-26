@@ -21,9 +21,9 @@
                             {% if game[1]|length > 14 %}
                                 {{ game[1][11:16] }}
                             {% endif %}</td>
-            			<td>{{ game[2] }}<br>{{ game[3] }}</td>
+            			<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
             			<td>{{ game[4] }}</td>
-                        <td>{{ game[5] }}<br>{{ game[6] }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game[5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
                         <td>{{ game[7] }}</td>
             		</tr>
                 {% endfor %}
