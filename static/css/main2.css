@@ -32,7 +32,7 @@ nav a {
   border-radius: 20px
 }
 
-tr:nth-child(even) {
+tr:nth-child(odd) {
   background-color: #455a6d;
 }
 
@@ -69,7 +69,6 @@ caption {
   font-size: 18px;
   font-weight: 700;
   color: #abb4bd;
-  padding-bottom: 16px;
 }
 
 .numbered_stats {
