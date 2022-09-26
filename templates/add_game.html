@@ -1,51 +1,55 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <nav>
+        <h1><a href="{{ url_for('edit_games') }}">Edit Games</a> 
+            <a href="{{ url_for('add_game') }}">Add Game</a></h1>
+    </nav>
     <h1>{% block title %} Add a Game {% endblock %}</h1>
-    <div>
-       <form method="post">
-              <datalist id="players">
-                     {% for player in players %}
-                            <option value= "{{ player }}">
-                     {% endfor %}
-              </datalist>
-              <datalist id="scores">
-                     {% for score in scores %}
-                            <option value= "{{ score }}">
-                     {% endfor %}
-              </datalist>
-              <br>
-              <input type="text" name="winner1"
-                     placeholder="Winner 1"
-                     value="{{ request.form['winner1'] }}"
-                     list="players">
-              <br>
-              <input type="text" name="winner2"
-                     placeholder="Winner 2"
-                     value="{{ request.form['winner2'] }}"
-                     list="players">
-              <br>
-              <input type="text" name="loser1"
-                     placeholder="Loser 1"
-                     value="{{ request.form['loser1'] }}"
-                     list="players">
-              <br>        
-              <input type="text" name="loser2"
-                     placeholder="Loser 2"
-                     value="{{ request.form['loser2'] }}"
-                     list="players">
-              <br>
-              <input type="number" name="winner_score"
-                     placeholder="Winner's Score"
-                     value="{{ request.form['winner_score'] }}"
-                     list="scores">
-              <br>
-              <input type="number" name="loser_score"
-                     placeholder="Loser's Score"
-                     value="{{ request.form['loser_score'] }}"
-                     list="scores">
-              <br>      
-              <input type="submit" value="Submit">
-           </form>
-       </div>
+    <div class="container">
+    <form method="post">
+        <datalist id="players">
+            {% for player in players %}
+                <option value= "{{ player }}">
+            {% endfor %}
+        </datalist>
+        <datalist id="scores">
+            {% for score in scores %}
+                <option value= "{{ score }}">
+            {% endfor %}
+        </datalist>
+        <br>
+        <input type="text" name="winner1"
+                placeholder="Winner 1"
+                value="{{ request.form['winner1'] }}"
+                list="players">
+        <br>
+        <input type="text" name="winner2"
+                placeholder="Winner 2"
+                value="{{ request.form['winner2'] }}"
+                list="players">
+        <br>
+        <input type="text" name="loser1"
+                placeholder="Loser 1"
+                value="{{ request.form['loser1'] }}"
+                list="players">
+        <br>        
+        <input type="text" name="loser2"
+                placeholder="Loser 2"
+                value="{{ request.form['loser2'] }}"
+                list="players">
+        <br>
+        <input type="number" pattern="[0-9]*" name="winner_score"
+                placeholder="Winner's Score"
+                value="{{ request.form['winner_score'] }}"
+                list="scores">
+        <br>
+        <input type="number" pattern="[0-9]*" name="loser_score"
+                placeholder="Loser's Score"
+                value="{{ request.form['loser_score'] }}"
+                list="scores">
+        <br>      
+        <input type="submit" value="Submit">
+    </form>
+    </div>
 {% endblock %}
