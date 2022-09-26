@@ -24,7 +24,7 @@
                         <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
-                        <td>{{ "{:.2f}".format(player[3]) }}</td>
+                        <td>{{ "{:.2f}".format(player[3]*100) }}</td>
                         <td>{{ player[1] + player[2] }}</td>
                     </tr>
                     {% endfor %}
@@ -52,7 +52,7 @@
             			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
             			<td>{{ player[1] }}</td>
             			<td>{{ player[2] }}</td>
-            			<td>{{ "{:.2f}".format(player[3]) }}</td>
+            			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
             			<td>{{ player[1] + player[2] }}</td>
             		</tr>
             		{% endfor %}
@@ -80,7 +80,7 @@
                         <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
-                        <td>{{ "{:.2f}".format(player[3]) }}</td>
+                        <td>{{ "{:.2f}".format(player[3]*100) }}</td>
                         <td>{{ player[1] + player[2] }}</td>
                     </tr>
                     {% endfor %}
