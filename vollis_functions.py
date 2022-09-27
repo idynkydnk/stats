@@ -1,4 +1,5 @@
 from create_vollis_database import *
+from datetime import datetime, date
 
 def vollis_stats_per_year(year, minimum_games):
     games = vollis_year_games(year)
@@ -65,6 +66,30 @@ def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated
 
 def find_vollis_game(game_id):
     cur = set_cur()
-    cur.execute("SELECT * FROM vollis_games WHERE id=?", (id,))
+    cur.execute("SELECT * FROM vollis_games WHERE id=?", (game_id,))
     row = cur.fetchall()
     return row
+
+def edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2):
+    date1 = game_date
+    year1 = int(date1[0:4])
+    month1 = int(date1[5:7])
+    day1 = int(date1[8:10])
+    game_date = datetime(year1, month1, day1)
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    with conn: 
+        game = (game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2);
+        database_update_vollis_game(conn, game)
+
+def remove_vollis_game(game_id):
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    with conn: 
+        database_delete_vollis_game(conn, game_id)

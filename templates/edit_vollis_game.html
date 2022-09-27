@@ -2,8 +2,10 @@
 
 {% block content %}
 	<nav>
-        <h1><a href="{{ url_for('edit_games') }}">Edit Games</a> 
-            <a href="{{ url_for('add_game') }}">Add Game</a></h1>
+        <h1> <a href="{{ url_for('add_game') }}">Add Game</a>
+            <a href="{{ url_for('add_vollis_game') }}">Add Vollis Game</a>
+            <a href="{{ url_for('edit_games') }}">Edit Games</a>
+            <a href="{{ url_for('edit_vollis_games') }}">Edit Vollis Games</a></h1>
     </nav>
     <br>
 	<h1>{% block title %} Edit Game {% endblock %}</h1>
@@ -18,13 +20,13 @@
 	   	<tbody>
 			<tr>
 				<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
-				<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
-				<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
+                <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
+                <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
 			</tr>
 			<tr>
-				<td>{{ game[8][5:7] }}/{{ game[8][8:10] }}/{{ game[8][0:4] }}<br>{{ game[8][11:16] }}</td>
-				<td>{{ game[4] }}</td>
-				<td>{{ game[7] }}</td>
+				<td>{{ game[6][5:7] }}/{{ game[6][8:10] }}/{{ game[6][0:4] }}<br>{{ game[6][11:16] }}</td>
+                <td>{{ game[3] }}</td>
+                <td>{{ game[5] }}</td>
 			</tr>
 		</tbody>
 	</table>
@@ -35,35 +37,20 @@
 							<option value= "{{ player }}">
 					 {% endfor %}
 			  </datalist>
-			  <datalist id="scores">
-					 {% for score in scores %}
-							<option value= "{{ score }}">
-					 {% endfor %}
-			  </datalist>
 			  <input type="date" name="game_date"
 					 placeholder="Date"
 					 value="{{ request.form['game_date'] }}">
 			  <br>
-			  <input type="text" name="winner1"
-					 placeholder="Winner 1"
-					 value="{{ request.form['winner1'] }}"
+			  <input type="text" name="winner"
+					 placeholder="Winner"
+					 value="{{ request.form['winner'] }}"
 					 list="players">
 			  <br>
-			  <input type="text" name="winner2"
-					 placeholder="Winner 2"
-					 value="{{ request.form['winner2'] }}"
-					 list="players">
-			  <br>
-			  <input type="text" name="loser1"
-					 placeholder="Loser 1"
-					 value="{{ request.form['loser1'] }}"
+			  <input type="text" name="loser"
+					 placeholder="Loser"
+					 value="{{ request.form['loser'] }}"
 					 list="players">
 			  <br>        
-			  <input type="text" name="loser2"
-					 placeholder="Loser 2"
-					 value="{{ request.form['loser2'] }}"
-					 list="players">
-			  <br>
 			  <input type="number" name="winner_score"
 					 placeholder="Winner's Score"
 					 value="{{ request.form['winner_score'] }}"

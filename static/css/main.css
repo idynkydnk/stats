@@ -24,27 +24,35 @@ h2 {
 
 nav a {
   max-width: 330px;
-  padding: 4px 8px;
-  margin: 0 2px;
+  padding: 8px 12px;
+  margin: 0 8px;
   text-align: center;
   color: #3e526a;
   background-color: #aeee98;
   text-decoration: none;
-  border-radius: 20px
+  border-radius: 12px;
+  border: 2px solid #102a43;
+}
+
+nav a:hover {
+  border: 2px solid #aeee98;
+  background-color: #102a43;
+  color: #aeee98;
 }
 
 .dropdown {
   overflow: hidden;
-  margin-top: 20px;
+  margin: 20px auto 0 auto;
+  width: 200px;
 }
 
 .dropdown .dropbtn {
   font-size: 17px;    
   padding: 8px 16px;
   margin: 0;
-  border-radius: 0;
+  border-radius: 12px;
   border: 2px solid #aeee98;
-  background-color: #3e526a;
+  background-color: #102a43;
   color: #aeee98;
   width: 150px;
 }
@@ -56,6 +64,7 @@ nav a {
   margin: 0 auto;
   left: 0;
   right: 0;
+  width: 200px;
 }
 
 .dropdown-content a {
@@ -69,12 +78,12 @@ nav a {
 }
 
 .dropdown:hover .dropbtn {
-  background-color: #455a6d;
+  background-color: #102a43;
   color: #aeee98;
 }
 
 .dropdown-content a:hover {
-  background-color: #455a6d;
+  background-color: #102a43;
   color: #aeee98;
 }
 

@@ -21,7 +21,7 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
 	year1 = int(date1[0:4])
 	month1 = int(date1[5:7])
 	day1 = int(date1[8:10])
-	game_date = date(year1, month1, day1)
+	game_date = datetime(year1, month1, day1)
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	if conn is None:
