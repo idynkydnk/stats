@@ -9,13 +9,14 @@
 <body>
     <nav>
         <h1><a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
-        <select name="years" id="years">
-            <option class="dd_option">Select a year</option>
+        <div class="years_dd">Select year
+            <ul class="drop">
             {% for year in all_years %}
-                <option class="dd_option"><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></option>
+                <li><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></li>
+                <!--<a href="{{ url_for('stats', year=year) }}">{{ year }}</a>-->
             {% endfor %}
-        </select>
-        
+            </ul>
+        </div>
     </nav>
     <div class="content">
         {% for message in get_flashed_messages() %}
