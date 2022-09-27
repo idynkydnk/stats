@@ -2,21 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %} {% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <meta name="viewport" content="width=device-width" />
 </head>
 <body>
     <nav>
         <h1><a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
-        <div class="years_dd">Select year
-            <ul class="drop">
+        <h2>
             {% for year in all_years %}
-                <li><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></li>
-                <!--<a href="{{ url_for('stats', year=year) }}">{{ year }}</a>-->
+                <a href="{{ url_for('stats', year=year) }}">{{ year }}</a>
             {% endfor %}
-            </ul>
-        </div>
+        </h2>
     </nav>
     <div class="content">
         {% for message in get_flashed_messages() %}

@@ -8,15 +8,13 @@
 </head>
 <body>
     <nav>
-        <h1><a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
-        <div class="years_dd">Select year
-            <ul class="drop">
+        <h1><a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a></h1>
+        <ol class="sub-menu">
             {% for year in all_years %}
-                <li><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></li>
+                <li class="menu-item"><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></li>
                 <!--<a href="{{ url_for('stats', year=year) }}">{{ year }}</a>-->
             {% endfor %}
-            </ul>
-        </div>
+        </ol>
     </nav>
     <div class="content">
         {% for message in get_flashed_messages() %}

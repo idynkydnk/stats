@@ -33,47 +33,6 @@ nav a {
   border-radius: 20px
 }
 
-.years_dd {
-
-}
-
-li {
-  margin: 0;
-}
-
-.drop {
-  overflow: hidden;
-  list-style: none;
-  position: absolute;
-  padding: 0;
-  width: 100%;
-  left: 0;
-  top: 48px;
-}
-
-.drop div {
-  -webkit-transform: translate(0, -100%);
-  -moz-transform: translate(0, -100%);
-  -ms-transform: translate(0, -100%);
-  transform: translate(0, -100%);
-  -webkit-transition: all 0.5s 0.1s;
-  -moz-transition: all 0.5s 0.1s;
-  -ms-transition: all 0.5s 0.1s;
-  transition: all 0.5s 0.1s;
-  position: relative;
-}
-
-.drop li {
-  display: block;
-  padding: 0;
-  width: 100%;
-  background: #3e8760 !important;
-}
-
-li a {
-
-}
-
 tr:nth-child(even) {
   background-color: #455a6d;
   border-radius: 8px;
@@ -84,7 +43,7 @@ td a {
   padding: 2px;
   margin: 0 auto;
   text-align: center;
-  font-size: 13px;
+  font-size: 15px;
   color: #aeee98;
   text-decoration: none;
 }
