@@ -65,16 +65,18 @@ nav a:hover {
   left: 0;
   right: 0;
   width: 200px;
+  padding-top: 4px;
 }
 
 .dropdown-content a {
-  padding: 12px 16px;
+  padding: 8px 12px;
   text-decoration: none;
   display: block;
   text-align: center;
-  margin: 0 auto;
-  border-radius: 0;
-  width: 110px;
+  margin: 6px auto;
+  border-radius: 12px;
+  width: 120px;
+  
 }
 
 .dropdown:hover .dropbtn {
