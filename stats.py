@@ -110,6 +110,11 @@ def edit_games():
     games = year_games(str(date.today().year))
     return render_template('edit_games.html', games=games, year=str(date.today().year))
 
+@app.route('/edit_vollis_games/')
+def edit_vollis_games():
+    games = vollis_year_games(str(date.today().year))
+    return render_template('edit_vollis_games.html', games=games, year=str(date.today().year))
+
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
 def update(id):
     game_id = id

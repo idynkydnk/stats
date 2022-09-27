@@ -9,12 +9,16 @@
 <body>
     <nav>
         <h1><a href="{{ url_for('index') }}">Stats</a> <a href="{{ url_for('games') }}">Games</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
-        <select name="years" id="years">
-            <option class="dd_option">Select a year</option>
-            {% for year in all_years %}
-                <option class="dd_option"><a href="{{ url_for('stats', year=year) }}">{{ year }}</a></option>
-            {% endfor %}
-        </select>
+        <div class="dropdown">
+            <button class="dropbtn">Select year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('stats', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>
         
     </nav>
     <div class="content">
