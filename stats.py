@@ -87,6 +87,24 @@ def add_game():
 
     return render_template('add_game.html', players=players, scores=scores)
 
+@app.route('/add_vollis_game/', methods=('GET', 'POST'))
+def add_vollis_game():
+    games = vollis_year_games(str(date.today().year))
+    players = all_vollis_players(games)
+    if request.method == 'POST':
+        winner = request.form['winner']
+        loser = request.form['loser']
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+        if not winner or not loser or not winner_score or not loser_score:
+            flash('All fields required!')
+        else:
+            add_vollis_stats([datetime.now(), winner, loser, winner_score, loser_score, datetime.now()])
+            return redirect(url_for('add_vollis_game'))
+
+    return render_template('add_vollis_game.html', players=players)
+
 @app.route('/edit_games/')
 def edit_games():
     games = year_games(str(date.today().year))

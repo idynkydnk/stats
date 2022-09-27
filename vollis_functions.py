@@ -2,7 +2,7 @@ from create_vollis_database import *
 
 def vollis_stats_per_year(year, minimum_games):
     games = vollis_year_games(year)
-    players = all_players(games)
+    players = all_vollis_players(games)
     stats = []
     for player in players:
         wins, losses = 0, 0
@@ -17,7 +17,7 @@ def vollis_stats_per_year(year, minimum_games):
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
-def all_players(games):
+def all_vollis_players(games):
     players = []
     for game in games:
         if game[2] not in players:
@@ -45,6 +45,9 @@ def set_cur():
         conn = create_connection(database)
     cur = conn.cursor()
     return cur  
+
+def add_vollis_stats(game):
+    new_vollis_game(game[0], game[1], game[3], game[2], game[4], game[5])
 
 def enter_data_into_database(games_data):
     for x in games_data:
