@@ -62,3 +62,9 @@ def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated
     with conn: 
         game = (game_date, winner, winner_score, loser, loser_score, updated_at);
         create_vollis_game(conn, game)
+
+def find_vollis_game(game_id):
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games WHERE id=?", (id,))
+    row = cur.fetchall()
+    return row

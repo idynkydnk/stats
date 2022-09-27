@@ -25,13 +25,13 @@
                     	<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
                 		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
                 		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
-                		<td><a href="{{ url_for('update', id=game[0]) }}">Edit</a></td>
+                		<td><a href="{{ url_for('update_vollis_game', id=game[0]) }}">Edit</a></td>
             		</tr>
             		<tr>
                 		<td>{{ game[6][5:7] }}/{{ game[6][8:10] }}/{{ game[6][0:4] }}<br>{{ game[6][11:16] }}</td>
                 		<td>{{ game[3] }}</td>
                 		<td>{{ game[5] }}</td>
-                		<td><a href="{{ url_for('delete_game', id=game[0]) }}">Delete</a></td>
+                		<td><a href="{{ url_for('delete_vollis_game', id=game[0]) }}">Delete</a></td>
             		</tr>
                 {% endfor %}
             	</tbody>
