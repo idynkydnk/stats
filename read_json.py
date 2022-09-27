@@ -9,7 +9,7 @@ data = json.load(f)
   
 # Iterating through the json
 # list
-for i in data['emp_details']:
+for i in data:
     print(i)
   
 # Closing file

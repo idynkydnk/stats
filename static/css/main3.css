@@ -1,8 +1,7 @@
 body {
   padding-top: 10px;
   padding-bottom: 40px;
-  font-family: 'Open Sans', Arial, Helvetica, sans-serif;
-  font-size: 14px;
+  font-family: 'Open Sans';
   background-color: #1d2025;
   color: #dbe2ea;
 }
@@ -35,7 +34,6 @@ nav a {
 
 tr:nth-child(even) {
   background-color: #455a6d;
-  border-radius: 8px;
 }
 
 td a {

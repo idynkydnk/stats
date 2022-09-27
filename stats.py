@@ -2,6 +2,7 @@ from flask import Flask
 from flask import Flask, render_template, request, url_for, flash, redirect
 from database_functions import *
 from stat_functions import *
+from vollis_functions import *
 from datetime import datetime, date
 
 app = Flask(__name__)
@@ -31,6 +32,21 @@ def stats(year):
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+@app.route('/vollis_stats/<year>/')
+def vollis_stats(year):
+    minimum_games = 2
+    stats = vollis_stats_per_year(year, minimum_games)
+    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+@app.route('/vollis_stats/')
+def vollis():
+    year = str(date.today().year)
+    minimum_games = 0
+    stats = vollis_stats_per_year(year, minimum_games)
+    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
