@@ -184,11 +184,14 @@ def find_game(id):
 
 def games_from_player_by_year(year, name):
 	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
+	if year == 'All years':
+		cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
 	row = cur.fetchall()
 	return row
 
-def partner_stats_by_year(year, name, games, minimum_games):
+def partner_stats_by_year(name, games, minimum_games):
 	stats = []
 	if not games:
 		return stats
@@ -212,7 +215,7 @@ def partner_stats_by_year(year, name, games, minimum_games):
 		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
 		return stats
 
-def rare_partner_stats_by_year(year, name, games, minimum_games):
+def rare_partner_stats_by_year(name, games, minimum_games):
 	stats = []
 	if not games:
 		return stats
@@ -238,7 +241,7 @@ def rare_partner_stats_by_year(year, name, games, minimum_games):
 		return stats
 
 
-def opponent_stats_by_year(year, name, games, minimum_games):
+def opponent_stats_by_year(name, games, minimum_games):
 	stats = []
 	if not games:
 		return stats
@@ -263,7 +266,7 @@ def opponent_stats_by_year(year, name, games, minimum_games):
 		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
 		return stats
 
-def rare_opponent_stats_by_year(year, name, games, minimum_games):
+def rare_opponent_stats_by_year(name, games, minimum_games):
 	stats = []
 	if not games:
 		return stats

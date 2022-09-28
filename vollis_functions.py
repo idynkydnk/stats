@@ -123,9 +123,11 @@ def games_from_vollis_player_by_year(year, name):
     row = cur.fetchall()
     return row
 
+def vollis_partner_stats_by_year(year, name, games):
+    print('yo dog')
 
-
-
+def vollis_opponent_stats_by_year(year, name, games):
+    print('yoooooo')
 
 
 
