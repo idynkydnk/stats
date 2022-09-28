@@ -11,13 +11,18 @@
                     <a href="{{ url_for('edit_games_by_year', year=year) }}">{{ year }}</a>
                 {% endfor %}
             </div>
-        </div>       
-    </nav>
-	<nav>
-        <h1> <a href="{{ url_for('add_game') }}">Add Game</a>
-            <a href="{{ url_for('add_vollis_game') }}">Add Vollis Game</a>
-            <a href="{{ url_for('edit_games') }}">Edit Games</a>
-            <a href="{{ url_for('edit_vollis_games') }}">Edit Vollis Games</a></h1>
+        </div>   
+        <div class="dropdown">
+            <button class="dropbtn">Add/Edit
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                <a href="{{ url_for('add_game') }}">Add game</a>
+                <a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
+                <a href="{{ url_for('edit_games') }}">Edit games</a>
+                <a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
+            </div>
+        </div>      
     </nav>
     <br>
     <h1>{% block title %} {{ games[1][1][0:4] }} Games {% endblock %}</h1>
