@@ -208,7 +208,7 @@ input, select {
   width: 100%;
   text-align: center;
   padding: 8px 12px;
-  margin: 0 8px;
+  margin: 8px;
   display: inline-block;
   border: 2px solid var(--button-bg-1);
   border-radius: 12px;
@@ -232,13 +232,9 @@ input[type=date] {
 }
 
 input[type=submit] {
-  padding: 8px 12px;
-  margin: 0 8px;
-  text-align: center;
   color: var(--button-text-1);
   background-color: var(--button-bg-1);
   text-decoration: none;
-  border-radius: 12px;
   border: 2px solid var(--button-border-1);
   font-size: 16px;
 }
