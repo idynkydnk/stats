@@ -129,7 +129,6 @@ def update(id):
     games = year_games(str(date.today().year))
     players = all_players(games)
     if request.method == 'POST':
-        game_date = request.form['game_date']
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
         loser1 = request.form['loser1']
@@ -140,7 +139,7 @@ def update(id):
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
+            update_game(game_id, game[1], winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
             return redirect(url_for('edit_games'))
  
     return render_template('edit_game.html', game=game, players=players, scores=scores, year=str(date.today().year))
@@ -153,16 +152,15 @@ def update_vollis_game(id):
     games = vollis_year_games(str(date.today().year))
     players = all_vollis_players(games)
     if request.method == 'POST':
-        game_date = request.form['game_date']
-        winner1 = request.form['winner']
-        loser1 = request.form['loser']
+        winner = request.form['winner']
+        loser = request.form['loser']
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            update_game(game_id, game_date, winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
             return redirect(url_for('edit_vollis_games'))
  
     return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))

@@ -71,11 +71,6 @@ def find_vollis_game(game_id):
     return row
 
 def edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2):
-    date1 = game_date
-    year1 = int(date1[0:4])
-    month1 = int(date1[5:7])
-    day1 = int(date1[8:10])
-    game_date = datetime(year1, month1, day1)
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
