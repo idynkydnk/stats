@@ -8,35 +8,36 @@ from vollis_functions import *
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
-@app.context_processor
-def all_years():
-    all_years = grab_all_years()
-    return dict(all_years=all_years)
 
 @app.route('/year/<year>/')
 def past_year_games(year):
+    all_years = grab_all_years()
     past_year_games = year_games(year)
-    return render_template('games.html', games=past_year_games, year=year)
+    return render_template('games.html', games=past_year_games, year=year, all_years=all_years)
 
 @app.route('/')
 def index():
     minimum_games = 20
+    all_years = grab_all_years()
     t_stats = todays_stats()
     stats = stats_per_year(str(date.today().year), minimum_games)
     rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
-    return render_template('stats.html', todays_stats=t_stats, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=str(date.today().year))
+    return render_template('stats.html', todays_stats=t_stats, stats=stats, rare_stats=rare_stats, 
+        minimum_games=minimum_games, year=str(date.today().year), all_years=all_years)
 
 @app.route('/stats/<year>/')
 def stats(year):
+    all_years = grab_all_years()
     minimum_games = 20
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
-    return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+    return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
     minimum_games = 4
+    all_years = all_years_player(name)
     games = games_from_player_by_year(year, name)
     partner_stats = partner_stats_by_year(year, name, games, minimum_games)
     opponent_stats = opponent_stats_by_year(year, name, games, minimum_games)
@@ -44,13 +45,14 @@ def player_stats(year, name):
     rare_opponent_stats = rare_opponent_stats_by_year(year, name, games, minimum_games)
     return render_template('player.html', opponent_stats=opponent_stats, rare_opponent_stats=rare_opponent_stats,
         partner_stats=partner_stats, rare_partner_stats=rare_partner_stats, 
-        year=year, player=name, minimum_games=minimum_games)
+        year=year, player=name, minimum_games=minimum_games, all_years=all_years)
 
 @app.route('/games/')
 def games():
+    all_years = grab_all_years()
     games = year_games(str(date.today().year))
     year = str(date.today().year)
-    return render_template('games.html', games=games, year=year)
+    return render_template('games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():
@@ -76,8 +78,15 @@ def add_game():
 
 @app.route('/edit_games/')
 def edit_games():
+    all_years = grab_all_years()
     games = year_games(str(date.today().year))
-    return render_template('edit_games.html', games=games, year=str(date.today().year))
+    return render_template('edit_games.html', games=games, year=str(date.today().year), all_years=all_years)
+
+@app.route('/edit_games/<year>')
+def edit_games_by_year(year):
+    all_years = grab_all_years()
+    games = year_games(year)
+    return render_template('edit_games.html', games=games, year=year, all_years=all_years)
 
 
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
@@ -117,18 +126,22 @@ def delete_game(id):
 
 @app.route('/vollis_stats/<year>/')
 def vollis_stats(year):
+    all_years = all_vollis_years()
     minimum_games = 2
     stats = vollis_stats_per_year(year, minimum_games)
     rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, 
+        all_years=all_years, minimum_games=minimum_games, year=year)
 
 @app.route('/vollis_stats/')
 def vollis():
+    all_years = all_vollis_years()
     year = str(date.today().year)
     minimum_games = 0
     stats = vollis_stats_per_year(year, minimum_games)
     rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, 
+        all_years=all_years, minimum_games=minimum_games, year=year)
 
 
 @app.route('/add_vollis_game/', methods=('GET', 'POST'))
@@ -152,13 +165,15 @@ def add_vollis_game():
 
 @app.route('/edit_vollis_games/')
 def edit_vollis_games():
+    all_years = all_vollis_years()
     games = vollis_year_games(str(date.today().year))
-    return render_template('edit_vollis_games.html', games=games, year=str(date.today().year))
+    return render_template('edit_vollis_games.html', games=games, all_years=all_years, year=str(date.today().year))
 
 @app.route('/edit_past_year_vollis_games/<year>')
-def edit_past_year_vollis_games(year):
+def edit_vollis_games_by_year(year):
+    all_years = all_vollis_years()
     games = vollis_year_games(year)
-    return render_template('edit_vollis_games.html', games=games, year=year)
+    return render_template('edit_vollis_games.html', all_years=all_years, games=games, year=year)
 
 
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])

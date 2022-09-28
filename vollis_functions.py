@@ -88,3 +88,17 @@ def remove_vollis_game(game_id):
         conn = create_connection(database)
     with conn: 
         database_delete_vollis_game(conn, game_id)
+
+def all_vollis_years():
+    games = all_vollis_games()
+    years = []
+    for game in games:
+        if game[1][0:4] not in years:
+            years.append(game[1][0:4])
+    return years
+
+def all_vollis_games():
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games")
+    row = cur.fetchall()
+    return row

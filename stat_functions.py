@@ -149,6 +149,21 @@ def grab_all_years():
 			years.append(game[1][0:4])
 	return years
 
+def all_years_player(name):
+	years = []
+	games = all_games_player(name)
+	for game in games:
+		if game[1][0:4] not in years:
+			years.append(game[1][0:4])
+	return years
+
+
+def all_games_player(name):
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
+	row = cur.fetchall()
+	return row
+
 def find_game(id):
 	cur = set_cur()
 	cur.execute("SELECT * FROM games WHERE id=?", (id,))
