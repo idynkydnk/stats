@@ -97,8 +97,41 @@ def all_vollis_years():
             years.append(game[1][0:4])
     return years
 
+def all_years_vollis_player(name):
+    years = []
+    games = all_games_player(name)
+    for game in games:
+        if game[1][0:4] not in years:
+            years.append(game[1][0:4])
+    return years
+
+def all_vollis_games(name):
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games WHERE (winner=? OR loser=?)", (name, name))
+    row = cur.fetchall()
+    return row
+
 def all_vollis_games():
     cur = set_cur()
     cur.execute("SELECT * FROM vollis_games")
     row = cur.fetchall()
     return row
+
+def games_from_vollis_player_by_year(year, name):
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
+    row = cur.fetchall()
+    return row
+
+
+
+
+
+
+
+
+
+
+
+
+

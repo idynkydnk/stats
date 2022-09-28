@@ -57,7 +57,10 @@ def current_year_games():
 	return row
 
 def stats_per_year(year, minimum_games):
-	games = year_games(year)
+	if year == 'All years':
+		games = all_games()
+	else:
+		games = year_games(year)
 	players = all_players(games)
 	stats = []
 	for player in players:
@@ -97,7 +100,10 @@ def todays_games():
 	return row
 	
 def rare_stats_per_year(year, minimum_games):
-	games = year_games(year)
+	if year == 'All years':
+		games = all_games()
+	else:
+		games = year_games(year)
 	players = all_players(games)
 	stats = []
 	for player in players:
@@ -134,9 +140,12 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
-def year_games(past_year):
+def year_games(year):
 	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (past_year,))
+	if year == 'All years':
+		cur.execute("SELECT * FROM games")
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (year,))
 	row = cur.fetchall()
 	row.sort(reverse=True)
 	return row
@@ -147,6 +156,7 @@ def grab_all_years():
 	for game in games:
 		if game[1][0:4] not in years:
 			years.append(game[1][0:4])
+	years.append('All years')
 	return years
 
 def all_years_player(name):
@@ -155,6 +165,8 @@ def all_years_player(name):
 	for game in games:
 		if game[1][0:4] not in years:
 			years.append(game[1][0:4])
+	if len(years) > 1:
+		years.append('All years')
 	return years
 
 

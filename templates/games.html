@@ -8,12 +8,12 @@
             </button>
             <div class="dropdown-content">
                 {% for year in all_years %}
-                    <a href="{{ url_for('past_year_games', year=year) }}">{{ year }}</a>
+                    <a href="{{ url_for('games_by_year', year=year) }}">{{ year }}</a>
                 {% endfor %}
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ games[1][1][0:4] }} Games {% endblock %}</h1>
+    <h1>{% block title %} {{ year }} Games {% endblock %}</h1>
         <div>
         	<table>
         		<thead>

@@ -8,13 +8,6 @@ from vollis_functions import *
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
-
-@app.route('/year/<year>/')
-def past_year_games(year):
-    all_years = grab_all_years()
-    past_year_games = year_games(year)
-    return render_template('games.html', games=past_year_games, year=year, all_years=all_years)
-
 @app.route('/')
 def index():
     minimum_games = 20
@@ -52,6 +45,12 @@ def games():
     all_years = grab_all_years()
     games = year_games(str(date.today().year))
     year = str(date.today().year)
+    return render_template('games.html', games=games, year=year, all_years=all_years)
+
+@app.route('/games/<year>')
+def games_by_year(year):
+    all_years = grab_all_years()
+    games = year_games(year)
     return render_template('games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/add_game/', methods=('GET', 'POST'))
@@ -207,6 +206,15 @@ def delete_vollis_game(id):
         return redirect(url_for('edit_vollis_games'))
  
     return render_template('delete_vollis_game.html', game=game)
+
+@app.route('/vollis_player/<year>/<name>')
+def vollis_player_stats(year, name):
+    all_years = all_years_vollis_player(name)
+    games = games_from_vollis_player_by_year(year, name)
+    partner_stats = vollis_partner_stats_by_year(year, name, games)
+    opponent_stats = vollis_opponent_stats_by_year(year, name, games)
+    return render_template('player.html', opponent_stats=opponent_stats, 
+        partner_stats=partner_stats, year=year, player=name, minimum_games=minimum_games, all_years=all_years)
 
 
 
