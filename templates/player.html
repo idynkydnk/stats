@@ -13,7 +13,11 @@
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ player }} {{ year }} Stats {% endblock %}</h1>
+    {% if partner_stats or opponent_stats or rare_partner_stats or rare_opponent_stats %}
+        <h1>{% block title %} {{ player }} {{ year }} Stats {% endblock %}</h1>
+    {% else %}
+        <h1>{{ player }} has no stats for {{ year }}</h1>
+    {% endif %}
     <br>
         <div>
             {% if partner_stats %}
