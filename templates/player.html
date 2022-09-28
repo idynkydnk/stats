@@ -1,6 +1,18 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('player_stats', name=player, year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
     <h1>{% block title %} {{ player }} {{ year }} Stats {% endblock %}</h1>
     <br>
         <div>
@@ -65,7 +77,9 @@
             <br>
             <br>
             {% endif %}
+            {% if rare_partner_stats or rare_opponent_stats %}
             <h2>Less than {{ minimum_games }} games</h2>
+            {% endif %}
             {% if rare_partner_stats %}
             <table>          
                 <h1>Stats with...</h1> 
@@ -95,6 +109,7 @@
             <br>
             <br>
             {% endif %}
+            {% if rare_opponent_stats %}
             <table>
                 <h1>Stats against...</h1>
                 <thead>
@@ -120,5 +135,6 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
 {% endblock %}

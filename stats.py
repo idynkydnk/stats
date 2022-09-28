@@ -2,8 +2,8 @@ from flask import Flask
 from flask import Flask, render_template, request, url_for, flash, redirect
 from database_functions import *
 from stat_functions import *
-from vollis_functions import *
 from datetime import datetime, date
+from vollis_functions import *
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -33,20 +33,6 @@ def stats(year):
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
-@app.route('/vollis_stats/<year>/')
-def vollis_stats(year):
-    minimum_games = 2
-    stats = vollis_stats_per_year(year, minimum_games)
-    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
-
-@app.route('/vollis_stats/')
-def vollis():
-    year = str(date.today().year)
-    minimum_games = 0
-    stats = vollis_stats_per_year(year, minimum_games)
-    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
@@ -87,38 +73,12 @@ def add_game():
 
     return render_template('add_game.html', players=players, scores=scores)
 
-@app.route('/add_vollis_game/', methods=('GET', 'POST'))
-def add_vollis_game():
-    games = vollis_year_games(str(date.today().year))
-    players = all_vollis_players(games)
-    if request.method == 'POST':
-        winner = request.form['winner']
-        loser = request.form['loser']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-
-        if not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
-        else:
-            add_vollis_stats([datetime.now(), winner, loser, winner_score, loser_score, datetime.now()])
-            return redirect(url_for('add_vollis_game'))
-
-    return render_template('add_vollis_game.html', players=players)
 
 @app.route('/edit_games/')
 def edit_games():
     games = year_games(str(date.today().year))
     return render_template('edit_games.html', games=games, year=str(date.today().year))
 
-@app.route('/edit_vollis_games/')
-def edit_vollis_games():
-    games = vollis_year_games(str(date.today().year))
-    return render_template('edit_vollis_games.html', games=games, year=str(date.today().year))
-
-@app.route('/edit_past_year_vollis_games/<year>')
-def edit_past_year_vollis_games(year):
-    games = vollis_year_games(year)
-    return render_template('edit_vollis_games.html', games=games, year=year)
 
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
 def update(id):
@@ -144,6 +104,63 @@ def update(id):
  
     return render_template('edit_game.html', game=game, players=players, scores=scores, year=str(date.today().year))
 
+
+@app.route('/delete/<int:id>/',methods = ['GET','POST'])
+def delete_game(id):
+    game_id = id
+    game = find_game(id)
+    if request.method == 'POST':
+        remove_game(game_id)
+        return redirect(url_for('edit_games'))
+ 
+    return render_template('delete_game.html', game=game)
+
+@app.route('/vollis_stats/<year>/')
+def vollis_stats(year):
+    minimum_games = 2
+    stats = vollis_stats_per_year(year, minimum_games)
+    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+@app.route('/vollis_stats/')
+def vollis():
+    year = str(date.today().year)
+    minimum_games = 0
+    stats = vollis_stats_per_year(year, minimum_games)
+    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
+    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+
+@app.route('/add_vollis_game/', methods=('GET', 'POST'))
+def add_vollis_game():
+    games = vollis_year_games(str(date.today().year))
+    players = all_vollis_players(games)
+    if request.method == 'POST':
+        winner = request.form['winner']
+        loser = request.form['loser']
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+        if not winner or not loser or not winner_score or not loser_score:
+            flash('All fields required!')
+        else:
+            add_vollis_stats([datetime.now(), winner, loser, winner_score, loser_score, datetime.now()])
+            return redirect(url_for('add_vollis_game'))
+
+    return render_template('add_vollis_game.html', players=players)
+
+
+@app.route('/edit_vollis_games/')
+def edit_vollis_games():
+    games = vollis_year_games(str(date.today().year))
+    return render_template('edit_vollis_games.html', games=games, year=str(date.today().year))
+
+@app.route('/edit_past_year_vollis_games/<year>')
+def edit_past_year_vollis_games(year):
+    games = vollis_year_games(year)
+    return render_template('edit_vollis_games.html', games=games, year=year)
+
+
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])
 def update_vollis_game(id):
     game_id = id
@@ -165,15 +182,6 @@ def update_vollis_game(id):
  
     return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))
 
-@app.route('/delete/<int:id>/',methods = ['GET','POST'])
-def delete_game(id):
-    game_id = id
-    game = find_game(id)
-    if request.method == 'POST':
-        remove_game(game_id)
-        return redirect(url_for('edit_games'))
- 
-    return render_template('delete_game.html', game=game)
 
 @app.route('/delete_vollis_game/<int:id>/',methods = ['GET','POST'])
 def delete_vollis_game(id):

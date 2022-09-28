@@ -1,6 +1,18 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('past_year_games', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
     <h1>{% block title %} {{ games[1][1][0:4] }} Games {% endblock %}</h1>
         <div>
         	<table>
@@ -17,7 +29,7 @@
         		<tbody>
                 {% for game in games %}
         			<tr>
-            			<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}
+            			<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>
                             {% if game[1]|length > 14 %}
                                 {{ game[1][11:16] }}
                             {% endif %}</td>

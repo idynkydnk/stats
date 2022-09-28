@@ -162,89 +162,104 @@ def games_from_player_by_year(year, name):
 	return row
 
 def partner_stats_by_year(year, name, games, minimum_games):
-	players = all_players(games)
-	players.remove(name)
 	stats = []
-	for partner in players:
-		wins, losses = 0, 0
-		for game in games:
-			if game[2] == name or game[3] == name:
-				if game[2] == partner or game[3] == partner:
-					wins += 1
-			if game[5] == name or game[6] == name:
-				if game[5] == partner or game[6] == partner:
-					losses += 1
-		if wins + losses > 0:
-			win_percent = wins / (wins + losses)
-			total_games = wins + losses
-			if total_games >= minimum_games:
-				stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-	return stats
+	if not games:
+		return stats
+	else:
+		players = all_players(games)
+		players.remove(name)
+		for partner in players:
+			wins, losses = 0, 0
+			for game in games:
+				if game[2] == name or game[3] == name:
+					if game[2] == partner or game[3] == partner:
+						wins += 1
+				if game[5] == name or game[6] == name:
+					if game[5] == partner or game[6] == partner:
+						losses += 1
+			if wins + losses > 0:
+				win_percent = wins / (wins + losses)
+				total_games = wins + losses
+				if total_games >= minimum_games:
+					stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+		return stats
 
 def rare_partner_stats_by_year(year, name, games, minimum_games):
-	players = all_players(games)
-	players.remove(name)
 	stats = []
-	for partner in players:
-		wins, losses = 0, 0
-		for game in games:
-			if game[2] == name or game[3] == name:
-				if game[2] == partner or game[3] == partner:
-					wins += 1
-			if game[5] == name or game[6] == name:
-				if game[5] == partner or game[6] == partner:
-					losses += 1
-		if wins + losses > 0:
-			win_percent = wins / (wins + losses)
-			total_games = wins + losses
-			if total_games < minimum_games:
-				stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-	return stats
+	if not games:
+		return stats
+	else:
+		players = all_players(games)
+		players.remove(name)
+		stats = []
+		for partner in players:
+			wins, losses = 0, 0
+			for game in games:
+				if game[2] == name or game[3] == name:
+					if game[2] == partner or game[3] == partner:
+						wins += 1
+				if game[5] == name or game[6] == name:
+					if game[5] == partner or game[6] == partner:
+						losses += 1
+			if wins + losses > 0:
+				win_percent = wins / (wins + losses)
+				total_games = wins + losses
+				if total_games < minimum_games:
+					stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+		return stats
 
 
 def opponent_stats_by_year(year, name, games, minimum_games):
-	players = all_players(games)
-	players.remove(name)
 	stats = []
-	for opponent in players:
-		wins, losses = 0, 0
-		for game in games:
-			if game[2] == name or game[3] == name:
-				if game[5] == opponent or game[6] == opponent:
-					wins += 1
-			if game[5] == name or game[6] == name:
-				if game[2] == opponent or game[3] == opponent:
-					losses += 1
-		if wins + losses > 0:
-			win_percent = wins / (wins + losses)
-			total_games = wins + losses
-			if total_games >= minimum_games:
-				stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-	return stats
+	if not games:
+		return stats
+	else:
+		players = all_players(games)
+		players.remove(name)
+		stats = []
+		for opponent in players:
+			wins, losses = 0, 0
+			for game in games:
+				if game[2] == name or game[3] == name:
+					if game[5] == opponent or game[6] == opponent:
+						wins += 1
+				if game[5] == name or game[6] == name:
+					if game[2] == opponent or game[3] == opponent:
+						losses += 1
+			if wins + losses > 0:
+				win_percent = wins / (wins + losses)
+				total_games = wins + losses
+				if total_games >= minimum_games:
+					stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+		return stats
 
 def rare_opponent_stats_by_year(year, name, games, minimum_games):
-	players = all_players(games)
-	players.remove(name)
 	stats = []
-	for opponent in players:
-		wins, losses = 0, 0
-		for game in games:
-			if game[2] == name or game[3] == name:
-				if game[5] == opponent or game[6] == opponent:
-					wins += 1
-			if game[5] == name or game[6] == name:
-				if game[2] == opponent or game[3] == opponent:
-					losses += 1
-		if wins + losses > 0:
-			win_percent = wins / (wins + losses)
-			total_games = wins + losses
-			if total_games < minimum_games:
-				stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-	return stats
+	if not games:
+		return stats
+	else:
+		players = all_players(games)
+		players.remove(name)
+		stats = []
+		for opponent in players:
+			wins, losses = 0, 0
+			for game in games:
+				if game[2] == name or game[3] == name:
+					if game[5] == opponent or game[6] == opponent:
+						wins += 1
+				if game[5] == name or game[6] == name:
+					if game[2] == opponent or game[3] == opponent:
+						losses += 1
+			if wins + losses > 0:
+				win_percent = wins / (wins + losses)
+				total_games = wins + losses
+				if total_games < minimum_games:
+					stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+		return stats
 
 
 
