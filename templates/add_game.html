@@ -1,63 +1,125 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <nav>
-        <div class="dropdown">
-            <button class="dropbtn">Add/Edit
-                <i class="fa fa-caret-down"></i>
-            </button>
-            <div class="dropdown-content">
-                <a href="{{ url_for('add_game') }}">Add game</a>
-                <a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
-                <a href="{{ url_for('edit_games') }}">Edit games</a>
-                <a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
-            </div>
-        </div>  
-    </nav>
-    <h1>{% block title %} Add a game {% endblock %}</h1>
-    <div class="container">
-    <form method="post">
-        <datalist id="players">
-            {% for player in players %}
-                <option value= "{{ player }}">
-            {% endfor %}
-        </datalist>
-        <datalist id="scores">
-            {% for score in scores %}
-                <option value= "{{ score }}">
-            {% endfor %}
-        </datalist>
-        <input type="text" name="winner1"
-                placeholder="Winner 1"
-                value="{{ request.form['winner1'] }}"
-                list="players">
-        <br>
-        <input type="text" name="winner2"
-                placeholder="Winner 2"
-                value="{{ request.form['winner2'] }}"
-                list="players">
-        <br>
-        <input type="text" name="loser1"
-                placeholder="Loser 1"
-                value="{{ request.form['loser1'] }}"
-                list="players">
-        <br>        
-        <input type="text" name="loser2"
-                placeholder="Loser 2"
-                value="{{ request.form['loser2'] }}"
-                list="players">
-        <br>
-        <input type="number" pattern="[0-9]*" name="winner_score"
-                placeholder="Winners' Score"
-                value="{{ request.form['winner_score'] }}"
-                list="scores">
-        <br>
-        <input type="number" pattern="[0-9]*" name="loser_score"
-                placeholder="Losers' Score"
-                value="{{ request.form['loser_score'] }}"
-                list="scores">
-        <br>      
-        <input type="submit" value="Submit">
-    </form>
-    </div>
+	<nav>
+		<div class="dropdown">
+			<button class="dropbtn">Add/Edit
+				<i class="fa fa-caret-down"></i>
+			</button>
+			<div class="dropdown-content">
+				<a href="{{ url_for('add_game') }}">Add game</a>
+				<a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
+				<a href="{{ url_for('edit_games') }}">Edit games</a>
+				<a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
+			</div>
+		</div>  
+	</nav>
+	<h1>{% block title %} Add a game {% endblock %}</h1>
+	<div class="container">
+	<form method="post">
+		<datalist id="players">
+			{% for player in players %}
+				<option value= "{{ player }}">
+			{% endfor %}
+		</datalist>
+		<datalist id="scores">
+			{% for score in scores %}
+				<option value= "{{ score }}">
+			{% endfor %}
+		</datalist>
+		<input type="text" name="winner1"
+				placeholder="Winner 1"
+				value="{{ request.form['winner1'] }}"
+				list="players">
+		<br>
+		<input type="text" name="winner2"
+				placeholder="Winner 2"
+				value="{{ request.form['winner2'] }}"
+				list="players">
+		<br>
+		<input type="text" name="loser1"
+				placeholder="Loser 1"
+				value="{{ request.form['loser1'] }}"
+				list="players">
+		<br>        
+		<input type="text" name="loser2"
+				placeholder="Loser 2"
+				value="{{ request.form['loser2'] }}"
+				list="players">
+		<br>
+		<input type="number" pattern="[0-9]*" name="winner_score"
+				placeholder="Winners' Score"
+				value="{{ request.form['winner_score'] }}"
+				list="scores">
+		<br>
+		<input type="number" pattern="[0-9]*" name="loser_score"
+				placeholder="Losers' Score"
+				value="{{ request.form['loser_score'] }}"
+				list="scores">
+		<br>      
+		<input type="submit" value="Submit">
+	</form>
+	</div>
+	<div>
+	{% if todays_stats %}
+	<br>
+	<table>
+		<h1>Today's games</h1>
+		<thead>
+			<tr>
+				<th class="rank" scope="col" colspan="1">#</th>
+				<th class="player_name" scope="col" colspan="1">Player</th>
+				<th class="numbered_stats" scope="col" colspan="1">Wins</th>
+				<th class="numbered_stats" scope="col" colspan="1">Losses</th>
+				<th class="numbered_stats" scope="col" colspan="1">Win %</th>
+				<th class="numbered_stats" scope="col" colspan="1">+/-</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for player in todays_stats %}
+			<tr>
+				<td class="rank">{{ loop.index }}</td>
+				<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
+				<td>{{ player[1] }}</td>
+				<td>{{ player[2] }}</td>
+				<td>{{ "{:.2f}".format(player[3]*100) }}</td>
+				{% if player[4] > 0 %}
+					<td>+{{ player[4] }}</td>
+				{% else %}
+					<td>{{ player[4] }}</td>
+				{% endif %}
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	<br>
+	<table>
+		<thead>
+			<tr>
+					<th scope="col" colspan="1">Date/Updated</th>
+                <th scope="col" colspan="1">Winner</th>
+                <th scope="col" colspan="1">Loser</th>
+                <th scope="col" colspan="1">Update</th>
+			</tr>
+			</thead>
+		<tbody>
+        {% for game in games %}
+			<tr>
+            	<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+        		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
+        		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
+        		<td><a href="{{ url_for('update', id=game[0]) }}">Edit</a></td>
+    		</tr>
+    		<tr>
+        		<td>{{ game[8][5:7] }}/{{ game[8][8:10] }}/{{ game[8][0:4] }}<br>{{ game[8][11:16] }}</td>
+        		<td>{{ game[4] }}</td>
+        		<td>{{ game[7] }}</td>
+        		<td><a href="{{ url_for('delete_game', id=game[0]) }}">Delete</a></td>
+    		</tr>
+        {% endfor %}
+    	</tbody>
+    </table>
+	<br>
+	<br>
+	{% endif %}
 {% endblock %}

@@ -13,9 +13,10 @@ def index():
     minimum_games = 20
     all_years = grab_all_years()
     t_stats = todays_stats()
+    games = todays_games()
     stats = stats_per_year(str(date.today().year), minimum_games)
     rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
-    return render_template('stats.html', todays_stats=t_stats, stats=stats, rare_stats=rare_stats, 
+    return render_template('stats.html', todays_stats=t_stats, stats=stats, games=games, rare_stats=rare_stats, 
         minimum_games=minimum_games, year=str(date.today().year), all_years=all_years)
 
 @app.route('/stats/<year>/')
@@ -58,6 +59,8 @@ def add_game():
     scores = all_scores()
     games = year_games(str(date.today().year))
     players = all_players(games)
+    t_stats = todays_stats()
+    games = todays_games()
     if request.method == 'POST':
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
@@ -72,7 +75,7 @@ def add_game():
             add_game_stats([datetime.now(), winner1, winner2, loser1, loser2, winner_score, loser_score, datetime.now()])
             return redirect(url_for('add_game'))
 
-    return render_template('add_game.html', players=players, scores=scores)
+    return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, scores=scores)
 
 
 @app.route('/edit_games/')
