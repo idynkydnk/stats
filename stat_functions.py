@@ -142,6 +142,7 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
+
 def year_games(year):
 	cur = set_cur()
 	if year == 'All years':
@@ -292,6 +293,7 @@ def rare_opponent_stats_by_year(name, games, minimum_games):
 					stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
 		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
 		return stats
+
 
 
 
