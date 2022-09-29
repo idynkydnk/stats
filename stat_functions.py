@@ -81,14 +81,16 @@ def todays_stats():
 	players = all_players(games)
 	stats = []
 	for player in players:
-		wins, losses = 0, 0
+		wins, losses, differential = 0, 0, 0
 		for game in games:
 			if player == game[2] or player == game[3]:
 				wins += 1
+				differential += (game[4] - game[7])
 			elif player == game[5] or player == game[6]:
 				losses += 1
+				differential -= (game[4] - game[7])
 		win_percentage = wins / (wins + losses)
-		stats.append([player, wins, losses, win_percentage])
+		stats.append([player, wins, losses, win_percentage, differential])
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 

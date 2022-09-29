@@ -14,7 +14,7 @@
             </div>
         </div>  
     </nav>
-    <h1>{% block title %} Add a Game {% endblock %}</h1>
+    <h1>{% block title %} Add a game {% endblock %}</h1>
     <div class="container">
     <form method="post">
         <datalist id="players">
@@ -48,12 +48,12 @@
                 list="players">
         <br>
         <input type="number" pattern="[0-9]*" name="winner_score"
-                placeholder="Winner's Score"
+                placeholder="Winners' Score"
                 value="{{ request.form['winner_score'] }}"
                 list="scores">
         <br>
         <input type="number" pattern="[0-9]*" name="loser_score"
-                placeholder="Loser's Score"
+                placeholder="Losers' Score"
                 value="{{ request.form['loser_score'] }}"
                 list="scores">
         <br>      

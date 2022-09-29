@@ -13,11 +13,11 @@
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
         <div>
             {% if todays_stats %}
+            <br>
             <table>
-                <caption>Today's games</caption>
+                <h1>Today's games</h1>
                 <thead>
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>
@@ -25,7 +25,7 @@
                         <th class="numbered_stats" scope="col" colspan="1">Wins</th>
                         <th class="numbered_stats" scope="col" colspan="1">Losses</th>
                         <th class="numbered_stats" scope="col" colspan="1">Win %</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                        <th class="numbered_stats" scope="col" colspan="1">+/-</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -36,7 +36,11 @@
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
                         <td>{{ "{:.2f}".format(player[3]*100) }}</td>
-                        <td>{{ player[1] + player[2] }}</td>
+                        {% if player[4] > 0 %}
+                            <td>+{{ player[4] }}</td>
+                        {% else %}
+                            <td>{{ player[4] }}</td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -44,6 +48,7 @@
             <br>
             <br>
             {% endif %}
+            <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
         	<table>
                 <caption> {{ minimum_games }}+ games</caption>
         		<thead>
