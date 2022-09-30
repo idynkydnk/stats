@@ -215,10 +215,10 @@ def delete_vollis_game(id):
 def vollis_player_stats(year, name):
     all_years = all_years_vollis_player(name)
     games = games_from_vollis_player_by_year(year, name)
-    partner_stats = vollis_partner_stats_by_year(year, name, games)
-    opponent_stats = vollis_opponent_stats_by_year(year, name, games)
-    return render_template('player.html', opponent_stats=opponent_stats, 
-        partner_stats=partner_stats, year=year, player=name, minimum_games=minimum_games, all_years=all_years)
+    stats = total_vollis_stats(name, games)
+    opponent_stats = vollis_opponent_stats_by_year(name, games)
+    return render_template('vollis_player.html', opponent_stats=opponent_stats, 
+        year=year, player=name, all_years=all_years, stats=stats)
 
 
 

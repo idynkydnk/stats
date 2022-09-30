@@ -99,13 +99,13 @@ def all_vollis_years():
 
 def all_years_vollis_player(name):
     years = []
-    games = all_games_player(name)
+    games = all_vollis_games_by_player(name)
     for game in games:
         if game[1][0:4] not in years:
             years.append(game[1][0:4])
     return years
 
-def all_vollis_games(name):
+def all_vollis_games_by_player(name):
     cur = set_cur()
     cur.execute("SELECT * FROM vollis_games WHERE (winner=? OR loser=?)", (name, name))
     row = cur.fetchall()
@@ -123,11 +123,52 @@ def games_from_vollis_player_by_year(year, name):
     row = cur.fetchall()
     return row
 
-def vollis_partner_stats_by_year(year, name, games):
-    print('yo dog')
+def all_vollis_opponents(player, games):
+    players = []
+    for game in games:
+        if game[2] not in players:
+            players.append(game[2])
+        if game[4] not in players:
+            players.append(game[4])
+    players.remove(player)
+    return players
 
-def vollis_opponent_stats_by_year(year, name, games):
-    print('yoooooo')
+
+def vollis_opponent_stats_by_year(name, games):
+    opponents = all_vollis_opponents(name, games)
+    stats = []
+    for opponent in opponents:
+        wins, losses = 0, 0
+        for game in games:
+            if game[2] == opponent:
+                losses += 1
+            if game[4] == opponent:
+                wins += 1
+        win_percent = wins / (wins + losses)
+        total_games = wins + losses
+        stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+    stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+    return stats
+
+def total_vollis_stats(name, games):
+    stats = []
+    wins, losses = 0, 0
+    for game in games:
+        if game[2] == name:
+            wins += 1
+        if game[4] == name:
+            losses += 1
+    win_percent = wins / (wins + losses)
+    total_games = wins + losses
+    stats.append([name, wins, losses, win_percent, total_games])
+    return stats
+
+
+
+
+
+
+
 
 
 
