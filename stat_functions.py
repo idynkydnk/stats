@@ -91,7 +91,7 @@ def todays_stats():
 				differential -= (game[4] - game[7])
 		win_percentage = wins / (wins + losses)
 		stats.append([player, wins, losses, win_percentage, differential])
-	stats.sort(key=lambda x: x[3], reverse=True)
+	stats.sort(key=lambda x: x[4], reverse=True)
 	return stats
 
 def todays_games():
@@ -294,7 +294,17 @@ def rare_opponent_stats_by_year(name, games, minimum_games):
 		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
 		return stats
 
-
+def total_stats(games, player):
+	stats = []
+	wins, losses = 0, 0
+	for game in games:
+		if player == game[2] or player == game[3]:
+			wins += 1
+		elif player == game[5] or player == game[6]:
+			losses += 1
+	win_percentage = wins / (wins + losses)
+	stats.append([player, wins, losses, win_percentage])
+	return stats
 
 
 
