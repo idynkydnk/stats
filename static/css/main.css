@@ -130,6 +130,10 @@ nav a:hover {
   display: block;
 }
 
+tr:nth-child(even) {
+  background-color: var(--table-banding);
+}
+
 .table-double-row:nth-child(4n + 3) {
   background-color: var(--table-banding);
 }
@@ -137,6 +141,15 @@ nav a:hover {
 .table-double-row:nth-child(4n + 4) {
   background-color: var(--table-banding);
 }
+
+.table-double-row:nth-child(4n + 1) {
+  background-color: none;
+}
+
+.table-double-row:nth-child(4n + 2) {
+  background-color: none;
+}
+
 
 td a {
   max-width: 330px;
