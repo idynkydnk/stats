@@ -111,7 +111,7 @@
         		<td><a href="{{ url_for('update', id=game[0]) }}">Edit</a></td>
     		</tr>
     		<tr>
-        		<td>{{ game[8][5:7] }}/{{ game[8][8:10] }}/{{ game[8][0:4] }}<br>{{ game[8][11:16] }}</td>
+        		<td>{{ game[8][0:10] }}<br>{{ game[8][11:19] }}</td>
         		<td>{{ game[4] }}</td>
         		<td>{{ game[7] }}</td>
         		<td><a href="{{ url_for('delete_game', id=game[0]) }}">Delete</a></td>
