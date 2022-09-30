@@ -39,13 +39,19 @@
         		<tbody>
                 {% for game in games %}
         			<tr>
-                    	<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+                    	<td>{{ game[1][0:10] }}<br>
+                            {% if game[1]|length > 14 %}
+                                {{ game[1][11:19] }}
+                            {% endif %}</td>
                 		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
                 		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
                 		<td><a href="{{ url_for('update', id=game[0]) }}">Edit</a></td>
             		</tr>
             		<tr>
-                		<td>{{ game[8][5:7] }}/{{ game[8][8:10] }}/{{ game[8][0:4] }}<br>{{ game[8][11:16] }}</td>
+                		<td>{{ game[8][0:10] }}<br>
+                            {% if game[8]|length > 14 %}
+                                {{ game[8][11:19] }}
+                            {% endif %}</td>
                 		<td>{{ game[4] }}</td>
                 		<td>{{ game[7] }}</td>
                 		<td><a href="{{ url_for('delete_game', id=game[0]) }}">Delete</a></td>

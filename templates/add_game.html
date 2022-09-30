@@ -105,7 +105,7 @@
 		<tbody>
         {% for game in games %}
 			<tr>
-            	<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+            	<td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
         		<td><a href="{{ url_for('update', id=game[0]) }}">Edit</a></td>

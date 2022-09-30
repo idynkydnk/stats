@@ -97,9 +97,28 @@ def todays_stats():
 def todays_games():
 	cur = set_cur()
 	cur.execute("SELECT * FROM games WHERE game_date > date('now','-15 hours')")
-	row = cur.fetchall()
-	row.sort(reverse=True)
+	games = cur.fetchall()
+	games.sort(reverse=True)
+	row = convert_ampm(games)
 	return row
+
+def convert_ampm(games):
+	converted_games = []
+	for game in games:
+		if len(game[1]) > 19:
+			game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+			game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
+		else:
+			game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+			game_date = game_datetime.strftime("%m/%d/%Y")
+		if len(game[8]) > 19:
+			updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S.%f")
+			updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+		else:
+			updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S")
+			updated_date = updated_datetime.strftime("%m/%d/%Y")
+		converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], updated_date])
+	return converted_games
 	
 def rare_stats_per_year(year, minimum_games):
 	if year == 'All years':
@@ -151,6 +170,7 @@ def year_games(year):
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (year,))
 	row = cur.fetchall()
 	row.sort(reverse=True)
+	row = convert_ampm(row)
 	return row
 
 def grab_all_years():
@@ -305,9 +325,6 @@ def total_stats(games, player):
 	win_percentage = wins / (wins + losses)
 	stats.append([player, wins, losses, win_percentage])
 	return stats
-
-
-
 
 
 
