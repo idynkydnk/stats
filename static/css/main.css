@@ -130,9 +130,12 @@ nav a:hover {
   display: block;
 }
 
-tr:nth-child(even) {
+.table-double-row:nth-child(4n + 3) {
   background-color: var(--table-banding);
-  border-radius: 8px;
+}
+
+.table-double-row:nth-child(4n + 4) {
+  background-color: var(--table-banding);
 }
 
 td a {
@@ -210,12 +213,13 @@ input, select {
   padding: 8px 12px;
   margin: 8px;
   display: inline-block;
-  border: 2px solid var(--button-bg-1);
-  border-radius: 12px;
   box-sizing: border-box;
+  font-size: 16px;
+  border-radius: 12px;
+  
+  border: 2px solid var(--button-bg-1);
   background-color: var(--table-bg);
   color: var(--button-bg-1);
-  font-size: 16px;
 }
 
 input::placeholder {
@@ -232,11 +236,19 @@ input[type=date] {
 }
 
 input[type=submit] {
-  color: var(--button-text-1);
-  background-color: var(--button-bg-1);
-  text-decoration: none;
-  border: 2px solid var(--button-border-1);
+  max-width: 260px;
+  width: 100%;
+  text-align: center;
+  padding: 8px 12px;
+  margin: 8px;
+  display: inline-block;
+  box-sizing: border-box;
   font-size: 16px;
+  border-radius: 12px;
+    
+  border: 2px solid var(--button-border-1);
+  background-color: var(--button-bg-1);
+  color: var(--button-text-1);
 }
 
 input[type=submit]:hover {
