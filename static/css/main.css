@@ -143,11 +143,11 @@ tr:nth-child(even) {
 }
 
 .table-double-row:nth-child(4n + 1) {
-  background-color: none;
+  background-color: transparent;
 }
 
 .table-double-row:nth-child(4n + 2) {
-  background-color: none;
+  background-color: transparent;
 }
 
 
