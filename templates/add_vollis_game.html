@@ -26,22 +26,18 @@
                 placeholder="Winner"
                 value="{{ request.form['winner'] }}"
                 list="players">
-        <br>
         <input type="text" name="loser"
                 placeholder="Loser"
                 value="{{ request.form['loser'] }}"
-                list="players">
-        <br>        
+                list="players">     
         <input type="number" pattern="[0-9]*" name="winner_score"
                 placeholder="Winner's Score"
                 value="{{ request.form['winner_score'] }}"
                 list="scores">
-        <br>
         <input type="number" pattern="[0-9]*" name="loser_score"
                 placeholder="Loser's Score"
                 value="{{ request.form['loser_score'] }}"
-                list="scores">
-        <br>      
+                list="scores">    
         <input type="submit" value="Submit">
     </form>
     </div>

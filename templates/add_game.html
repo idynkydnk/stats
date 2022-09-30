@@ -31,38 +31,31 @@
 				placeholder="Winner 1"
 				value="{{ request.form['winner1'] }}"
 				list="players">
-		<br>
 		<input type="text" name="winner2"
 				placeholder="Winner 2"
 				value="{{ request.form['winner2'] }}"
 				list="players">
-		<br>
 		<input type="text" name="loser1"
 				placeholder="Loser 1"
 				value="{{ request.form['loser1'] }}"
-				list="players">
-		<br>        
+				list="players">      
 		<input type="text" name="loser2"
 				placeholder="Loser 2"
 				value="{{ request.form['loser2'] }}"
 				list="players">
-		<br>
 		<input type="number" pattern="[0-9]*" name="winner_score"
 				placeholder="Winners' Score"
 				value="{{ request.form['winner_score'] }}"
 				list="scores">
-		<br>
 		<input type="number" pattern="[0-9]*" name="loser_score"
 				placeholder="Losers' Score"
 				value="{{ request.form['loser_score'] }}"
-				list="scores">
-		<br>      
+				list="scores">    
 		<input type="submit" value="Submit">
 	</form>
 	</div>
 	<div>
 	{% if todays_stats %}
-	<br>
 	<table>
 		<h1>Today's games</h1>
 		<thead>
@@ -92,7 +85,6 @@
 			{% endfor %}
 		</tbody>
 	</table>
-	<br>
 	<table>
 		<thead>
 			<tr>
@@ -119,7 +111,5 @@
         {% endfor %}
     	</tbody>
     </table>
-	<br>
-	<br>
 	{% endif %}
 {% endblock %}

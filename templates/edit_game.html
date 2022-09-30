@@ -14,7 +14,6 @@
             </div>
         </div>  
     </nav>
-    <br>
 	<h1>{% block title %} Edit Game {% endblock %}</h1>
 	<table>
 	   <thead>
@@ -53,32 +52,26 @@
 					 placeholder="Winner 1"
 					 value="{{ request.form['winner1'] }}"
 					 list="players">
-			  <br>
 			  <input type="text" name="winner2"
 					 placeholder="Winner 2"
 					 value="{{ request.form['winner2'] }}"
 					 list="players">
-			  <br>
 			  <input type="text" name="loser1"
 					 placeholder="Loser 1"
 					 value="{{ request.form['loser1'] }}"
-					 list="players">
-			  <br>        
+					 list="players">      
 			  <input type="text" name="loser2"
 					 placeholder="Loser 2"
 					 value="{{ request.form['loser2'] }}"
 					 list="players">
-			  <br>
 			  <input type="number" name="winner_score"
 					 placeholder="Winner's Score"
 					 value="{{ request.form['winner_score'] }}"
 					 list="scores">
-			  <br>
 			  <input type="number" name="loser_score"
 					 placeholder="Loser's Score"
 					 value="{{ request.form['loser_score'] }}"
-					 list="scores">
-			  <br>      
+					 list="scores">    
 			  <input type="submit" value="Submit">
 		   </form>
 	   </div>
