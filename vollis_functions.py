@@ -27,13 +27,13 @@ def all_vollis_players(games):
             players.append(game[4])
     return players
 
-def rare_vollis_stats_per_year(year, minimum_games):
-    print('hey man')
-
 
 def vollis_year_games(year):
     cur = set_cur()
-    cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=?", (year,))
+    if year == 'All years':
+        cur.execute("SELECT * FROM vollis_games")
+    else:
+        cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=?", (year,))
     row = cur.fetchall()
     row.sort(reverse=True)
     return row
@@ -95,6 +95,7 @@ def all_vollis_years():
     for game in games:
         if game[1][0:4] not in years:
             years.append(game[1][0:4])
+    years.append('All years')
     return years
 
 def all_years_vollis_player(name):
@@ -103,6 +104,8 @@ def all_years_vollis_player(name):
     for game in games:
         if game[1][0:4] not in years:
             years.append(game[1][0:4])
+    if len(years) > 1:
+        years.append('All years')
     return years
 
 def all_vollis_games_by_player(name):
@@ -119,7 +122,10 @@ def all_vollis_games():
 
 def games_from_vollis_player_by_year(year, name):
     cur = set_cur()
-    cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
+    if year == 'All years':
+        cur.execute("SELECT * FROM vollis_games WHERE winner=? OR loser=?", (name, name))
+    else:
+        cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
     row = cur.fetchall()
     return row
 

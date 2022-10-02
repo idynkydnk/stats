@@ -132,8 +132,7 @@ def vollis_stats(year):
     all_years = all_vollis_years()
     minimum_games = 2
     stats = vollis_stats_per_year(year, minimum_games)
-    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, 
+    return render_template('vollis_stats.html', stats=stats,
         all_years=all_years, minimum_games=minimum_games, year=year)
 
 @app.route('/vollis_stats/')
@@ -142,8 +141,7 @@ def vollis():
     year = str(date.today().year)
     minimum_games = 0
     stats = vollis_stats_per_year(year, minimum_games)
-    rare_stats = rare_vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats, rare_stats=rare_stats, 
+    return render_template('vollis_stats.html', stats=stats,
         all_years=all_years, minimum_games=minimum_games, year=year)
 
 
