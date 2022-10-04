@@ -41,4 +41,37 @@
         <input type="submit" value="Submit">
     </form>
     </div>
+    <div>
+    {% if todays_stats %}
+    <table>
+        <h1>Today's stats</h1>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Player</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in todays_stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name"><a href="{{ url_for('vollis_player_stats', year=year, name=player[0] ) }}">{{ stat[0] }}</a></td>
+                <td>{{ player[1] }}</td>
+                <td>{{ player[2] }}</td>
+                <td>{{ "{:.2f}".format(player[3]*100) }}</td>
+                {% if player[4] > 0 %}
+                    <td>+{{ player[4] }}</td>
+                {% else %}
+                    <td>{{ player[4] }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    </div>
 {% endblock %}

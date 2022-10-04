@@ -170,12 +170,40 @@ def total_vollis_stats(name, games):
     return stats
 
 
+def todays_vollis_stats():
+    games = todays_vollis_games()
+    players = all_players(games)
+    stats = []
+    for player in players:
+        wins, losses, differential = 0, 0, 0
+        for game in games:
+            if player == game[2]:
+                wins += 1
+                differential += (game[3] - game[5])
+            elif player == game[4]:
+                losses += 1
+                differential -= (game[3] - game[5])
+        win_percentage = wins / (wins + losses)
+        stats.append([player, wins, losses, win_percentage, differential])
+    stats.sort(key=lambda x: x[3], reverse=True)
+    return stats
 
+def all_vollis_players(games):
+    players = []
+    for game in games:
+        if game[2] not in players:
+            players.append(game[2])
+        if game[4] not in players:
+            players.append(game[4])
+    return players
 
-
-
-
-
+def todays_vollis_games():
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games WHERE game_date > date('now','-15 hours')")
+    games = cur.fetchall()
+    games.sort(reverse=True)
+    #row = convert_ampm(games)
+    return row
 
 
 
