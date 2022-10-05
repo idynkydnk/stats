@@ -172,7 +172,7 @@ def total_vollis_stats(name, games):
 
 def todays_vollis_stats():
     games = todays_vollis_games()
-    players = all_players(games)
+    players = all_vollis_players(games)
     stats = []
     for player in players:
         wins, losses, differential = 0, 0, 0
@@ -203,7 +203,7 @@ def todays_vollis_games():
     games = cur.fetchall()
     games.sort(reverse=True)
     #row = convert_ampm(games)
-    return row
+    return games
 
 
 
