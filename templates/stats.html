@@ -71,7 +71,7 @@
             {% endif %}
             <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
         	<table>
-                <caption> {{ minimum_games }}+ games</caption>
+                <h3> {{ minimum_games }}+ games</h3>
         		<thead>
     				<tr>
                         <th class="rank" scope="col" colspan="1">#</th>
@@ -96,7 +96,7 @@
             	</tbody>
             </table>
             <table>
-                <caption>Less than {{ minimum_games }} games</caption>
+                <h3>Less than {{ minimum_games }} games</h3>
                 <thead>
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>

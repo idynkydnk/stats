@@ -90,11 +90,11 @@
         </table>
         {% endif %}
         {% if rare_partner_stats or rare_opponent_stats %}
-        <h2>Less than {{ minimum_games }} games</h2>
+        <h1>Less than {{ minimum_games }} games</h1>
         {% endif %}
         {% if rare_partner_stats %}
         <table>          
-            <h1>Stats with...</h1> 
+            <h2>Stats with...</h2> 
             <thead>
                 <tr>
                     <th class="rank" scope="col" colspan="1">#</th>
@@ -121,7 +121,7 @@
         {% endif %}
         {% if rare_opponent_stats %}
         <table>
-            <h1>Stats against...</h1>
+            <h2>Stats against...</h2>
             <thead>
                 <tr>
                     <th class="rank" scope="col" colspan="1">#</th>
