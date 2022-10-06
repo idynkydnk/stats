@@ -205,6 +205,13 @@ def todays_vollis_games():
     #row = convert_ampm(games)
     return games
 
+def vollis_winning_scores():
+    scores = [21,15,11]
+    return scores
+
+def vollis_losing_scores():
+    scores = [19,9,13]
+    return scores
 
 
 

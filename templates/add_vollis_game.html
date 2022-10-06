@@ -15,11 +15,21 @@
         </div>  
     </nav>
     <h1>{% block title %} Add a Game {% endblock %}</h1>
-    <div class="container">
+    <div>
     <form method="post">
         <datalist id="players">
             {% for player in players %}
-                <option value= "{{ player }}">
+                <option value= "{{ player }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="winning_scores">
+            {% for score in winning_scores %}
+                <option value= "{{ score }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="losing_scores">
+            {% for score in losing_scores %}
+                <option value= "{{ score }}"></option>
             {% endfor %}
         </datalist>
         <input type="text" name="winner"
@@ -33,11 +43,11 @@
         <input type="number" pattern="[0-9]*" name="winner_score"
                 placeholder="Winner's Score"
                 value="{{ request.form['winner_score'] }}"
-                list="scores">
+                list="winning_scores">
         <input type="number" pattern="[0-9]*" name="loser_score"
                 placeholder="Loser's Score"
                 value="{{ request.form['loser_score'] }}"
-                list="scores">    
+                list="losing_scores">    
         <input type="submit" value="Submit">
     </form>
     </div>

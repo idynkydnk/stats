@@ -19,12 +19,12 @@
 	<form method="post">
 		<datalist id="players">
 			{% for player in players %}
-				<option value= "{{ player }}">
+				<option value= "{{ player }}"></option>
 			{% endfor %}
 		</datalist>
 		<datalist id="scores">
 			{% for score in scores %}
-				<option value= "{{ score }}">
+				<option value= "{{ score }}"></option>
 			{% endfor %}
 		</datalist>
 		<input type="text" name="winner1"
