@@ -22,8 +22,13 @@
 				<option value= "{{ player }}"></option>
 			{% endfor %}
 		</datalist>
-		<datalist id="scores">
-			{% for score in scores %}
+		<datalist id="w_scores">
+			{% for score in w_scores %}
+				<option value= "{{ score }}"></option>
+			{% endfor %}
+		</datalist>
+		<datalist id="l_scores">
+			{% for score in l_scores %}
 				<option value= "{{ score }}"></option>
 			{% endfor %}
 		</datalist>
@@ -46,11 +51,11 @@
 		<input type="number" pattern="[0-9]*" name="winner_score"
 				placeholder="Winners' Score"
 				value="{{ request.form['winner_score'] }}"
-				list="scores">
+				list="w_scores">
 		<input type="number" pattern="[0-9]*" name="loser_score"
 				placeholder="Losers' Score"
 				value="{{ request.form['loser_score'] }}"
-				list="scores">    
+				list="l_scores">    
 		<input type="submit" value="Submit">
 	</form>
 	</div>

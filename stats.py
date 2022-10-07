@@ -57,7 +57,8 @@ def games_by_year(year):
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():
-    scores = all_scores()
+    w_scores = winners_scores()
+    l_scores = losers_scores()
     games = year_games(str(date.today().year))
     players = all_players(games)
     t_stats = todays_stats()
@@ -76,7 +77,8 @@ def add_game():
             add_game_stats([datetime.now(), winner1, winner2, loser1, loser2, winner_score, loser_score, datetime.now()])
             return redirect(url_for('add_game'))
 
-    return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, scores=scores)
+    return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
+        w_scores=w_scores, l_scores=l_scores)
 
 
 @app.route('/edit_games/')
