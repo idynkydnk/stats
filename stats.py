@@ -141,9 +141,11 @@ def vollis_stats(year):
 def vollis():
     all_years = all_vollis_years()
     year = str(date.today().year)
+    t_stats = todays_vollis_stats()
+    games = todays_vollis_games()
     minimum_games = 0
     stats = vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats,
+    return render_template('vollis_stats.html', stats=stats, todays_stats=t_stats, games=games,
         all_years=all_years, minimum_games=minimum_games, year=year)
 
 
