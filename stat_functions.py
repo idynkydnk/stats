@@ -63,6 +63,7 @@ def stats_per_year(year, minimum_games):
 		games = year_games(year)
 	players = all_players(games)
 	stats = []
+	no_wins = []
 	for player in players:
 		wins, losses = 0, 0
 		for game in games:
@@ -72,8 +73,15 @@ def stats_per_year(year, minimum_games):
 				losses += 1
 		win_percentage = wins / (wins + losses)
 		if wins + losses >= minimum_games:
-			stats.append([player, wins, losses, win_percentage])
+			if wins == 0:
+				no_wins.append([player, wins, losses, win_percentage])
+			else:
+				stats.append([player, wins, losses, win_percentage])
+	stats.sort(key=lambda x: x[1], reverse=True)
 	stats.sort(key=lambda x: x[3], reverse=True)
+	no_wins.sort(key=lambda x: x[2])
+	for stat in no_wins:
+		stats.append(stat)
 	return stats
 
 def todays_stats():
@@ -128,6 +136,7 @@ def rare_stats_per_year(year, minimum_games):
 		games = year_games(year)
 	players = all_players(games)
 	stats = []
+	no_wins = []
 	for player in players:
 		wins, losses = 0, 0
 		for game in games:
@@ -137,8 +146,15 @@ def rare_stats_per_year(year, minimum_games):
 				losses += 1
 		win_percentage = wins / (wins + losses)
 		if wins + losses < minimum_games:
-			stats.append([player, wins, losses, win_percentage])
+			if wins == 0:
+				no_wins.append([player, wins, losses, win_percentage])
+			else:
+				stats.append([player, wins, losses, win_percentage])
+	stats.sort(key=lambda x: x[1], reverse=True)
 	stats.sort(key=lambda x: x[3], reverse=True)
+	no_wins.sort(key=lambda x: x[2])
+	for stat in no_wins:
+		stats.append(stat)
 	return stats
 
 def winners_scores():
