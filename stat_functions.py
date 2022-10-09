@@ -92,6 +92,7 @@ def todays_stats():
 		win_percentage = wins / (wins + losses)
 		stats.append([player, wins, losses, win_percentage, differential])
 	stats.sort(key=lambda x: x[4], reverse=True)
+	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
 def todays_games():
