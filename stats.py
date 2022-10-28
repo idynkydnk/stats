@@ -63,6 +63,7 @@ def add_game():
     players = all_players(games)
     t_stats = todays_stats()
     games = todays_games()
+    year = str(date.today().year)
     if request.method == 'POST':
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
@@ -78,7 +79,7 @@ def add_game():
             return redirect(url_for('add_game'))
 
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
-        w_scores=w_scores, l_scores=l_scores)
+        w_scores=w_scores, l_scores=l_scores, year=year)
 
 
 @app.route('/edit_games/')
