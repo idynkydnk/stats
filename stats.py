@@ -161,6 +161,7 @@ def add_vollis_game():
     players = all_vollis_players(games)
     stats = todays_vollis_stats()
     games = todays_vollis_games()
+    year = str(date.today().year)
     winning_scores = vollis_winning_scores()
     losing_scores = vollis_losing_scores()
     if request.method == 'POST':
@@ -175,7 +176,7 @@ def add_vollis_game():
             add_vollis_stats([datetime.now(), winner, loser, winner_score, loser_score, datetime.now()])
             return redirect(url_for('add_vollis_game'))
 
-    return render_template('add_vollis_game.html', players=players, todays_stats=stats, games=games,
+    return render_template('add_vollis_game.html', year=year, players=players, todays_stats=stats, games=games,
         winning_scores=winning_scores, losing_scores=losing_scores)
 
 
