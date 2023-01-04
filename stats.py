@@ -76,6 +76,8 @@ def add_game():
             flash('All fields required!')
         if int(winner_score) <= int(loser_score):
             flash('Winner score is less than loser score!')
+        if winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+            flash('Two names are the same!')
         else:
             add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
                 winner_score, loser_score, datetime.now()])
