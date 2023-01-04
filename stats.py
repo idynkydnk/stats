@@ -59,7 +59,7 @@ def games_by_year(year):
 def add_game():
     w_scores = winners_scores()
     l_scores = losers_scores()
-    games = year_games(str(date.today().year))
+    games = year_games('All years')
     players = all_players(games)
     t_stats = todays_stats()
     games = todays_games()

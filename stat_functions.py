@@ -44,18 +44,6 @@ def set_cur():
 	cur = conn.cursor()
 	return cur	
 
-def all_games():
-	cur = set_cur()
-	cur.execute("SELECT * FROM games")
-	row = cur.fetchall()
-	return row
-
-def current_year_games():
-	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
-	row = cur.fetchall()
-	return row
-
 def stats_per_year(year, minimum_games):
 	if year == 'All years':
 		games = all_games()
@@ -178,7 +166,6 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
-
 def year_games(year):
 	cur = set_cur()
 	if year == 'All years':
@@ -188,6 +175,18 @@ def year_games(year):
 	row = cur.fetchall()
 	row.sort(reverse=True)
 	row = convert_ampm(row)
+	return row
+
+def all_games():
+	cur = set_cur()
+	cur.execute("SELECT * FROM games")
+	row = cur.fetchall()
+	return row
+
+def current_year_games():
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
+	row = cur.fetchall()
 	return row
 
 def grab_all_years():
