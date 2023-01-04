@@ -94,6 +94,7 @@
             		{% endfor %}
             	</tbody>
             </table>
+            {% if rare_stats %}
             <table>
                 <h3>Less than {{ minimum_games }} games</h3>
                 <thead>
@@ -119,5 +120,6 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
 {% endblock %}
