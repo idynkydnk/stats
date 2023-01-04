@@ -10,7 +10,14 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 @app.route('/')
 def index():
-    minimum_games = 20
+    games = year_games(str(date.today().year))
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
     all_years = grab_all_years()
     t_stats = todays_stats()
     games = todays_games()
@@ -21,8 +28,15 @@ def index():
 
 @app.route('/stats/<year>/')
 def stats(year):
+    games = year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
     all_years = grab_all_years()
-    minimum_games = 20
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
