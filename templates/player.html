@@ -26,7 +26,7 @@
         </thead>
         <tbody>
             <tr>
-                <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ stats[0][0] }}</a></td>
+                <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stats[0][0] ) }}">{{ stats[0][0] }}</a></td>
                 <td>{{ stats[0][1] }}</td>
                 <td>{{ stats[0][2] }}</td>
                 <td>{{ "{:.2f}".format(stats[0][3]*100) }}</td>

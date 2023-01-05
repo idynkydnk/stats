@@ -78,6 +78,17 @@ def games_by_year(year):
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():
+    games = year_games(str(date.today().year))
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    stats = stats_per_year(str(date.today().year), minimum_games)
+    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
+
     w_scores = winners_scores()
     l_scores = losers_scores()
     games = year_games('All years')
@@ -105,7 +116,7 @@ def add_game():
             return redirect(url_for('add_game'))
 
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
-        w_scores=w_scores, l_scores=l_scores, year=year)
+        w_scores=w_scores, l_scores=l_scores, year=year, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games)
 
 
 @app.route('/edit_games/')
