@@ -44,7 +44,14 @@ def stats(year):
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
-    minimum_games = 4
+    games = games_from_player_by_year(year, name)
+    if games:
+        if len(games) < 40:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 40
+    else:
+        minimum_games = 1
     all_years = all_years_player(name)
     games = games_from_player_by_year(year, name)
     stats = total_stats(games, name)
