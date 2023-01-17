@@ -268,5 +268,10 @@ def vollis_player_stats(year, name):
     return render_template('vollis_player.html', opponent_stats=opponent_stats, 
         year=year, player=name, all_years=all_years, stats=stats)
 
+@app.route('/top_teams/')
+def top_teams():
+    page = "Coming soon..."
+    return render_template('top_teams.html', page=page)
+
 
 
