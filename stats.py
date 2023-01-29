@@ -226,6 +226,18 @@ def edit_vollis_games_by_year(year):
     games = vollis_year_games(year)
     return render_template('edit_vollis_games.html', all_years=all_years, games=games, year=year)
 
+@app.route('/vollis_games/')
+def vollis_games():
+    all_years = all_vollis_years()
+    games = vollis_year_games(str(date.today().year))
+    return render_template('vollis_games.html', games=games, all_years=all_years, year=str(date.today().year))
+
+@app.route('/vollis_games/<year>')
+def vollis_games_by_year(year):
+    all_years = all_vollis_years()
+    games = vollis_year_games(year)
+    return render_template('vollis_games.html', all_years=all_years, games=games, year=year)
+
 
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])
 def update_vollis_game(id):
