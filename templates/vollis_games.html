@@ -20,19 +20,18 @@
                     <tr>
                         <th scope="col" colspan="1">Date</th>
                         <th scope="col" colspan="1">Winner</th>
+                        <th scope="col" colspan="1"></th>
                         <th scope="col" colspan="1">Loser</th>
+                        <th scope="col" colspan="1"></th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for game in games %}
-                    <tr>
-                        <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}</td>
+                    <tr class="table-double-row">
+                        <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
                         <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
-                        <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
-                    </tr>
-                    <tr>
-                        <td>{{ game[1][11:16] }}</td>
                         <td>{{ game[3] }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
                         <td>{{ game[5] }}</td>
                     </tr>
                 {% endfor %}
