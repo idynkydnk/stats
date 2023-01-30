@@ -75,19 +75,20 @@ def stats_per_year(year, minimum_games):
 def team_stats_per_year(year, minimum_games, games):
 	stats = []
 	all_teams = teams(games)
-	return all_teams
-#	for team in all_teams:
-#		wins, losses = 0, 0
-#		for game in games:
-#			if team == game.winner1 + " and " + game.winner2:
-#				wins += 1
-#			else if team == game.loser1 + " and " + game.loser2:
-#				losses += 1
-##			total_games = wins + losses
-#			x = { :team => team, :wins => wins, :losses => losses, 
-#			:win_percentage => win_percent, :total_games => total_games }
-#			stats.push(x)
-#n		stats.sort! { |a,b| a[:team] <=> b[:team] }
+	for team in all_teams:
+		wins, losses = 0, 0
+		for game in games:
+			if team == game[2] + " and " + game[3] or team == game[3] + " and " + game[2]:
+				wins += 1
+			elif team == game[5] + " and " + game[6] or team == game[6] + " and " + game[5]:
+				losses += 1
+		win_percent = wins / (wins + losses)
+		total_games = wins + losses
+		x = { 'team':team, 'wins':wins, 'losses':losses, 
+				'win_percentage':win_percent, 'total_games':total_games }
+		stats.append(x)
+	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+	return stats
 
 def teams(games):
 	all_teams = []

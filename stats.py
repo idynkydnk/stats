@@ -56,8 +56,6 @@ def top_teams():
     stats = team_stats_per_year(year, minimum_games, games)
     return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
 
-
-
 @app.route('/top_teams/<year>/')
 def top_teams_by_year(year):
     games = year_games(year)
@@ -71,9 +69,6 @@ def top_teams_by_year(year):
     all_years = grab_all_years()
     stats = team_stats_per_year(year, minimum_games, games)
     return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
-
-
-
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
