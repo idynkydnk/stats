@@ -13,22 +13,28 @@
         </div>
     </div>       
 </nav>
-<h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="rank" scope="col" colspan="1">#</th>
-                        <th class="player_name" scope="col" colspan="1">Team</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for team in stats %}
-                    <tr>
-                        <td class="rank">{{ loop.index }}</td>
-                        <td class="player_name">{{ team }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            
+<h1>{% block title %} {{ year }} Team Stats {% endblock %}</h1>
+    <table>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Team</th>
+                <th class="player_name" scope="col" colspan="1">Wins</th>
+                <th class="player_name" scope="col" colspan="1">Losses</th>
+                <th class="player_name" scope="col" colspan="1">Win %</th>
+                <th class="player_name" scope="col" colspan="1">Games</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name">{{ stat['team']['player1'] }} /<br>{{ stat['team']['player2'] }}</td>
+                <td class="player_name">{{ stat['wins'] }}</td>
+                <td class="player_name">{{ stat['losses'] }}</td>
+                <td class="player_name">{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
+                <td class="player_name">{{ stat['total_games'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>     
 {% endblock %}

@@ -75,37 +75,51 @@ def stats_per_year(year, minimum_games):
 def team_stats_per_year(year, minimum_games, games):
 	stats = []
 	all_teams = teams(games)
+	no_wins = []
 	for team in all_teams:
 		wins, losses = 0, 0
 		for game in games:
-			if team == game[2] + " and " + game[3] or team == game[3] + " and " + game[2]:
+			if team['player1'] == game[2] and team['player2'] == game[3] or team['player1'] == game[3] and team['player2'] == game[2]:
 				wins += 1
-			elif team == game[5] + " and " + game[6] or team == game[6] + " and " + game[5]:
+			elif team['player1'] == game[5] and team['player2'] == game[6] or team['player1'] == game[6] and team['player2'] == game[5]:
 				losses += 1
 		win_percent = wins / (wins + losses)
 		total_games = wins + losses
 		x = { 'team':team, 'wins':wins, 'losses':losses, 
 				'win_percentage':win_percent, 'total_games':total_games }
-		stats.append(x)
+		if total_games >= minimum_games:
+			if wins == 0:
+				no_wins.append(x)
+			else:
+				stats.append(x)
 	stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+	for stat in no_wins:
+		stats.append(stat)
 	return stats
 
 def teams(games):
 	all_teams = []
 	for game in games:
+		winners = {}
+		losers = {}
 		if game[2] > game[3]:
-			team = game[3] + " and " + game[2] 
+			winners['player1'] = game[3]
+			winners['player2'] = game[2]
 		else:
-			team = game[2] + " and " + game[3] 
-		if team not in all_teams:
-			all_teams.append(team)
+			winners['player1'] = game[2]
+			winners['player2'] = game[3]
+		if winners not in all_teams:
+			all_teams.append(winners)
+		print(all_teams)
 		if game[5] > game[6]:
-			team = game[6] + " and " + game[5] 
+			losers['player1'] = game[6]
+			losers['player2'] = game[5]
 		else:
-			team = game[5] + " and " + game[6] 
-		if team not in all_teams:
-			all_teams.append(team)
-	all_teams.sort()
+			losers['player1'] = game[5]
+			losers['player2'] = game[6]
+		if losers not in all_teams:
+			all_teams.append(losers)
+	all_teams.sort(key=lambda x: x['player1'])
 	return all_teams
 
 def todays_stats():

@@ -47,10 +47,10 @@ def top_teams():
     games = year_games(str(date.today().year))
     year = str(date.today().year)
     if games:
-        if len(games) < 30:
+        if len(games) < 70:
             minimum_games = 1
         else:
-            minimum_games = len(games) // 30
+            minimum_games = len(games) // 70
     else:
         minimum_games = 1
     stats = team_stats_per_year(year, minimum_games, games)
@@ -60,10 +60,10 @@ def top_teams():
 def top_teams_by_year(year):
     games = year_games(year)
     if games:
-        if len(games) < 30:
+        if len(games) < 70:
             minimum_games = 1
         else:
-            minimum_games = len(games) // 30
+            minimum_games = len(games) // 70
     else:
         minimum_games = 1
     all_years = grab_all_years()
