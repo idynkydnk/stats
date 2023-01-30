@@ -41,6 +41,39 @@ def stats(year):
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
+@app.route('/top_teams/')
+def top_teams():
+    all_years = grab_all_years()
+    games = year_games(str(date.today().year))
+    year = str(date.today().year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    stats = team_stats_per_year(year, minimum_games, games)
+    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
+
+
+
+@app.route('/top_teams/<year>/')
+def top_teams_by_year(year):
+    games = year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    all_years = grab_all_years()
+    stats = team_stats_per_year(year, minimum_games, games)
+    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
+
+
+
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
@@ -279,11 +312,6 @@ def vollis_player_stats(year, name):
     opponent_stats = vollis_opponent_stats_by_year(name, games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats, 
         year=year, player=name, all_years=all_years, stats=stats)
-
-@app.route('/top_teams/')
-def top_teams():
-    page = "Coming soon..."
-    return render_template('top_teams.html', page=page)
 
 
 
