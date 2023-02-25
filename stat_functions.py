@@ -110,7 +110,6 @@ def teams(games):
 			winners['player2'] = game[3]
 		if winners not in all_teams:
 			all_teams.append(winners)
-		print(all_teams)
 		if game[5] > game[6]:
 			losers['player1'] = game[6]
 			losers['player2'] = game[5]
