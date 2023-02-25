@@ -19,10 +19,10 @@
             <tr>
                 <th class="rank" scope="col" colspan="1">#</th>
                 <th class="player_name" scope="col" colspan="1">Team</th>
-                <th class="player_name" scope="col" colspan="1">Wins</th>
-                <th class="player_name" scope="col" colspan="1">Losses</th>
-                <th class="player_name" scope="col" colspan="1">Win %</th>
-                <th class="player_name" scope="col" colspan="1">Games</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">Games</th>
             </tr>
         </thead>
         <tbody>
@@ -30,10 +30,10 @@
             <tr>
                 <td class="rank">{{ loop.index }}</td>
                 <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stat['team']['player1'] ) }}">{{ stat['team']['player1'] }}</a><br><a href="{{ url_for('player_stats', year=year, name=stat['team']['player2'] ) }}">{{ stat['team']['player2'] }}</a></td>
-                <td class="player_name">{{ stat['wins'] }}</td>
-                <td class="player_name">{{ stat['losses'] }}</td>
-                <td class="player_name">{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
-                <td class="player_name">{{ stat['total_games'] }}</td>
+                <td>{{ stat['wins'] }}</td>
+                <td>{{ stat['losses'] }}</td>
+                <td>{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
+                <td>{{ stat['total_games'] }}</td>
             </tr>
             {% endfor %}
         </tbody>     
