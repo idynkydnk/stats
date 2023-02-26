@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('one_v_one_games_by_year', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    <h1>{% block title %} {{ year }} Backgammon Games {% endblock %}</h1>
+        <div>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col" colspan="1">Date</th>
+                        <th scope="col" colspan="1">Winner</th>
+                        <th scope="col" colspan="1"></th>
+                        <th scope="col" colspan="1">Loser</th>
+                        <th scope="col" colspan="1"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for game in games %}
+                    <tr class="table-double-row">
+                        <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
+                        <td>{{ game[5] }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[6] }}</a></td>
+                        <td>{{ game[7] }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+{% endblock %}
