@@ -13,7 +13,7 @@
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ year }} Backgammon Games {% endblock %}</h1>
+    <h1>{% block title %} {{ year }} 1v1 Games {% endblock %}</h1>
         <div>
             <table>
                 <thead>
@@ -28,7 +28,14 @@
                 <tbody>
                 {% for game in games %}
                     <tr class="table-double-row">
-                        <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+                        <td>{{ game[2] }}</td>
+                        <td>{{ game[3] }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr class="table-double-row">
+                        <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}</td>
                         <td><a href="{{ url_for('player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
                         <td>{{ game[5] }}</td>
                         <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[6] }}</a></td>
