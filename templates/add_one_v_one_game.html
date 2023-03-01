@@ -19,6 +19,16 @@
     <h1>{% block title %} Add a Game {% endblock %}</h1>
     <div>
     <form method="post">
+        <datalist id="game_types">
+            {% for game_type in game_types %}
+                <option value= "{{ game_type }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="game_names">
+            {% for game_name in game_names %}
+                <option value= "{{ game_name }}"></option>
+            {% endfor %}
+        </datalist>
         <datalist id="players">
             {% for player in players %}
                 <option value= "{{ player }}"></option>
@@ -35,13 +45,13 @@
             {% endfor %}
         </datalist>
         <input type="text" name="game_type"
-                placeholder="Game Type"
+                placeholder="Game type"
                 value="{{ request.form['game_type'] }}"
-                list="players">
+                list="game_types">
         <input type="text" name="game_name"
-                placeholder="Game Name"
+                placeholder="Game name"
                 value="{{ request.form['game_name'] }}"
-                list="players">
+                list="game_names">
         <input type="text" name="winner"
                 placeholder="Winner"
                 value="{{ request.form['winner'] }}"

@@ -345,11 +345,11 @@ def one_v_one():
 
 @app.route('/add_one_v_one_game/', methods=('GET', 'POST'))
 def add_one_v_one_game():
-    games = one_v_one_year_games('All_years')
+    games = one_v_one_year_games('All years')
     game_types = one_v_one_game_types(games)
+    game_names = one_v_one_game_names(games)
     players = all_one_v_one_players(games)
     stats = todays_one_v_one_stats()
-    games = todays_one_v_one_games()
     year = str(date.today().year)
     winning_scores = one_v_one_winning_scores()
     losing_scores = one_v_one_losing_scores()
@@ -367,7 +367,7 @@ def add_one_v_one_game():
             add_one_v_one_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
             return redirect(url_for('add_one_v_one_game'))
 
-    return render_template('add_one_v_one_game.html', year=year, players=players, todays_stats=stats, games=games,
+    return render_template('add_one_v_one_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
         winning_scores=winning_scores, losing_scores=losing_scores)
 
 

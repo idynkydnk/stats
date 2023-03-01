@@ -21,10 +21,10 @@ def one_v_one_stats_per_year(year, minimum_games):
 def all_one_v_one_players(games):
     players = []
     for game in games:
-        if game[2] not in players:
-            players.append(game[2])
         if game[4] not in players:
             players.append(game[4])
+        if game[6] not in players:
+            players.append(game[6])
     return players
 
 def one_v_one_game_types(games):
@@ -33,6 +33,13 @@ def one_v_one_game_types(games):
         if game[2] not in game_types:
             game_types.append(game[2])
     return game_types
+
+def one_v_one_game_names(games):
+    game_names = []
+    for game in games:
+        if game[3] not in game_names:
+            game_names.append(game[3])
+    return game_names
 
 def one_v_one_year_games(year):
     cur = set_cur()
@@ -185,7 +192,6 @@ def todays_one_v_one_stats():
         for game in games:
             if player == game[4]:
                 wins += 1
-                print(game)
                 differential += (game[5] - game[7])
             elif player == game[6]:
                 losses += 1
