@@ -361,7 +361,7 @@ def add_one_v_one_game():
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-        if not game_type or not game_name or not winner or not loser:
+        if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
             add_one_v_one_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
