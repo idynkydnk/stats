@@ -326,7 +326,7 @@ def vollis_player_stats(year, name):
 @app.route('/one_v_one_stats/<year>/')
 def one_v_one_stats(year):
     all_years = all_one_v_one_years()
-    minimum_games = 2
+    minimum_games = 1
     stats = one_v_one_stats_per_year(year, minimum_games)
     return render_template('one_v_one_stats.html', stats=stats,
         all_years=all_years, minimum_games=minimum_games, year=year)
@@ -361,7 +361,7 @@ def add_one_v_one_game():
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-        if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
+        if not game_type or not game_name or not winner or not loser:
             flash('All fields required!')
         else:
             add_one_v_one_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
@@ -438,5 +438,15 @@ def one_v_one_player_stats(year, name):
         year=year, player=name, all_years=all_years, stats=stats)
 
 
+
+@app.route('/single_game_stats/<game_name>/')
+def single_game_stats(game_name):
+    all_years = single_game_years(game_name)
+    year = str(date.today().year)
+    games = single_game_games(year, game_name)
+    minimum_games = 0
+    stats = total_single_game_stats(games)
+    return render_template('single_game_stats.html', stats=stats, game_name=game_name,
+        all_years=all_years, minimum_games=minimum_games, year=year)
 
 
