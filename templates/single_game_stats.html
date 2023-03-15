@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('single_game_stats', game_name=game_name) }}">{{ game_name }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    <h1>{% block title %} {{ year }} {{ game_name }} Stats {% endblock %}</h1>
+        <div>
+        	<table>
+        		<thead>
+    				<tr>
+                        <th class="rank" scope="col" colspan="1">#</th>
+      					<th class="player_name" scope="col" colspan="1">Player</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Games</th>
+    				</tr>
+  				</thead>
+        		<tbody>
+        			{% for player in stats %}
+        			<tr>
+                        <td class="rank">{{ loop.index }}</td>
+            			<td class="player_name">{{ player[0] }}</td>
+            			<td>{{ player[1] }}</td>
+            			<td>{{ player[2] }}</td>
+            			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
+            			<td>{{ player[1] + player[2] }}</td>
+            		</tr>
+            		{% endfor %}
+            	</tbody>
+            </table>
+        </div>
+{% endblock %}
