@@ -234,6 +234,11 @@ def single_game_years(game_name):
         if game[3] == game_name:
             if game[1][0:4] not in years:
                 years.append(game[1][0:4])
+        if years == []:
+            for game in games:
+                if game[2] == game_name:
+                    if game[1][0:4] not in years:
+                        years.append(game[1][0:4])
     years.append('All years')
     return years
 
@@ -250,7 +255,6 @@ def total_single_game_stats(games):
         win_percentage = wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage])
     stats.sort(key=lambda x: x[3], reverse=True)
-    print(stats)
     return stats
 
 def single_game_games(year, game_name):
@@ -259,4 +263,8 @@ def single_game_games(year, game_name):
     for game in games:
         if game[3] == game_name:
             single_game_games.append(game)
+    if single_game_games == []:
+        for game in games:
+            if game[2] == game_name:
+                single_game_games.append(game)
     return single_game_games

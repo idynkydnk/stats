@@ -28,8 +28,8 @@
                 <tbody>
                 {% for game in games %}
                     <tr class="table-double-row">
-                        <td>{{ game[2] }}</td>
-                        <td>{{ game[3] }}</td>
+                        <td><a href="{{ url_for('single_game_stats', game_name=game[2]) }}">{{ game[2] }}</a></td>
+                        <td><a href="{{ url_for('single_game_stats', game_name=game[3]) }}">{{ game[3] }}</a></td>
                         <td></td>
                         <td></td>
                         <td></td>
