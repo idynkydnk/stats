@@ -1,19 +1,6 @@
-{% extends 'base.html' %}
+{% extends 'base_admin.html' %}
 
 {% block content %}
-	<nav>
-        <div class="dropdown">
-            <button class="dropbtn">Add/Edit
-                <i class="fa fa-caret-down"></i>
-            </button>
-            <div class="dropdown-content">
-                <a href="{{ url_for('add_game') }}">Add game</a>
-                <a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
-                <a href="{{ url_for('edit_games') }}">Edit games</a>
-                <a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
-            </div>
-        </div>  
-    </nav>
 	<h1>{% block title %} Edit Game {% endblock %}</h1>
 	<table>
 	   <thead>

@@ -4,6 +4,7 @@ from stat_functions import *
 from datetime import datetime, date
 from vollis_functions import *
 from one_v_one_functions import *
+from other_functions import *
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -448,5 +449,127 @@ def single_game_stats(game_name):
     stats = total_single_game_stats(games)
     return render_template('single_game_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
+
+
+
+
+
+
+## OTHER ROUTES
+
+
+@app.route('/other_stats/<year>/')
+def other_stats(year):
+    all_years = all_other_years()
+    minimum_games = 1
+    stats = other_stats_per_year(year, minimum_games)
+    return render_template('other_stats.html', stats=stats,
+        all_years=all_years, minimum_games=minimum_games, year=year)
+
+@app.route('/other_stats/')
+def other():
+    all_years = all_other_years()
+    year = str(date.today().year)
+    t_stats = todays_other_stats()
+    games = todays_other_games()
+    minimum_games = 0
+    stats = other_stats_per_year(year, minimum_games)
+    return render_template('other_stats.html', stats=stats, todays_stats=t_stats, games=games,
+        all_years=all_years, minimum_games=minimum_games, year=year)
+
+
+@app.route('/add_other_game/', methods=('GET', 'POST'))
+def add_other_game():
+    games = other_year_games('All years')
+    game_types = other_game_types(games)
+    game_names = other_game_names(games)
+    players = all_other_players(games)
+    stats = todays_other_stats()
+    year = str(date.today().year)
+    winning_scores = other_winning_scores()
+    losing_scores = other_losing_scores()
+    if request.method == 'POST':
+        game_type = request.form['game_type']
+        game_name = request.form['game_name']
+        winner = request.form['winner']
+        loser = request.form['loser']
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+        if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
+            flash('All fields required!')
+        else:
+            add_other_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
+            return redirect(url_for('add_other_game'))
+
+    return render_template('add_other_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
+        winning_scores=winning_scores, losing_scores=losing_scores)
+
+
+@app.route('/edit_other_games/')
+def edit_other_games():
+    all_years = all_other_years()
+    games = other_year_games(str(date.today().year))
+    return render_template('edit_other_games.html', games=games, all_years=all_years, year=str(date.today().year))
+
+@app.route('/edit_past_year_other_games/<year>')
+def edit_other_games_by_year(year):
+    all_years = all_other_years()
+    games = other_year_games(year)
+    return render_template('edit_other_games.html', all_years=all_years, games=games, year=year)
+
+@app.route('/other_games/')
+def other_games():
+    all_years = all_other_years()
+    games = other_year_games(str(date.today().year))
+    return render_template('other_games.html', games=games, all_years=all_years, year=str(date.today().year))
+
+@app.route('/other_games/<year>')
+def other_games_by_year(year):
+    all_years = all_other_years()
+    games = other_year_games(year)
+    return render_template('other_games.html', all_years=all_years, games=games, year=year)
+
+
+@app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
+def update_other_game(id):
+    game_id = id
+    x = find_other_game(game_id)
+    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6]]
+    games = other_year_games(str(date.today().year))
+    players = all_other_players(games)
+    if request.method == 'POST':
+        winner = request.form['winner']
+        loser = request.form['loser']
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+        if not winner or not loser or not winner_score or not loser_score:
+            flash('All fields required!')
+        else:
+            edit_other_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            return redirect(url_for('edit_other_games'))
+ 
+    return render_template('edit_other_game.html', game=game, players=players, year=str(date.today().year))
+
+
+@app.route('/delete_other_game/<int:id>/',methods = ['GET','POST'])
+def delete_other_game(id):
+    game_id = id
+    game = find_other_game(id)
+    if request.method == 'POST':
+        remove_other_game(game_id)
+        return redirect(url_for('edit_other_games'))
+ 
+    return render_template('delete_other_game.html', game=game)
+
+@app.route('/other_player/<year>/<name>')
+def other_player_stats(year, name):
+    all_years = all_years_other_player(name)
+    games = games_from_other_player_by_year(year, name)
+    stats = total_other_stats(name, games)
+    opponent_stats = other_opponent_stats_by_year(name, games)
+    return render_template('other_player.html', opponent_stats=opponent_stats, 
+        year=year, player=name, all_years=all_years, stats=stats)
 
 
