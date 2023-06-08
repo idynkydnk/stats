@@ -1,0 +1,164 @@
+{% extends 'base_admin.html' %}
+
+{% block content %}
+    <h1>{% block title %} Add a Game {% endblock %}</h1>
+    <div>
+    <form method="post">
+        <datalist id="game_types">
+            {% for game_type in game_types %}
+                <option value= "{{ game_type }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="game_names">
+            {% for game_name in game_names %}
+                <option value= "{{ game_name }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="players">
+            {% for player in players %}
+                <option value= "{{ player }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="winning_scores">
+            {% for score in winning_scores %}
+                <option value= "{{ score }}"></option>
+            {% endfor %}
+        </datalist>
+        <datalist id="losing_scores">
+            {% for score in losing_scores %}
+                <option value= "{{ score }}"></option>
+            {% endfor %}
+        </datalist>
+        <input type="text" name="game_type"
+                placeholder="Game type"
+                value="{{ request.form['game_type'] }}"
+                list="game_types">
+        <input type="text" name="game_name"
+                placeholder="Game name"
+                value="{{ request.form['game_name'] }}"
+                list="game_names">
+        <input type="text" name="winner1"
+                placeholder="Winner1"
+                value="{{ request.form['winner1'] }}"
+                list="players">
+        <input type="text" name="winner2"
+                placeholder="Winner2"
+                value="{{ request.form['winner2'] }}"
+                list="players">
+        <input type="text" name="winner3"
+                placeholder="Winner3"
+                value="{{ request.form['winner3'] }}"
+                list="players">
+        <input type="text" name="winner4"
+                placeholder="Winner4"
+                value="{{ request.form['winner4'] }}"
+                list="players">
+        <input type="text" name="winner5"
+                placeholder="Winner5"
+                value="{{ request.form['winner5'] }}"
+                list="players">
+        <input type="text" name="winner6"
+                placeholder="Winner6"
+                value="{{ request.form['winner6'] }}"
+                list="players">
+        
+        <input type="text" name="loser1"
+                placeholder="Loser1"
+                value="{{ request.form['loser1'] }}"
+                list="players">     
+        <input type="text" name="loser2"
+                placeholder="Loser2"
+                value="{{ request.form['loser2'] }}"
+                list="players">     
+        <input type="text" name="loser3"
+                placeholder="Loser3"
+                value="{{ request.form['loser3'] }}"
+                list="players">     
+        <input type="text" name="loser4"
+                placeholder="Loser4"
+                value="{{ request.form['loser4'] }}"
+                list="players">     
+        <input type="text" name="loser5"
+                placeholder="Loser5"
+                value="{{ request.form['loser5'] }}"
+                list="players">     
+        <input type="text" name="loser6"
+                placeholder="Loser6"
+                value="{{ request.form['loser6'] }}"
+                list="players">     
+        
+        <input type="number" pattern="[0-9]*" name="winner_score"
+                placeholder="Winner's Score"
+                value="{{ request.form['winner_score'] }}"
+                list="winning_scores">
+        <input type="number" pattern="[0-9]*" name="loser_score"
+                placeholder="Loser's Score"
+                value="{{ request.form['loser_score'] }}"
+                list="losing_scores">    
+        <input type="text" name="comment"
+                placeholder="comment"
+                value="{{ request.form['comment'] }}">   
+        <input type="submit" value="Submit">
+    </form>
+    </div>
+    <div>
+    {% if todays_stats %}
+    <table>
+        <h1>Today's 1v1 stats</h1>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Player</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in todays_stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name"><a href="{{ url_for('other_player_stats', year=year, name=stat[0] ) }}">{{ stat[0] }}</a></td>
+                <td>{{ stat[1] }}</td>
+                <td>{{ stat[2] }}</td>
+                <td>{{ "{:.2f}".format(stat[3]*100) }}</td>
+                {% if stat[4] > 0 %}
+                    <td>+{{ stat[4] }}</td>
+                {% else %}
+                    <td>{{ stat[4] }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <table>
+        <h1>Today's 1v1 games</h1>
+        <thead>
+            <tr>
+                <th scope="col" colspan="1">Date/Updated</th>
+                <th scope="col" colspan="1">Winner</th>
+                <th scope="col" colspan="1">Loser</th>
+                <th scope="col" colspan="1">Update</th>
+            </tr>
+            </thead>
+        <tbody>
+        {% for game in games %}
+            <tr class="table-double-row">
+                <td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
+                <td><a href="{{ url_for('other_player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
+                <td><a href="{{ url_for('other_player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
+                <td><a href="{{ url_for('update_other_game', id=game[0]) }}"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="26"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg></a></td>
+            </tr>
+            <tr class="table-double-row">
+                <td>{{ game[6][0:10] }}<br>{{ game[6][11:19] }}</td>
+                <td>{{ game[5] }}</td>
+                <td>{{ game[7] }}</td>
+                <td><a href="{{ url_for('delete_other_game', id=game[0]) }}"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="30"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg></a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    </div>
+{% endblock %}

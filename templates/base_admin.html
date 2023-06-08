@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %} {% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <meta name="viewport" content="width=device-width" />
+</head>
+<body>
+    <nav>
+        <h1><a href="{{ url_for('index') }}">Doubles</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
+        <div class="hamburger-menu-container">
+            <input id="menu__toggle" type="checkbox" />
+            <label class="menu__btn" for="menu__toggle">
+                <span></span>
+            </label>
+
+            <ul class="menu__box">
+                <li><a class="menu__item" href="{{ url_for('games') }}">Games</a></li>
+                <li><a class="menu__item" href="{{ url_for('vollis_games') }}">Vollis Games</a></li>
+                <li><a class="menu__item" href="{{ url_for('top_teams') }}">Top Teams</a></li>
+                <li><a class="menu__item" href="{{ url_for('advanced_stats') }}">Advanced Stats</a></li>
+                <li><a class="menu__item" href="{{ url_for('one_v_one') }}">1v1 Stats</a></li>
+                <li><a class="menu__item" href="{{ url_for('one_v_one_games') }}">1v1 Games</a></li>
+
+            </ul>
+        </div>
+    </nav>
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Add/Edit
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                <a href="{{ url_for('add_game') }}">Add game</a>
+                <a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
+                <a href="{{ url_for('edit_games') }}">Edit games</a>
+                <a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
+                <a href="{{ url_for('add_one_v_one_game') }}">Add 1v1 game</a>
+                <a href="{{ url_for('edit_one_v_one_games') }}">Edit 1v1 games</a>
+                <a href="{{ url_for('add_other_game') }}">Add other game</a>
+            </div>
+        </div>  
+    </nav>
+    <div class="content">
+        {% for message in get_flashed_messages() %}
+            <div class="alert">{{ message }}</div>
+        {% endfor %}
+        {% block content %} {% endblock %}
+    </div>
+</body>
+</html>
