@@ -11,7 +11,8 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 @app.route('/')
 def index():
-    games = year_games(str(date.today().year))
+    curr_year_str = str(date.today().year)
+    games = year_games(curr_year_str)
     if games:
         if len(games) < 30:
             minimum_games = 1
@@ -20,12 +21,12 @@ def index():
     else:
         minimum_games = 1
     all_years = grab_all_years()
-    t_stats = todays_stats()
+    t_stats = todays_stats() # get stats for today's games
     games = todays_games()
-    stats = stats_per_year(str(date.today().year), minimum_games)
-    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
+    stats = stats_per_year(curr_year_str, minimum_games)
+    rare_stats = rare_stats_per_year(curr_year_str, minimum_games)
     return render_template('stats.html', todays_stats=t_stats, stats=stats, games=games, rare_stats=rare_stats, 
-        minimum_games=minimum_games, year=str(date.today().year), all_years=all_years)
+        minimum_games=minimum_games, year=curr_year_str, all_years=all_years)
 
 @app.route('/stats/<year>/')
 def stats(year):
@@ -45,8 +46,9 @@ def stats(year):
 @app.route('/top_teams/')
 def top_teams():
     all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    year = str(date.today().year)
+    curr_year_str = str(date.today().year)
+    games = year_games(curr_year_str)
+    
     if games:
         if len(games) < 70:
             minimum_games = 1
@@ -54,8 +56,8 @@ def top_teams():
             minimum_games = len(games) // 70
     else:
         minimum_games = 1
-    stats = team_stats_per_year(year, minimum_games, games)
-    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
+    stats = team_stats_per_year(curr_year_str, minimum_games, games)
+    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=curr_year_str)
 
 @app.route('/top_teams/<year>/')
 def top_teams_by_year(year):
@@ -95,9 +97,9 @@ def player_stats(year, name):
 @app.route('/games/')
 def games():
     all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    year = str(date.today().year)
-    return render_template('games.html', games=games, year=year, all_years=all_years)
+    curr_year_str = str(date.today().year)
+    games = year_games(curr_year_str)
+    return render_template('games.html', games=games, year=curr_year_str, all_years=all_years)
 
 @app.route('/games/<year>')
 def games_by_year(year):
@@ -107,6 +109,7 @@ def games_by_year(year):
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 def add_game():
+
     games = year_games(str(date.today().year))
     if games:
         if len(games) < 30:
@@ -125,6 +128,7 @@ def add_game():
     t_stats = todays_stats()
     games = todays_games()
     year = str(date.today().year)
+
     if request.method == 'POST':
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
@@ -135,18 +139,17 @@ def add_game():
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
-        if int(winner_score) <= int(loser_score):
+        elif int(winner_score) <= int(loser_score):
             flash('Winner score is less than loser score!')
-        if winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
         else:
             add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
                 winner_score, loser_score, datetime.now()])
             return redirect(url_for('add_game'))
-
+        
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
         w_scores=w_scores, l_scores=l_scores, year=year, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games)
-
 
 @app.route('/edit_games/')
 def edit_games():

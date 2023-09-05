@@ -23,7 +23,7 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
 		database = r'stats.db'
 		conn = create_connection(database)
 	with conn: 
-		game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2);
+		game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2)
 		database_update_game(conn, game)
 
 def remove_game(game_id):
