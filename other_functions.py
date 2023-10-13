@@ -1,6 +1,36 @@
 from create_other_database import *
 from datetime import datetime, date
 
+def add_other_stats(game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
+                    winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, updated_at):
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    with conn: 
+        game = (game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
+                winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, updated_at);
+        create_other_game(conn, game)
+
+def todays_other_games():
+    cur = set_cur()
+    cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours')")
+    games = cur.fetchall()
+    games.sort(reverse=True)
+    readable_games_data(games)
+    #row = convert_ampm(games)
+    return games
+
+def readable_games_data(games):
+    for game in games:
+        data = {'game_id':game[0], 'game_date':game[1], 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
+                'winner3':game[6], 'winner4':game[7], 'winner5':game[8], 'winner6':game[9], 'winner_score':game[10], 'loser1':game[11], 
+                'loser2':game[12], 'loser3':game[13], 'loser4':game[14], 'loser5':game[15], 'loser6':game[16], 'loser_score':game[17], 
+                'comment':game[18], 'updated_at':game[19]}
+        print(game)
+        print(data)
+
 def other_stats_per_year(year, minimum_games):
     games = other_year_games(year)
     players = all_other_players(games)
@@ -60,22 +90,11 @@ def set_cur():
     cur = conn.cursor()
     return cur  
 
-def add_other_stats(game):
-    new_other_game(game[0], game[1], game[2], game[3], game[5], game[4], game[6], game[7])
+
 
 def enter_data_into_database(games_data):
     for x in games_data:
         new_other_game(x[4], x[2], 0, x[3], 0, x[4])
-
-def new_other_game(game_date, game_type, game_name, winner, winner_score, loser, loser_score, updated_at):
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    with conn: 
-        game = (game_date, game_type, game_name, winner, winner_score, loser, loser_score, updated_at);
-        create_other_game(conn, game)
 
 def find_other_game(game_id):
     cur = set_cur()
@@ -182,7 +201,6 @@ def total_other_stats(name, games):
     stats.append([name, wins, losses, win_percent, total_games])
     return stats
 
-
 def todays_other_stats():
     games = todays_other_games()
     players = all_other_players(games)
@@ -192,10 +210,10 @@ def todays_other_stats():
         for game in games:
             if player == game[4]:
                 wins += 1
-                differential += (game[5] - game[7])
+                differential += (0-0) # TEMPORARY
             elif player == game[6]:
                 losses += 1
-                differential -= (game[5] - game[7])
+                differential -= (0-0) # TEMPORARY
         win_percentage = wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage, differential])
     stats.sort(key=lambda x: x[3], reverse=True)
@@ -210,13 +228,7 @@ def all_other_players(games):
             players.append(game[6])
     return players
 
-def todays_other_games():
-    cur = set_cur()
-    cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours')")
-    games = cur.fetchall()
-    games.sort(reverse=True)
-    #row = convert_ampm(games)
-    return games
+
 
 def other_winning_scores():
     scores = [11,12,13]

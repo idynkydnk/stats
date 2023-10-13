@@ -458,6 +458,8 @@ def single_game_stats(game_name):
 ## OTHER ROUTES
 
 
+
+
 @app.route('/other_stats/<year>/')
 def other_stats(year):
     all_years = all_other_years()
@@ -491,15 +493,27 @@ def add_other_game():
     if request.method == 'POST':
         game_type = request.form['game_type']
         game_name = request.form['game_name']
-        winner = request.form['winner']
-        loser = request.form['loser']
+        winner1 = request.form['winner1']
+        winner2 = request.form['winner2']
+        winner3 = request.form['winner3']
+        winner4 = request.form['winner4']
+        winner5 = request.form['winner5']
+        winner6 = request.form['winner6']
+        loser1 = request.form['loser1']
+        loser2 = request.form['loser2']
+        loser3 = request.form['loser3']
+        loser4 = request.form['loser4']
+        loser5 = request.form['loser5']
+        loser6 = request.form['loser6']
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
+        comment = request.form['comment']
 
-        if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
+        if not game_type or not game_name or not winner1 or not loser1:
+            flash('Some fields missing!')
         else:
-            add_other_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
+            add_other_stats(datetime.now(), game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
+                            winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, datetime.now())
             return redirect(url_for('add_other_game'))
 
     return render_template('add_other_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
