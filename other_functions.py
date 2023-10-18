@@ -18,43 +18,67 @@ def todays_other_games():
     cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours')")
     games = cur.fetchall()
     games.sort(reverse=True)
-    readable_games_data(games)
     #row = convert_ampm(games)
     return games
 
 def readable_games_data(games):
+    readable_games = []
     for game in games:
         data = {'game_id':game[0], 'game_date':game[1], 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
                 'winner3':game[6], 'winner4':game[7], 'winner5':game[8], 'winner6':game[9], 'winner_score':game[10], 'loser1':game[11], 
                 'loser2':game[12], 'loser3':game[13], 'loser4':game[14], 'loser5':game[15], 'loser6':game[16], 'loser_score':game[17], 
                 'comment':game[18], 'updated_at':game[19]}
-        print(game)
-        print(data)
+        readable_games.append(data)
+    return readable_games
 
 def other_stats_per_year(year, minimum_games):
     games = other_year_games(year)
     players = all_other_players(games)
+    print(players)
+    games_key = readable_games_data(games)
     stats = []
     for player in players:
         wins, losses = 0, 0
-        for game in games:
-            if player == game[4]:
-                wins += 1
-            elif player == game[6]:
-                losses += 1
-        win_percentage = wins / (wins + losses)
-        if wins + losses >= minimum_games:
-            stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[3], reverse=True)
+        for game in games_key:
+            x = 1 + 1
+          ##  if player == game["winner1"]:
+            ##    wins += 1
+            ##elif player == game["loser1"]:
+              ##  losses += 1
+       # win_percentage = wins / (wins + losses)
+        #if wins + losses >= minimum_games:
+         #   stats.append([player, wins, losses, win_percentage])
+    #stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
 def all_other_players(games):
+    games_key = readable_games_data(games)
     players = []
-    for game in games:
-        if game[4] not in players:
-            players.append(game[4])
-        if game[6] not in players:
-            players.append(game[6])
+    for game in games_key:
+        if game['winner1'] not in players and len(game['winner1']) > 1:
+            players.append(game['winner1'])
+        if game["winner2"] not in players and len(game['winner1']) > 1:
+            players.append(game["winner2"])
+        if game["winner3"] not in players and len(game["winner3"]) > 1:
+            players.append(game["winner3"])
+        if game["winner4"] not in players and len(game["winner4"]) > 1:
+            players.append(game["winner4"])
+        if game["winner5"] not in players and len(game["winner5"]) > 1:
+            players.append(game["winner5"])
+        if game["winner6"] not in players and len(game["winner6"]) > 1:
+            players.append(game["winner6"])
+        if game['loser1'] not in players and len(game['loser1']) > 1:
+            players.append(game['loser1'])
+        if game['loser2'] not in players and len(game['loser2']) > 1:
+            players.append(game['loser2'])
+        if game['loser3'] not in players and len(game['loser3']) > 1:
+            players.append(game['loser3'])
+        if game['loser4'] not in players and len(game['loser4']) > 1:
+            players.append(game['loser4'])
+        if game['loser5'] not in players and len(game['loser5']) > 1:
+            players.append(game['loser5'])
+        if game['loser6'] not in players and len(game['loser6']) > 1:
+            players.append(game['loser6'])
     return players
 
 def other_game_types(games):
@@ -214,20 +238,10 @@ def todays_other_stats():
             elif player == game[6]:
                 losses += 1
                 differential -= (0-0) # TEMPORARY
-        win_percentage = wins / (wins + losses)
+        win_percentage = 0 ##wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage, differential])
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
-
-def all_other_players(games):
-    players = []
-    for game in games:
-        if game[4] not in players:
-            players.append(game[4])
-        if game[6] not in players:
-            players.append(game[6])
-    return players
-
 
 
 def other_winning_scores():
