@@ -34,14 +34,14 @@ def readable_games_data(games):
 def other_stats_per_year(year, minimum_games):
     games = other_year_games(year)
     players = all_other_players(games)
-    print(players)
     games_key = readable_games_data(games)
     stats = []
     for player in players:
         wins, losses = 0, 0
         for game in games_key:
             x = 1 + 1
-          ##  if player == game["winner1"]:
+            if player in [game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"]]:
+                print(player)
             ##    wins += 1
             ##elif player == game["loser1"]:
               ##  losses += 1
@@ -55,30 +55,31 @@ def all_other_players(games):
     games_key = readable_games_data(games)
     players = []
     for game in games_key:
-        if game['winner1'] not in players and len(game['winner1']) > 1:
+        if game['winner1'] not in players:
             players.append(game['winner1'])
-        if game["winner2"] not in players and len(game['winner1']) > 1:
+        if game["winner2"] not in players:
             players.append(game["winner2"])
-        if game["winner3"] not in players and len(game["winner3"]) > 1:
+        if game["winner3"] not in players:
             players.append(game["winner3"])
-        if game["winner4"] not in players and len(game["winner4"]) > 1:
+        if game["winner4"] not in players:
             players.append(game["winner4"])
-        if game["winner5"] not in players and len(game["winner5"]) > 1:
+        if game["winner5"] not in players:
             players.append(game["winner5"])
-        if game["winner6"] not in players and len(game["winner6"]) > 1:
+        if game["winner6"] not in players:
             players.append(game["winner6"])
-        if game['loser1'] not in players and len(game['loser1']) > 1:
+        if game['loser1'] not in players:
             players.append(game['loser1'])
-        if game['loser2'] not in players and len(game['loser2']) > 1:
+        if game['loser2'] not in players:
             players.append(game['loser2'])
-        if game['loser3'] not in players and len(game['loser3']) > 1:
+        if game['loser3'] not in players:
             players.append(game['loser3'])
-        if game['loser4'] not in players and len(game['loser4']) > 1:
+        if game['loser4'] not in players:
             players.append(game['loser4'])
-        if game['loser5'] not in players and len(game['loser5']) > 1:
+        if game['loser5'] not in players:
             players.append(game['loser5'])
-        if game['loser6'] not in players and len(game['loser6']) > 1:
+        if game['loser6'] not in players:
             players.append(game['loser6'])
+    players.remove("")
     return players
 
 def other_game_types(games):
