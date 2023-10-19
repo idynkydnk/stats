@@ -79,7 +79,7 @@ def all_other_players(games):
             players.append(game['loser5'])
         if game['loser6'] not in players:
             players.append(game['loser6'])
-    players.remove("")
+    if "" in players: players.remove("")
     return players
 
 def other_game_types(games):
