@@ -587,3 +587,13 @@ def other_player_stats(year, name):
         year=year, player=name, all_years=all_years, stats=stats)
 
 
+@app.route('/game_name_stats/<game_name>/')
+def game_name_stats(game_name):
+    all_years = game_name_years(game_name)
+    year = str(date.today().year)
+    games = game_name_games(year, game_name)
+    minimum_games = 0
+    stats = total_game_name_stats(games)
+    return render_template('game_name_stats.html', stats=stats, game_name=game_name,
+        all_years=all_years, minimum_games=minimum_games, year=year)
+
