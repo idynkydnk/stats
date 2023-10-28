@@ -254,8 +254,10 @@ def other_losing_scores():
     return scores
 
 
-def single_game_years(game_name):
+def game_name_years(game_name):
     games = all_other_games()
+    readable_games = readable_games_data(games)
+    print(readable_games)
     years = []
     for game in games:
         if game[3] == game_name:
@@ -269,7 +271,7 @@ def single_game_years(game_name):
     years.append('All years')
     return years
 
-def total_single_game_stats(games):
+def total_game_name_stats(games):
     players = all_other_players(games)
     stats = []
     for player in players:
@@ -284,14 +286,14 @@ def total_single_game_stats(games):
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
-def single_game_games(year, game_name):
+def game_name_games(year, game_name):
     games = other_year_games(year)
-    single_game_games = []
+    game_name_games = []
     for game in games:
         if game[3] == game_name:
-            single_game_games.append(game)
-    if single_game_games == []:
+            game_name_games.append(game)
+    if game_name_games == []:
         for game in games:
             if game[2] == game_name:
-                single_game_games.append(game)
-    return single_game_games
+                game_name_games.append(game)
+    return game_name_games
