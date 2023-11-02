@@ -471,6 +471,7 @@ def other_stats(year):
 @app.route('/other_stats/')
 def other():
     all_years = all_other_years()
+    print(all_years)
     year = str(date.today().year)
     t_stats = todays_other_stats()
     games = todays_other_games()

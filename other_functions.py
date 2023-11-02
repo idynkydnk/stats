@@ -18,8 +18,8 @@ def todays_other_games():
     cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours')")
     games = cur.fetchall()
     games.sort(reverse=True)
-    #row = convert_ampm(games)
-    return games
+    readable_games = readable_games_data(games)
+    return readable_games
 
 def readable_games_data(games):
     readable_games = []
@@ -52,9 +52,8 @@ def other_stats_per_year(year, minimum_games):
     return stats
 
 def all_other_players(games):
-    games_key = readable_games_data(games)
     players = []
-    for game in games_key:
+    for game in games:
         if game['winner1'] not in players:
             players.append(game['winner1'])
         if game["winner2"] not in players:
@@ -85,15 +84,15 @@ def all_other_players(games):
 def other_game_types(games):
     game_types = []
     for game in games:
-        if game[2] not in game_types:
-            game_types.append(game[2])
+        if game['game_type'] not in game_types:
+            game_types.append(game['game_type'])
     return game_types
 
 def other_game_names(games):
     game_names = []
     for game in games:
-        if game[3] not in game_names:
-            game_names.append(game[3])
+        if game['game_name'] not in game_names:
+            game_names.append(game['game_name'])
     return game_names
 
 def other_year_games(year):
@@ -104,7 +103,8 @@ def other_year_games(year):
         cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=?", (year,))
     row = cur.fetchall()
     row.sort(reverse=True)
-    return row
+    games = readable_games_data(row)
+    return games
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -150,8 +150,8 @@ def all_other_years():
     games = all_other_games()
     years = []
     for game in games:
-        if game[1][0:4] not in years:
-            years.append(game[1][0:4])
+        if game['game_date'][0:4] not in years:
+            years.append(game['game_date'][0:4])
     years.append('All years')
     return years
 
@@ -175,7 +175,8 @@ def all_other_games():
     cur = set_cur()
     cur.execute("SELECT * FROM other_games")
     row = cur.fetchall()
-    return row
+    games = readable_games_data(row)
+    return games
 
 def games_from_other_player_by_year(year, name):
     cur = set_cur()
@@ -184,7 +185,8 @@ def games_from_other_player_by_year(year, name):
     else:
         cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
     row = cur.fetchall()
-    return row
+    games = readable_games_data(row)
+    return games
 
 def all_other_opponents(player, games):
     players = []
@@ -233,10 +235,11 @@ def todays_other_stats():
     for player in players:
         wins, losses, differential = 0, 0, 0
         for game in games:
-            if player == game[4]:
+            if player in (game['winner1'], game['winner2'], game['winner3'], game['winner4'], game['winner5'], game['winner6']):
+                print(player)
                 wins += 1
                 differential += (0-0) # TEMPORARY
-            elif player == game[6]:
+            elif player in (game['loser1'], game['loser2'], game['loser3'], game['loser4'], game['loser5'], game['loser6']):
                 losses += 1
                 differential -= (0-0) # TEMPORARY
         win_percentage = 0 ##wins / (wins + losses)
@@ -257,19 +260,31 @@ def other_losing_scores():
 def game_name_years(game_name):
     games = all_other_games()
     readable_games = readable_games_data(games)
-    print(readable_games)
     years = []
-    for game in games:
-        if game[3] == game_name:
-            if game[1][0:4] not in years:
-                years.append(game[1][0:4])
+    for game in readable_games:
+        if game["game_name"] == game_name:
+            if game["game_date"][0:4] not in years:
+                years.append(game["game_date"][0:4])
         if years == []:
-            for game in games:
-                if game[2] == game_name:
-                    if game[1][0:4] not in years:
-                        years.append(game[1][0:4])
+            for game in readable_games:
+                if game["game_name"] == game_name:
+                    if game["game_date"][0:4] not in years:
+                        years.append(game["game_date"][0:4])
     years.append('All years')
     return years
+
+def game_name_games(year, game_name):
+    games = other_year_games(year)
+    game_name_games = []
+    readable_games = readable_games_data(games)
+    for game in readable_games:
+        if game["game_name"] == game_name:
+            game_name_games.append(game)
+    if game_name_games == []:
+        for game in games:
+            if game["game_name"] == game_name:
+                game_name_games.append(game)
+    return game_name_games
 
 def total_game_name_stats(games):
     players = all_other_players(games)
@@ -286,14 +301,4 @@ def total_game_name_stats(games):
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
-def game_name_games(year, game_name):
-    games = other_year_games(year)
-    game_name_games = []
-    for game in games:
-        if game[3] == game_name:
-            game_name_games.append(game)
-    if game_name_games == []:
-        for game in games:
-            if game[2] == game_name:
-                game_name_games.append(game)
-    return game_name_games
+
