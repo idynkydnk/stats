@@ -34,21 +34,19 @@ def readable_games_data(games):
 def other_stats_per_year(year, minimum_games):
     games = other_year_games(year)
     players = all_other_players(games)
-    games_key = readable_games_data(games)
     stats = []
     for player in players:
         wins, losses = 0, 0
-        for game in games_key:
+        for game in games:
             x = 1 + 1
-            if player in [game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"]]:
-                print(player)
-            ##    wins += 1
-            ##elif player == game["loser1"]:
-              ##  losses += 1
-       # win_percentage = wins / (wins + losses)
-        #if wins + losses >= minimum_games:
-         #   stats.append([player, wins, losses, win_percentage])
-    #stats.sort(key=lambda x: x[3], reverse=True)
+            if player in ( game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"] ):
+                wins += 1
+            elif player in ( game["loser1"], game["loser2"], game["loser3"], game["loser4"], game["loser5"], game["loser6"] ):
+                losses += 1
+        win_percentage = wins / (wins + losses)
+        if wins + losses >= minimum_games:
+            stats.append([player, wins, losses, win_percentage])
+    stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
 def all_other_players(games):
