@@ -592,7 +592,6 @@ def game_name_stats(game_name):
     all_years = game_name_years(game_name)
     year = str(date.today().year)
     games = game_name_games(year, game_name)
-    print(games)
     minimum_games = 0
     stats = total_game_name_stats(games)
     return render_template('game_name_stats.html', stats=stats, game_name=game_name,
