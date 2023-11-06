@@ -114,7 +114,6 @@ def set_cur():
     return cur  
 
 
-
 def enter_data_into_database(games_data):
     for x in games_data:
         new_other_game(x[4], x[2], 0, x[3], 0, x[4])
@@ -257,32 +256,18 @@ def other_losing_scores():
 
 def game_name_years(game_name):
     games = all_other_games()
-    readable_games = readable_games_data(games)
     years = []
-    for game in readable_games:
+    for game in games:
         if game["game_name"] == game_name:
             if game["game_date"][0:4] not in years:
                 years.append(game["game_date"][0:4])
         if years == []:
-            for game in readable_games:
+            for game in games:
                 if game["game_name"] == game_name:
                     if game["game_date"][0:4] not in years:
                         years.append(game["game_date"][0:4])
     years.append('All years')
     return years
-
-def game_name_games(year, game_name):
-    games = other_year_games(year)
-    game_name_games = []
-    readable_games = readable_games_data(games)
-    for game in readable_games:
-        if game["game_name"] == game_name:
-            game_name_games.append(game)
-    if game_name_games == []:
-        for game in games:
-            if game["game_name"] == game_name:
-                game_name_games.append(game)
-    return game_name_games
 
 def total_game_name_stats(games):
     players = all_other_players(games)
@@ -298,5 +283,26 @@ def total_game_name_stats(games):
         stats.append([player, wins, losses, win_percentage])
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
+
+def game_name_games(year, game_name):
+    games = other_year_games(year)
+    game_name_games = []
+    for game in games:
+        if game["game_name"] == game_name:
+            game_name_games.append(game)
+    return game_name_games
+
+def game_name_stats(game_name):
+    games = other_year_games(year)
+    game_name_games = []
+    readable_games = readable_games_data(games)
+    for game in readable_games:
+        if game["game_name"] == game_name:
+            game_name_games.append(game)
+    if game_name_games == []:
+        for game in games:
+            if game["game_name"] == game_name:
+                game_name_games.append(game)
+    return game_name_games
 
 
