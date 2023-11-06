@@ -8,7 +8,7 @@
             </button>
             <div class="dropdown-content">
                 {% for year in all_years %}
-                    <a href="{{ url_for('one_v_one_games_by_year', year=year) }}">{{ year }}</a>
+                    <a href="{{ url_for('other_games_by_year', year=year) }}">{{ year }}</a>
                 {% endfor %}
             </div>
         </div>       

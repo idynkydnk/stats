@@ -471,7 +471,6 @@ def other_stats(year):
 @app.route('/other_stats/')
 def other():
     all_years = all_other_years()
-    print(all_years)
     year = str(date.today().year)
     t_stats = todays_other_stats()
     games = todays_other_games()
@@ -536,7 +535,7 @@ def edit_other_games_by_year(year):
 @app.route('/other_games/')
 def other_games():
     all_years = all_other_years()
-    games = readable_games_data(other_year_games(str(date.today().year)))
+    games = other_year_games(str(date.today().year))
     return render_template('other_games.html', games=games, all_years=all_years, year=str(date.today().year))
 
 @app.route('/other_games/<year>')
