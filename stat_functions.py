@@ -142,7 +142,7 @@ def todays_stats():
 
 def todays_games():
 	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE game_date > date('now','-15 hours')")
+	cur.execute("SELECT * FROM games WHERE game_date > date('now','-24 hours')")
 	games = cur.fetchall()
 	games.sort(reverse=True)
 	row = convert_ampm(games)
