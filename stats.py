@@ -596,4 +596,3 @@ def game_name_stats(game_name):
     stats = total_game_name_stats(games)
     return render_template('game_name_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
-
