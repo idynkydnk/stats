@@ -2,7 +2,8 @@
 
 {% block content %}
 	<h1>{% block title %} Edit Game {% endblock %}</h1>
-	<table>
+	<!-- [ML] This inserts a table summarizing the game being edited. However, not very useful not that the values for the game being edited are auto loaded into the form fields -->
+	<!-- <table>
 	   <thead>
 			<tr>
 				<th scope="col" colspan="1">Date/Updated</th>
@@ -22,48 +23,37 @@
 				<td>{{ game[7] }}</td>
 			</tr>
 		</tbody>
-	</table>
+	</table> -->
 	<div>
 	   <form method="post">
+			  <!-- [ML] This generates a datalist that used to populate the player name dropdowns -->
 			  <datalist id="players">
 					 {% for player in players %}
-							<option value= "{{ player }}">
+							<option value= "{{ player }}"></option>
 					 {% endfor %}
 			  </datalist>
-			  <datalist id="w_scores">
-					 {% for score in w_scores %}
-							<option value= "{{ score }}">
-					 {% endfor %}
-			  </datalist>
-			  <datalist id="l_scores">
-					 {% for score in l_scores %}
-							<option value= "{{ score }}">
-					 {% endfor %}
-			  </datalist>
-			  <input type="text" name="winner1"
+			  <input type="text" name="winner1" value="{{ game[2] }}"
 					 placeholder="Winner 1"
 					 value="{{ request.form['winner1'] }}"
 					 list="players">
-			  <input type="text" name="winner2"
+			  <input type="text" name="winner2" value="{{ game[3] }}"
 					 placeholder="Winner 2"
 					 value="{{ request.form['winner2'] }}"
 					 list="players">
-			  <input type="text" name="loser1"
+			  <input type="text" name="loser1" value="{{ game[5] }}"
 					 placeholder="Loser 1"
 					 value="{{ request.form['loser1'] }}"
 					 list="players">      
-			  <input type="text" name="loser2"
+			  <input type="text" name="loser2" value="{{ game[6] }}"
 					 placeholder="Loser 2"
 					 value="{{ request.form['loser2'] }}"
 					 list="players">
-			  <input type="number" pattern="[0-9]*" name="winner_score"
-					 placeholder="Winner's Score"
-					 value="{{ request.form['winner_score'] }}"
-					 list="w_scores">
-			  <input type="number" pattern="[0-9]*" name="loser_score"
-					 placeholder="Loser's Score"
-					 value="{{ request.form['loser_score'] }}"
-					 list="l_scores">    
+			  <input type="number" pattern="[0-9]*" name="winner_score" value="{{ game[4] }}"
+					 placeholder="Winners' Score"
+					 value="{{ request.form['winner_score'] }}">
+			  <input type="number" pattern="[0-9]*" name="loser_score" value="{{ game[7] }}"
+					 placeholder="Losers' Score"
+					 value="{{ request.form['loser_score'] }}">
 			  <input type="submit" value="Submit">
 		   </form>
 	   </div>
