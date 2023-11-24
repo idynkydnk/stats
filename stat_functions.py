@@ -17,7 +17,7 @@ def add_game_stats(game):
 	enter_data_into_database(all_games)
 
 def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2):
-	database = '/home/Idynkydnk/stats/stats.db'
+	database = '/home/MarkL/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
@@ -27,7 +27,7 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
 		database_update_game(conn, game)
 
 def remove_game(game_id):
-	database = '/home/Idynkydnk/stats/stats.db'
+	database = '/home/MarkL/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
@@ -36,7 +36,7 @@ def remove_game(game_id):
 		database_delete_game(conn, game_id)
 
 def set_cur():
-	database = '/home/Idynkydnk/stats/stats.db'
+	database = '/home/MarkL/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
@@ -193,14 +193,6 @@ def rare_stats_per_year(year, minimum_games):
 	for stat in no_wins:
 		stats.append(stat)
 	return stats
-
-def winners_scores():
-	scores = [21,22,23]
-	return scores
-
-def losers_scores():
-	scores = [19,18,17]
-	return scores
 
 def all_players(games):
 	players = []
