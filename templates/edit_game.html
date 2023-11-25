@@ -40,30 +40,28 @@
 							<option value= "{{ score }}">
 					 {% endfor %}
 			  </datalist>
-			  <input type="text" name="winner1"
+			  <input type="text" name="winner1" value="{{ game[2] }}"
 					 placeholder="Winner 1"
 					 value="{{ request.form['winner1'] }}"
 					 list="players">
-			  <input type="text" name="winner2"
+			  <input type="text" name="winner2" value="{{ game[3] }}"
 					 placeholder="Winner 2"
 					 value="{{ request.form['winner2'] }}"
 					 list="players">
-			  <input type="text" name="loser1"
+			  <input type="text" name="loser1" value="{{ game[5] }}"
 					 placeholder="Loser 1"
 					 value="{{ request.form['loser1'] }}"
 					 list="players">      
-			  <input type="text" name="loser2"
+			  <input type="text" name="loser2" value="{{ game[6] }}"
 					 placeholder="Loser 2"
 					 value="{{ request.form['loser2'] }}"
 					 list="players">
-			  <input type="number" pattern="[0-9]*" name="winner_score"
-					 placeholder="Winner's Score"
-					 value="{{ request.form['winner_score'] }}"
-					 list="w_scores">
-			  <input type="number" pattern="[0-9]*" name="loser_score"
-					 placeholder="Loser's Score"
-					 value="{{ request.form['loser_score'] }}"
-					 list="l_scores">    
+			  <input type="number" pattern="[0-9]*" name="winner_score" value="{{ game[4] }}"
+					 placeholder="Winners' Score"
+					 value="{{ request.form['winner_score'] }}">
+			  <input type="number" pattern="[0-9]*" name="loser_score" value="{{ game[7] }}"
+					 placeholder="Losers' Score"
+					 value="{{ request.form['loser_score'] }}">
 			  <input type="submit" value="Submit">
 		   </form>
 	   </div>
