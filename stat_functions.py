@@ -17,32 +17,9 @@ def add_game_stats(game):
 	enter_data_into_database(all_games)
 
 def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2):
-	database = '/home/MarkL/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	with conn: 
-		game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2)
-		database_update_game(conn, game)
-
-def remove_game(game_id):
-	database = '/home/MarkL/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	with conn: 
-		database_delete_game(conn, game_id)
-
-def set_cur():
-	database = '/home/MarkL/stats.db'
-	conn = create_connection(database)
-	if conn is None:
-		database = r'stats.db'
-		conn = create_connection(database)
-	cur = conn.cursor()
-	return cur	
+	conn = db_get_connection()
+	game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id2)
+	db_update_game(conn, game)
 
 def stats_per_year(year, minimum_games):
 	if year == 'All years':
@@ -141,7 +118,7 @@ def todays_stats():
 	return stats
 
 def todays_games():
-	cur = set_cur()
+	cur = db_get_cursor()
 	cur.execute("SELECT * FROM games WHERE game_date > date('now','-15 hours')")
 	games = cur.fetchall()
 	games.sort(reverse=True)
@@ -208,7 +185,7 @@ def all_players(games):
 	return players
 
 def year_games(year):
-	cur = set_cur()
+	cur = db_get_cursor()
 	if year == 'All years':
 		cur.execute("SELECT * FROM games")
 	else:
@@ -219,13 +196,13 @@ def year_games(year):
 	return row
 
 def all_games():
-	cur = set_cur()
+	cur = db_get_cursor()
 	cur.execute("SELECT * FROM games")
 	row = cur.fetchall()
 	return row
 
 def current_year_games():
-	cur = set_cur()
+	cur = db_get_cursor()
 	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
 	row = cur.fetchall()
 	return row
@@ -251,19 +228,21 @@ def all_years_player(name):
 
 
 def all_games_player(name):
-	cur = set_cur()
+	cur = db_get_cursor()
 	cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
 	row = cur.fetchall()
 	return row
 
 def find_game(id):
-	cur = set_cur()
+	cur = db_get_cursor()
 	cur.execute("SELECT * FROM games WHERE id=?", (id,))
 	row = cur.fetchall()
+	if len(row) > 1:
+		raise Exception('At most single row should have been returned. "id" column in database table should have unique values')
 	return row
 
 def games_from_player_by_year(year, name):
-	cur = set_cur()
+	cur = db_get_cursor()
 	if year == 'All years':
 		cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
 	else:
