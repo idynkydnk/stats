@@ -145,8 +145,13 @@ def update(game_id):
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
+
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
+        elif int(winner_score) < int(loser_score):
+            flash('Winner score is less than loser score!')
+        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+            flash('Two names are the same!')
         else:
             update_game(game_id, game[1], winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
             return redirect(url_for('edit_games'))

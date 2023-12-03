@@ -1,6 +1,7 @@
 {% extends 'base_admin.html' %}
 {% block content %}
     <!-- [ML] inserts a table describing the game about to be deleted -->
+	<br>
     <h1>{% block title %} Delete Game {% endblock %}</h1>
 	<table>
 	   <thead>
@@ -25,9 +26,12 @@
 	</table>
     <div>
         <form action='' method="post">
-            Proceed to delete game?
-            <input type = "submit" value="YES">
-            <a href='/edit_games'>NO</a>
+			<p>
+            <h2>Delete above described game?<br>
+				<button type="submit">Yes</button>
+				<button type="button" onclick="window.location.href='/edit_games'">No</button>
+			</h2>
+			</p>
         </form>
     </div>
 {% endblock %}
