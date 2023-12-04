@@ -22,7 +22,7 @@
   --caption: #abb4bd;
 }
 
-/* Dark mode */
+/* Light mode */
 :root[color-mode="light"] {
   --bg: #dbe2ea; 
   --text: #1d2025;

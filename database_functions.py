@@ -2,6 +2,7 @@ import requests
 from datetime import date, datetime
 from bs4 import BeautifulSoup
 from create_games_database import *
+from game_class import *
 
 
 def scrape_database():
@@ -67,23 +68,3 @@ def scrape_database():
 
 	all_games.sort(key=lambda x: x[0])
 	return all_games
-
-def enter_data_into_database(games_data):
-	for x in games_data:
-		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7])
-
-def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-	conn = db_get_connection()
-	game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at)
-	db_create_game(conn, game)
-
-
-def main():
-	enter_data_into_database(scrape_database())
-
-
-if __name__ == '__main__':
-    main()
-
-
-

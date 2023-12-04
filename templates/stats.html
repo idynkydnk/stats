@@ -59,11 +59,11 @@
                 <tbody>
                 {% for game in games %}
                     <tr>
-                        <td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
-                        <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
-                        <td>{{ game[4] }}</td>
-                        <td><a href="{{ url_for('player_stats', year=year, name=game[5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
-                        <td>{{ game[7] }}</td>
+                        <td>{{ game.game_datetime.strftime("%m/%d/%Y") }}<br>{{ game.game_datetime.strftime("%I:%M %p") }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game.winner1 ) }}">{{ game.winner1 }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.winner2 ) }}">{{ game.winner2 }}</a></td>
+                        <td>{{ game.winner_score }}</td>
+                        <td><a href="{{ url_for('player_stats', year=year, name=game.loser1 ) }}">{{ game.loser1 }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.loser2 ) }}">{{ game.loser2 }}</a></td>
+                        <td>{{ game.loser_score }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>

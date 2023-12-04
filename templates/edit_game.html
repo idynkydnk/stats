@@ -4,35 +4,47 @@
 	<h1>{% block title %} Edit Game {% endblock %}</h1>
 	<div>
 	   <form method="post">
+			<script>
+			function SwapWinnersAndLosers() {
+				var w1 = document.getElementById('w1').value;
+				document.getElementById('w1').value = document.getElementById('l1').value;
+				document.getElementById('l1').value = w1;
+
+				var w2 = document.getElementById('w2').value;
+				document.getElementById('w2').value = document.getElementById('l2').value;
+				document.getElementById('l2').value = w2;
+			}
+			</script>
 			  <!-- [ML] This generates a datalist that used to populate the player name dropdowns -->
 			  <datalist id="players">
 					 {% for player in players %}
 							<option value= "{{ player }}"></option>
 					 {% endfor %}
 			  </datalist>
-			  <input type="text" name="winner1" value="{{ game[2] }}"
+			  <input type="text" name="winner1" id="w1" value="{{ game.winner1 }}"
 					 placeholder="Winner 1"
 					 value="{{ request.form['winner1'] }}"
 					 list="players">
-			  <input type="text" name="winner2" value="{{ game[3] }}"
+			  <input type="text" name="winner2" id="w2" value="{{ game.winner2 }}"
 					 placeholder="Winner 2"
 					 value="{{ request.form['winner2'] }}"
 					 list="players">
-			  <input type="text" name="loser1" value="{{ game[5] }}"
+			  <input type="text" name="loser1" id="l1" value="{{ game.loser1 }}"
 					 placeholder="Loser 1"
 					 value="{{ request.form['loser1'] }}"
 					 list="players">      
-			  <input type="text" name="loser2" value="{{ game[6] }}"
+			  <input type="text" name="loser2" id="l2" value="{{ game.loser2 }}"
 					 placeholder="Loser 2"
 					 value="{{ request.form['loser2'] }}"
 					 list="players">
-			  <input type="number" pattern="[0-9]*" name="winner_score" value="{{ game[4] }}"
+			  <input type="number" pattern="[0-9]*" name="winner_score" value="{{ game.winner_score }}"
 					 placeholder="Winners' Score"
 					 value="{{ request.form['winner_score'] }}">
-			  <input type="number" pattern="[0-9]*" name="loser_score" value="{{ game[7] }}"
+			  <input type="number" pattern="[0-9]*" name="loser_score" value="{{ game.loser_score }}"
 					 placeholder="Losers' Score"
 					 value="{{ request.form['loser_score'] }}">
-			  <input type="submit" value="Submit">
+					<button type="button" onclick="SwapWinnersAndLosers()">Swap</button>
+					<button type="submit">Submit</button>
 		   </form>
 	   </div>
 {% endblock %}

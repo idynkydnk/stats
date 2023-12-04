@@ -19,7 +19,7 @@ def db_get_cursor():
 	'''Returns the database cursor'''
 	conn = db_get_connection()
 	cur = conn.cursor()
-	return cur	
+	return cur, conn
 
 def db_create_table(conn, create_table_sql):
     """ create a table from the create_table_sql statement
@@ -33,7 +33,7 @@ def db_create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
-def db_create_game(conn, game):
+def db_add_game(game):
     """
     Add a game (row) to the games table in the database
     :param conn: database cursor
@@ -41,8 +41,8 @@ def db_create_game(conn, game):
     """
     sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at)
               VALUES(?,?,?,?,?,?,?,?) '''
-    cur = conn.cursor()
-    cur.execute(sql, game)
+    cur, conn = db_get_cursor()
+    cur.execute(sql, game.convert2db_row()[1:])
     conn.commit()
 
 def db_update_game(conn, game):

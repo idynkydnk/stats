@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, url_for, flash, redirect
 from database_functions import *
 from stat_functions import *
 from datetime import datetime, date
+from game_class import *
 
 app = Flask('stats')
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -50,7 +51,6 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     minimum_games = min_games_required(games, 40)
     all_years = all_years_player(name)
-    games = games_from_player_by_year(year, name)
     stats = total_stats(games, name)
     partner_stats = partner_stats_by_year(name, games, minimum_games)
     opponent_stats = opponent_stats_by_year(name, games, minimum_games)
@@ -77,12 +77,6 @@ def games_by_year(year):
 @app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used then duplicating an old entry to make a new entry
 def add_game(game_id = None):
 
-    if game_id: # case when new game entry is a copy of previous game entry 
-        x = find_game(game_id)
-        game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
-    else: # new game entry from scratch with only winning score pre-populated
-        game = ['','','','','21','','','','']
-
     games = year_games(str(date.today().year))
     minimum_games = min_games_required(games, 30)
     stats = stats_per_year(str(date.today().year), minimum_games)
@@ -92,15 +86,16 @@ def add_game(game_id = None):
     list_of_all_players = all_players(games)
     t_stats = todays_stats()
     games = todays_games()
-
+    
     if request.method == 'POST':
-        winner1 = request.form['winner1']
-        winner2 = request.form['winner2']
-        loser1 = request.form['loser1']
-        loser2 = request.form['loser2']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-        game = ['','',winner1, winner2, winner_score, loser1, loser2, loser_score]
+        winner1 = request.form['winner1'].strip()
+        winner2 = request.form['winner2'].strip()
+        loser1 = request.form['loser1'].strip()
+        loser2 = request.form['loser2'].strip()
+        winner_score = request.form['winner_score'].strip()
+        loser_score = request.form['loser_score'].strip()
+
+        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = datetime.now(), last_mod_datetime = datetime.now())
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
@@ -109,14 +104,16 @@ def add_game(game_id = None):
         elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
         else:
-            add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
-                winner_score, loser_score, datetime.now()])
+            db_add_game(game)
             return redirect(url_for('add_game'))
-        
+    else:
+        if game_id: # case when new game entry is a copy of previous game entry 
+            game = find_game(game_id)
+        else: # new game entry from scratch with only winning score pre-populated
+            game = doubles_game('','','21','', '', '')
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=list_of_all_players, 
                             year=str(date.today().year), stats=stats, rare_stats=rare_stats, minimum_games=minimum_games,
                             game=game)
-
 
 @app.route('/edit_games/')
 def edit_games():
@@ -133,10 +130,11 @@ def edit_games_by_year(year):
 
 @app.route('/edit/<int:game_id>/',methods = ['GET','POST'])
 def update(game_id):
-    x = find_game(game_id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
+    
+    game = find_game(game_id)
     games = year_games(str(date.today().year))
     players = all_players(games)
+    
     if request.method == 'POST':
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
@@ -144,6 +142,8 @@ def update(game_id):
         loser2 = request.form['loser2']
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
+
+        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = game.game_datetime, last_mod_datetime = datetime.now())
 
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
@@ -153,18 +153,17 @@ def update(game_id):
         elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
         else:
-            update_game(game_id, game[1], winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
+            update_game(game_id, game.game_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now())
             return redirect(url_for('edit_games'))
- 
+        
     return render_template('edit_game.html', game=game, players=players)
 
 
 @app.route('/delete/<int:game_id>/',methods = ['GET','POST'])
 def delete_game(game_id):
-    x = find_game(game_id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
+    game = find_game(game_id)
     if request.method == 'POST':
-        db_delete_game(game_id)
+        db_delete_game(game.game_id)
         return redirect(url_for('edit_games'))
  
     return render_template('delete_game.html', game=game)
@@ -181,15 +180,3 @@ def min_games_required(games, threshold):
     else:
         minimum_games = 1
     return minimum_games
-
-#[ToDo] Not sure what this was for. Should probably delete it since it does nothing now.
-# Also delete the html file that corresponds to this route
-@app.route('/single_game_stats/<game_name>/')
-def single_game_stats(game_name):
-    all_years = single_game_years(game_name)
-    year = str(date.today().year)
-    games = single_game_games(year, game_name)
-    minimum_games = 0
-    stats = total_single_game_stats(games)
-    return render_template('single_game_stats.html', stats=stats, game_name=game_name,
-        all_years=all_years, minimum_games=minimum_games, year=year)
