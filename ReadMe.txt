@@ -1,4 +1,5 @@
-* truncate the string for game datetime and last modified datatime to reduce space required in the database
+ToDo
+
 * entries should be stored with team member names in alphabetic order (not a big deal but nice when viewing the database directly)
 
 # I should use straight SQLAlchemy or flask_sqlalchemy to interact with the database instead of sqllite3
@@ -15,10 +16,10 @@ https://help.pythonanywhere.com/pages/MatplotLibGraphs/
 
 
  Instead of finding unique player names or player combinations using code. Could do it using the SQL query itself.
- - however this may lose the info about returning players in order of most recently player to least recently played
-
- fix date time being displayed in the wrong timezone (UTC). It's both stored and displayed in that time zone.
-
- is the games.html page useless ... it probably is suppose to show results for multiple games but i only have on game type (doubles). It's accessible from under the hamburger  menu
+ - however this may lose the info about returning players in order of most recently player to least recently played (is that even happening right now?)
  
- switch my repo from public to private and give Kyle access to it.
+ switch my repo from public to private. Don't think this is possible for a fork of a public repo, so i'll have to clone my repo and store is as a separate repo on GitHub
+
+
+ Facts
+ - Prior to 12/17/2023 any datetimes stored in the DB are in UTC and after that date they are in PST. Also truncated the stored string for datatimes to only go down to seconds accuracy

@@ -1,3 +1,5 @@
+# This appears to be a script to scrape games from Kyle's old web site
+
 import requests
 from datetime import date, datetime
 from bs4 import BeautifulSoup

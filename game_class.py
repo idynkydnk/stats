@@ -1,5 +1,4 @@
 from datetime import datetime
-import time
 
 class doubles_game:
     def __init__(self, winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = None, last_mod_datetime = None, game_id = None):
@@ -27,7 +26,7 @@ class doubles_game:
     
     def convert2db_row(self):
     # Converts a doubles_game object into a row of data for the database
-        return (self.game_id, str(self.game_datetime), self.winner1, self.winner2, self.winner_score, self.loser1, self.loser2, self.loser_score, str(self.last_mod_datetime))
+        return (self.game_id, str(self.game_datetime)[:19], self.winner1, self.winner2, self.winner_score, self.loser1, self.loser2, self.loser_score, str(self.last_mod_datetime)[:19])
     
     def __str__(self):
         out_str = ''
@@ -39,12 +38,9 @@ class doubles_game:
     
     @staticmethod
     def str2datetime(txt):
-        return datetime.strptime(txt, "%Y-%m-%d %H:%M:%S.%f")
+        if len(txt) > 19: # [ToDo] Don't think this branch will be required if i clean up old entries in the DB and don't store decimal place ms
+            txt = txt[:19]
+        return datetime.strptime(txt, "%Y-%m-%d %H:%M:%S")
     @staticmethod
     def datetime2str(d):
         return d.strftime("%m/%d/%Y %I:%M %p")
-    
-    def utc2local(utc):
-        epoch = time.mktime(utc.timetuple())
-        offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
-        return utc + offset

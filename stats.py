@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, url_for, flash, redirect
 from database_functions import *
 from stat_functions import *
 from datetime import datetime, date
+import pytz
 from game_class import *
 
 app = Flask('stats')
@@ -95,7 +96,7 @@ def add_game(game_id = None):
         winner_score = request.form['winner_score'].strip()
         loser_score = request.form['loser_score'].strip()
 
-        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = datetime.now(), last_mod_datetime = datetime.now())
+        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = curr_datatime(), last_mod_datetime = curr_datatime())
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
@@ -143,7 +144,8 @@ def update(game_id):
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = game.game_datetime, last_mod_datetime = datetime.now())
+
+        game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = game.game_datetime, last_mod_datetime = curr_datatime())
 
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
@@ -153,7 +155,7 @@ def update(game_id):
         elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
         else:
-            update_game(game_id, game.game_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now())
+            update_game(game_id, game.game_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, str(curr_datatime())[:19])
             return redirect(url_for('edit_games'))
         
     return render_template('edit_game.html', game=game, players=players)
@@ -180,3 +182,11 @@ def min_games_required(games, threshold):
     else:
         minimum_games = 1
     return minimum_games
+
+def curr_datatime():
+# Returns a datetime object with the timezone set to PST
+# [ToDo] I suspect this function does nothing useful and the actual format of the conversion from data time to str is determined by a setting for the time zone
+# that resides somewhere server side (WSGI file?). Test this by replacing the below code by just datetime.now() and confirm that the way data/times are displayed
+# on the web site and stored in the database doesn't change ...
+    dt_now_pst = datetime.now(pytz.timezone('America/Los_Angeles'))
+    return dt_now_pst
