@@ -1,3 +1,5 @@
+// Code used by both add_game.html and edit_game.html
+
 function SwapElementValues(el1_id, el2_id){
     // Swaps the value properties of two elements specified by their IDs
         var tmp = document.getElementById(el1_id).value;
@@ -9,7 +11,7 @@ function SwapElementValues(el1_id, el2_id){
         SwapElementValues('w2', 'l2');
     }
     function SortFields(){
-    // Updates fields by putting the team members in alphabetic order
+    // Update form text fields by putting the team members in alphabetic order
         const w1 = document.getElementById('w1').value;
         const w2 = document.getElementById('w2').value;
         if (w1.localeCompare(w2) > 0){
@@ -25,7 +27,7 @@ function SwapElementValues(el1_id, el2_id){
     // Shuffles the team player composition
     // There are 3 unique shuffle orders corresponding to the 3 unique teams that can be formed with 4 players
     // The first player stays fixed in all shuffles and his partner is changed. The 3 possible shuffles are numbered 0 through 3 
-    // in alphabetic order of the choices for 2nd player's name (1st players partner).
+    // in alphabetic order of the choices for 2nd player's name (1st player's partner).
     // Note that if the shuffle operation is carried out 3 times then one gets back to the original teams
          
         debug = false;
@@ -40,7 +42,7 @@ function SwapElementValues(el1_id, el2_id){
             console.log('Initial player order');
             console.log(player_name);
         }
-        init_player2 = player_name[0]; //record initial value of 2nd player name
+        init_player2 = player_name[0]; //record initial value of 2nd player's name
         player_name.sort();
         // figure out which of the 3 possible shuffle orders was the initial state (init_shuffle)
         for (var init_shuffle = 0; init_shuffle < player_name.length; init_shuffle++) {

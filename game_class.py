@@ -22,9 +22,11 @@ class doubles_game:
         
     @staticmethod
     def db_row2doubles_game(row):
+    # Converts a row of data from the database into a doubles_game object
         return doubles_game(row[2], row[3], row[4], row[5], row[6], row[7], game_id=row[0], game_datetime=row[1], last_mod_datetime=row[8])
     
     def convert2db_row(self):
+    # Converts a doubles_game object into a row of data for the database
         return (self.game_id, str(self.game_datetime), self.winner1, self.winner2, self.winner_score, self.loser1, self.loser2, self.loser_score, str(self.last_mod_datetime))
     
     def __str__(self):
