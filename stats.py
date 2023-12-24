@@ -62,6 +62,8 @@ def games_by_year(year = None):
         year = date.today().year
     all_years = grab_all_years()
     games = games_for_year(year)
+    # Sort most recent to oldest game order
+    games.sort(key=lambda x: x.game_datetime, reverse=True)
     return render_template('games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/add_game/', methods=('GET', 'POST')) # used when making a new game entry from scratch
@@ -114,6 +116,7 @@ def edit_games_by_year(year = None):
 
     all_years = grab_all_years()
     games = games_for_year(year)
+    games.sort(key=lambda x: x.game_datetime, reverse=True) # Sort most recent to oldest game order
     return render_template('edit_games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/edit/<int:game_id>/', methods = ['GET','POST'])
@@ -142,7 +145,7 @@ def update(game_id):
             flash('All player names must be unique')
         else:
             db_update_game(game)
-            return redirect(url_for('edit_games'))
+            return redirect(url_for('edit_games_by_year'))
         
     return render_template('edit_game.html', game=game, players=players)
 
@@ -152,7 +155,7 @@ def delete_game(game_id):
     game = find_game(game_id)
     if request.method == 'POST':
         db_delete_game(game.game_id)
-        return redirect(url_for('edit_games'))
+        return redirect(url_for('edit_games_by_year'))
  
     return render_template('delete_game.html', game=game)
 

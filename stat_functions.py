@@ -101,7 +101,7 @@ def todays_games():
 	cur.execute("SELECT * FROM games WHERE game_date > date('now','-15 hours')")
 	rows = cur.fetchall()
 	rows.sort(reverse=True)
-	#[ToDo] check that this actually works .. think i need the if row at the end in case of empty row but that's impossible maybe?
+	# think i need the "if rows" at the end in case of empty rows
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
 	
@@ -150,8 +150,6 @@ def games_for_year(year = None):
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (str(year),))
 	rows = cur.fetchall()
-	# [ToDo] do i need this sort?
-	rows.sort(reverse=True)
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
 
