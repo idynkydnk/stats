@@ -16,16 +16,16 @@ def db_get_connection():
     return sqlite3.connect(db_get_filepath())
 
 def db_get_cursor():
-	'''Returns the database cursor'''
+	'''
+    :return: database cursor and connection
+    '''
 	conn = db_get_connection()
 	cur = conn.cursor()
 	return cur, conn
 
 def db_create_table(create_table_sql):
     """ create a table from the create_table_sql statement
-    :param conn: Connection object
     :param create_table_sql: a CREATE TABLE statement
-    :return:
     """
     cur = db_get_cursor()[0]
     cur.execute(create_table_sql)
