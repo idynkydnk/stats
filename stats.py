@@ -11,7 +11,7 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 @app.route('/')
 def index():
     curr_year_str = str(date.today().year)
-    games = year_games(curr_year_str)
+    games = games_for_year(curr_year_str)
     minimum_games = min_games_required(games, 30)
     all_years = grab_all_years()
     t_stats = todays_stats() # get stats for today's games
@@ -23,7 +23,7 @@ def index():
 
 @app.route('/stats/<year>/')
 def stats(year):
-    games = year_games(year)
+    games = games_for_year(year)
     minimum_games = min_games_required(games, 30)
     all_years = grab_all_years()
     stats = stats_per_year(year, minimum_games)
@@ -31,17 +31,11 @@ def stats(year):
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 @app.route('/top_teams/')
-def top_teams():
-    all_years = grab_all_years()
-    curr_year_str = str(date.today().year)
-    games = year_games(curr_year_str)
-    minimum_games = min_games_required(games, 70)
-    stats = team_stats_per_year(curr_year_str, minimum_games, games)
-    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=curr_year_str)
-
-@app.route('/top_teams/<year>/')
-def top_teams_by_year(year):
-    games = year_games(year)
+@app.route('/top_teams/<int:year>/')
+def top_teams_by_year(year = None):
+    if not year:
+        year = date.today().year
+    games = games_for_year(year)
     minimum_games = min_games_required(games, 70)
     all_years = grab_all_years()
     stats = team_stats_per_year(year, minimum_games, games)
@@ -62,28 +56,24 @@ def player_stats(year, name):
         year=year, player=name, minimum_games=minimum_games, all_years=all_years, stats=stats)
 
 @app.route('/games/')
-def games():
-    all_years = grab_all_years()
-    curr_year_str = str(date.today().year)
-    games = year_games(curr_year_str)
-    return render_template('games.html', games=games, year=curr_year_str, all_years=all_years)
-
 @app.route('/games/<year>')
-def games_by_year(year):
+def games_by_year(year = None):
+    if not year:
+        year = date.today().year
     all_years = grab_all_years()
-    games = year_games(year)
+    games = games_for_year(year)
     return render_template('games.html', games=games, year=year, all_years=all_years)
 
-@app.route('/add_game/', methods=('GET', 'POST')) # used then making a new game entry from scratch
-@app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used then duplicating an old entry to make a new entry
+@app.route('/add_game/', methods=('GET', 'POST')) # used when making a new game entry from scratch
+@app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used when duplicating an old entry to make a new entry
 def add_game(game_id = None):
 
-    games = year_games(str(date.today().year))
+    games = games_for_year(date.today().year)
     minimum_games = min_games_required(games, 30)
     stats = stats_per_year(str(date.today().year), minimum_games)
     rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
 
-    games = year_games('All years')
+    games = games_for_year('All years')
     list_of_all_players = all_players(games)
     t_stats = todays_stats()
     games = todays_games()
@@ -93,8 +83,8 @@ def add_game(game_id = None):
         winner2 = request.form['winner2'].strip()
         loser1 = request.form['loser1'].strip()
         loser2 = request.form['loser2'].strip()
-        winner_score = request.form['winner_score'].strip()
-        loser_score = request.form['loser_score'].strip()
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
 
         game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = curr_datatime(), last_mod_datetime = curr_datatime())
 
@@ -102,8 +92,8 @@ def add_game(game_id = None):
             flash('All fields required!')
         elif int(winner_score) < int(loser_score):
             flash('Winner score is less than loser score!')
-        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
-            flash('Two names are the same!')
+        elif len({winner1, winner2, loser1, loser2}) != 4:
+            flash('All player names must be unique')
         else:
             db_add_game(game)
             return redirect(url_for('add_game'))
@@ -117,45 +107,41 @@ def add_game(game_id = None):
                             game=game)
 
 @app.route('/edit_games/')
-def edit_games():
-    all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    return render_template('edit_games.html', games=games, year=str(date.today().year), all_years=all_years)
-
 @app.route('/edit_games/<year>')
-def edit_games_by_year(year):
+def edit_games_by_year(year = None):
+    if not year:
+        year = str(date.today().year)
+
     all_years = grab_all_years()
-    games = year_games(year)
+    games = games_for_year(year)
     return render_template('edit_games.html', games=games, year=year, all_years=all_years)
 
-
-@app.route('/edit/<int:game_id>/',methods = ['GET','POST'])
+@app.route('/edit/<int:game_id>/', methods = ['GET','POST'])
 def update(game_id):
     
     game = find_game(game_id)
-    games = year_games(str(date.today().year))
+    games = games_for_year(date.today().year)
     players = all_players(games)
     
     if request.method == 'POST':
-        winner1 = request.form['winner1']
-        winner2 = request.form['winner2']
-        loser1 = request.form['loser1']
-        loser2 = request.form['loser2']
+        winner1 = request.form['winner1'].strip()
+        winner2 = request.form['winner2'].strip()
+        loser1 = request.form['loser1'].strip()
+        loser2 = request.form['loser2'].strip()
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-
         game = doubles_game(winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = game.game_datetime, last_mod_datetime = curr_datatime())
-
+        game.game_id = game_id
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         elif int(winner_score) < int(loser_score):
             flash('Winner score is less than loser score!')
-        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
-            flash('Two names are the same!')
+        elif len({winner1, winner2, loser1, loser2}) != 4:
+            flash('All player names must be unique')
         else:
-            update_game(game_id, game.game_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, str(curr_datatime())[:19])
+            db_update_game(game)
             return redirect(url_for('edit_games'))
         
     return render_template('edit_game.html', game=game, players=players)
@@ -186,7 +172,7 @@ def min_games_required(games, threshold):
 def curr_datatime():
 # Returns a datetime object with the timezone set to PST
 # [ToDo] I suspect this function does nothing useful and the actual format of the conversion from data time to str is determined by a setting for the time zone
-# that resides somewhere server side (WSGI file?). Test this by replacing the below code by just datetime.now() and confirm that the way data/times are displayed
+# that resides server side in the WSGI file. Test this by replacing the below code by just datetime.now() and confirm that the way data/times are displayed
 # on the web site and stored in the database doesn't change ...
     dt_now_pst = datetime.now(pytz.timezone('America/Los_Angeles'))
     return dt_now_pst

@@ -8,7 +8,7 @@
 </head>
 <body>
     <nav>
-        <h1><a href="{{ url_for('index') }}">Doubles</a> <a href="{{ url_for('top_teams') }}">Top Teams</a></h1>
+        <h1><a href="{{ url_for('index') }}">Doubles</a> <a href="{{ url_for('top_teams_by_year') }}">Top Teams</a></h1>
         <div class="hamburger-menu-container">
             <input id="menu__toggle" type="checkbox" />
             <label class="menu__btn" for="menu__toggle">
@@ -16,8 +16,8 @@
             </label>
 
             <ul class="menu__box">
-                <li><a class="menu__item" href="{{ url_for('games') }}">Games</a></li>
-                <li><a class="menu__item" href="{{ url_for('top_teams') }}">Top Teams</a></li>
+                <li><a class="menu__item" href="{{ url_for('games_by_year') }}">Games</a></li>
+                <li><a class="menu__item" href="{{ url_for('top_teams_by_year') }}">Top Teams</a></li>
                 <li><a class="menu__item" href="{{ url_for('advanced_stats') }}">Advanced Stats</a></li>
 
             </ul>

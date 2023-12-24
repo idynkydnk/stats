@@ -45,25 +45,27 @@ def db_add_game(game):
     cur.execute(sql, game.convert2db_row()[1:])
     conn.commit()
 
-def db_update_game(conn, game):
+def db_update_game(game):
     """
     Update a game (row) in the games table in the database
     :param conn: database cursor
     :param game: description of game
     """
     sql = ''' UPDATE games
-                SET id = ? ,
-                game_date = ?,
-                winner1 = ?,
-                winner2 = ?,
-                winner_score = ?,
-                loser1 = ?,
-                loser2 = ?,
-                loser_score = ?,
-                updated_at = ? 
+                SET
+                    id = ? ,
+                    game_date = ?,
+                    winner1 = ?,
+                    winner2 = ?,
+                    winner_score = ?,
+                    loser1 = ?,
+                    loser2 = ?,
+                    loser_score = ?,
+                    updated_at = ? 
                 WHERE id = ?'''
-    cur = conn.cursor()
-    cur.execute(sql, game)
+    cur, conn = db_get_cursor()
+    tmp = game.convert2db_row() + (game.game_id,)
+    cur.execute(sql, tmp)
     conn.commit()
 
 def db_delete_game(game_id):

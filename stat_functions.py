@@ -1,16 +1,10 @@
 from database_functions import *
 from datetime import datetime, date
 
-def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at):
-	conn = db_get_connection()
-	game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, game_id)
-	db_update_game(conn, game)
-
 def stats_per_year(year, minimum_games):
-	if year == 'All years':
-		games = all_games()
-	else:
-		games = year_games(year)
+# year - 'All years' or the desired year
+
+	games = games_for_year(year)
 	players = all_players(games)
 	stats = []
 	no_wins = []
@@ -112,10 +106,8 @@ def todays_games():
 	return games
 	
 def rare_stats_per_year(year, minimum_games):
-	if year == 'All years':
-		games = all_games()
-	else:
-		games = year_games(year)
+# year - 'All years' or the desired year
+	games = games_for_year(year)
 	players = all_players(games)
 	stats = []
 	no_wins = []
@@ -148,34 +140,24 @@ def all_players(games):
 	players = set(p1 + p2 + p3 + p4)
 	return players
 
-def year_games(year):
+def games_for_year(year = None):
+# return a list of doubles_game objects for a given year or all years
+# 	year - str or int, if not provided then will return all games
+
 	cur = db_get_cursor()[0]
-	if year == 'All years':
+	if not year or year == 'All years':
 		cur.execute("SELECT * FROM games")
 	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (year,))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (str(year),))
 	rows = cur.fetchall()
+	# [ToDo] do i need this sort?
 	rows.sort(reverse=True)
-	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
-	return games
-
-def all_games():
-	cur = db_get_cursor()[0]
-	cur.execute("SELECT * FROM games")
-	rows = cur.fetchall()
-	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
-	return games
-
-def current_year_games():
-	cur = db_get_cursor()[0]
-	cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date) = strftime('%Y','now')")
-	rows = cur.fetchall()
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
 
 def grab_all_years():
 	# [ToDo] Super inefficient to bring all games into memory as objects just to get the years 
-	games = all_games()
+	games = games_for_year() # get all games
 	years = []
 	for game in games:
 		game_year = str(game.game_datetime.year)
@@ -217,11 +199,12 @@ def find_game(game_id):
 	
 
 def games_from_player_by_year(year, name):
+# year - can be a str, or int
 	cur = db_get_cursor()[0]
 	if year == 'All years':
 		cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
 	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (str(year), name, name, name, name))
 	rows = cur.fetchall()
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
