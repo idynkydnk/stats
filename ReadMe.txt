@@ -10,7 +10,6 @@ using matplot lib
 https://help.pythonanywhere.com/pages/MatplotLibGraphs/
 
 
-
  Drop down box should not offer the player name as an option once the player has been selected in another box
  - players should be sorted by most recently player (already done?)
 
@@ -19,7 +18,6 @@ https://help.pythonanywhere.com/pages/MatplotLibGraphs/
  - however this may lose the info about returning players in order of most recently player to least recently played (is that even happening right now?)
  
  switch my repo from public to private. Don't think this is possible for a fork of a public repo, so i'll have to clone my repo and store is as a separate repo on GitHub
-
 
  Facts
  - Prior to 12/17/2023 any datetimes stored in the DB are in UTC and after that date they are in PST. Also truncated the stored string for datatimes to only go down to seconds accuracy

@@ -21,22 +21,19 @@ def db_get_cursor():
 	cur = conn.cursor()
 	return cur, conn
 
-def db_create_table(conn, create_table_sql):
+def db_create_table(create_table_sql):
     """ create a table from the create_table_sql statement
     :param conn: Connection object
     :param create_table_sql: a CREATE TABLE statement
     :return:
     """
-    try:
-        c = conn.cursor()
-        c.execute(create_table_sql)
-    except Error as e:
-        print(e)
+    cur = db_get_cursor()[0]
+    cur.execute(create_table_sql)
+
 
 def db_add_game(game):
     """
     Add a game (row) to the games table in the database
-    :param conn: database cursor
     :param game: description of game
     """
     sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at)
@@ -48,8 +45,7 @@ def db_add_game(game):
 def db_update_game(game):
     """
     Update a game (row) in the games table in the database
-    :param conn: database cursor
-    :param game: description of game
+    :param game: doubles_game object instance
     """
     sql = ''' UPDATE games
                 SET
@@ -66,6 +62,8 @@ def db_update_game(game):
     cur, conn = db_get_cursor()
     tmp = game.convert2db_row() + (game.game_id,)
     cur.execute(sql, tmp)
+    if cur.rowcount == 0:
+            raise Exception('Failed to update game with id = ' + str(game.game_id) + ' in the database.')
     conn.commit()
 
 def db_delete_game(game_id):
@@ -73,11 +71,11 @@ def db_delete_game(game_id):
     sql = 'DELETE FROM games WHERE id=?'
     cur = conn.cursor()
     cur.execute(sql, (game_id,))
+    if cur.rowcount == 0:
+        raise Exception('Failed to delete game with id = ' + str(game_id) + ' in the database.')
     conn.commit()
 
 def main():
-    database = db_get_filepath()
-
     sql_create_games_table = """CREATE TABLE IF NOT EXISTS games (
                                     id integer PRIMARY KEY,
                                     game_date DATETIME NOT NULL,
@@ -90,15 +88,8 @@ def main():
                                     updated_at DATETIME NOT NULL
                                 );"""
 
-    # create a database connection
-    conn = db_get_connection()
-
-    # create tables
-    if conn is not None:
-        # create games table
-        db_create_table(conn, sql_create_games_table)
-    else:
-        print("Error! cannot create the database connection.")
+    # create games table
+    db_create_table(sql_create_games_table)
 
 
 if __name__ == '__main__':
