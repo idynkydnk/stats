@@ -31,7 +31,7 @@ def stats(year):
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
 
 @app.route('/top_teams/')
-@app.route('/top_teams/<int:year>/')
+@app.route('/top_teams/<year>/')
 def top_teams_by_year(year = None):
     if not year:
         year = date.today().year
