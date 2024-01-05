@@ -136,6 +136,10 @@ form {
   display: block;
 }
 
+.fa-caret-down {
+  float: right;
+}
+
 tr:nth-child(even) {
   background-color: var(--table-banding);
 }
