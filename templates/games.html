@@ -3,7 +3,7 @@
 {% block content %}
     <nav>
         <div class="dropdown">
-            <button class="dropbtn">Select a year
+            <button class="dropbtn">{{year}}
                 <i class="fa fa-caret-down"></i>
             </button>
             <div class="dropdown-content">
@@ -13,7 +13,7 @@
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ year }} Games {% endblock %}</h1>
+    <h1>{% block title %}  Games for {{ year }} {% endblock %}</h1>
         <div>
         	<table>
         		<thead>

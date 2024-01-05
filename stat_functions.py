@@ -2,7 +2,7 @@ from database_functions import *
 from datetime import datetime, date
 
 def stats_per_year(year, minimum_games):
-# year - 'All years' or the desired year
+# year - 'All Years' , 'Past Year' or the desired year
 
 	games = games_for_year(year)
 	players = all_players(games)
@@ -106,7 +106,7 @@ def todays_games():
 	return games
 	
 def rare_stats_per_year(year, minimum_games):
-# year - 'All years' or the desired year
+# year - 'All Years' , 'Past Year' or the desired year
 	games = games_for_year(year)
 	players = all_players(games)
 	stats = []
@@ -141,14 +141,17 @@ def all_players(games):
 	return players
 
 def games_for_year(year = None):
-# return a list of doubles_game objects for a given year or all years
+# return a list of doubles_game objects for a given year or All Years
 # 	year - str or int, if not provided then will return all games
 
 	cur = db_get_cursor()[0]
-	if not year or year == 'All years':
+	if not year or year == 'All Years':
 		cur.execute("SELECT * FROM games")
+	elif year == 'Past Year':
+		cur.execute("SELECT * FROM games WHERE game_date > date('now','-1 years')")
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (str(year),))
+
 	rows = cur.fetchall()
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
@@ -162,7 +165,8 @@ def grab_all_years():
 		if game_year not in years:
 			years.append(game_year)
 	if len(years) > 1:
-		years.append('All years')
+		years.append('All Years')
+		years.append('Past Year')
 	return years
 
 def all_years_player(name):
@@ -173,7 +177,8 @@ def all_years_player(name):
 		if game_year not in years:
 			years.append(game_year)
 	if len(years) > 1:
-		years.append('All years')
+		years.append('All Years')
+		years.append('Past Year')
 	return years
 
 
@@ -199,8 +204,10 @@ def find_game(game_id):
 def games_from_player_by_year(year, name):
 # year - can be a str, or int
 	cur = db_get_cursor()[0]
-	if year == 'All years':
+	if year == 'All Years':
 		cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
+	elif year == 'Past Year':
+		cur.execute("SELECT * FROM games WHERE game_date > date('now','-1 years')  AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (str(year), name, name, name, name))
 	rows = cur.fetchall()

@@ -10,7 +10,7 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 @app.route('/')
 def index():
-    curr_year_str = str(date.today().year)
+    curr_year_str = 'Past Year'
     games = games_for_year(curr_year_str)
     minimum_games = min_games_required(games, 30)
     all_years = grab_all_years()
@@ -34,7 +34,7 @@ def stats(year):
 @app.route('/top_teams/<year>/')
 def top_teams_by_year(year = None):
     if not year:
-        year = date.today().year
+        year = 'Past Year'
     games = games_for_year(year)
     minimum_games = min_games_required(games, 70)
     all_years = grab_all_years()
@@ -59,7 +59,7 @@ def player_stats(year, name):
 @app.route('/games/<year>')
 def games_by_year(year = None):
     if not year:
-        year = date.today().year
+        year = 'Past Year'
     all_years = grab_all_years()
     games = games_for_year(year)
     # Sort most recent to oldest game order
@@ -72,10 +72,10 @@ def add_game(game_id = None):
 
     games = games_for_year(date.today().year)
     minimum_games = min_games_required(games, 30)
-    stats = stats_per_year(str(date.today().year), minimum_games)
-    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
+    stats = stats_per_year('Past Year', minimum_games)
+    rare_stats = rare_stats_per_year('Past Year', minimum_games)
 
-    games = games_for_year('All years')
+    games = games_for_year('All Years')
     list_of_all_players = all_players(games)
     t_stats = todays_stats()
     games = todays_games()
@@ -105,14 +105,14 @@ def add_game(game_id = None):
         else: # new game entry from scratch with only winning score pre-populated
             game = doubles_game('','','21','', '', '')
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=list_of_all_players, 
-                            year=str(date.today().year), stats=stats, rare_stats=rare_stats, minimum_games=minimum_games,
+                            year='Past Year', stats=stats, rare_stats=rare_stats, minimum_games=minimum_games,
                             game=game)
 
 @app.route('/edit_games/')
 @app.route('/edit_games/<year>')
 def edit_games_by_year(year = None):
     if not year:
-        year = str(date.today().year)
+        year = 'Past Year'
 
     all_years = grab_all_years()
     games = games_for_year(year)
