@@ -30,7 +30,6 @@ def db_create_table(create_table_sql):
     cur = db_get_cursor()[0]
     cur.execute(create_table_sql)
 
-
 def db_add_game(game):
     """
     Add a game (row) to the games table in the database
@@ -74,6 +73,24 @@ def db_delete_game(game_id):
     if cur.rowcount == 0:
         raise Exception('Failed to delete game with id = ' + str(game_id) + ' in the database.')
     conn.commit()
+
+def db_years(player_name = None):
+    '''
+    Returns a list of years for all entries for <player_name> in descending year order
+    :param player_name: optional player name, if not provided will return years for all players
+    :return: list of years
+    '''
+    cur, conn = db_get_cursor()
+    if not player_name:
+        sql = """SELECT DISTINCT strftime('%Y',game_date) FROM games
+                 ORDER BY game_date DESC"""
+        cur.execute(sql)
+    else:
+        sql = """SELECT DISTINCT strftime('%Y',game_date) FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)
+               ORDER BY game_date DESC"""
+        cur.execute(sql, (player_name, player_name, player_name, player_name))
+    years = [row[0] for row in cur.fetchall()]
+    return years
 
 def main():
     sql_create_games_table = """CREATE TABLE IF NOT EXISTS games (

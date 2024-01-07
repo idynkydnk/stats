@@ -13,7 +13,7 @@ def index():
     curr_year_str = 'Past Year'
     games = games_for_year(curr_year_str)
     minimum_games = min_games_required(games, 30)
-    all_years = grab_all_years()
+    all_years = year_dropdown_values()
     t_stats = todays_stats() # get stats for today's games
     games = todays_games()
     stats = stats_per_year(curr_year_str, minimum_games)
@@ -25,7 +25,7 @@ def index():
 def stats(year):
     games = games_for_year(year)
     minimum_games = min_games_required(games, 30)
-    all_years = grab_all_years()
+    all_years = year_dropdown_values()
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
@@ -37,7 +37,7 @@ def top_teams_by_year(year = None):
         year = 'Past Year'
     games = games_for_year(year)
     minimum_games = min_games_required(games, 70)
-    all_years = grab_all_years()
+    all_years = year_dropdown_values()
     stats = team_stats_per_year(year, minimum_games, games)
     return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
 
@@ -45,7 +45,7 @@ def top_teams_by_year(year = None):
 def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     minimum_games = min_games_required(games, 40)
-    all_years = all_years_player(name)
+    all_years = year_dropdown_values(name)
     stats = total_stats(games, name)
     partner_stats = partner_stats_by_year(name, games, minimum_games)
     opponent_stats = opponent_stats_by_year(name, games, minimum_games)
@@ -60,7 +60,7 @@ def player_stats(year, name):
 def games_by_year(year = None):
     if not year:
         year = 'Past Year'
-    all_years = grab_all_years()
+    all_years = year_dropdown_values()
     games = games_for_year(year)
     # Sort most recent to oldest game order
     games.sort(key=lambda x: x.game_datetime, reverse=True)
@@ -114,7 +114,7 @@ def edit_games_by_year(year = None):
     if not year:
         year = 'Past Year'
 
-    all_years = grab_all_years()
+    all_years = year_dropdown_values()
     games = games_for_year(year)
     games.sort(key=lambda x: x.game_datetime, reverse=True) # Sort most recent to oldest game order
     return render_template('edit_games.html', games=games, year=year, all_years=all_years)

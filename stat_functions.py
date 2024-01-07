@@ -132,17 +132,14 @@ def rare_stats_per_year(year, minimum_games):
 	return stats
 
 def all_players(games):
-	# [ToDo] Can do this cleaner by pulling all names and turning them into a set so only unique values are retained
-	p1 = [x.winner1 for x in games]
-	p2 = [x.winner2 for x in games]
-	p3 = [x.loser1 for x in games]
-	p4 = [x.loser2 for x in games]
-	players = set(p1 + p2 + p3 + p4)
-	return players
+	all_players = set()
+	for game in games:
+		all_players = all_players.union(game.players)
+	return all_players
 
 def games_for_year(year = None):
-# return a list of doubles_game objects for a given year or All Years
-# 	year - str or int, if not provided then will return all games
+# return a list of doubles_game objects for <year>
+# 	year - str or int, if not provided then will return all games. Can also be 'All Years' or 'Past Year'
 
 	cur = db_get_cursor()[0]
 	if not year or year == 'All Years':
@@ -156,31 +153,13 @@ def games_for_year(year = None):
 	games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
 	return games
 
-def grab_all_years():
-	# [ToDo] Super inefficient to bring all games into memory as objects just to get the years 
-	games = games_for_year() # get all games
-	years = []
-	for game in games:
-		game_year = str(game.game_datetime.year)
-		if game_year not in years:
-			years.append(game_year)
+def year_dropdown_values(player_name = None):
+	"""Returns the values to use for the years selection dropdown box"""
+	years = db_years(player_name)
 	if len(years) > 1:
 		years.append('All Years')
 		years.append('Past Year')
 	return years
-
-def all_years_player(name):
-	years = []
-	games = all_games_player(name)
-	for game in games:
-		game_year = str(game.game_datetime.year)
-		if game_year not in years:
-			years.append(game_year)
-	if len(years) > 1:
-		years.append('All Years')
-		years.append('Past Year')
-	return years
-
 
 def all_games_player(name):
 	cur = db_get_cursor()[0]
@@ -200,7 +179,6 @@ def find_game(game_id):
 	else:
 		raise Exception('At most single row should have been returned. "id" column in database table should have unique values')
 	
-
 def games_from_player_by_year(year, name):
 # year - can be a str, or int
 	cur = db_get_cursor()[0]
@@ -246,7 +224,6 @@ def partner_stats_by_year(name, games, minimum_games):
 			stats.append(stat)
 		return stats
 
-
 def rare_partner_stats_by_year(name, games, minimum_games):
 	stats = []
 	if not games:
@@ -279,7 +256,6 @@ def rare_partner_stats_by_year(name, games, minimum_games):
 		for stat in no_wins:
 			stats.append(stat)
 		return stats
-
 
 def opponent_stats_by_year(name, games, minimum_games):
 	stats = []
@@ -358,7 +334,3 @@ def total_stats(games, player):
 	win_percentage = wins / (wins + losses)
 	stats.append([player, wins, losses, win_percentage])
 	return stats
-
-
-
-
