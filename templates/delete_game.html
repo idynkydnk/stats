@@ -14,8 +14,8 @@
 	   	<tbody>
 			<tr>
 				<td>{{ game.game_datetime.strftime("%m/%d/%Y") }}<br>{{ game.game_datetime.strftime("%I:%M %p") }}</td>
-				<td><a href="{{ url_for('player_stats', year=year, name=game.winner1 ) }}">{{ game.winner1 }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.winner2 ) }}">{{ game.winner2 }}</a></td>
-				<td><a href="{{ url_for('player_stats', year=year, name=game.loser1 ) }}">{{ game.loser1 }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.loser2 ) }}">{{ game.loser2 }}</a></td>
+				<td><a href="{{ url_for('player_stats', year=year, name=game.winners[0] ) }}">{{ game.winners[0] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.winners[1] ) }}">{{ game.winners[1] }}</a></td>
+				<td><a href="{{ url_for('player_stats', year=year, name=game.losers[0] ) }}">{{ game.losers[0] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game.losers[1] ) }}">{{ game.losers[1] }}</a></td>
 			</tr>
 			<tr>
 				<td>{{ game.last_mod_datetime.strftime("%m/%d/%Y") }}<br>{{ game.last_mod_datetime.strftime("%I:%M %p") }}</td>

@@ -11,9 +11,9 @@ def stats_per_year(year, minimum_games):
 	for player in players:
 		wins, losses = 0, 0
 		for game in games:
-			if player == game.winner1 or player == game.winner2:
+			if player in game.winners:
 				wins += 1
-			elif player == game.loser1 or player == game.loser2:
+			elif player in game.losers:
 				losses += 1
 		win_percentage = wins / (wins + losses)
 		if wins + losses >= minimum_games:
@@ -35,9 +35,10 @@ def team_stats_per_year(year, minimum_games, games):
 	for team in all_teams:
 		wins, losses = 0, 0
 		for game in games:
-			if team['player1'] == game.winner1 and team['player2'] == game.winner2 or team['player1'] == game.winner2 and team['player2'] == game.winner1:
+			if (team['player1'] in game.winners) and (team['player2'] in game.winners):
 				wins += 1
-			elif team['player1'] == game.loser1 and team['player2'] == game.loser2 or team['player1'] == game.loser2 and team['player2'] == game.loser1:
+			elif (team['player1'] in game.losers) and (team['player2'] in game.losers):
+				losses += 1
 				losses += 1
 		win_percent = wins / (wins + losses)
 		total_games = wins + losses
@@ -58,20 +59,20 @@ def teams(games):
 	for game in games:
 		winners = {}
 		losers = {}
-		if game.winner1 > game.winner2:
-			winners['player1'] = game.winner2
-			winners['player2'] = game.winner1
+		if game.winners[0] > game.winners[1]:
+			winners['player1'] = game.winners[1]
+			winners['player2'] = game.winners[0]
 		else:
-			winners['player1'] = game.winner1
-			winners['player2'] = game.winner2
+			winners['player1'] = game.winners[0]
+			winners['player2'] = game.winners[1]
 		if winners not in all_teams:
 			all_teams.append(winners)
-		if game.loser1 > game.loser2:
-			losers['player1'] = game.loser2
-			losers['player2'] = game.loser1
+		if game.losers[0] > game.losers[1]:
+			losers['player1'] = game.losers[1]
+			losers['player2'] = game.losers[0]
 		else:
-			losers['player1'] = game.loser1
-			losers['player2'] = game.loser2
+			losers['player1'] = game.losers[0]
+			losers['player2'] = game.losers[1]
 		if losers not in all_teams:
 			all_teams.append(losers)
 	all_teams.sort(key=lambda x: x['player1'])
@@ -84,10 +85,10 @@ def todays_stats():
 	for player in players:
 		wins, losses, differential = 0, 0, 0
 		for game in games:
-			if player == game.winner1 or player == game.winner2:
+			if player in game.winners:
 				wins += 1
 				differential += (game.winner_score - game.loser_score)
-			elif player == game.loser1 or player == game.loser2:
+			elif player in game.losers:
 				losses += 1
 				differential -= (game.winner_score - game.loser_score)
 		win_percentage = wins / (wins + losses)
@@ -114,9 +115,9 @@ def rare_stats_per_year(year, minimum_games):
 	for player in players:
 		wins, losses = 0, 0
 		for game in games:
-			if player == game.winner1 or player == game.winner2:
+			if player in game.winners:
 				wins += 1
-			elif player == game.loser1 or player == game.loser2:
+			elif player in game.losers:
 				losses += 1
 		win_percentage = wins / (wins + losses)
 		if wins + losses < minimum_games:
@@ -203,11 +204,11 @@ def partner_stats_by_year(name, games, minimum_games):
 		for partner in players:
 			wins, losses = 0, 0
 			for game in games:
-				if game.winner1 == name or game.winner2 == name:
-					if game.winner1 == partner or game.winner2 == partner:
+				if name in game.winners:
+					if game.winners[0] == partner or game.winners[1] == partner:
 						wins += 1
-				if game.loser1 == name or game.loser2 == name:
-					if game.loser1 == partner or game.loser2 == partner:
+				if name in game.losers:
+					if game.losers[0] == partner or game.losers[1] == partner:
 						losses += 1
 			if wins + losses > 0:
 				win_percent = wins / (wins + losses)
@@ -226,21 +227,20 @@ def partner_stats_by_year(name, games, minimum_games):
 
 def rare_partner_stats_by_year(name, games, minimum_games):
 	stats = []
+	no_wins = []
 	if not games:
 		return stats
 	else:
 		players = all_players(games)
 		players.remove(name)
-		stats = []
-		no_wins = []
 		for partner in players:
 			wins, losses = 0, 0
 			for game in games:
-				if game.winner1 == name or game.winner2 == name:
-					if game.winner1 == partner or game.winner2 == partner:
+				if name in game.winners:
+					if game.winners[0] == partner or game.winners[1] == partner:
 						wins += 1
-				if game.loser1 == name or game.loser2 == name:
-					if game.loser1 == partner or game.loser2 == partner:
+				if name in game.losers:
+					if game.losers[0] == partner or game.losers[1] == partner:
 						losses += 1
 			if wins + losses > 0:
 				win_percent = wins / (wins + losses)
@@ -259,21 +259,20 @@ def rare_partner_stats_by_year(name, games, minimum_games):
 
 def opponent_stats_by_year(name, games, minimum_games):
 	stats = []
+	no_wins = []
 	if not games:
 		return stats
 	else:
 		players = all_players(games)
 		players.remove(name)
-		stats = []
-		no_wins = []
 		for opponent in players:
 			wins, losses = 0, 0
 			for game in games:
-				if game.winner1 == name or game.winner2 == name:
-					if game.loser1 == opponent or game.loser2 == opponent:
+				if name in game.winners:
+					if opponent in game.losers:
 						wins += 1
-				if game.loser1 == name or game.loser2 == name:
-					if game.winner1 == opponent or game.winner2 == opponent:
+				if name in game.losers:
+					if opponent in game.winners:
 						losses += 1
 			if wins + losses > 0:
 				win_percent = wins / (wins + losses)
@@ -292,21 +291,20 @@ def opponent_stats_by_year(name, games, minimum_games):
 
 def rare_opponent_stats_by_year(name, games, minimum_games):
 	stats = []
+	no_wins = []
 	if not games:
 		return stats
 	else:
 		players = all_players(games)
 		players.remove(name)
-		stats = []
-		no_wins = []
 		for opponent in players:
 			wins, losses = 0, 0
 			for game in games:
-				if game.winner1 == name or game.winner2 == name:
-					if game.loser1 == opponent or game.loser2 == opponent:
+				if name in game.winners:
+					if opponent in game.losers:
 						wins += 1
-				if game.loser1 == name or game.loser2 == name:
-					if game.winner1 == opponent or game.winner2 == opponent:
+				if name in game.losers:
+					if opponent in game.winners:
 						losses += 1
 			if wins + losses > 0:
 				win_percent = wins / (wins + losses)
@@ -327,9 +325,9 @@ def total_stats(games, player):
 	stats = []
 	wins, losses = 0, 0
 	for game in games:
-		if player == game.winner1 or player == game.winner2:
+		if player in game.winners:
 			wins += 1
-		elif player == game.loser1 or player == game.loser2:
+		elif player in game.losers:
 			losses += 1
 	win_percentage = wins / (wins + losses)
 	stats.append([player, wins, losses, win_percentage])

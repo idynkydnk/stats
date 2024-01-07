@@ -11,22 +11,22 @@
 						<option value= "{{ player }}"></option>
 					{% endfor %}
 			</datalist>
-			<input type="text" name="winner1" id="w1" value="{{ game.winner1 }}"
+			<input type="text" name="winner1" id="w1" value="{{ game.winners[0] }}"
 				placeholder="Winner 1"
 				value="{{ request.form['winner1'] }}"
 				class="player"
 				list="players">
-			<input type="text" name="winner2" id="w2" value="{{ game.winner2 }}"
+			<input type="text" name="winner2" id="w2" value="{{ game.winners[1] }}"
 				placeholder="Winner 2"
 				value="{{ request.form['winner2'] }}"
 				class="player"
 				list="players">
-			<input type="text" name="loser1" id="l1" value="{{ game.loser1 }}"
+			<input type="text" name="loser1" id="l1" value="{{ game.losers[0] }}"
 				placeholder="Loser 1"
 				value="{{ request.form['loser1'] }}"
 				class="player"
 				list="players">      
-			<input type="text" name="loser2" id="l2" value="{{ game.loser2 }}"
+			<input type="text" name="loser2" id="l2" value="{{ game.losers[1] }}"
 				placeholder="Loser 2"
 				value="{{ request.form['loser2'] }}"
 				class="player"
