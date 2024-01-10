@@ -36,14 +36,14 @@ def top_teams_by_year(year = None):
     if not year:
         year = 'Past Year'
     games = games_for_year(year)
-    minimum_games = min_games_required(games, 70)
+    minimum_games = min_games_required(games, 30)
     all_years = year_dropdown_values()
     stats = team_stats_per_year(year, minimum_games, games)
     return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
-    games = games_from_player_by_year(year, name)
+    games = games_for_player_by_year(year, name)
     minimum_games = min_games_required(games, 40)
     all_years = year_dropdown_values(name)
     stats = total_stats(games, name)
@@ -164,12 +164,8 @@ def advanced_stats():
     return render_template('advanced_stats.html')
 
 def min_games_required(games, threshold):
-    # Min required number of games played to end up in main stats table (people with less end up in lower table)
-    if games and len(games) > threshold:
-        # people who make up at least 1/30th of the entries get to be in main table
-        minimum_games = len(games) // threshold
-    else:
-        minimum_games = 1
+    # Min required number of games played to end up in main stats table
+    minimum_games = max(4, len(games) // threshold)
     return minimum_games
 
 def curr_datatime():

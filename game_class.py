@@ -1,7 +1,5 @@
 from datetime import datetime
 
-# [ToDo] Should likely stop storing the individual winner and looser properties and just store two lists of winners and losers
-#        I already effectively implemented this interface by introducing dependent properties .winners and .losers
 class doubles_game:
     def __init__(self, winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = None, last_mod_datetime = None, game_id = None):
         self.game_id = game_id
@@ -9,11 +7,9 @@ class doubles_game:
             self.game_datetime = game_datetime
         else:
             self.game_datetime = doubles_game.str2datetime(game_datetime) if game_datetime else None
-        self.winner1 = winner1
-        self.winner2 = winner2
+        self.winners = [winner1, winner2]
         self.winner_score = winner_score
-        self.loser1 = loser1
-        self.loser2 = loser2
+        self.losers = [loser1, loser2]
         self.loser_score = loser_score
         
         if isinstance(last_mod_datetime, datetime):
@@ -23,13 +19,7 @@ class doubles_game:
         
     @property 
     def players(self):
-        return [self.winner1, self.winner2, self.loser1, self.loser2]
-    @property 
-    def winners(self):
-        return [self.winner1, self.winner2]
-    @property 
-    def losers(self):
-        return [self.loser1, self.loser2]
+        return self.winners + self.losers
 
     @staticmethod
     def db_row2doubles_game(row):

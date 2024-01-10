@@ -39,7 +39,6 @@ def team_stats_per_year(year, minimum_games, games):
 				wins += 1
 			elif (team['player1'] in game.losers) and (team['player2'] in game.losers):
 				losses += 1
-				losses += 1
 		win_percent = wins / (wins + losses)
 		total_games = wins + losses
 		x = { 'team':team, 'wins':wins, 'losses':losses, 
@@ -133,6 +132,8 @@ def rare_stats_per_year(year, minimum_games):
 	return stats
 
 def all_players(games):
+# returns a set of all players in <games>
+# games - list of doubles_game objects
 	all_players = set()
 	for game in games:
 		all_players = all_players.union(game.players)
@@ -180,7 +181,7 @@ def find_game(game_id):
 	else:
 		raise Exception('At most single row should have been returned. "id" column in database table should have unique values')
 	
-def games_from_player_by_year(year, name):
+def games_for_player_by_year(year, name):
 # year - can be a str, or int
 	cur = db_get_cursor()[0]
 	if year == 'All Years':
