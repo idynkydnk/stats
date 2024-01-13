@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to database file to backup
-FILE="/home/MarkL/stats/stats.db"
+DB_FILE="/home/MarkL/stats/stats.db"
 
 # Backup directory
 BACKUPDIR="/home/MarkL/stats/backup"
@@ -15,8 +15,8 @@ if [ ! -f "$METAFILE" ]; then
   echo "0" >> "$METAFILE"
 fi
 
-# Get last modified date of file
-FILE_MODTIME=$(stat -c %Y "$FILE")
+# Get last modified date of db file
+FILE_MODTIME=$(stat -c %Y "$DB_FILE")
 
 # Get last backup date from metadata file
 LAST_BACKUP=$(cat "$METAFILE")
@@ -25,11 +25,13 @@ LAST_BACKUP=$(cat "$METAFILE")
 if [ "$FILE_MODTIME" -gt "$LAST_BACKUP" ]; then
 
   # Vacuum the database to reduce size
-  sqlite3 $FILE 'VACUUM;'
-  echo "Vacuumed the database $FILE"
+  sqlite3 $DB_FILE 'VACUUM;'
+  echo "Vacuumed the database $DB_FILE"
+  # Get last modified date of db after vacuuming
+  FILE_MODTIME=$(stat -c %Y "$DB_FILE")
   # Create a backup
-  BACKUPFILE="$BACKUPDIR/$(date +%Y_%m_%d_%H%M)-$(basename $FILE)"
-  cp "$FILE" "$BACKUPFILE"
+  BACKUPFILE="$BACKUPDIR/$(date +%Y_%m_%d_%H%M)-$(basename $DB_FILE)"
+  cp "$DB_FILE" "$BACKUPFILE"
 
   # Update metadata file timestamp
   echo "$FILE_MODTIME" > "$METAFILE"
@@ -38,6 +40,6 @@ if [ "$FILE_MODTIME" -gt "$LAST_BACKUP" ]; then
 
 else
 
-  echo "No backup needed, $FILE not modified since last backup"
+  echo "No backup needed, $DB_FILE not modified since last backup"
 
 fi
