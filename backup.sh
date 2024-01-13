@@ -4,7 +4,7 @@
 DB_FILE="/home/MarkL/stats/stats.db"
 
 # Backup directory
-BACKUPDIR="/home/MarkL/stats/backup"
+BACKUPDIR="/home/MarkL/backup"
 
 # Metadata file to store last modified date
 METAFILE="$BACKUPDIR/metadata.txt"
