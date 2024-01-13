@@ -20,6 +20,19 @@ class doubles_game:
     @property 
     def players(self):
         return self.winners + self.losers
+    # ToDo should delete below 4 properties and replace with winner1, winner2, loser1, loser2 throughput the code and html appropriately 
+    @property 
+    def winner1(self):
+        return self.winners[0]
+    @property 
+    def winner2(self):
+        return self.winners[1]
+    @property
+    def loser1(self):
+        return self.losers[0]
+    @property
+    def loser2(self):
+        return self.losers[1]
 
     @staticmethod
     def db_row2doubles_game(row):
