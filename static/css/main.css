@@ -9,7 +9,6 @@
   --caption: #abb4bd;
 }
 
-
 /* Dark mode */
 :root[color-mode="dark"] {
   --bg: #1d2025;
@@ -33,7 +32,6 @@
   --table-bg: #2e445b;
   --caption: #abb4bd;
 }
-
 
 body {
   padding-top: 10px;
@@ -256,28 +254,6 @@ input:focus-visible {
 
 input[type=date] {
   min-height: 2.5rem;
-}
-
-input[type=submit] {
-  max-width: 260px;
-  width: 100%;
-  text-align: center;
-  padding: 8px 12px;
-  margin: 8px;
-  display: inline-block;
-  box-sizing: border-box;
-  font-size: 16px;
-  border-radius: 12px;
-    
-  border: 2px solid var(--button-border-1);
-  background-color: var(--button-bg-1);
-  color: var(--button-text-1);
-}
-
-input[type=submit]:hover {
-  border: 2px solid var(--button-bg-1);
-  background-color: var(--button-border-1);
-  color: var(--button-bg-1);
 }
 
 button {
