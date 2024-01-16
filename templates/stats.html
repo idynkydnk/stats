@@ -74,52 +74,29 @@
         		<thead>
     				<tr>
                         <th class="rank" scope="col" colspan="1">#</th>
-      					<th class="player_name" scope="col" colspan="1">Player</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Games</th>
+                        <th class="player_name" scope="col" colspan="1">Player</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Rating</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Skill</th>
+                        <th class="numbered_stats" scope="col" colspan="1">&sigma;</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Win<br>%</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Avg<br>+/-</th>
     				</tr>
   				</thead>
         		<tbody>
         			{% for player in stats %}
         			<tr>
                         <td class="rank">{{ loop.index }}</td>
-            			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
-            			<td>{{ player[1] }}</td>
-            			<td>{{ player[2] }}</td>
-            			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
-            			<td>{{ player[1] + player[2] }}</td>
+            			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player['player'] ) }}">{{ player['player'] }}</a></td>
+            			<td>{{ "{:.1f}".format(player['rating']) }}</td>
+                        <td>{{ "{:.0f}".format(player['mu']) }}</td>
+                        <td>{{ "{:.1f}".format(player['sigma']) }}</td>
+            			<td>{{ player['games'] }}</td>
+            			<td>{{ "{:.0f}".format(player['win_perc']) }}</td>
+            			<td>{{ "{:.1f}".format(player['diff_norm']) }}</td>
             		</tr>
             		{% endfor %}
             	</tbody>
             </table>
-            {% if rare_stats %}
-            <table>
-                <h3>Less than {{ minimum_games }} games</h3>
-                <thead>
-                    <tr>
-                        <th class="rank" scope="col" colspan="1">#</th>
-                        <th class="player_name" scope="col" colspan="1">Player</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Wins</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Losses</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Win %</th>
-                        <th class="numbered_stats" scope="col" colspan="1">Games</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for player in rare_stats %}
-                    <tr>
-                        <td class="rank">{{ loop.index }}</td>
-                        <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
-                        <td>{{ player[1] }}</td>
-                        <td>{{ player[2] }}</td>
-                        <td>{{ "{:.2f}".format(player[3]*100) }}</td>
-                        <td>{{ player[1] + player[2] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
         </div>
 {% endblock %}

@@ -9,26 +9,21 @@ app = Flask('stats')
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 @app.route('/')
-def index():
-    curr_year_str = 'Past Year'
-    games = games_for_year(curr_year_str)
-    minimum_games = min_games_required(games, 30)
-    all_years = year_dropdown_values()
-    t_stats = todays_stats() # get stats for today's games
-    games = todays_games()
-    stats = stats_per_year(curr_year_str, minimum_games)
-    rare_stats = rare_stats_per_year(curr_year_str, minimum_games)
-    return render_template('stats.html', todays_stats=t_stats, stats=stats, games=games, rare_stats=rare_stats, 
-        minimum_games=minimum_games, year=curr_year_str, all_years=all_years)
-
 @app.route('/stats/<year>/')
-def stats(year):
+def stats(year=None):
+    if not year:
+        year = 'Past Year'
+        todays_games = db_todays_games()
+        t_stats = todays_stats(todays_games) # get stats for today's games
+    else: # if year was specified
+        t_stats = None
+        todays_games = None
+    
     games = games_for_year(year)
-    minimum_games = min_games_required(games, 30)
     all_years = year_dropdown_values()
-    stats = stats_per_year(year, minimum_games)
-    rare_stats = rare_stats_per_year(year, minimum_games)
-    return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+    stats = adv_stats(games)
+    return render_template('stats.html', todays_stats=t_stats, stats=stats, games=todays_games, 
+        year=year, all_years=all_years)
 
 @app.route('/top_teams/')
 @app.route('/top_teams/<year>/')
@@ -67,7 +62,7 @@ def games_by_year(year = None):
     return render_template('games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/add_game/', methods=('GET', 'POST')) # used when making a new game entry from scratch
-@app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used when duplicating an old entry to make a new entry
+@app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used when duplicating an old entry to add a game
 def add_game(game_id = None):
 
     games = games_for_year(date.today().year)
@@ -77,8 +72,9 @@ def add_game(game_id = None):
 
     games = games_for_year('All Years')
     list_of_all_players = all_players(games)
-    t_stats = todays_stats()
-    games = todays_games()
+    games = db_todays_games()
+    t_stats = todays_stats(games)
+    
     
     if request.method == 'POST':
         winner1 = request.form['winner1'].strip()
