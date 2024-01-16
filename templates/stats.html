@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <script src="{{url_for('static', filename='js/sorttable.js')}}"></script>
     <nav>
         <div class="dropdown">
             <button class="dropbtn">{{year}}
@@ -70,7 +71,7 @@
             </table>
             {% endif %}
             <h1>{% block title %} {{ year }} Stats {% endblock %}</h1>
-            <table>
+            <table class="sortable">
                 <thead>
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>
