@@ -73,54 +73,53 @@ def stats_per_year(year, minimum_games):
       stats.append(stat)
    return stats
 
-def team_stats_per_year(year, minimum_games, games):
-   stats = []
-   all_teams = teams(games)
-   no_wins = []
-   for team in all_teams:
-      wins, losses = 0, 0
-      for game in games:
-         if (team['player1'] in game.winners) and (team['player2'] in game.winners):
-            wins += 1
-         elif (team['player1'] in game.losers) and (team['player2'] in game.losers):
-            losses += 1
-      win_percent = wins / (wins + losses)
-      total_games = wins + losses
-      x = { 'team':team, 'wins':wins, 'losses':losses, 
-            'win_percentage':win_percent, 'total_games':total_games }
-      if total_games >= minimum_games:
-         if wins == 0:
-            no_wins.append(x)
-         else:
-            stats.append(x)
-   stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-   for stat in no_wins:
-      stats.append(stat)
-   return stats
-
-def teams(games):
-   all_teams = []
+def team_stats(games, minimum_games):
+   """Returns stats for teams that played at least <minimum_games> together"""
+   team_stats_dic = {}
+   # count wins and losses for all teams
    for game in games:
-      winners = {}
-      losers = {}
-      if game.winners[0] > game.winners[1]:
-         winners['player1'] = game.winners[1]
-         winners['player2'] = game.winners[0]
-      else:
-         winners['player1'] = game.winners[0]
-         winners['player2'] = game.winners[1]
-      if winners not in all_teams:
-         all_teams.append(winners)
-      if game.losers[0] > game.losers[1]:
-         losers['player1'] = game.losers[1]
-         losers['player2'] = game.losers[0]
-      else:
-         losers['player1'] = game.losers[0]
-         losers['player2'] = game.losers[1]
-      if losers not in all_teams:
-         all_teams.append(losers)
-   all_teams.sort(key=lambda x: x['player1'])
-   return all_teams
+      winner_team_str = ';'.join(game.winners)
+      loser_team_str = ';'.join(game.losers)
+      # if <winner_team_str> is not one of the keys for <team_stats_dic> initialize
+      if winner_team_str not in team_stats_dic:
+         team_stats_dic[winner_team_str] = {'wins':0, 'losses':0}
+      if loser_team_str not in team_stats_dic:
+         team_stats_dic[loser_team_str] = {'wins':0, 'losses':0}
+      team_stats_dic[winner_team_str]['wins'] +=1
+      team_stats_dic[loser_team_str]['losses'] +=1
+
+   # built list of team stats
+   team_stats = []
+   for team_str in team_stats_dic.keys():
+      wins = team_stats_dic[team_str]['wins']
+      games = wins + team_stats_dic[team_str]['losses']
+      if games < minimum_games:
+         continue
+      win_percent = team_stats_dic[team_str]['wins'] / games * 100
+
+      team_stats.append({ 'players':team_str.split(';'), 'games': games, 'wins':wins, 'win_percentage':win_percent})
+
+   team_stats.sort(key=lambda x: x['win_percentage'], reverse=True)
+
+   return team_stats
+
+#[ToDo] This function is unused. Maybe i should delete it?
+def teams(games):
+   """For a list of doubles_game objects <games> returns a list of unique pairs of players (teams)"""
+
+   # this loop takes advantage of the fact that winners and losers are stored in alphabetic order in doubles_game objects
+   all_teams = set()
+   for game in games:
+      all_teams = all_teams.union([game.winners[0] + ';' + game.winners[1]])
+      all_teams = all_teams.union([game.losers[0] + ';' + game.losers[1]])
+   teams_list = []
+   for team in all_teams:
+      teams_list.append(team.split(';'))
+   
+   # sort teams list in alphabetic order ... probably don't really need to do this
+   teams_list = sorted(teams_list, key = lambda x: (x[0], x[1]))
+
+   return teams_list
 
 def todays_stats(games=None):
    """Returns stats for todays games games input is optional"""

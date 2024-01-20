@@ -1,15 +1,26 @@
 from datetime import datetime
 
 class doubles_game:
-    def __init__(self, winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = None, last_mod_datetime = None, game_id = None):
+    def __init__(self, winner1, winner2, winner_score, loser1, loser2, loser_score, game_datetime = None, last_mod_datetime = None, game_id = None, privacy_mode = False):
+        self.privacy_mode = privacy_mode
+
+        # Store players names so the winners and losers are in alphabetic order
+        if winner1 < winner2:
+            self._players = [winner1, winner2]
+        else:
+            self._players = [winner2, winner1]
+        if loser1 < loser2:
+            self._players += [loser1, loser2]
+        else:
+            self._players += [loser2, loser1]
+
         self.game_id = game_id
         if isinstance(game_datetime, datetime):
             self.game_datetime = game_datetime
         else:
             self.game_datetime = doubles_game.str2datetime(game_datetime) if game_datetime else None
-        self.winners = [winner1, winner2]
+
         self.winner_score = winner_score
-        self.losers = [loser1, loser2]
         self.loser_score = loser_score
         
         if isinstance(last_mod_datetime, datetime):
@@ -19,21 +30,20 @@ class doubles_game:
         
     @property 
     def players(self):
-        return self.winners + self.losers
-    # ToDo should delete below 4 properties and replace with winner1, winner2, loser1, loser2 throughout the code and html appropriately 
+        if self.privacy_mode:
+            return [doubles_game.privacy_mask(x) for x in self._players]
+        return self._players
     @property 
-    def winner1(self):
-        return self.winners[0]
+    def winners(self):
+        if self.privacy_mode:
+            return [doubles_game.privacy_mask(x) for x in self._players[0:2]]
+        return self._players[0:2]
     @property 
-    def winner2(self):
-        return self.winners[1]
-    @property
-    def loser1(self):
-        return self.losers[0]
-    @property
-    def loser2(self):
-        return self.losers[1]
-
+    def losers(self):
+        if self.privacy_mode:
+            return [doubles_game.privacy_mask(x) for x in self._players[2:4]]
+        return self._players[2:4]
+    
     @staticmethod
     def db_row2doubles_game(row):
     # Converts a row of data from the database into a doubles_game object
@@ -41,7 +51,7 @@ class doubles_game:
     
     def convert2db_row(self):
     # Converts a doubles_game object into a row of data for the database
-        return (self.game_id, str(self.game_datetime)[:19], self.winner1, self.winner2, self.winner_score, self.loser1, self.loser2, self.loser_score, str(self.last_mod_datetime)[:19])
+        return (self.game_id, str(self.game_datetime)[:19], self.winners[0], self.winners[1], self.winner_score, self.losers[0], self.losers[1], self.loser_score, str(self.last_mod_datetime)[:19])
     
     def __str__(self):
         out_str = ''
@@ -59,3 +69,10 @@ class doubles_game:
     @staticmethod
     def datetime2str(d):
         return d.strftime("%m/%d/%Y %I:%M %p")
+    
+    @staticmethod
+    def privacy_mask(name):
+        parts = name.split()
+        if len(parts) < 2:
+            return name
+        return parts[0] + " " + parts[1][0] # 1st name plus 1st letter of last name

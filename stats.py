@@ -33,7 +33,7 @@ def top_teams_by_year(year = None):
     games = games_for_year(year)
     minimum_games = min_games_required(games, 30)
     all_years = year_dropdown_values()
-    stats = team_stats_per_year(year, minimum_games, games)
+    stats = team_stats(games, minimum_games)
     return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
 
 @app.route('/player/<year>/<name>')
