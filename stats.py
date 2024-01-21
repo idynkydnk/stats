@@ -19,7 +19,7 @@ def stats(year=None):
         t_stats = None
         todays_games = None
     
-    games = games_for_year(year)
+    games = db_games_for_date(year)
     all_years = year_dropdown_values()
     stats = adv_stats(games)
     return render_template('stats.html', todays_stats=t_stats, stats=stats, games=todays_games, 
@@ -30,7 +30,7 @@ def stats(year=None):
 def top_teams_by_year(year = None):
     if not year:
         year = 'Past Year'
-    games = games_for_year(year)
+    games = db_games_for_date(year)
     minimum_games = min_games_required(games, 30)
     all_years = year_dropdown_values()
     stats = team_stats(games, minimum_games)
@@ -56,7 +56,7 @@ def games_by_year(year = None):
     if not year:
         year = 'Past Year'
     all_years = year_dropdown_values()
-    games = games_for_year(year)
+    games = db_games_for_date(year)
     # Sort most recent to oldest game order
     games.sort(key=lambda x: x.game_datetime, reverse=True)
     return render_template('games.html', games=games, year=year, all_years=all_years)
@@ -65,12 +65,12 @@ def games_by_year(year = None):
 @app.route('/add_game/<int:game_id>/', methods=('GET', 'POST')) # used when duplicating an old entry to add a game
 def add_game(game_id = None):
 
-    games = games_for_year(date.today().year)
+    games = db_games_for_date(date.today().year)
     minimum_games = min_games_required(games, 30)
     stats = stats_per_year('Past Year', minimum_games)
     rare_stats = rare_stats_per_year('Past Year', minimum_games)
 
-    games = games_for_year('All Years')
+    games = db_games_for_date('All Years')
     list_of_all_players = all_players(games)
     games = db_todays_games()
     t_stats = todays_stats(games)
@@ -111,7 +111,7 @@ def edit_games_by_year(year = None):
         year = 'Past Year'
 
     all_years = year_dropdown_values()
-    games = games_for_year(year)
+    games = db_games_for_date(year)
     games.sort(key=lambda x: x.game_datetime, reverse=True) # Sort most recent to oldest game order
     return render_template('edit_games.html', games=games, year=year, all_years=all_years)
 
@@ -119,7 +119,7 @@ def edit_games_by_year(year = None):
 def update(game_id):
     
     game = find_game(game_id)
-    games = games_for_year(date.today().year)
+    games = db_games_for_date(date.today().year)
     players = all_players(games)
     
     if request.method == 'POST':

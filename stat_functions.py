@@ -49,7 +49,7 @@ def adv_stats(games):
 def stats_per_year(year, minimum_games):
 # year - 'All Years' , 'Past Year' or the desired year
 
-   games = games_for_year(year)
+   games = db_games_for_date(year)
    players = all_players(games)
    stats = []
    no_wins = []
@@ -154,7 +154,7 @@ def db_todays_games():
    
 def rare_stats_per_year(year, minimum_games):
 # year - 'All Years' , 'Past Year' or the desired year
-   games = games_for_year(year)
+   games = db_games_for_date(year)
    players = all_players(games)
    stats = []
    no_wins = []
@@ -185,11 +185,17 @@ def all_players(games):
       all_players = all_players.union(game.players)
    return all_players
 
-def games_for_year(year = None):
+def db_games_for_date(year = None):
    """return a list of doubles_game objects for <year> ordered from oldest to newest game date 
-         year - str or int, if not provided then will return all games. Can also be 'All Years' or 'Past Year'
+         year - str or int, if not provided then will return all games. 
+            Valid input formats:
+               'YYYY' - specific year
+               'YYYY-MM-DD' - specific day
+               'YYYY-MM-DD YYYY-MM-DD' - to get games for a date range inclusive of the end points
+               'All Years'
+               'Past Year'
    """
-
+   year = str(year)
 # [ToDo] [Optimization] The sorts that take place here are largely unnecessary because the games are already ordered in 
 #   ascending date order in the  DB and there appears to only be a few games out of order in the table (rows 3,4,5,6). 
 #   Not sure if the below queries are guaranteed to return in the order rows show up in database and not sure there is
@@ -199,8 +205,14 @@ def games_for_year(year = None):
       cur.execute("SELECT * FROM games ORDER BY game_date ASC")
    elif year == 'Past Year':
       cur.execute("SELECT * FROM games WHERE game_date > date('now','-1 years') ORDER BY game_date ASC")
+   elif len(year) == 4:
+      cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date ASC", (year,))
+   elif len(year) == 10: # 'YYYY-MM-DD' format
+      cur.execute("SELECT * FROM games WHERE strftime('%Y-%m-%d',game_date)=? ORDER BY game_date ASC", (year,))
+   elif len(year) == 21: # 'YYYY-MM-DD YYYY-MM-DD' format to retrieve data for a date range
+      cur.execute("SELECT * FROM games WHERE (strftime('%Y-%m-%d',game_date)>=? AND strftime('%Y-%m-%d',game_date)<=?) ORDER BY game_date ASC", (year[:10], year[11:]))
    else:
-      cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date ASC", (str(year),))
+      Error('Unsupported date format')
 
    rows = cur.fetchall()
    games = [doubles_game.db_row2doubles_game(row) for row in rows if rows]
