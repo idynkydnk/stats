@@ -298,76 +298,131 @@ input[type=number] {
 
 
 
-#menu__toggle {
-  opacity: 0;
+/* New Simple Hamburger Menu */
+.menu-container {
+  position: relative;
 }
-#menu__toggle:checked + .menu__btn > span {
-  transform: rotate(45deg);
-}
-#menu__toggle:checked + .menu__btn > span::before {
-  top: 0;
-  transform: rotate(0deg);
-}
-#menu__toggle:checked + .menu__btn > span::after {
-  top: 0;
-  transform: rotate(90deg);
-}
-#menu__toggle:checked ~ .menu__box {
-  right: 0 !important;
-}
-.menu__btn {
+
+.menu-toggle {
   position: fixed;
   top: 20px;
   right: 20px;
-  width: 26px;
-  height: 26px;
+  background: var(--button-bg-1);
+  color: var(--button-text-1);
+  border: 2px solid var(--button-border-1);
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 18px;
   cursor: pointer;
-  z-index: 1;
+  z-index: 1001;
+  transition: all 0.3s ease;
 }
-.menu__btn > span,
-.menu__btn > span::before,
-.menu__btn > span::after {
-  display: block;
-  position: absolute;
-  width: 100%;
-  height: 2px;
-  background-color: #616161;
-  transition-duration: .25s;
+
+.menu-toggle:hover {
+  background: var(--button-border-1);
+  color: var(--button-bg-1);
 }
-.menu__btn > span::before {
-  content: '';
-  top: -8px;
+
+.menu-toggle.active {
+  background: var(--button-border-1);
+  color: var(--button-bg-1);
 }
-.menu__btn > span::after {
-  content: '';
-  top: 8px;
-}
-.menu__box {
-  display: block;
+
+.menu-overlay {
   position: fixed;
   top: 0;
-  right: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-sidebar {
+  position: fixed;
+  top: 0;
+  right: -300px;
   width: 300px;
   height: 100%;
-  margin: 0;
-  padding: 80px 0;
+  background: var(--table-bg);
+  z-index: 1000;
+  transition: right 0.3s ease;
+  padding: 20px;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+  visibility: hidden;
+}
+
+.menu-sidebar.active {
+  right: 0;
+  visibility: visible;
+}
+
+.menu-close {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 24px;
+  cursor: pointer;
+  float: right;
+  padding: 5px;
+  margin-bottom: 20px;
+}
+
+.menu-list {
   list-style: none;
-  background-color: #2a3136;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, .4);
-  transition-duration: .25s;
-  z-index: 100;
+  padding: 0;
+  margin: 0;
+  clear: both;
 }
-.menu__item {
+
+.menu-list li {
+  margin: 10px 0;
+}
+
+.menu-list a {
   display: block;
-  padding: 12px 24px;
-  color: #333;
-  font-family: 'Roboto', sans-serif;
-  font-size: 20px;
-  font-weight: 600;
+  padding: 15px 20px;
+  color: #ffffff;
   text-decoration: none;
-  transition-duration: .25s;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px solid transparent;
 }
-.menu__item:hover {
-  background-color: #CFD8DC;
+
+.menu-list a:hover {
+  background: var(--button-bg-1);
+  color: var(--button-text-1);
+  border: 2px solid var(--button-border-1);
+}
+
+/* 1v1 Games styling */
+.score {
+  font-weight: bold;
+  text-align: center;
+  font-size: 16px;
+}
+
+.winner-score {
+  color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.loser-score {
+  color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
 }
 

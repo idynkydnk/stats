@@ -596,3 +596,6 @@ def game_name_stats(game_name):
     stats = total_game_name_stats(games)
     return render_template('game_name_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5001)
