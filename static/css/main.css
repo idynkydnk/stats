@@ -426,3 +426,76 @@ input[type=number] {
   padding: 4px 8px;
 }
 
+/* Other Games Table Layout - Similar to 1v1 Games */
+.team-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  min-height: 60px;
+  padding: 12px 8px;
+  line-height: 1.6;
+}
+
+.player {
+  background: var(--table-banding);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  margin: 4px 2px;
+  display: inline-block;
+}
+
+.player.winner {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.player.loser {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* Make table cells much taller to accommodate multiple players */
+table td.team-players {
+  vertical-align: middle;
+  min-height: 80px;
+  height: auto;
+}
+
+/* Increase table row height for other games */
+table tbody tr {
+  height: auto;
+  min-height: 80px;
+}
+
+/* Mobile responsiveness for other games table */
+@media (max-width: 768px) {
+  .team-players {
+    flex-direction: column;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 4px;
+  }
+  
+  .player {
+    font-size: 12px;
+    padding: 6px 10px;
+    margin: 2px 1px;
+  }
+  
+  table td.team-players {
+    min-height: 60px;
+  }
+  
+  table tbody tr {
+    min-height: 60px;
+  }
+}
+

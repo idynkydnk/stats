@@ -50,6 +50,65 @@
         {% block content %} {% endblock %}
     </div>
 
+    <style>
+        /* Clear button styling */
+        .input-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--caption);
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 10;
+        }
+
+        .clear-btn:hover {
+            background: var(--table-banding);
+            color: var(--text);
+        }
+
+        .input-container:hover .clear-btn,
+        .input-container input:focus + .clear-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .input-container input {
+            padding-right: 35px;
+            text-align: center;
+        }
+
+        /* Ensure forms stay centered */
+        form {
+            text-align: center;
+        }
+
+        .input-container {
+            text-align: center;
+        }
+    </style>
+
     <script>
         // Simple hamburger menu functionality
         const menuToggle = document.getElementById('menu-toggle');
@@ -89,6 +148,63 @@
         // Close menu when clicking on menu links
         document.querySelectorAll('.menu-list a').forEach(link => {
             link.addEventListener('click', closeMenu);
+        });
+
+        // Clear button functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add clear buttons to all input fields
+            const inputs = document.querySelectorAll('input[type="text"], input[type="number"]');
+            
+            inputs.forEach(input => {
+                // Skip submit buttons
+                if (input.type === 'submit') return;
+                
+                // Create container if it doesn't exist
+                if (!input.parentElement.classList.contains('input-container')) {
+                    const container = document.createElement('div');
+                    container.className = 'input-container';
+                    input.parentNode.insertBefore(container, input);
+                    container.appendChild(input);
+                }
+                
+                // Create clear button
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'clear-btn';
+                clearBtn.innerHTML = '×';
+                clearBtn.title = 'Clear field';
+                
+                // Add clear functionality
+                clearBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    input.value = '';
+                    input.focus();
+                });
+                
+                // Insert clear button after input
+                input.parentElement.appendChild(clearBtn);
+                
+                // Show/hide clear button based on input value
+                function toggleClearButton() {
+                    if (input.value.trim() !== '') {
+                        clearBtn.style.opacity = '1';
+                        clearBtn.style.visibility = 'visible';
+                    } else {
+                        clearBtn.style.opacity = '0';
+                        clearBtn.style.visibility = 'hidden';
+                    }
+                }
+                
+                // Toggle on input and focus events
+                input.addEventListener('input', toggleClearButton);
+                input.addEventListener('focus', toggleClearButton);
+                input.addEventListener('blur', function() {
+                    setTimeout(toggleClearButton, 150);
+                });
+                
+                // Initial check
+                toggleClearButton();
+            });
         });
     </script>
 </body>

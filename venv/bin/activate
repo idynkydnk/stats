@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/mila/Library/CloudStorage/Dropbox/coding/stats-1/venv"
+VIRTUAL_ENV="/Users/mila/Library/CloudStorage/Dropbox/coding/stats/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
