@@ -44,11 +44,6 @@ body {
   color: var(--text);
 }
 
-/* Pink background for main doubles page */
-body.doubles-page {
-  background-color: #ffb6c1;
-}
-
 h1 {
   max-width: 100vw;
   padding: 5px;

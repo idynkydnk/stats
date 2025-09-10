@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <meta name="viewport" content="width=device-width" />
 </head>
-<body{% if body_class %} class="{{ body_class }}"{% endif %}>
+<body>
     <nav>
         <h1><a href="{{ url_for('index') }}">Doubles</a> <a href="{{ url_for('vollis') }}">Vollis</a></h1>
         <div class="menu-container">
