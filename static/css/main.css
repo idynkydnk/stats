@@ -51,6 +51,13 @@ h1 {
   text-align: center;
 }
 
+/* Center all navigation elements */
+nav {
+  text-align: center;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
 h2 {
   max-width: 100%;
   padding: 8px;
@@ -85,9 +92,12 @@ form {
 }
 
 .dropdown {
-  overflow: hidden;
-  margin: 0px auto 0 auto;
+  overflow: visible;
+  margin: 0px;
   width: 200px;
+  display: inline-block;
+  vertical-align: top;
+  position: relative;
 }
 
 .dropdown .dropbtn {
@@ -105,11 +115,10 @@ form {
   display: none;
   position: absolute;
   z-index: 1;
-  margin: 0 auto;
-  left: 0;
-  right: 0;
   width: 200px;
   padding-top: 4px;
+  left: 0;
+  top: 100%;
 }
 
 .dropdown-content a {

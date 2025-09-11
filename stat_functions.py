@@ -87,7 +87,7 @@ def team_stats_per_year(year, minimum_games, games):
 		total_games = wins + losses
 		x = { 'team':team, 'wins':wins, 'losses':losses, 
 				'win_percentage':win_percent, 'total_games':total_games }
-		if total_games >= minimum_games:
+		if total_games >= minimum_games and win_percent > 0.5:
 			if wins == 0:
 				no_wins.append(x)
 			else:

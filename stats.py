@@ -388,13 +388,33 @@ def edit_one_v_one_games_by_year(year):
 def one_v_one_games():
     all_years = all_one_v_one_years()
     games = one_v_one_year_games(str(date.today().year))
-    return render_template('one_v_one_games.html', games=games, all_years=all_years, year=str(date.today().year))
+    all_games = one_v_one_year_games('All years')
+    game_types = one_v_one_game_types(all_games)
+    return render_template('one_v_one_games.html', games=games, all_years=all_years, year=str(date.today().year), game_types=game_types)
 
 @app.route('/one_v_one_games/<year>')
 def one_v_one_games_by_year(year):
     all_years = all_one_v_one_years()
     games = one_v_one_year_games(year)
-    return render_template('one_v_one_games.html', all_years=all_years, games=games, year=year)
+    all_games = one_v_one_year_games('All years')
+    game_types = one_v_one_game_types(all_games)
+    return render_template('one_v_one_games.html', all_years=all_years, games=games, year=year, game_types=game_types)
+
+@app.route('/one_v_one_games/<year>/<game_type>')
+def one_v_one_games_by_year_and_type(year, game_type):
+    all_years = all_one_v_one_years()
+    games = one_v_one_year_and_game_type_games(year, game_type)
+    all_games = one_v_one_year_games('All years')
+    game_types = one_v_one_game_types(all_games)
+    return render_template('one_v_one_games.html', all_years=all_years, games=games, year=year, game_types=game_types, selected_game_type=game_type)
+
+@app.route('/one_v_one_games_by_type/<game_type>')
+def one_v_one_games_by_type(game_type):
+    all_years = all_one_v_one_years()
+    games = one_v_one_game_type_games(game_type)
+    all_games = one_v_one_year_games('All years')
+    game_types = one_v_one_game_types(all_games)
+    return render_template('one_v_one_games.html', all_years=all_years, games=games, year='All years', game_types=game_types, selected_game_type=game_type)
 
 
 @app.route('/edit_one_v_one_game/<int:id>/',methods = ['GET','POST'])

@@ -11,9 +11,23 @@
                     <a href="{{ url_for('one_v_one_games_by_year', year=year) }}">{{ year }}</a>
                 {% endfor %}
             </div>
+        </div>
+        <div class="dropdown">
+            <button class="dropbtn">Game type
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for game_type in game_types %}
+                    {% if year == 'All years' %}
+                        <a href="{{ url_for('one_v_one_games_by_type', game_type=game_type) }}">{{ game_type }}</a>
+                    {% else %}
+                        <a href="{{ url_for('one_v_one_games_by_year_and_type', year=year, game_type=game_type) }}">{{ game_type }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ year }} 1v1 Games {% endblock %}</h1>
+    <h1>{% block title %} {{ year }} 1v1 Games{% if selected_game_type %} - {{ selected_game_type }}{% endif %} {% endblock %}</h1>
         <div>
             <table>
                 <thead>

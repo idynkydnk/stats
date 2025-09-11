@@ -51,6 +51,21 @@ def one_v_one_year_games(year):
     row.sort(reverse=True)
     return row
 
+def one_v_one_game_type_games(game_type):
+    cur = set_cur()
+    cur.execute("SELECT * FROM one_v_one_games WHERE game_type = ? ORDER BY game_date DESC", (game_type,))
+    row = cur.fetchall()
+    return row
+
+def one_v_one_year_and_game_type_games(year, game_type):
+    cur = set_cur()
+    if year == 'All years':
+        cur.execute("SELECT * FROM one_v_one_games WHERE game_type = ? ORDER BY game_date DESC", (game_type,))
+    else:
+        cur.execute("SELECT * FROM one_v_one_games WHERE strftime('%Y',game_date) = ? AND game_type = ? ORDER BY game_date DESC", (year, game_type))
+    row = cur.fetchall()
+    return row
+
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
