@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, flash, redirect
+from flask import Flask, render_template, request, url_for, flash, redirect, session
 from database_functions import *
 from stat_functions import *
 from datetime import datetime, date
@@ -8,6 +8,20 @@ from other_functions import *
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
+
+# Simple authentication - you can change these credentials
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'stats2025'
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/')
 def index():
@@ -106,6 +120,7 @@ def games_by_year(year):
     return render_template('games.html', games=games, year=year, all_years=all_years)
 
 @app.route('/add_game/', methods=('GET', 'POST'))
+@login_required
 def add_game():
     games = year_games(str(date.today().year))
     if games:
@@ -162,6 +177,7 @@ def edit_games_by_year(year):
 
 
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
+@login_required
 def update(id):
     game_id = id
     x = find_game(id)
@@ -189,6 +205,7 @@ def update(id):
 
 
 @app.route('/delete/<int:id>/',methods = ['GET','POST'])
+@login_required
 def delete_game(id):
     game_id = id
     game = find_game(id)
@@ -229,6 +246,7 @@ def vollis():
 
 
 @app.route('/add_vollis_game/', methods=('GET', 'POST'))
+@login_required
 def add_vollis_game():
     games = vollis_year_games('All years')
     players = all_vollis_players(games)
@@ -345,6 +363,7 @@ def one_v_one():
 
 
 @app.route('/add_one_v_one_game/', methods=('GET', 'POST'))
+@login_required
 def add_one_v_one_game():
     games = one_v_one_year_games('All years')
     game_types = one_v_one_game_types(games)
@@ -501,6 +520,7 @@ def other():
 
 
 @app.route('/add_other_game/', methods=('GET', 'POST'))
+@login_required
 def add_other_game():
     games = other_year_games('All years')
     game_types = other_game_types(games)
@@ -625,6 +645,28 @@ def game_name_stats_with_year(game_name, year):
     stats = total_game_name_stats(games)
     return render_template('game_name_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
+
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['logged_in'] = True
+            flash('Successfully logged in!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password.', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
