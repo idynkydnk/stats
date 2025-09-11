@@ -317,11 +317,12 @@ input[type=number] {
   top: 20px;
   right: 20px;
   background: var(--button-bg-1);
-  color: var(--button-text-1);
+  color: #000000;
   border: 2px solid var(--button-border-1);
-  border-radius: 8px;
-  padding: 10px 15px;
-  font-size: 18px;
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   z-index: 1001;
   transition: all 0.3s ease;
@@ -361,11 +362,11 @@ input[type=number] {
   right: -300px;
   width: 300px;
   height: 100%;
-  background: var(--table-bg);
+  background: #1a1a1a;
   z-index: 1000;
   transition: right 0.3s ease;
   padding: 20px;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
   visibility: hidden;
 }
 
@@ -377,8 +378,8 @@ input[type=number] {
 .menu-close {
   background: none;
   border: none;
-  color: var(--text);
-  font-size: 24px;
+  color: #000000;
+  font-size: 20px;
   cursor: pointer;
   float: right;
   padding: 5px;
@@ -398,12 +399,12 @@ input[type=number] {
 
 .menu-list a {
   display: block;
-  padding: 15px 20px;
-  color: #ffffff;
+  padding: 10px 15px;
+  color: #000000;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: 15px;
   transition: all 0.3s ease;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   border: 2px solid transparent;
 }
