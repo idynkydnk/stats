@@ -617,5 +617,14 @@ def game_name_stats(game_name):
     return render_template('game_name_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
 
+@app.route('/game_name_stats/<game_name>/<year>/')
+def game_name_stats_with_year(game_name, year):
+    all_years = game_name_years(game_name)
+    games = game_name_games(year, game_name)
+    minimum_games = 0
+    stats = total_game_name_stats(games)
+    return render_template('game_name_stats.html', stats=stats, game_name=game_name,
+        all_years=all_years, minimum_games=minimum_games, year=year)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
