@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>{% block title %} {% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <meta name="viewport" content="width=device-width" />
 </head>
 <body>
@@ -33,19 +34,19 @@
             <div class="menu-sidebar" id="menu-sidebar">
                 <button class="menu-close" id="menu-close">×</button>
                 <ul class="menu-list">
-                    <li><a href="{{ url_for('index') }}">Doubles Stats</a></li>
-                    <li><a href="{{ url_for('vollis') }}">Vollis Stats</a></li>
-                    <li><a href="{{ url_for('games') }}">Doubles Games</a></li>
-                    <li><a href="{{ url_for('vollis_games') }}">Vollis Games</a></li>
-                    <li><a href="{{ url_for('top_teams') }}">Top Teams</a></li>
-                    <li><a href="{{ url_for('one_v_one') }}">1v1 Stats</a></li>
-                    <li><a href="{{ url_for('one_v_one_games') }}">1v1 Games</a></li>
-                    <li><a href="{{ url_for('other') }}">Other Stats</a></li>
-                    <li><a href="{{ url_for('other_games') }}">Other Games</a></li>
+                    <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
+                    <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
+                    <li><a href="{{ url_for('games') }}"><i class="fas fa-list-alt"></i> Doubles Games</a></li>
+                    <li><a href="{{ url_for('vollis_games') }}"><i class="fas fa-plus-circle"></i> Vollis Games</a></li>
+                    <li><a href="{{ url_for('top_teams') }}"><i class="fas fa-trophy"></i> Top Teams</a></li>
+                    <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
+                    <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
+                    <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+                    <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
                     {% if session.logged_in %}
-                        <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}
-                        <li><a href="{{ url_for('login') }}">Login</a></li>
+                        <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                     {% endif %}
                 </ul>
             </div>

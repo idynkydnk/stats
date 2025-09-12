@@ -111,6 +111,55 @@ form {
   width: 150px;
 }
 
+.dropdown .dropbtn i {
+  display: none;
+}
+
+/* Search container styling */
+.search-container {
+  display: block;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.search-container form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border: 2px solid var(--button-bg-1);
+  border-radius: 12px;
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+  font-size: 16px;
+  width: 200px;
+}
+
+.search-input::placeholder {
+  color: var(--button-bg-1);
+  opacity: 0.7;
+}
+
+.search-button {
+  padding: 8px 12px;
+  border: 2px solid var(--button-bg-1);
+  border-radius: 12px;
+  background-color: var(--button-bg-1);
+  color: var(--button-border-1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.search-button:hover {
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
 .dropdown-content {
   display: none;
   position: absolute;
@@ -420,6 +469,13 @@ input[type=number] {
   font-size: 14px;
   font-weight: 600;
   border: 2px solid transparent;
+}
+
+.menu-list a i {
+  margin-right: 10px;
+  width: 16px;
+  text-align: center;
+  color: #666;
 }
 
 .menu-list a:hover {

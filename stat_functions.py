@@ -165,6 +165,18 @@ def convert_ampm(games):
 			updated_date = updated_datetime.strftime("%m/%d/%Y")
 		converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], updated_date])
 	return converted_games
+
+def search_games_by_player(year, player_name):
+	cur = set_cur()
+	if year == 'All years':
+		cur.execute("SELECT * FROM games WHERE winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? ORDER BY game_date DESC", 
+			(f'%{player_name}%', f'%{player_name}%', f'%{player_name}%', f'%{player_name}%'))
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ?) ORDER BY game_date DESC", 
+			(year, f'%{player_name}%', f'%{player_name}%', f'%{player_name}%', f'%{player_name}%'))
+	row = cur.fetchall()
+	row = convert_ampm(row)
+	return row
 	
 def rare_stats_per_year(year, minimum_games):
 	if year == 'All years':
