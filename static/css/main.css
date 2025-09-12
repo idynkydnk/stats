@@ -184,6 +184,7 @@ table {
   border-radius: 20px;
   padding: 8px 16px;
   border-spacing: 0;
+  table-layout: auto;
 }
 
 th, td {
@@ -192,13 +193,14 @@ th, td {
 
 /* Date column styling to prevent wrapping */
 td:first-child {
-  min-width: 120px;
   white-space: nowrap;
 }
 
-/* Winner and loser columns styling to accommodate names */
-td:nth-child(3), td:nth-child(5) {
-  min-width: 150px;
+/* Score columns styling - center the scores */
+td:nth-child(4), td:nth-child(6) {
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
 }
 
 p {
