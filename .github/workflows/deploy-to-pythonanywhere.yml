@@ -1,9 +1,9 @@
 name: Deploy to PythonAnywhere
 
 on:
-  push:
-    branches:
-      - main  # Change to 'master' if that's your default branch
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
