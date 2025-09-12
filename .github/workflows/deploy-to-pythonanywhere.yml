@@ -15,9 +15,11 @@ jobs:
       
     - name: Deploy to PythonAnywhere
       run: |
-        curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
+        # Pull latest code and restart web app
+        curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/consoles/${{ secrets.PA_USERNAME }}.pythonanywhere.com/" \
         -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
-        -v
+        -H "Content-Type: application/json" \
+        -d '{"input": "cd ~/mysite && git pull origin main && touch tmp/restart.txt\n"}'
         
     - name: Notify deployment success
       if: success()
