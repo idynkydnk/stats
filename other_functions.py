@@ -270,17 +270,11 @@ def other_losing_scores():
 
 
 def game_name_years(game_name):
-    games = all_other_games()
+    cur = set_cur()
+    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM other_games WHERE game_name = ? ORDER BY game_date DESC", (game_name,))
     years = []
-    for game in games:
-        if game["game_name"] == game_name:
-            if game["game_date"][0:4] not in years:
-                years.append(game["game_date"][0:4])
-        if years == []:
-            for game in games:
-                if game["game_name"] == game_name:
-                    if game["game_date"][0:4] not in years:
-                        years.append(game["game_date"][0:4])
+    for row in cur.fetchall():
+        years.append(row[0])
     years.append('All years')
     return years
 

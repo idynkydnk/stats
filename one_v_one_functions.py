@@ -265,17 +265,11 @@ def one_v_one_losing_scores():
 
 
 def single_game_years(game_name):
-    games = all_one_v_one_games()
+    cur = set_cur()
+    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM one_v_one_games WHERE game_name = ? ORDER BY game_date DESC", (game_name,))
     years = []
-    for game in games:
-        if game[3] == game_name:
-            if game[1][0:4] not in years:
-                years.append(game[1][0:4])
-        if years == []:
-            for game in games:
-                if game[2] == game_name:
-                    if game[1][0:4] not in years:
-                        years.append(game[1][0:4])
+    for row in cur.fetchall():
+        years.append(row[0])
     years.append('All years')
     return years
 

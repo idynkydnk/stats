@@ -489,6 +489,15 @@ def single_game_stats(game_name):
     return render_template('single_game_stats.html', stats=stats, game_name=game_name,
         all_years=all_years, minimum_games=minimum_games, year=year)
 
+@app.route('/single_game_stats/<game_name>/<year>/')
+def single_game_stats_with_year(game_name, year):
+    all_years = single_game_years(game_name)
+    games = single_game_games(year, game_name)
+    minimum_games = 0
+    stats = total_single_game_stats(games)
+    return render_template('single_game_stats.html', stats=stats, game_name=game_name,
+        all_years=all_years, minimum_games=minimum_games, year=year)
+
 
 
 
