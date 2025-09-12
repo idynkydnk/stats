@@ -6,24 +6,23 @@ on:
       - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
     - name: Deploy to PythonAnywhere
       run: |
-        # Try different API endpoint
         curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
         -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
         -v
-        
-    - name: Notify deployment success
-      if: success()
-      run: echo "✅ Successfully deployed to PythonAnywhere!"
-      
-    - name: Notify deployment failure
-      if: failure()
-      run: echo "❌ Deployment failed. Check the logs above."
+        
+    - name: Notify deployment success
+      if: success()
+      run: echo "✅ Successfully deployed to PythonAnywhere!"
+      
+    - name: Notify deployment failure
+      if: failure()
+      run: echo "❌ Deployment failed. Check the logs above."
