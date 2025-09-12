@@ -13,12 +13,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Deploy to PythonAnywhere
-      run: |
-        # Deploy using webhook endpoint (more reliable than API console)
-        curl -X POST "https://${{ secrets.PA_DOMAIN }}/deploy" \
-        -H "Content-Type: application/json" \
-        --fail --show-error
+    - name: Deploy to PythonAnywhere
+      run: |
+        # Pull latest code and reload web app
+        echo "Pulling latest code and reloading web app..."
+        
+        # Reload the web app (this will trigger a restart)
+        curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
+        -H "Authorization: Token ${{ secrets.PA_TOKEN }}" \
+        --fail --show-error
+        
+        echo "Web app reloaded successfully!"
         
     - name: Notify deployment success
       if: success()
