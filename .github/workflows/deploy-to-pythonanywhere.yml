@@ -20,7 +20,7 @@ jobs:
         
         # Reload the web app (this will trigger a restart)
         curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
-        -H "Authorization: Token ${{ secrets.PA_TOKEN }}" \
+        -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
         --fail --show-error
         
         echo "Web app reloaded successfully!"
