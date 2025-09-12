@@ -49,12 +49,14 @@ def one_v_one_year_games(year):
         cur.execute("SELECT * FROM one_v_one_games WHERE strftime('%Y',game_date)=?", (year,))
     row = cur.fetchall()
     row.sort(reverse=True)
+    row = convert_one_v_one_ampm(row)
     return row
 
 def one_v_one_game_type_games(game_type):
     cur = set_cur()
     cur.execute("SELECT * FROM one_v_one_games WHERE game_type = ? ORDER BY game_date DESC", (game_type,))
     row = cur.fetchall()
+    row = convert_one_v_one_ampm(row)
     return row
 
 def one_v_one_year_and_game_type_games(year, game_type):
@@ -64,6 +66,7 @@ def one_v_one_year_and_game_type_games(year, game_type):
     else:
         cur.execute("SELECT * FROM one_v_one_games WHERE strftime('%Y',game_date) = ? AND game_type = ? ORDER BY game_date DESC", (year, game_type))
     row = cur.fetchall()
+    row = convert_one_v_one_ampm(row)
     return row
 
 def set_cur():
@@ -230,12 +233,31 @@ def todays_one_v_one_games():
     cur.execute("SELECT * FROM one_v_one_games WHERE game_date > date('now','-15 hours')")
     games = cur.fetchall()
     games.sort(reverse=True)
-    #row = convert_ampm(games)
-    return games
+    row = convert_one_v_one_ampm(games)
+    return row
 
 def one_v_one_winning_scores():
     scores = [11,12,13]
     return scores
+
+def convert_one_v_one_ampm(games):
+    from datetime import datetime
+    converted_games = []
+    for game in games:
+        if len(game[1]) > 19:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+            game_date = game_datetime.strftime("%m/%d/%y")
+        if len(game[8]) > 19:
+            updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S.%f")
+            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S")
+            updated_date = updated_datetime.strftime("%m/%d/%y")
+        converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], updated_date])
+    return converted_games
 
 def one_v_one_losing_scores():
     scores = [9,8,7]

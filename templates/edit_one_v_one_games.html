@@ -31,7 +31,10 @@
         		<tbody>
                 {% for game in games %}
         			<tr style="height: 60px;">
-                    	<td style="padding: 12px 8px; vertical-align: middle;">{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}</td>
+                    	<td style="padding: 12px 8px; vertical-align: middle;">{{ game[1][0:10] }}<br>
+                            {% if game[1]|length > 14 %}
+                                {{ game[1][11:19] }}
+                            {% endif %}</td>
                         <td style="padding: 12px 8px; vertical-align: middle;">{{ game[2] }}</td>
                         <td style="padding: 12px 8px; vertical-align: middle;">
                             <a href="{{ url_for('single_game_stats', game_name=game[3]) }}" 

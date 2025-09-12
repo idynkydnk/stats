@@ -36,6 +36,7 @@ def vollis_year_games(year):
         cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=?", (year,))
     row = cur.fetchall()
     row.sort(reverse=True)
+    row = convert_vollis_ampm(row)
     return row
 
 def set_cur():
@@ -202,12 +203,31 @@ def todays_vollis_games():
     cur.execute("SELECT * FROM vollis_games WHERE game_date > date('now','-15 hours')")
     games = cur.fetchall()
     games.sort(reverse=True)
-    #row = convert_ampm(games)
-    return games
+    row = convert_vollis_ampm(games)
+    return row
 
 def vollis_winning_scores():
     scores = [21,15,11]
     return scores
+
+def convert_vollis_ampm(games):
+    from datetime import datetime
+    converted_games = []
+    for game in games:
+        if len(game[1]) > 19:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+            game_date = game_datetime.strftime("%m/%d/%y")
+        if len(game[6]) > 19:
+            updated_datetime = datetime.strptime(game[6], "%Y-%m-%d %H:%M:%S.%f")
+            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            updated_datetime = datetime.strptime(game[6], "%Y-%m-%d %H:%M:%S")
+            updated_date = updated_datetime.strftime("%m/%d/%y")
+        converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], updated_date])
+    return converted_games
 
 def vollis_losing_scores():
     scores = [19,9,13]

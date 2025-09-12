@@ -177,7 +177,7 @@ td a {
 }
 
 table {
-  max-width: 400px;
+  max-width: 500px;
   width: 100%;
   margin: 0 auto;
   background-color: var(--table-bg);
@@ -188,6 +188,17 @@ table {
 
 th, td {
   height: 30px;
+}
+
+/* Date column styling to prevent wrapping */
+td:first-child {
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+/* Winner and loser columns styling to accommodate names */
+td:nth-child(3), td:nth-child(5) {
+  min-width: 150px;
 }
 
 p {

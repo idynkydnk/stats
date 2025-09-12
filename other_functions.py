@@ -22,12 +22,29 @@ def todays_other_games():
     return readable_games
 
 def readable_games_data(games):
+    from datetime import datetime
     readable_games = []
     for game in games:
-        data = {'game_id':game[0], 'game_date':game[1], 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
+        # Convert game_date format
+        if len(game[1]) > 19:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+            game_date = game_datetime.strftime("%m/%d/%y")
+        
+        # Convert updated_at format
+        if len(game[19]) > 19:
+            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
+            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+        else:
+            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
+            updated_date = updated_datetime.strftime("%m/%d/%y")
+        
+        data = {'game_id':game[0], 'game_date':game_date, 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
                 'winner3':game[6], 'winner4':game[7], 'winner5':game[8], 'winner6':game[9], 'winner_score':game[10], 'loser1':game[11], 
                 'loser2':game[12], 'loser3':game[13], 'loser4':game[14], 'loser5':game[15], 'loser6':game[16], 'loser_score':game[17], 
-                'comment':game[18], 'updated_at':game[19]}
+                'comment':game[18], 'updated_at':updated_date}
         readable_games.append(data)
     return readable_games
 
@@ -144,11 +161,9 @@ def remove_other_game(game_id):
         database_delete_other_game(conn, game_id)
 
 def all_other_years():
-    games = all_other_games()
-    years = []
-    for game in games:
-        if game['game_date'][0:4] not in years:
-            years.append(game['game_date'][0:4])
+    cur = set_cur()
+    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM other_games ORDER BY game_date DESC")
+    years = [row[0] for row in cur.fetchall()]
     years.append('All years')
     return years
 
