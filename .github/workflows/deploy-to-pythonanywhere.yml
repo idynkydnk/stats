@@ -15,9 +15,10 @@ jobs:
       
     - name: Deploy to PythonAnywhere
       run: |
-        # Simple restart using API
+        # Try different API endpoint
         curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
-        -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}"
+        -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+        -v
         
     - name: Notify deployment success
       if: success()
