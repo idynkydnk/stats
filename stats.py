@@ -677,5 +677,14 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
+@app.route('/webhook/deploy', methods=['POST'])
+def webhook_deploy():
+    try:
+        from webhook_deploy import deploy
+        result = deploy()
+        return result, 200
+    except Exception as e:
+        return f"Deployment failed: {str(e)}", 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
