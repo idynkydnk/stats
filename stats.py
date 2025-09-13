@@ -683,17 +683,17 @@ def logout():
 def deploy():
     """Webhook endpoint for automated deployment"""
     try:
-        # Change to the stats directory
+        # Test basic functionality first
+        result = subprocess.run(['pwd'], capture_output=True, text=True, check=True)
+        current_dir = result.stdout.strip()
+        
+        # Try to change to the stats directory
         os.chdir('/home/Idynkydnk/stats')
         
-        # Pull latest changes
-        subprocess.run(['git', 'fetch', 'origin'], check=True)
-        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
+        # Check if we're in a git repo
+        git_status = subprocess.run(['git', 'status'], capture_output=True, text=True)
         
-        # Reload the web app
-        subprocess.run(['touch', '/var/www/idynkydnk_pythonanywhere_com_wsgi.py'], check=True)
-        
-        return 'Deployment successful', 200
+        return f'Deployment test - Current dir: {current_dir}, Git status: {git_status.returncode}', 200
     except Exception as e:
         return f'Deployment failed: {str(e)}', 500
 
