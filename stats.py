@@ -684,7 +684,7 @@ def deploy():
     """Webhook endpoint for automated deployment"""
     try:
         # Change to the stats directory
-        os.chdir('/home/idynkydnk/stats')
+        os.chdir('/home/Idynkydnk/stats')
         
         # Pull latest changes
         subprocess.run(['git', 'fetch', 'origin'], check=True)
