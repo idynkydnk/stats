@@ -5,6 +5,8 @@ from datetime import datetime, date
 from vollis_functions import *
 from one_v_one_functions import *
 from other_functions import *
+import os
+import subprocess
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -677,14 +679,23 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
-@app.route('/webhook/deploy', methods=['POST'])
-def webhook_deploy():
+@app.route('/deploy', methods=['POST'])
+def deploy():
+    """Webhook endpoint for automated deployment"""
     try:
-        from webhook_deploy import deploy
-        result = deploy()
-        return result, 200
+        # Change to the stats directory
+        os.chdir('/home/idynkydnk/stats')
+        
+        # Pull latest changes
+        subprocess.run(['git', 'fetch', 'origin'], check=True)
+        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
+        
+        # Reload the web app
+        subprocess.run(['touch', '/var/www/idynkydnk_pythonanywhere_com_wsgi.py'], check=True)
+        
+        return 'Deployment successful', 200
     except Exception as e:
-        return f"Deployment failed: {str(e)}", 500
+        return f'Deployment failed: {str(e)}', 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

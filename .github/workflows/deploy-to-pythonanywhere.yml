@@ -15,11 +15,11 @@ jobs:
       
     - name: Deploy to PythonAnywhere
       run: |
-        # Pull code and restart web app via console
-        curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/consoles/${{ secrets.PA_USERNAME }}.pythonanywhere.com/" \
-        -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+        # Send webhook to trigger deployment
+        curl -X POST "https://${{ secrets.PA_DOMAIN }}/deploy" \
         -H "Content-Type: application/json" \
-        -d '{"input": "cd ~/stats && git pull && touch /var/www/idynkydnk_pythonanywhere_com_wsgi.py\n"}'
+        -d '{"ref": "refs/heads/main"}' \
+        --fail
         
     - name: Notify deployment success
       if: success()
