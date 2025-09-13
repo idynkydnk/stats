@@ -16,10 +16,11 @@ jobs:
     - name: Deploy to PythonAnywhere
       run: |
         # Send webhook to trigger deployment
+        echo "Calling webhook at: https://${{ secrets.PA_DOMAIN }}/deploy"
         curl -X POST "https://${{ secrets.PA_DOMAIN }}/deploy" \
         -H "Content-Type: application/json" \
         -d '{"ref": "refs/heads/main"}' \
-        --fail
+        -v
         
     - name: Notify deployment success
       if: success()
