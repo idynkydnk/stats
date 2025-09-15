@@ -2,16 +2,17 @@
 
 {% block content %}
     <nav>
-        <div class="dropdown">
-            <button class="dropbtn">Select a Player
-                <i class="fa fa-caret-down"></i>
-            </button>
-            <div class="dropdown-content">
+        <form method="GET" action="{{ url_for('player_trends') }}" style="display: inline-block;">
+            <input type="text" name="player_name" placeholder="Type player name..." 
+                   value="{{ player_name or '' }}" list="players" 
+                   style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+            <datalist id="players">
                 {% for player in all_players %}
-                    <a href="{{ url_for('player_trends', player_name=player) }}">{{ player }}</a>
+                    <option value="{{ player }}">
                 {% endfor %}
-            </div>
-        </div>       
+            </datalist>
+            <button type="submit" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-left: 5px;">View Trends</button>
+        </form>
     </nav>
     
     {% if player_name %}

@@ -210,10 +210,10 @@ def update(id):
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year))
 
 @app.route('/player_trends/')
-@app.route('/player_trends/<player_name>')
-def player_trends(player_name=None):
-    """Player trends page showing win/loss statistics across all game types"""
+def player_trends():
+    """Player trends page showing win/loss statistics for doubles games"""
     all_players = get_all_players_for_trends()
+    player_name = request.args.get('player_name')
     
     if player_name:
         trends_data = get_player_trends_data(player_name)

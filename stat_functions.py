@@ -670,16 +670,26 @@ def calculate_streaks(games, player_name):
 	return streaks[:10]
 
 def get_all_players_for_trends():
-	"""Get all unique players from doubles games only"""
+	"""Get all unique players from doubles games sorted by number of games played"""
 	cur = set_cur()
-	players = set()
 	
-	# Get players from doubles games only
-	cur.execute("SELECT DISTINCT winner1 FROM games UNION SELECT DISTINCT winner2 FROM games UNION SELECT DISTINCT loser1 FROM games UNION SELECT DISTINCT loser2 FROM games")
-	doubles_players = cur.fetchall()
-	players.update([p[0] for p in doubles_players if p[0]])
+	# Get all players with their game counts
+	cur.execute("""
+		SELECT player, COUNT(*) as game_count FROM (
+			SELECT winner1 as player FROM games
+			UNION ALL
+			SELECT winner2 as player FROM games
+			UNION ALL
+			SELECT loser1 as player FROM games
+			UNION ALL
+			SELECT loser2 as player FROM games
+		) WHERE player IS NOT NULL
+		GROUP BY player
+		ORDER BY game_count DESC, player ASC
+	""")
 	
-	return sorted(list(players))
+	players_with_counts = cur.fetchall()
+	return [player[0] for player in players_with_counts if player[0]]
 
 
 
