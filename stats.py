@@ -697,5 +697,19 @@ def deploy():
     except Exception as e:
         return f'Deployment failed: {str(e)}', 500
 
+@app.route('/api/one_v_one_game_type/<game_name>')
+def get_one_v_one_game_type(game_name):
+    """API endpoint to get game type for a given game name"""
+    games = one_v_one_year_games('All years')
+    game_type = one_v_one_game_type_for_name(games, game_name)
+    return {'game_type': game_type} if game_type else {'game_type': None}
+
+@app.route('/api/other_game_type/<game_name>')
+def get_other_game_type(game_name):
+    """API endpoint to get game type for a given game name"""
+    games = other_year_games('All years')
+    game_type = other_game_type_for_name(games, game_name)
+    return {'game_type': game_type} if game_type else {'game_type': None}
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

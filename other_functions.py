@@ -110,6 +110,13 @@ def other_game_names(games):
             game_names.append(game['game_name'])
     return game_names
 
+def other_game_type_for_name(games, game_name):
+    """Get the game type for a given game name"""
+    for game in games:
+        if game['game_name'] == game_name:
+            return game['game_type']
+    return None
+
 def other_year_games(year):
     cur = set_cur()
     if year == 'All years':

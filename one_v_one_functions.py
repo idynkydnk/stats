@@ -41,6 +41,13 @@ def one_v_one_game_names(games):
             game_names.append(game[3])
     return game_names
 
+def one_v_one_game_type_for_name(games, game_name):
+    """Get the game type for a given game name"""
+    for game in games:
+        if game[3] == game_name:
+            return game[2]
+    return None
+
 def one_v_one_year_games(year):
     cur = set_cur()
     if year == 'All years':

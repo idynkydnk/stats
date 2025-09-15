@@ -29,63 +29,76 @@
                 <option value= "{{ score }}"></option>
             {% endfor %}
         </datalist>
-        <input type="text" name="game_type"
+        <input type="text" name="game_name" id="game_name"
+                placeholder="Game name"
+                value="{{ request.form['game_name'] }}"
+                list="game_names"
+                onchange="autoFillGameType('other')">
+        <input type="text" name="game_type" id="game_type"
                 placeholder="Game type"
                 value="{{ request.form['game_type'] }}"
                 list="game_types">
-        <input type="text" name="game_name"
-                placeholder="Game name"
-                value="{{ request.form['game_name'] }}"
-                list="game_names">
-        <input type="text" name="winner1"
+        <input type="text" name="winner1" id="winner1"
                 placeholder="Winner1"
                 value="{{ request.form['winner1'] }}"
-                list="players">
-        <input type="text" name="winner2"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="winner2" id="winner2"
                 placeholder="Winner2"
                 value="{{ request.form['winner2'] }}"
-                list="players">
-        <input type="text" name="winner3"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="winner3" id="winner3"
                 placeholder="Winner3"
                 value="{{ request.form['winner3'] }}"
-                list="players">
-        <input type="text" name="winner4"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="winner4" id="winner4"
                 placeholder="Winner4"
                 value="{{ request.form['winner4'] }}"
-                list="players">
-        <input type="text" name="winner5"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="winner5" id="winner5"
                 placeholder="Winner5"
                 value="{{ request.form['winner5'] }}"
-                list="players">
-        <input type="text" name="winner6"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="winner6" id="winner6"
                 placeholder="Winner6"
                 value="{{ request.form['winner6'] }}"
-                list="players">
+                list="players"
+                onchange="updatePlayerOptions()">
         
-        <input type="text" name="loser1"
+        <input type="text" name="loser1" id="loser1"
                 placeholder="Loser1"
                 value="{{ request.form['loser1'] }}"
-                list="players">     
-        <input type="text" name="loser2"
+                list="players"
+                onchange="updatePlayerOptions()">     
+        <input type="text" name="loser2" id="loser2"
                 placeholder="Loser2"
                 value="{{ request.form['loser2'] }}"
-                list="players">     
-        <input type="text" name="loser3"
+                list="players"
+                onchange="updatePlayerOptions()">     
+        <input type="text" name="loser3" id="loser3"
                 placeholder="Loser3"
                 value="{{ request.form['loser3'] }}"
-                list="players">     
-        <input type="text" name="loser4"
+                list="players"
+                onchange="updatePlayerOptions()">     
+        <input type="text" name="loser4" id="loser4"
                 placeholder="Loser4"
                 value="{{ request.form['loser4'] }}"
-                list="players">     
-        <input type="text" name="loser5"
+                list="players"
+                onchange="updatePlayerOptions()">     
+        <input type="text" name="loser5" id="loser5"
                 placeholder="Loser5"
                 value="{{ request.form['loser5'] }}"
-                list="players">     
-        <input type="text" name="loser6"
+                list="players"
+                onchange="updatePlayerOptions()">     
+        <input type="text" name="loser6" id="loser6"
                 placeholder="Loser6"
                 value="{{ request.form['loser6'] }}"
-                list="players">     
+                list="players"
+                onchange="updatePlayerOptions()">     
         
         <input type="number" pattern="[0-9]*" name="winner_score"
                 placeholder="Winner's Score"
@@ -161,4 +174,61 @@
     </table>
     {% endif %}
     </div>
+
+<script>
+// Store original player options
+const originalPlayerOptions = Array.from(document.getElementById('players').options).map(option => option.value);
+
+function autoFillGameType(gameType) {
+    const gameNameInput = document.getElementById('game_name');
+    const gameTypeInput = document.getElementById('game_type');
+    const gameName = gameNameInput.value.trim();
+    
+    if (gameName) {
+        const apiUrl = gameType === 'one_v_one' ? 
+            `/api/one_v_one_game_type/${encodeURIComponent(gameName)}` : 
+            `/api/other_game_type/${encodeURIComponent(gameName)}`;
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.game_type) {
+                    gameTypeInput.value = data.game_type;
+                }
+            })
+            .catch(error => {
+                console.log('Error fetching game type:', error);
+            });
+    }
+}
+
+function updatePlayerOptions() {
+    const playersDatalist = document.getElementById('players');
+    
+    // Get all player input field IDs
+    const playerFieldIds = ['winner1', 'winner2', 'winner3', 'winner4', 'winner5', 'winner6', 
+                           'loser1', 'loser2', 'loser3', 'loser4', 'loser5', 'loser6'];
+    
+    // Get currently selected players
+    const selectedPlayers = [];
+    playerFieldIds.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim()) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Clear existing options
+    playersDatalist.innerHTML = '';
+    
+    // Add back only unselected players
+    originalPlayerOptions.forEach(player => {
+        if (!selectedPlayers.includes(player)) {
+            const option = document.createElement('option');
+            option.value = player;
+            playersDatalist.appendChild(option);
+        }
+    });
+}
+</script>
 {% endblock %}

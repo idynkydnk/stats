@@ -29,22 +29,25 @@
                 <option value= "{{ score }}"></option>
             {% endfor %}
         </datalist>
-        <input type="text" name="game_type"
+        <input type="text" name="game_name" id="game_name"
+                placeholder="Game name"
+                value="{{ request.form['game_name'] }}"
+                list="game_names"
+                onchange="autoFillGameType('one_v_one')">
+        <input type="text" name="game_type" id="game_type"
                 placeholder="Game type"
                 value="{{ request.form['game_type'] }}"
                 list="game_types">
-        <input type="text" name="game_name"
-                placeholder="Game name"
-                value="{{ request.form['game_name'] }}"
-                list="game_names">
-        <input type="text" name="winner"
+        <input type="text" name="winner" id="winner"
                 placeholder="Winner"
                 value="{{ request.form['winner'] }}"
-                list="players">
-        <input type="text" name="loser"
+                list="players"
+                onchange="updatePlayerOptions()">
+        <input type="text" name="loser" id="loser"
                 placeholder="Loser"
                 value="{{ request.form['loser'] }}"
-                list="players">     
+                list="players"
+                onchange="updatePlayerOptions()">     
         <input type="number" pattern="[0-9]*" name="winner_score"
                 placeholder="Winner's Score"
                 value="{{ request.form['winner_score'] }}"
@@ -116,4 +119,55 @@
     </table>
     {% endif %}
     </div>
+
+<script>
+// Store original player options
+const originalPlayerOptions = Array.from(document.getElementById('players').options).map(option => option.value);
+
+function autoFillGameType(gameType) {
+    const gameNameInput = document.getElementById('game_name');
+    const gameTypeInput = document.getElementById('game_type');
+    const gameName = gameNameInput.value.trim();
+    
+    if (gameName) {
+        const apiUrl = gameType === 'one_v_one' ? 
+            `/api/one_v_one_game_type/${encodeURIComponent(gameName)}` : 
+            `/api/other_game_type/${encodeURIComponent(gameName)}`;
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.game_type) {
+                    gameTypeInput.value = data.game_type;
+                }
+            })
+            .catch(error => {
+                console.log('Error fetching game type:', error);
+            });
+    }
+}
+
+function updatePlayerOptions() {
+    const winnerInput = document.getElementById('winner');
+    const loserInput = document.getElementById('loser');
+    const playersDatalist = document.getElementById('players');
+    
+    // Get currently selected players
+    const selectedPlayers = [];
+    if (winnerInput.value.trim()) selectedPlayers.push(winnerInput.value.trim());
+    if (loserInput.value.trim()) selectedPlayers.push(loserInput.value.trim());
+    
+    // Clear existing options
+    playersDatalist.innerHTML = '';
+    
+    // Add back only unselected players
+    originalPlayerOptions.forEach(player => {
+        if (!selectedPlayers.includes(player)) {
+            const option = document.createElement('option');
+            option.value = player;
+            playersDatalist.appendChild(option);
+        }
+    });
+}
+</script>
 {% endblock %}

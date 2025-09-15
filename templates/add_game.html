@@ -10,36 +10,43 @@
 			{% endfor %}
 		</datalist>
 		<datalist id="w_scores">
-			{% for score in w_scores %}
-				<option value= "{{ score }}"></option>
-			{% endfor %}
+			<option value="21"></option>
+			<option value="15"></option>
+			<option value="22"></option>
+			<option value="23"></option>
+			<option value="16"></option>
 		</datalist>
 		<datalist id="l_scores">
 			{% for score in l_scores %}
 				<option value= "{{ score }}"></option>
 			{% endfor %}
 		</datalist>
-		<input type="text" name="winner1"
+		<input type="text" name="winner1" id="winner1"
 				placeholder="Winner 1"
 				value="{{ request.form['winner1'] }}"
-				list="players">
-		<input type="text" name="winner2"
+				list="players"
+				onchange="updatePlayerOptions()">
+		<input type="text" name="winner2" id="winner2"
 				placeholder="Winner 2"
 				value="{{ request.form['winner2'] }}"
-				list="players">
-		<input type="text" name="loser1"
+				list="players"
+				onchange="updatePlayerOptions()">
+		<input type="text" name="loser1" id="loser1"
 				placeholder="Loser 1"
 				value="{{ request.form['loser1'] }}"
-				list="players">      
-		<input type="text" name="loser2"
+				list="players"
+				onchange="updatePlayerOptions()">      
+		<input type="text" name="loser2" id="loser2"
 				placeholder="Loser 2"
 				value="{{ request.form['loser2'] }}"
-				list="players">
-		<input type="number" pattern="[0-9]*" name="winner_score"
+				list="players"
+				onchange="updatePlayerOptions()">
+		<input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
 				placeholder="Winners' Score"
-				value="{{ request.form['winner_score'] }}"
-				list="w_scores">
-		<input type="number" pattern="[0-9]*" name="loser_score"
+				value="{{ request.form['winner_score'] or '21' }}"
+				list="w_scores"
+				onchange="updateLoserScoreOptions()">
+		<input type="number" pattern="[0-9]*" name="loser_score" id="loser_score"
 				placeholder="Losers' Score"
 				value="{{ request.form['loser_score'] }}"
 				list="l_scores">    
@@ -158,4 +165,61 @@
     </table>
     {% endif %}
 	</div>
+
+<script>
+// Store original player options
+const originalPlayerOptions = Array.from(document.getElementById('players').options).map(option => option.value);
+
+function updatePlayerOptions() {
+    const playersDatalist = document.getElementById('players');
+    
+    // Get all player input field IDs
+    const playerFieldIds = ['winner1', 'winner2', 'loser1', 'loser2'];
+    
+    // Get currently selected players
+    const selectedPlayers = [];
+    playerFieldIds.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim()) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Clear existing options
+    playersDatalist.innerHTML = '';
+    
+    // Add back only unselected players
+    originalPlayerOptions.forEach(player => {
+        if (!selectedPlayers.includes(player)) {
+            const option = document.createElement('option');
+            option.value = player;
+            playersDatalist.appendChild(option);
+        }
+    });
+}
+
+function updateLoserScoreOptions() {
+    const winnerScoreInput = document.getElementById('winner_score');
+    const loserScoreDatalist = document.getElementById('l_scores');
+    const winnerScore = parseInt(winnerScoreInput.value);
+    
+    // Clear existing options
+    loserScoreDatalist.innerHTML = '';
+    
+    // Generate loser score options from (winner score - 2) down to 0
+    if (winnerScore && winnerScore > 0) {
+        const maxLoserScore = Math.max(0, winnerScore - 2);
+        for (let score = maxLoserScore; score >= 0; score--) {
+            const option = document.createElement('option');
+            option.value = score;
+            loserScoreDatalist.appendChild(option);
+        }
+    }
+}
+
+// Initialize loser score options on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateLoserScoreOptions();
+});
+</script>
 {% endblock %}
