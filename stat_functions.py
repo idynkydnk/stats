@@ -53,6 +53,9 @@ def stats_per_year(year, minimum_games):
 	stats = []
 	no_wins = []
 	for player in players:
+		# Filter out players with question marks for doubles stats page
+		if '?' in player:
+			continue
 		wins, losses = 0, 0
 		for game in games:
 			if player == game[2] or player == game[3]:
@@ -156,7 +159,7 @@ def convert_ampm(games):
 			game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
 		else:
 			game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-			game_date = game_datetime.strftime("%m/%d/%Y")
+			game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
 		if len(game[8]) > 19:
 			updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S.%f")
 			updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
@@ -187,6 +190,9 @@ def rare_stats_per_year(year, minimum_games):
 	stats = []
 	no_wins = []
 	for player in players:
+		# Filter out players with question marks for doubles stats page
+		if '?' in player:
+			continue
 		wins, losses = 0, 0
 		for game in games:
 			if player == game[2] or player == game[3]:
@@ -435,6 +441,245 @@ def total_stats(games, player):
 	win_percentage = wins / (wins + losses)
 	stats.append([player, wins, losses, win_percentage])
 	return stats
+
+def get_player_trends_data(player_name):
+	"""Get comprehensive trends data for a player for doubles games only"""
+	from datetime import datetime, timedelta
+	import calendar
+	
+	# Get only doubles games for the player
+	all_games = []
+	
+	# Doubles games only
+	doubles_games = get_player_doubles_games(player_name)
+	all_games.extend([(game, 'Doubles') for game in doubles_games])
+	
+	# Sort by date
+	all_games.sort(key=lambda x: x[0][1], reverse=True)
+	
+	# Calculate overall stats
+	total_games = len(all_games)
+	total_wins = 0
+	total_losses = 0
+	
+	for game, game_type in all_games:
+		if is_player_winner(game, player_name, game_type):
+			total_wins += 1
+		else:
+			total_losses += 1
+	
+	win_percentage = total_wins / total_games if total_games > 0 else 0
+	
+	# Calculate current streak
+	current_streak = calculate_current_streak(all_games, player_name)
+	
+	# Calculate monthly stats
+	monthly_stats = calculate_monthly_stats(all_games, player_name)
+	
+	# Get recent games (last 20)
+	recent_games = format_recent_games(all_games[:20], player_name)
+	
+	# Calculate streaks
+	streaks = calculate_streaks(all_games, player_name)
+	
+	return {
+		'total_games': total_games,
+		'total_wins': total_wins,
+		'total_losses': total_losses,
+		'win_percentage': win_percentage,
+		'current_streak': current_streak,
+		'monthly_stats': monthly_stats,
+		'recent_games': recent_games,
+		'streaks': streaks
+	}
+
+def get_player_doubles_games(player_name):
+	"""Get all doubles games for a player"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE winner1 = ? OR winner2 = ? OR loser1 = ? OR loser2 = ? ORDER BY game_date DESC", 
+				(player_name, player_name, player_name, player_name))
+	return cur.fetchall()
+
+def get_player_one_v_one_games(player_name):
+	"""Get all 1v1 games for a player"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM one_v_one_games WHERE winner = ? OR loser = ? ORDER BY game_date DESC", 
+				(player_name, player_name))
+	return cur.fetchall()
+
+def get_player_other_games(player_name):
+	"""Get all other games for a player"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM other_games WHERE winner1 = ? OR winner2 = ? OR winner3 = ? OR winner4 = ? OR winner5 = ? OR winner6 = ? OR loser1 = ? OR loser2 = ? OR loser3 = ? OR loser4 = ? OR loser5 = ? OR loser6 = ? ORDER BY game_date DESC", 
+				(player_name, player_name, player_name, player_name, player_name, player_name, player_name, player_name, player_name, player_name, player_name, player_name))
+	return cur.fetchall()
+
+def get_player_vollis_games(player_name):
+	"""Get all vollis games for a player"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM vollis_games WHERE winner = ? OR loser = ? ORDER BY game_date DESC", 
+				(player_name, player_name))
+	return cur.fetchall()
+
+def is_player_winner(game, player_name, game_type):
+	"""Check if player won the doubles game"""
+	return player_name == game[2] or player_name == game[3]
+
+def calculate_current_streak(games, player_name):
+	"""Calculate current win/loss streak"""
+	if not games:
+		return "No games"
+	
+	current_type = None
+	streak_length = 0
+	
+	for game, game_type in games:
+		is_winner = is_player_winner(game, player_name, game_type)
+		result_type = 'Win' if is_winner else 'Loss'
+		
+		if current_type is None:
+			current_type = result_type
+			streak_length = 1
+		elif current_type == result_type:
+			streak_length += 1
+		else:
+			break
+	
+	return f"{streak_length} {current_type}{'s' if streak_length != 1 else ''}"
+
+def calculate_monthly_stats(games, player_name):
+	"""Calculate monthly statistics"""
+	from collections import defaultdict
+	from datetime import datetime
+	import calendar
+	
+	monthly_data = defaultdict(lambda: {'games': 0, 'wins': 0, 'losses': 0})
+	
+	for game, game_type in games:
+		# Handle datetime strings with or without microseconds
+		game_date_str = game[1]
+		if len(game_date_str) > 19:  # Has microseconds
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S.%f")
+		else:  # Standard format
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S")
+		month_key = f"{game_date.year}-{game_date.month:02d}"
+		month_name = f"{calendar.month_name[game_date.month]} {game_date.year}"
+		
+		monthly_data[month_key]['month'] = month_name
+		monthly_data[month_key]['games'] += 1
+		
+		if is_player_winner(game, player_name, game_type):
+			monthly_data[month_key]['wins'] += 1
+		else:
+			monthly_data[month_key]['losses'] += 1
+	
+	# Convert to list and calculate win percentages
+	monthly_stats = []
+	for month_key in sorted(monthly_data.keys(), reverse=True):
+		data = monthly_data[month_key]
+		data['win_percentage'] = data['wins'] / data['games'] if data['games'] > 0 else 0
+		monthly_stats.append(data)
+	
+	return monthly_stats
+
+def format_recent_games(games, player_name):
+	"""Format recent games for display"""
+	from datetime import datetime
+	
+	recent_games = []
+	for game, game_type in games:
+		# Handle datetime strings with or without microseconds
+		game_date_str = game[1]
+		if len(game_date_str) > 19:  # Has microseconds
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S.%f")
+		else:  # Standard format
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S")
+		formatted_date = game_date.strftime("%m/%d/%Y")
+		
+		is_winner = is_player_winner(game, player_name, game_type)
+		result = 'Win' if is_winner else 'Loss'
+		
+		# Get score and opponents for doubles games
+		if is_winner:
+			score = f"{game[4]} - {game[7]}"
+			opponents = f"{game[5]}, {game[6]}"
+		else:
+			score = f"{game[7]} - {game[4]}"
+			opponents = f"{game[2]}, {game[3]}"
+		
+		recent_games.append({
+			'date': formatted_date,
+			'game_type': game_type,
+			'result': result,
+			'score': score,
+			'opponents': opponents
+		})
+	
+	return recent_games
+
+def calculate_streaks(games, player_name):
+	"""Calculate all win/loss streaks"""
+	from datetime import datetime, timedelta
+	
+	streaks = []
+	current_streak = None
+	streak_length = 0
+	streak_start = None
+	
+	for game, game_type in games:
+		is_winner = is_player_winner(game, player_name, game_type)
+		result_type = 'Win' if is_winner else 'Loss'
+		# Handle datetime strings with or without microseconds
+		game_date_str = game[1]
+		if len(game_date_str) > 19:  # Has microseconds
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S.%f")
+		else:  # Standard format
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S")
+		
+		if current_streak is None:
+			current_streak = result_type
+			streak_length = 1
+			streak_start = game_date
+		elif current_streak == result_type:
+			streak_length += 1
+		else:
+			# End of current streak, record it
+			streaks.append({
+				'type': current_streak,
+				'length': streak_length,
+				'start_date': streak_start.strftime("%m/%d/%Y"),
+				'end_date': (streak_start - timedelta(days=1)).strftime("%m/%d/%Y") if streak_length > 1 else streak_start.strftime("%m/%d/%Y")
+			})
+			
+			# Start new streak
+			current_streak = result_type
+			streak_length = 1
+			streak_start = game_date
+	
+	# Add the last streak
+	if current_streak is not None:
+		streaks.append({
+			'type': current_streak,
+			'length': streak_length,
+			'start_date': streak_start.strftime("%m/%d/%Y"),
+			'end_date': (streak_start - timedelta(days=1)).strftime("%m/%d/%Y") if streak_length > 1 else streak_start.strftime("%m/%d/%Y")
+		})
+	
+	# Sort by length (longest first) and limit to top 10
+	streaks.sort(key=lambda x: x['length'], reverse=True)
+	return streaks[:10]
+
+def get_all_players_for_trends():
+	"""Get all unique players from doubles games only"""
+	cur = set_cur()
+	players = set()
+	
+	# Get players from doubles games only
+	cur.execute("SELECT DISTINCT winner1 FROM games UNION SELECT DISTINCT winner2 FROM games UNION SELECT DISTINCT loser1 FROM games UNION SELECT DISTINCT loser2 FROM games")
+	doubles_players = cur.fetchall()
+	players.update([p[0] for p in doubles_players if p[0]])
+	
+	return sorted(list(players))
 
 
 

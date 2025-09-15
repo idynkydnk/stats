@@ -189,6 +189,8 @@ def update(id):
     games = year_games(str(date.today().year))
     players = all_players(games)
     if request.method == 'POST':
+        game_date = request.form['game_date']
+        game_time = request.form['game_time']
         winner1 = request.form['winner1']
         winner2 = request.form['winner2']
         loser1 = request.form['loser1']
@@ -196,14 +198,33 @@ def update(id):
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
 
-        if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
+        if not game_date or not game_time or not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            update_game(game_id, game[1], winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
+            # Combine date and time into the format expected by the database
+            combined_datetime = f"{game_date} {game_time}:00"
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
             return redirect(url_for('edit_games'))
  
     return render_template('edit_game.html', game=game, players=players, 
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year))
+
+@app.route('/player_trends/')
+@app.route('/player_trends/<player_name>')
+def player_trends(player_name=None):
+    """Player trends page showing win/loss statistics across all game types"""
+    all_players = get_all_players_for_trends()
+    
+    if player_name:
+        trends_data = get_player_trends_data(player_name)
+        return render_template('player_trends.html', 
+                             player_name=player_name,
+                             all_players=all_players,
+                             **trends_data)
+    else:
+        return render_template('player_trends.html', 
+                             player_name=None,
+                             all_players=all_players)
 
 
 @app.route('/delete/<int:id>/',methods = ['GET','POST'])

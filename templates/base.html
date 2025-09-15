@@ -43,6 +43,7 @@
                     <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
                     <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
                     <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
+                    <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-trending-up"></i> Player Trends</a></li>
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}

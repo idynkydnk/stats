@@ -40,6 +40,11 @@
 							<option value= "{{ score }}">
 					 {% endfor %}
 			  </datalist>
+			  <input type="date" name="game_date" value="{{ game[1][0:10] }}"
+					 placeholder="Game Date">
+			  <input type="time" name="game_time" 
+					 value="{{ game[1][11:16] }}"
+					 placeholder="Game Time">
 			  <input type="text" name="winner1" value="{{ game[2] }}"
 					 placeholder="Winner 1"
 					 value="{{ request.form['winner1'] }}"
