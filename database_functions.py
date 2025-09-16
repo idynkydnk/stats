@@ -90,9 +90,10 @@ def main():
 
 def search_player_names(search_term):
     """Search for player names across all game types"""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = sqlite3.connect(database)
-    if conn is None:
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
         database = r'stats.db'
         conn = sqlite3.connect(database)
     cursor = conn.cursor()
@@ -167,9 +168,10 @@ def search_player_names(search_term):
 
 def update_player_name(old_name, new_name):
     """Update player name across all game types"""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = sqlite3.connect(database)
-    if conn is None:
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
         database = r'stats.db'
         conn = sqlite3.connect(database)
     cursor = conn.cursor()
@@ -231,9 +233,10 @@ def update_player_name(old_name, new_name):
 
 def get_all_unique_players():
     """Get all unique player names across all game types"""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = sqlite3.connect(database)
-    if conn is None:
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
         database = r'stats.db'
         conn = sqlite3.connect(database)
     cursor = conn.cursor()
