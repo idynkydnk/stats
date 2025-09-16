@@ -3,231 +3,41 @@
 {% block title %}Manage Player Names{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>{% block title %}Manage Player Names{% endblock %}</h1>
-    
-    <div class="search-section">
-        <h2>Search for Player Names</h2>
-        <form method="POST" class="search-form">
-            <input type="hidden" name="action" value="search">
-            <div class="form-group">
-                <label for="search_term">Search for names containing:</label>
-                <input type="text" id="search_term" name="search_term" 
-                       value="{{ search_term or '' }}" 
-                       placeholder="e.g., '?' or 'Mike' or 'Thomson'"
-                       list="all_players" required>
-                <datalist id="all_players">
-                    {% for player in all_players %}
-                        <option value="{{ player }}">
-                    {% endfor %}
-                </datalist>
-            </div>
-            <button type="submit" class="btn btn-primary">Search</button>
-        </form>
-    </div>
+<h1>Manage Player Names</h1>
 
-    {% if search_results %}
-    <div class="search-results">
-        <h2>Search Results for "{{ search_term }}"</h2>
-        
-        {% for game_type, players in search_results.items() %}
-            {% if players %}
-            <div class="game-type-section">
-                <h3>{{ game_type.replace('_', ' ').title() }} Games</h3>
-                <div class="player-list">
-                    {% for player in players %}
-                        <div class="player-item">
-                            <span class="player-name">{{ player }}</span>
-                            <button class="btn btn-small" onclick="selectPlayerForUpdate('{{ player }}')">
-                                Update This Name
-                            </button>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+<div>
+    <h2>Select Player to Update</h2>
+    <input type="text" id="player_selector" 
+           placeholder="Type to search for a player name..."
+           list="all_players" 
+           onchange="selectPlayerForUpdate(this.value)">
+    <datalist id="all_players">
+        {% for player in all_players %}
+            <option value="{{ player }}">
         {% endfor %}
-        
-        {% if not any(search_results.values()) %}
-            <p class="no-results">No players found matching "{{ search_term }}"</p>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <div class="update-section">
-        <h2>Update Player Name</h2>
-        <form method="POST" class="update-form">
-            <input type="hidden" name="action" value="update">
-            <div class="form-group">
-                <label for="old_name">Current Name:</label>
-                <input type="text" id="old_name" name="old_name" 
-                       placeholder="Name to change" required readonly>
-            </div>
-            <div class="form-group">
-                <label for="new_name">New Name:</label>
-                <input type="text" id="new_name" name="new_name" 
-                       placeholder="New name" required>
-            </div>
-            <button type="submit" class="btn btn-warning" onclick="return confirmUpdate()">
-                Update Player Name
-            </button>
-        </form>
-    </div>
-
-    <div class="help-section">
-        <h2>How to Use</h2>
-        <ol>
-            <li><strong>Search:</strong> Enter a search term (like "?" to find names with question marks) and click Search</li>
-            <li><strong>Select:</strong> Click "Update This Name" next to any player you want to change</li>
-            <li><strong>Update:</strong> Enter the new name and click "Update Player Name"</li>
-            <li><strong>Confirm:</strong> The system will update the name across all game types</li>
-        </ol>
-        
-        <div class="warning">
-            <strong>⚠️ Warning:</strong> This will permanently change the player name across all games in the database. 
-            Make sure you have the correct spelling before confirming the update.
-        </div>
-    </div>
+    </datalist>
 </div>
 
-<style>
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-}
+<div>
+    <h2>Update Player Name</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" id="old_name" name="old_name" required>
+        <input type="text" id="new_name" name="new_name" 
+               placeholder="Enter new name" required>
+        <input type="submit" value="Update Player Name" onclick="return confirmUpdate()">
+    </form>
+</div>
 
-.search-section, .search-results, .update-section, .help-section {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
 
-.search-form, .update-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-group label {
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.form-group input {
-    padding: 10px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 16px;
-}
-
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
-}
-
-.btn-primary {
-    background-color: #007bff;
-    color: white;
-}
-
-.btn-warning {
-    background-color: #ffc107;
-    color: #212529;
-}
-
-.btn-small {
-    padding: 5px 10px;
-    font-size: 12px;
-    background-color: #6c757d;
-    color: white;
-    margin-left: 10px;
-}
-
-.btn:hover {
-    opacity: 0.8;
-}
-
-.game-type-section {
-    margin-bottom: 20px;
-}
-
-.game-type-section h3 {
-    color: #495057;
-    border-bottom: 2px solid #dee2e6;
-    padding-bottom: 5px;
-}
-
-.player-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.player-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: white;
-    padding: 10px;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-}
-
-.player-name {
-    font-weight: bold;
-    color: #495057;
-}
-
-.no-results {
-    text-align: center;
-    color: #6c757d;
-    font-style: italic;
-    padding: 20px;
-}
-
-.help-section ol {
-    padding-left: 20px;
-}
-
-.warning {
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 4px;
-    padding: 15px;
-    margin-top: 15px;
-    color: #856404;
-}
-
-#old_name {
-    background-color: #f8f9fa;
-    color: #6c757d;
-}
-</style>
 
 <script>
 function selectPlayerForUpdate(playerName) {
-    document.getElementById('old_name').value = playerName;
-    document.getElementById('new_name').value = '';
-    document.getElementById('new_name').focus();
-    
-    // Scroll to update section
-    document.querySelector('.update-section').scrollIntoView({ 
-        behavior: 'smooth' 
-    });
+    if (playerName) {
+        document.getElementById('old_name').value = playerName;
+        document.getElementById('new_name').value = '';
+        document.getElementById('new_name').focus();
+    }
 }
 
 function confirmUpdate() {
@@ -235,7 +45,7 @@ function confirmUpdate() {
     const newName = document.getElementById('new_name').value;
     
     if (!oldName || !newName) {
-        alert('Please fill in both the current name and new name.');
+        alert('Please select a player and enter a new name.');
         return false;
     }
     
