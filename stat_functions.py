@@ -236,11 +236,10 @@ def all_players(games):
 def year_games(year):
 	cur = set_cur()
 	if year == 'All years':
-		cur.execute("SELECT * FROM games")
+		cur.execute("SELECT * FROM games ORDER BY game_date DESC")
 	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=?", (year,))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
 	row = cur.fetchall()
-	row.sort(reverse=True)
 	row = convert_ampm(row)
 	return row
 
