@@ -732,5 +732,38 @@ def get_other_game_type(game_name):
     game_type = other_game_type_for_name(games, game_name)
     return {'game_type': game_type} if game_type else {'game_type': None}
 
+@app.route('/manage_player_names/', methods=['GET', 'POST'])
+@login_required
+def manage_player_names():
+    """Page for managing player names across all game types"""
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'search':
+            search_term = request.form.get('search_term', '').strip()
+            if search_term:
+                search_results = search_player_names(search_term)
+                all_players = get_all_unique_players()
+                return render_template('manage_player_names.html', 
+                                     search_results=search_results, 
+                                     search_term=search_term,
+                                     all_players=all_players)
+        
+        elif action == 'update':
+            old_name = request.form.get('old_name', '').strip()
+            new_name = request.form.get('new_name', '').strip()
+            
+            if old_name and new_name and old_name != new_name:
+                try:
+                    updates_made = update_player_name(old_name, new_name)
+                    flash(f'Successfully updated "{old_name}" to "{new_name}" in {updates_made} records.', 'success')
+                except Exception as e:
+                    flash(f'Error updating player name: {str(e)}', 'error')
+            else:
+                flash('Please provide both old and new names, and ensure they are different.', 'error')
+    
+    all_players = get_all_unique_players()
+    return render_template('manage_player_names.html', all_players=all_players)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
