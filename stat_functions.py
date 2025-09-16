@@ -690,6 +690,42 @@ def get_all_players_for_trends():
 	players_with_counts = cur.fetchall()
 	return [player[0] for player in players_with_counts if player[0]]
 
+def date_range_games(start_date, end_date):
+	"""Get all doubles games within a date range"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM games WHERE game_date >= ? AND game_date <= ? ORDER BY game_date DESC", 
+				(start_date, end_date))
+	games = cur.fetchall()
+	return convert_ampm(games)
+
+def get_date_range_stats(start_date, end_date):
+	"""Calculate stats for players within a date range"""
+	games = date_range_games(start_date, end_date)
+	players = all_players(games)
+	stats = []
+	
+	for player in players:
+		# Filter out players with question marks for stats
+		if '?' in player:
+			continue
+			
+		wins, losses = 0, 0
+		for game in games:
+			if player == game[2] or player == game[3]:
+				wins += 1
+			elif player == game[5] or player == game[6]:
+				losses += 1
+		
+		if wins + losses > 0:  # Only include players who played games
+			win_percentage = wins / (wins + losses)
+			differential = wins - losses
+			stats.append([player, wins, losses, win_percentage, differential])
+	
+	# Sort by win percentage, then by differential
+	stats.sort(key=lambda x: x[4], reverse=True)
+	stats.sort(key=lambda x: x[3], reverse=True)
+	return stats
+
 
 
 

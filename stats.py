@@ -765,5 +765,52 @@ def manage_player_names():
     all_players = get_all_unique_players()
     return render_template('manage_player_names.html', all_players=all_players)
 
+@app.route('/date_range_stats/')
+@app.route('/date_range_stats/<start_date>/<end_date>/')
+def date_range_stats(start_date=None, end_date=None):
+    """Page for viewing stats and games within a custom date range"""
+    # Get dates from URL parameters or form
+    if not start_date or not end_date:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        start_time = request.args.get('start_time', '00:00')
+        end_time = request.args.get('end_time', '23:59')
+    else:
+        # For URL path parameters, default times
+        start_time = '00:00'
+        end_time = '23:59'
+    
+    if start_date and end_date:
+        # Use the provided times
+        start_datetime = f"{start_date} {start_time}:00"
+        end_datetime = f"{end_date} {end_time}:00"
+        
+        # Convert times to 12-hour format for display
+        def format_time_12h(time_24h):
+            hour, minute = time_24h.split(':')
+            hour = int(hour)
+            ampm = 'AM' if hour < 12 else 'PM'
+            hour_12 = hour % 12 or 12
+            return f"{hour_12}:{minute} {ampm}"
+        
+        start_time_display = format_time_12h(start_time)
+        end_time_display = format_time_12h(end_time)
+        
+        stats = get_date_range_stats(start_datetime, end_datetime)
+        games = date_range_games(start_datetime, end_datetime)
+        
+        return render_template('date_range_stats.html', 
+                             stats=stats, 
+                             games=games,
+                             start_date=start_date,
+                             end_date=end_date,
+                             start_time=start_time,
+                             end_time=end_time,
+                             start_time_display=start_time_display,
+                             end_time_display=end_time_display,
+                             has_results=True)
+    
+    return render_template('date_range_stats.html', has_results=False)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
