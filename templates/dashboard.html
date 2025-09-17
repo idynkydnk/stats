@@ -30,11 +30,11 @@
                 <span class="stat-label">Recent Games</span>
             </div>
         </div>
-        {% if current_stats %}
+        {% if top_win_percentage %}
         <div class="top-players">
-            <h3>Top 5 in {{ selected_year }}</h3>
+            <h3>Top 10 in {{ selected_year }}</h3>
             <ol>
-                {% for stat in current_stats[:5] %}
+                {% for stat in top_win_percentage %}
                 <li>
                     <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
@@ -55,17 +55,6 @@
                 <li>
                     <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="game-count">{{ stat[1] + stat[2] }} games</span>
-                </li>
-                {% endfor %}
-            </ol>
-        </div>
-        <div class="leaders-section">
-            <h3>Best Win % ({{ minimum_games }}+ games)</h3>
-            <ol>
-                {% for stat in top_win_percentage %}
-                <li>
-                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                    <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
                 </li>
                 {% endfor %}
             </ol>
@@ -120,7 +109,7 @@
                 <span class="stat-label">Players Today</span>
             </div>
             <div class="today-players">
-                {% for stat in today_stats[:5] %}
+                {% for stat in today_stats %}
                 <div class="today-player">
                     <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="today-record">{{ stat[1] }}W-{{ stat[2] }}L</span>
@@ -142,17 +131,21 @@
             <div class="recent-game">
                 <div class="game-date">{{ game[1][0:10] }}</div>
                 <div class="game-result">
-                    <span class="winners">
-                        <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a>, 
-                        <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
-                    </span>
-                    <span class="score">{{ game[4] }}</span>
-                    <span class="vs">vs</span>
-                    <span class="score">{{ game[7] }}</span>
-                    <span class="losers">
-                        <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a>, 
-                        <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
-                    </span>
+                    <div class="game-teams">
+                        <div class="winners">
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
+                        </div>
+                        <div class="losers">
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a> & 
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
+                        </div>
+                    </div>
+                    <div class="game-scores">
+                        <span class="score">{{ game[4] }}</span>
+                        <span class="vs">vs</span>
+                        <span class="score">{{ game[7] }}</span>
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -367,44 +360,77 @@
 .recent-games {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .recent-game {
-    padding: 10px;
+    padding: 12px;
     background-color: var(--table-banding);
     border-radius: 12px;
+    border: 1px solid var(--button-bg-1);
 }
 
 .game-date {
-    font-size: 0.9em;
+    font-size: 0.85em;
     color: var(--caption);
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: 500;
 }
 
 .game-result {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 8px;
     flex-wrap: wrap;
+}
+
+.game-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
 }
 
 .winners, .losers {
     font-weight: bold;
     color: var(--text);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.winners {
+    color: #4CAF50;
+}
+
+.losers {
+    color: #f44336;
+}
+
+.game-scores {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .score {
     background-color: var(--button-bg-1);
     color: var(--button-text-1);
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: 4px 8px;
+    border-radius: 8px;
     font-weight: bold;
+    font-size: 0.9em;
+    min-width: 30px;
+    text-align: center;
 }
 
 .vs {
     color: var(--caption);
     font-style: italic;
+    font-size: 0.8em;
 }
 
 .dashboard-card a {
