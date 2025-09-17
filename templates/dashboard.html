@@ -113,7 +113,7 @@
             {% for streak in best_win_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('player_stats', year='All years', name=streak[0]) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
@@ -134,7 +134,7 @@
             {% for streak in best_loss_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('player_stats', year='All years', name=streak[0]) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}

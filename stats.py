@@ -834,5 +834,19 @@ def dashboard():
     
     return render_template('dashboard.html', **dashboard_data)
 
+@app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/')
+def streak_details(player_name, streak_type, streak_length):
+    """Show the games that made up a specific streak"""
+    from stat_functions import get_streak_games
+    
+    # Get the games that made up this streak
+    streak_games = get_streak_games(player_name, streak_type, streak_length)
+    
+    return render_template('streak_details.html', 
+                         player_name=player_name,
+                         streak_type=streak_type,
+                         streak_length=streak_length,
+                         streak_games=streak_games)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
