@@ -815,9 +815,23 @@ def date_range_stats(start_date=None, end_date=None):
 @app.route('/dashboard/')
 def dashboard():
     """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data
+    from stat_functions import get_dashboard_data, grab_all_years
+    from datetime import datetime
     
-    dashboard_data = get_dashboard_data()
+    # Get selected year from query parameter, default to current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = datetime.now().year
+    
+    # Get available years
+    available_years = grab_all_years()
+    
+    # Get dashboard data for selected year
+    dashboard_data = get_dashboard_data(selected_year)
+    dashboard_data['selected_year'] = selected_year
+    dashboard_data['available_years'] = available_years
+    dashboard_data['current_year'] = datetime.now().year
+    
     return render_template('dashboard.html', **dashboard_data)
 
 if __name__ == '__main__':

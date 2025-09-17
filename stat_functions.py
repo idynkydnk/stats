@@ -144,8 +144,10 @@ def todays_stats():
 	return stats
 
 def todays_games():
+	from datetime import datetime
 	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE game_date > date('now','-16 hours')")
+	today = datetime.now().strftime('%Y-%m-%d')
+	cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (today,))
 	games = cur.fetchall()
 	games.sort(reverse=True)
 	row = convert_ampm(games)
@@ -726,37 +728,52 @@ def get_date_range_stats(start_date, end_date):
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
-def get_dashboard_data():
+def get_dashboard_data(selected_year=None):
 	"""Get comprehensive data for the dashboard"""
 	from datetime import datetime, timedelta
 	
-	# Get current year stats
-	current_year = datetime.now().year
-	current_stats = stats_per_year(current_year, 0)  # 0 minimum games for dashboard
+	# Use selected year or default to current year
+	if selected_year is None:
+		selected_year = datetime.now().year
+	
+	# Get stats for selected year
+	current_stats = stats_per_year(selected_year, 0)  # 0 minimum games for dashboard
 	
 	# Get all-time stats
 	all_time_stats = stats_per_year('All years', 0)  # 0 minimum games for dashboard
 	
-	# Get recent games (last 10)
-	recent_games = year_games(current_year)[:10]
+	# Get recent games (last 10) for selected year
+	recent_games = year_games(selected_year)[:10]
 	
-	# Get monthly game counts for current year
-	monthly_data = get_monthly_game_counts(current_year)
+	# Get monthly game counts for selected year
+	monthly_data = get_monthly_game_counts(selected_year)
 	
-	# Get top performers
-	top_win_percentage = sorted([s for s in all_time_stats if s[1] + s[2] >= 10], 
+	# Calculate minimum games using same formula as doubles stats page
+	games_for_year = year_games(selected_year)
+	if games_for_year:
+		if len(games_for_year) < 30:
+			minimum_games = 1
+		else:
+			minimum_games = len(games_for_year) // 30
+	else:
+		minimum_games = 1
+	
+	# Get top performers for selected year
+	# Top 5 by win percentage (must meet minimum games requirement)
+	top_win_percentage = sorted([s for s in current_stats if s[1] + s[2] >= minimum_games], 
 							   key=lambda x: x[3], reverse=True)[:5]
 	
-	top_games_played = sorted(all_time_stats, key=lambda x: x[1] + x[2], reverse=True)[:5]
+	# Top 5 by games played (no minimum games requirement - show actual top 5)
+	top_games_played = sorted(current_stats, key=lambda x: x[1] + x[2], reverse=True)[:5]
 	
-	# Get today's stats
+	# Get today's stats (always show today's activity regardless of selected year)
 	today_stats = todays_stats()
 	
-	# Get win/loss streaks
-	streaks = get_win_loss_streaks()
+	# Get win/loss streaks for selected year
+	streaks = get_win_loss_streaks_for_year(selected_year)
 	
 	return {
-		'current_year': current_year,
+		'current_year': selected_year,
 		'current_stats': current_stats,
 		'all_time_stats': all_time_stats,
 		'recent_games': recent_games,
@@ -764,7 +781,8 @@ def get_dashboard_data():
 		'top_win_percentage': top_win_percentage,
 		'top_games_played': top_games_played,
 		'today_stats': today_stats,
-		'streaks': streaks
+		'streaks': streaks,
+		'minimum_games': minimum_games
 	}
 
 def get_monthly_game_counts(year):
@@ -802,6 +820,60 @@ def get_win_loss_streaks():
 	"""Get current win/loss streaks for all players"""
 	cur = set_cur()
 	cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+	all_games = cur.fetchall()
+	
+	streaks = {}
+	for game in all_games:
+		# Check winners
+		for i in [2, 3]:  # winner1, winner2
+			player = game[i]
+			if player not in streaks:
+				streaks[player] = {'current': 0, 'type': None, 'max': 0}
+			
+			if streaks[player]['type'] == 'win':
+				streaks[player]['current'] += 1
+			elif streaks[player]['type'] == 'loss':
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'win'
+			else:
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'win'
+			
+			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+		
+		# Check losers
+		for i in [5, 6]:  # loser1, loser2
+			player = game[i]
+			if player not in streaks:
+				streaks[player] = {'current': 0, 'type': None, 'max': 0}
+			
+			if streaks[player]['type'] == 'loss':
+				streaks[player]['current'] += 1
+			elif streaks[player]['type'] == 'win':
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'loss'
+			else:
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'loss'
+			
+			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+	
+	# Convert to list and sort by current streak
+	streak_list = []
+	for player, data in streaks.items():
+		if '?' not in player and data['current'] > 0:
+			streak_list.append([player, data['current'], data['type'], data['max']])
+	
+	streak_list.sort(key=lambda x: x[1], reverse=True)
+	return streak_list[:10]  # Top 10 current streaks
+
+def get_win_loss_streaks_for_year(year):
+	"""Get current win/loss streaks for all players in a specific year"""
+	cur = set_cur()
+	if year == 'All years':
+		cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (str(year),))
 	all_games = cur.fetchall()
 	
 	streaks = {}

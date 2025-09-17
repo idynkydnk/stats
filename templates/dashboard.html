@@ -5,10 +5,21 @@
 {% block content %}
 <h1>Doubles Dashboard</h1>
 
+<div class="year-selector">
+    <form method="GET" style="display: inline-block;">
+        <label for="year">Select Year:</label>
+        <select name="year" id="year" onchange="this.form.submit()">
+            {% for year in available_years %}
+                <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
 <div class="dashboard-grid">
-    <!-- Current Year Stats -->
+    <!-- Selected Year Stats -->
     <div class="dashboard-card">
-        <h2>{{ current_year }} Stats</h2>
+        <h2>{{ selected_year }} Stats</h2>
         <div class="stats-summary">
             <div class="stat-item">
                 <span class="stat-number">{{ current_stats|length }}</span>
@@ -21,11 +32,11 @@
         </div>
         {% if current_stats %}
         <div class="top-players">
-            <h3>Top 5 This Year</h3>
+            <h3>Top 5 in {{ selected_year }}</h3>
             <ol>
                 {% for stat in current_stats[:5] %}
                 <li>
-                    <a href="{{ url_for('player_stats', year=current_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
                 </li>
                 {% endfor %}
@@ -34,26 +45,26 @@
         {% endif %}
     </div>
 
-    <!-- All-Time Leaders -->
+    <!-- Year Leaders -->
     <div class="dashboard-card">
-        <h2>All-Time Leaders</h2>
+        <h2>{{ selected_year }} Leaders</h2>
         <div class="leaders-section">
             <h3>Most Games Played</h3>
             <ol>
                 {% for stat in top_games_played %}
                 <li>
-                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="game-count">{{ stat[1] + stat[2] }} games</span>
                 </li>
                 {% endfor %}
             </ol>
         </div>
         <div class="leaders-section">
-            <h3>Best Win % (10+ games)</h3>
+            <h3>Best Win % ({{ minimum_games }}+ games)</h3>
             <ol>
                 {% for stat in top_win_percentage %}
                 <li>
-                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
                 </li>
                 {% endfor %}
@@ -63,7 +74,7 @@
 
     <!-- Current Streaks -->
     <div class="dashboard-card">
-        <h2>Current Streaks</h2>
+        <h2>{{ selected_year }} Current Streaks</h2>
         {% if streaks %}
         <div class="streaks-list">
             {% for streak in streaks %}
@@ -85,7 +96,7 @@
 
     <!-- Monthly Activity -->
     <div class="dashboard-card">
-        <h2>{{ current_year }} Monthly Activity</h2>
+        <h2>{{ selected_year }} Monthly Activity</h2>
         <div class="monthly-chart">
             {% for month in range(1, 13) %}
             <div class="month-bar">
@@ -124,7 +135,7 @@
 
     <!-- Recent Games -->
     <div class="dashboard-card">
-        <h2>Recent Games</h2>
+        <h2>{{ selected_year }} Recent Games</h2>
         {% if recent_games %}
         <div class="recent-games">
             {% for game in recent_games[:5] %}
@@ -132,15 +143,15 @@
                 <div class="game-date">{{ game[1][0:10] }}</div>
                 <div class="game-result">
                     <span class="winners">
-                        <a href="{{ url_for('player_stats', year='All years', name=game[2]) }}">{{ game[2] }}</a>, 
-                        <a href="{{ url_for('player_stats', year='All years', name=game[3]) }}">{{ game[3] }}</a>
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a>, 
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
                     </span>
                     <span class="score">{{ game[4] }}</span>
                     <span class="vs">vs</span>
                     <span class="score">{{ game[7] }}</span>
                     <span class="losers">
-                        <a href="{{ url_for('player_stats', year='All years', name=game[5]) }}">{{ game[5] }}</a>, 
-                        <a href="{{ url_for('player_stats', year='All years', name=game[6]) }}">{{ game[6] }}</a>
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a>, 
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
                     </span>
                 </div>
             </div>
@@ -153,6 +164,31 @@
 </div>
 
 <style>
+.year-selector {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--table-bg);
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid var(--button-bg-1);
+}
+
+.year-selector label {
+    font-weight: bold;
+    margin-right: 10px;
+    color: var(--text);
+}
+
+.year-selector select {
+    padding: 8px 12px;
+    border: 2px solid var(--button-bg-1);
+    border-radius: 12px;
+    font-size: 16px;
+    background-color: var(--table-bg);
+    color: var(--button-bg-1);
+    max-width: 200px;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -161,18 +197,27 @@
 }
 
 .dashboard-card {
-    background: white;
-    border-radius: 8px;
+    background: var(--table-bg);
+    border-radius: 20px;
     padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid #e0e0e0;
+    border: 2px solid var(--button-bg-1);
+    margin: 10px 0;
 }
 
 .dashboard-card h2 {
     margin-top: 0;
-    color: #333;
-    border-bottom: 2px solid #007bff;
+    color: var(--text);
+    border-bottom: 2px solid var(--button-bg-1);
     padding-bottom: 10px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.dashboard-card h3 {
+    color: var(--text);
+    text-align: center;
+    font-size: 16px;
+    margin: 15px 0 10px 0;
 }
 
 .stats-summary {
@@ -189,18 +234,19 @@
     display: block;
     font-size: 2em;
     font-weight: bold;
-    color: #007bff;
+    color: var(--button-bg-1);
 }
 
 .stat-label {
     display: block;
-    color: #666;
+    color: var(--caption);
     font-size: 0.9em;
 }
 
 .top-players ol, .leaders-section ol {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
 .top-players li, .leaders-section li {
@@ -208,11 +254,15 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--table-banding);
+}
+
+.top-players li:last-child, .leaders-section li:last-child {
+    border-bottom: none;
 }
 
 .win-percentage, .game-count {
-    color: #007bff;
+    color: var(--button-bg-1);
     font-weight: bold;
 }
 
@@ -227,22 +277,23 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px;
-    border-radius: 5px;
+    border-radius: 12px;
     border-left: 4px solid;
 }
 
 .streak-item.win {
-    background-color: #d4edda;
-    border-left-color: #28a745;
+    background-color: rgba(76, 175, 80, 0.1);
+    border-left-color: #4CAF50;
 }
 
 .streak-item.loss {
-    background-color: #f8d7da;
-    border-left-color: #dc3545;
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left-color: #f44336;
 }
 
 .streak-info {
     font-weight: bold;
+    color: var(--text);
 }
 
 .monthly-chart {
@@ -263,7 +314,7 @@
 
 .month-label {
     font-size: 0.8em;
-    color: #666;
+    color: var(--caption);
     margin-bottom: 5px;
 }
 
@@ -277,14 +328,14 @@
 
 .bar {
     width: 80%;
-    background-color: #007bff;
+    background-color: var(--button-bg-1);
     min-height: 2px;
     border-radius: 2px 2px 0 0;
 }
 
 .month-count {
     font-size: 0.8em;
-    color: #666;
+    color: var(--caption);
     margin-top: 5px;
 }
 
@@ -301,11 +352,15 @@
     justify-content: space-between;
     align-items: center;
     padding: 5px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--table-banding);
+}
+
+.today-player:last-child {
+    border-bottom: none;
 }
 
 .today-record {
-    color: #007bff;
+    color: var(--button-bg-1);
     font-weight: bold;
 }
 
@@ -317,13 +372,13 @@
 
 .recent-game {
     padding: 10px;
-    background-color: #f8f9fa;
-    border-radius: 5px;
+    background-color: var(--table-banding);
+    border-radius: 12px;
 }
 
 .game-date {
     font-size: 0.9em;
-    color: #666;
+    color: var(--caption);
     margin-bottom: 5px;
 }
 
@@ -336,19 +391,30 @@
 
 .winners, .losers {
     font-weight: bold;
+    color: var(--text);
 }
 
 .score {
-    background-color: #007bff;
-    color: white;
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
     padding: 2px 8px;
-    border-radius: 3px;
+    border-radius: 12px;
     font-weight: bold;
 }
 
 .vs {
-    color: #666;
+    color: var(--caption);
     font-style: italic;
+}
+
+.dashboard-card a {
+    color: var(--button-bg-1);
+    text-decoration: none;
+}
+
+.dashboard-card a:hover {
+    color: var(--text);
+    text-decoration: underline;
 }
 
 @media (max-width: 768px) {
@@ -360,6 +426,11 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
+    }
+    
+    .stats-summary {
+        flex-direction: column;
+        gap: 15px;
     }
 }
 </style>
