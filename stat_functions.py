@@ -726,6 +726,125 @@ def get_date_range_stats(start_date, end_date):
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
+def get_dashboard_data():
+	"""Get comprehensive data for the dashboard"""
+	from datetime import datetime, timedelta
+	
+	# Get current year stats
+	current_year = datetime.now().year
+	current_stats = stats_per_year(current_year, 0)  # 0 minimum games for dashboard
+	
+	# Get all-time stats
+	all_time_stats = stats_per_year('All years', 0)  # 0 minimum games for dashboard
+	
+	# Get recent games (last 10)
+	recent_games = year_games(current_year)[:10]
+	
+	# Get monthly game counts for current year
+	monthly_data = get_monthly_game_counts(current_year)
+	
+	# Get top performers
+	top_win_percentage = sorted([s for s in all_time_stats if s[1] + s[2] >= 10], 
+							   key=lambda x: x[3], reverse=True)[:5]
+	
+	top_games_played = sorted(all_time_stats, key=lambda x: x[1] + x[2], reverse=True)[:5]
+	
+	# Get today's stats
+	today_stats = todays_stats()
+	
+	# Get win/loss streaks
+	streaks = get_win_loss_streaks()
+	
+	return {
+		'current_year': current_year,
+		'current_stats': current_stats,
+		'all_time_stats': all_time_stats,
+		'recent_games': recent_games,
+		'monthly_data': monthly_data,
+		'top_win_percentage': top_win_percentage,
+		'top_games_played': top_games_played,
+		'today_stats': today_stats,
+		'streaks': streaks
+	}
 
+def get_monthly_game_counts(year):
+	"""Get game counts by month for a given year"""
+	cur = set_cur()
+	if year == 'All years':
+		cur.execute("""
+			SELECT strftime('%m', game_date) as month, COUNT(*) as count
+			FROM games 
+			GROUP BY strftime('%m', game_date)
+			ORDER BY month
+		""")
+	else:
+		cur.execute("""
+			SELECT strftime('%m', game_date) as month, COUNT(*) as count
+			FROM games 
+			WHERE strftime('%Y', game_date) = ?
+			GROUP BY strftime('%m', game_date)
+			ORDER BY month
+		""", (str(year),))
+	
+	results = cur.fetchall()
+	monthly_counts = {}
+	for month, count in results:
+		monthly_counts[int(month)] = count
+	
+	# Fill in missing months with 0
+	for month in range(1, 13):
+		if month not in monthly_counts:
+			monthly_counts[month] = 0
+	
+	return monthly_counts
 
-
+def get_win_loss_streaks():
+	"""Get current win/loss streaks for all players"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+	all_games = cur.fetchall()
+	
+	streaks = {}
+	for game in all_games:
+		# Check winners
+		for i in [2, 3]:  # winner1, winner2
+			player = game[i]
+			if player not in streaks:
+				streaks[player] = {'current': 0, 'type': None, 'max': 0}
+			
+			if streaks[player]['type'] == 'win':
+				streaks[player]['current'] += 1
+			elif streaks[player]['type'] == 'loss':
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'win'
+			else:
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'win'
+			
+			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+		
+		# Check losers
+		for i in [5, 6]:  # loser1, loser2
+			player = game[i]
+			if player not in streaks:
+				streaks[player] = {'current': 0, 'type': None, 'max': 0}
+			
+			if streaks[player]['type'] == 'loss':
+				streaks[player]['current'] += 1
+			elif streaks[player]['type'] == 'win':
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'loss'
+			else:
+				streaks[player]['current'] = 1
+				streaks[player]['type'] = 'loss'
+			
+			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+	
+	# Convert to list and sort by current streak
+	streak_list = []
+	for player, data in streaks.items():
+		if '?' not in player and data['current'] > 0:
+			streak_list.append([player, data['current'], data['type'], data['max']])
+	
+	streak_list.sort(key=lambda x: x[1], reverse=True)
+	return streak_list[:10]  # Top 10 current streaks

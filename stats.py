@@ -812,5 +812,13 @@ def date_range_stats(start_date=None, end_date=None):
     
     return render_template('date_range_stats.html', has_results=False)
 
+@app.route('/dashboard/')
+def dashboard():
+    """Visual dashboard showing key doubles statistics"""
+    from stat_functions import get_dashboard_data
+    
+    dashboard_data = get_dashboard_data()
+    return render_template('dashboard.html', **dashboard_data)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

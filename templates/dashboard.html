@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Doubles Dashboard</h1>
+
+<div class="dashboard-grid">
+    <!-- Current Year Stats -->
+    <div class="dashboard-card">
+        <h2>{{ current_year }} Stats</h2>
+        <div class="stats-summary">
+            <div class="stat-item">
+                <span class="stat-number">{{ current_stats|length }}</span>
+                <span class="stat-label">Active Players</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">{{ recent_games|length }}</span>
+                <span class="stat-label">Recent Games</span>
+            </div>
+        </div>
+        {% if current_stats %}
+        <div class="top-players">
+            <h3>Top 5 This Year</h3>
+            <ol>
+                {% for stat in current_stats[:5] %}
+                <li>
+                    <a href="{{ url_for('player_stats', year=current_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- All-Time Leaders -->
+    <div class="dashboard-card">
+        <h2>All-Time Leaders</h2>
+        <div class="leaders-section">
+            <h3>Most Games Played</h3>
+            <ol>
+                {% for stat in top_games_played %}
+                <li>
+                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="game-count">{{ stat[1] + stat[2] }} games</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="leaders-section">
+            <h3>Best Win % (10+ games)</h3>
+            <ol>
+                {% for stat in top_win_percentage %}
+                <li>
+                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+
+    <!-- Current Streaks -->
+    <div class="dashboard-card">
+        <h2>Current Streaks</h2>
+        {% if streaks %}
+        <div class="streaks-list">
+            {% for streak in streaks %}
+            <div class="streak-item {{ streak[2] }}">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year='All years', name=streak[0]) }}">{{ streak[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ streak[1] }} {{ streak[2] }}{{ 's' if streak[1] != 1 else '' }}
+                    <small>(Best: {{ streak[3] }})</small>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No active streaks</p>
+        {% endif %}
+    </div>
+
+    <!-- Monthly Activity -->
+    <div class="dashboard-card">
+        <h2>{{ current_year }} Monthly Activity</h2>
+        <div class="monthly-chart">
+            {% for month in range(1, 13) %}
+            <div class="month-bar">
+                <div class="month-label">{{ month }}</div>
+                <div class="bar-container">
+                    <div class="bar" style="height: {{ (monthly_data[month] / monthly_data.values()|max * 100) if monthly_data.values()|max > 0 else 0 }}%"></div>
+                </div>
+                <div class="month-count">{{ monthly_data[month] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Today's Stats -->
+    <div class="dashboard-card">
+        <h2>Today's Activity</h2>
+        {% if today_stats %}
+        <div class="today-stats">
+            <div class="stat-item">
+                <span class="stat-number">{{ today_stats|length }}</span>
+                <span class="stat-label">Players Today</span>
+            </div>
+            <div class="today-players">
+                {% for stat in today_stats[:5] %}
+                <div class="today-player">
+                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="today-record">{{ stat[1] }}W-{{ stat[2] }}L</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <p>No games played today</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Games -->
+    <div class="dashboard-card">
+        <h2>Recent Games</h2>
+        {% if recent_games %}
+        <div class="recent-games">
+            {% for game in recent_games[:5] %}
+            <div class="recent-game">
+                <div class="game-date">{{ game[1][0:10] }}</div>
+                <div class="game-result">
+                    <span class="winners">
+                        <a href="{{ url_for('player_stats', year='All years', name=game[2]) }}">{{ game[2] }}</a>, 
+                        <a href="{{ url_for('player_stats', year='All years', name=game[3]) }}">{{ game[3] }}</a>
+                    </span>
+                    <span class="score">{{ game[4] }}</span>
+                    <span class="vs">vs</span>
+                    <span class="score">{{ game[7] }}</span>
+                    <span class="losers">
+                        <a href="{{ url_for('player_stats', year='All years', name=game[5]) }}">{{ game[5] }}</a>, 
+                        <a href="{{ url_for('player_stats', year='All years', name=game[6]) }}">{{ game[6] }}</a>
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No recent games</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.dashboard-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.dashboard-card h2 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.stats-summary {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    display: block;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.top-players ol, .leaders-section ol {
+    list-style: none;
+    padding: 0;
+}
+
+.top-players li, .leaders-section li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.win-percentage, .game-count {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.streaks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.streak-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 4px solid;
+}
+
+.streak-item.win {
+    background-color: #d4edda;
+    border-left-color: #28a745;
+}
+
+.streak-item.loss {
+    background-color: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.streak-info {
+    font-weight: bold;
+}
+
+.monthly-chart {
+    display: flex;
+    align-items: end;
+    gap: 5px;
+    height: 150px;
+    margin: 20px 0;
+}
+
+.month-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+
+.month-label {
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.bar-container {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+}
+
+.bar {
+    width: 80%;
+    background-color: #007bff;
+    min-height: 2px;
+    border-radius: 2px 2px 0 0;
+}
+
+.month-count {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+}
+
+.today-stats {
+    text-align: center;
+}
+
+.today-players {
+    margin-top: 15px;
+}
+
+.today-player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.today-record {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.recent-games {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recent-game {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.game-date {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.game-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.winners, .losers {
+    font-weight: bold;
+}
+
+.score {
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.vs {
+    color: #666;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .game-result {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+</style>
+{% endblock %}
