@@ -1036,7 +1036,7 @@ def get_streak_games(player_name, streak_type, streak_length):
 			
 			# Check if we found the streak we're looking for
 			if current_streak == streak_length and current_type == streak_type:
-				return streak_games
+				return convert_ampm(streak_games)
 		else:
 			# Streak broken, start new one
 			current_streak = 1
@@ -1045,11 +1045,11 @@ def get_streak_games(player_name, streak_type, streak_length):
 			
 			# Check if this single game is the streak we're looking for
 			if current_streak == streak_length and current_type == streak_type:
-				return streak_games
+				return convert_ampm(streak_games)
 	
 	# If we get here, we didn't find the exact streak
 	# Return the longest streak of the requested type
 	if current_type == streak_type and current_streak >= streak_length:
-		return streak_games[-streak_length:]  # Return the last streak_length games
+		return convert_ampm(streak_games[-streak_length:])  # Return the last streak_length games
 	
 	return []  # No streak found
