@@ -821,7 +821,7 @@ def dashboard():
     # Get selected year from query parameter, default to current year
     selected_year = request.args.get('year')
     if not selected_year:
-        selected_year = datetime.now().year
+        selected_year = str(datetime.now().year)
     
     # Get available years
     available_years = grab_all_years()

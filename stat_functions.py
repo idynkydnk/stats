@@ -734,7 +734,9 @@ def get_dashboard_data(selected_year=None):
 	
 	# Use selected year or default to current year
 	if selected_year is None:
-		selected_year = datetime.now().year
+		selected_year = str(datetime.now().year)
+	else:
+		selected_year = str(selected_year)  # Ensure it's a string
 	
 	# Get stats for selected year (no minimum games filter yet - we'll apply it later)
 	current_stats = stats_per_year(selected_year, 0)  # 0 minimum games for dashboard
@@ -770,7 +772,16 @@ def get_dashboard_data(selected_year=None):
 	today_stats = todays_stats()
 	
 	# Get win/loss streaks for selected year
-	streaks = get_win_loss_streaks_for_year(selected_year)
+	all_streaks = get_win_loss_streaks_for_year(selected_year)
+	
+	# Separate winning and losing streaks
+	win_streaks = [streak for streak in all_streaks if streak[2] == 'win']
+	loss_streaks = [streak for streak in all_streaks if streak[2] == 'loss']
+	
+	# Get best streaks of all time
+	all_time_best_streaks = get_best_streaks_all_time()
+	best_win_streaks = [streak for streak in all_time_best_streaks if streak[2] == 'win']
+	best_loss_streaks = [streak for streak in all_time_best_streaks if streak[2] == 'loss']
 	
 	return {
 		'current_year': selected_year,
@@ -781,7 +792,10 @@ def get_dashboard_data(selected_year=None):
 		'top_win_percentage': top_win_percentage,
 		'top_games_played': top_games_played,
 		'today_stats': today_stats,
-		'streaks': streaks,
+		'win_streaks': win_streaks,
+		'loss_streaks': loss_streaks,
+		'best_win_streaks': best_win_streaks,
+		'best_loss_streaks': best_loss_streaks,
 		'minimum_games': minimum_games
 	}
 
@@ -876,47 +890,117 @@ def get_win_loss_streaks_for_year(year):
 		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (str(year),))
 	all_games = cur.fetchall()
 	
-	streaks = {}
+	# Track the most recent result for each player
+	player_recent_results = {}
+	player_max_streaks = {}
+	
 	for game in all_games:
-		# Check winners
+		# Process winners
 		for i in [2, 3]:  # winner1, winner2
 			player = game[i]
-			if player not in streaks:
-				streaks[player] = {'current': 0, 'type': None, 'max': 0}
-			
-			if streaks[player]['type'] == 'win':
-				streaks[player]['current'] += 1
-			elif streaks[player]['type'] == 'loss':
-				streaks[player]['current'] = 1
-				streaks[player]['type'] = 'win'
-			else:
-				streaks[player]['current'] = 1
-				streaks[player]['type'] = 'win'
-			
-			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+			if player not in player_recent_results:
+				player_recent_results[player] = []
+				player_max_streaks[player] = {'win': 0, 'loss': 0}
+			player_recent_results[player].append('win')
 		
-		# Check losers
+		# Process losers
 		for i in [5, 6]:  # loser1, loser2
 			player = game[i]
-			if player not in streaks:
-				streaks[player] = {'current': 0, 'type': None, 'max': 0}
-			
-			if streaks[player]['type'] == 'loss':
-				streaks[player]['current'] += 1
-			elif streaks[player]['type'] == 'win':
-				streaks[player]['current'] = 1
-				streaks[player]['type'] = 'loss'
-			else:
-				streaks[player]['current'] = 1
-				streaks[player]['type'] = 'loss'
-			
-			streaks[player]['max'] = max(streaks[player]['max'], streaks[player]['current'])
+			if player not in player_recent_results:
+				player_recent_results[player] = []
+				player_max_streaks[player] = {'win': 0, 'loss': 0}
+			player_recent_results[player].append('loss')
 	
-	# Convert to list and sort by current streak
+	# Calculate current streaks from most recent results
 	streak_list = []
-	for player, data in streaks.items():
-		if '?' not in player and data['current'] > 0:
-			streak_list.append([player, data['current'], data['type'], data['max']])
+	for player, results in player_recent_results.items():
+		if '?' in player or not results:
+			continue
+			
+		# Calculate current streak from most recent games
+		current_streak = 0
+		current_type = results[0]  # Most recent result
+		
+		for result in results:
+			if result == current_type:
+				current_streak += 1
+			else:
+				break  # Streak broken
+		
+		# Calculate max streak for this type
+		max_streak = 0
+		temp_streak = 0
+		temp_type = None
+		
+		for result in results:
+			if result == temp_type:
+				temp_streak += 1
+			else:
+				temp_streak = 1
+				temp_type = result
+			max_streak = max(max_streak, temp_streak)
+		
+		if current_streak > 0:
+			streak_list.append([player, current_streak, current_type, max_streak])
 	
-	streak_list.sort(key=lambda x: x[1], reverse=True)
-	return streak_list[:10]  # Top 10 current streaks
+	# Sort by type (wins first), then by streak length (highest first)
+	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
+	return streak_list  # Return all streaks, not just top 10
+
+def get_best_streaks_all_time():
+	"""Get the best win/loss streaks of all time for all players"""
+	cur = set_cur()
+	cur.execute("SELECT * FROM games ORDER BY game_date ASC")  # Chronological order
+	all_games = cur.fetchall()
+	
+	# Track all results for each player in chronological order
+	player_all_results = {}
+	
+	for game in all_games:
+		# Process winners
+		for i in [2, 3]:  # winner1, winner2
+			player = game[i]
+			if player not in player_all_results:
+				player_all_results[player] = []
+			player_all_results[player].append('win')
+		
+		# Process losers
+		for i in [5, 6]:  # loser1, loser2
+			player = game[i]
+			if player not in player_all_results:
+				player_all_results[player] = []
+			player_all_results[player].append('loss')
+	
+	# Calculate best streaks for each player
+	best_streaks = []
+	for player, results in player_all_results.items():
+		if '?' in player or not results:
+			continue
+		
+		# Find the longest winning streak
+		max_win_streak = 0
+		current_win_streak = 0
+		
+		# Find the longest losing streak
+		max_loss_streak = 0
+		current_loss_streak = 0
+		
+		for result in results:
+			if result == 'win':
+				current_win_streak += 1
+				current_loss_streak = 0
+				max_win_streak = max(max_win_streak, current_win_streak)
+			else:  # loss
+				current_loss_streak += 1
+				current_win_streak = 0
+				max_loss_streak = max(max_loss_streak, current_loss_streak)
+		
+		# Add best streaks to the list
+		if max_win_streak > 0:
+			best_streaks.append([player, max_win_streak, 'win'])
+		if max_loss_streak > 0:
+			best_streaks.append([player, max_loss_streak, 'loss'])
+	
+	# Sort by streak length (highest first)
+	best_streaks.sort(key=lambda x: x[1], reverse=True)
+	return best_streaks
