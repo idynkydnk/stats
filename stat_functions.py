@@ -1005,26 +1005,69 @@ def get_best_streaks_all_time():
 	best_streaks.sort(key=lambda x: x[1], reverse=True)
 	return best_streaks
 
-def get_streak_games(player_name, streak_type, streak_length):
+def get_streak_games(player_name, streak_type, streak_length, year=None):
 	"""Get the games that made up a specific streak for a player"""
 	cur = set_cur()
-	cur.execute("SELECT * FROM games ORDER BY game_date ASC")  # Chronological order
+	
+	# Use a more robust query that handles apostrophe issues
+	# Split the player name to handle apostrophes
+	name_parts = player_name.split("'")
+	if len(name_parts) == 2:
+		# Handle names with apostrophes like "Brian O'Neill"
+		first_part = name_parts[0]  # "Brian O"
+		second_part = name_parts[1]  # "Neill"
+		like_pattern = f"{first_part}%{second_part}"
+	else:
+		# Handle names without apostrophes
+		like_pattern = player_name
+	
+	if year and year != 'All years':
+		cur.execute("""
+			SELECT * FROM games 
+			WHERE strftime('%Y', game_date) = ? 
+			AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ?)
+			ORDER BY game_date ASC
+		""", (str(year), like_pattern, like_pattern, like_pattern, like_pattern))
+	else:
+		cur.execute("""
+			SELECT * FROM games 
+			WHERE (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ?)
+			ORDER BY game_date ASC
+		""", (like_pattern, like_pattern, like_pattern, like_pattern))
+	
 	all_games = cur.fetchall()
 	
 	# Find all games for this player
 	player_games = []
 	for game in all_games:
 		# Check if player was in this game
-		if player_name in [game[2], game[3], game[5], game[6]]:  # winner1, winner2, loser1, loser2
+		game_players = [game[2], game[3], game[5], game[6]]  # winner1, winner2, loser1, loser2
+		player_found = False
+		matched_name = None
+		
+		for game_player in game_players:
+			# Use fuzzy matching to handle apostrophe issues
+			if (player_name == game_player or 
+				player_name.replace("'", "'") == game_player or 
+				player_name == game_player.replace("'", "'") or
+				player_name.replace("'", "'") == game_player.replace("'", "'")):
+				player_found = True
+				matched_name = game_player
+				break
+		
+		if player_found:
 			# Determine if player won or lost
-			if player_name in [game[2], game[3]]:  # winners
+			if matched_name in [game[2], game[3]]:  # winners
 				result = 'win'
 			else:  # losers
 				result = 'loss'
 			
 			player_games.append((game, result))
 	
-	# Find the streak of the specified length and type
+	# Find the most recent streak of the specified length and type
+	# We need to work backwards from the most recent games
+	player_games.reverse()  # Start from most recent
+	
 	streak_games = []
 	current_streak = 0
 	current_type = None
@@ -1036,6 +1079,7 @@ def get_streak_games(player_name, streak_type, streak_length):
 			
 			# Check if we found the streak we're looking for
 			if current_streak == streak_length and current_type == streak_type:
+				streak_games.reverse()  # Put back in chronological order
 				return convert_ampm(streak_games)
 		else:
 			# Streak broken, start new one
@@ -1045,11 +1089,13 @@ def get_streak_games(player_name, streak_type, streak_length):
 			
 			# Check if this single game is the streak we're looking for
 			if current_streak == streak_length and current_type == streak_type:
+				streak_games.reverse()  # Put back in chronological order
 				return convert_ampm(streak_games)
 	
 	# If we get here, we didn't find the exact streak
 	# Return the longest streak of the requested type
 	if current_type == streak_type and current_streak >= streak_length:
+		streak_games.reverse()  # Put back in chronological order
 		return convert_ampm(streak_games[-streak_length:])  # Return the last streak_length games
 	
 	return []  # No streak found

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ player_name }}'s {{ streak_length }} {{ streak_type }}{{ 'es' if streak_type == 'loss' and streak_length != 1 else ('s' if streak_length != 1 else '') }} Streak{% endblock %}
+{% block title %}{{ player_name }}'s {{ streak_length }} {{ streak_type }}{{ 'es' if streak_type == 'loss' and streak_length != 1 else ('s' if streak_length != 1 else '') }} Streak{% if year and year != 'All years' %} ({{ year }}){% endif %}{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>{{ player_name }}'s {{ streak_length }} {{ streak_type }}{{ 'es' if streak_type == 'loss' and streak_length != 1 else ('s' if streak_length != 1 else '') }} Streak</h1>
+    <h1>{{ player_name }}'s {{ streak_length }} {{ streak_type }}{{ 'es' if streak_type == 'loss' and streak_length != 1 else ('s' if streak_length != 1 else '') }} Streak{% if year and year != 'All years' %} ({{ year }}){% endif %}</h1>
     
     <div class="streak-info">
         <p><strong>Player:</strong> {{ player_name }}</p>
