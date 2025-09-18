@@ -850,5 +850,10 @@ def streak_details(player_name, streak_type, streak_length, year=None):
                          year=year,
                          streak_games=streak_games)
 
+@app.route('/tournaments/')
+def tournaments():
+    """Tournament results page"""
+    return render_template('tournaments.html')
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

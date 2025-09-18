@@ -46,6 +46,7 @@
                     <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
                     <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
         <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
+        <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
