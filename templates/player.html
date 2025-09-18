@@ -89,6 +89,35 @@
             </tbody>
         </table>
         {% endif %}
+        
+        <!-- Games Played in Selected Year -->
+        <table>
+            <h1>Games Played ({{ year }})</h1>
+            <thead>
+                <tr>
+                    <th class="rank" scope="col" colspan="1">#</th>
+                    <th scope="col" colspan="1">Date/Time</th>
+                    <th scope="col" colspan="1">Winners</th>
+                    <th scope="col" colspan="1">Score</th>
+                    <th scope="col" colspan="1">Losers</th>
+                    <th scope="col" colspan="1">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ game[1].split(' ')[0] }}<br>
+                        {{ game[1].split(' ')[1] }} {{ game[1].split(' ')[2] }}</td>
+                    <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
+                    <td class="score winner-score">{{ game[4] }}</td>
+                    <td><a href="{{ url_for('player_stats', year=year, name=game[5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
+                    <td class="score loser-score">{{ game[7] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
         {% if rare_partner_stats or rare_opponent_stats %}
         <h1>Less than {{ minimum_games }} games</h1>
         {% endif %}

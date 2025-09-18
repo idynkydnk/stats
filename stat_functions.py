@@ -296,6 +296,7 @@ def games_from_player_by_year(year, name):
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
 	row = cur.fetchall()
+	row = convert_ampm(row)
 	return row
 
 def partner_stats_by_year(name, games, minimum_games):
@@ -771,17 +772,17 @@ def get_dashboard_data(selected_year=None):
 	# Get today's stats (always show today's activity regardless of selected year)
 	today_stats = todays_stats()
 	
-	# Get win/loss streaks for selected year
-	all_streaks = get_win_loss_streaks_for_year(selected_year)
+	# Get current win/loss streaks for last 365 days (not year-specific)
+	current_streaks = get_current_streaks_last_365_days()
 	
 	# Separate winning and losing streaks
-	win_streaks = [streak for streak in all_streaks if streak[2] == 'win']
-	loss_streaks = [streak for streak in all_streaks if streak[2] == 'loss']
+	win_streaks = [streak for streak in current_streaks if streak[2] == 'win']
+	loss_streaks = [streak for streak in current_streaks if streak[2] == 'loss']
 	
-	# Get best streaks of all time
-	all_time_best_streaks = get_best_streaks_all_time()
-	best_win_streaks = [streak for streak in all_time_best_streaks if streak[2] == 'win']
-	best_loss_streaks = [streak for streak in all_time_best_streaks if streak[2] == 'loss']
+	# Get best streaks for the selected year
+	year_best_streaks = get_best_streaks_for_year(selected_year)
+	best_win_streaks = [streak for streak in year_best_streaks if streak[2] == 'win']
+	best_loss_streaks = [streak for streak in year_best_streaks if streak[2] == 'loss']
 	
 	return {
 		'current_year': selected_year,
@@ -889,6 +890,18 @@ def get_win_loss_streaks_for_year(year):
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (str(year),))
 	all_games = cur.fetchall()
+
+def get_current_streaks_last_365_days():
+	"""Get current win/loss streaks for all players in the last 365 days"""
+	from datetime import datetime, timedelta
+	cur = set_cur()
+	
+	# Calculate date 365 days ago
+	one_year_ago = datetime.now() - timedelta(days=365)
+	one_year_ago_str = one_year_ago.strftime('%Y-%m-%d %H:%M:%S')
+	
+	cur.execute("SELECT * FROM games WHERE game_date >= ? ORDER BY game_date DESC", (one_year_ago_str,))
+	all_games = cur.fetchall()
 	
 	# Track the most recent result for each player
 	player_recent_results = {}
@@ -947,10 +960,13 @@ def get_win_loss_streaks_for_year(year):
 	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
 	return streak_list  # Return all streaks, not just top 10
 
-def get_best_streaks_all_time():
-	"""Get the best win/loss streaks of all time for all players"""
+def get_best_streaks_for_year(year):
+	"""Get the best win/loss streaks for a specific year"""
 	cur = set_cur()
-	cur.execute("SELECT * FROM games ORDER BY game_date ASC")  # Chronological order
+	if year == 'All years':
+		cur.execute("SELECT * FROM games ORDER BY game_date ASC")  # Chronological order
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date ASC", (str(year),))
 	all_games = cur.fetchall()
 	
 	# Track all results for each player in chronological order

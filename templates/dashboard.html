@@ -63,13 +63,13 @@
 
     <!-- Winning Streaks -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Winning Streaks</h2>
+        <h2>Current Winning Streaks</h2>
         {% if win_streaks %}
         <div class="streaks-list">
             {% for streak in win_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
@@ -85,13 +85,13 @@
 
     <!-- Losing Streaks -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Losing Streaks</h2>
+        <h2>Current Losing Streaks</h2>
         {% if loss_streaks %}
         <div class="streaks-list">
             {% for streak in loss_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
@@ -105,15 +105,15 @@
         {% endif %}
     </div>
 
-    <!-- Best Winning Streaks All Time -->
+    <!-- Best Winning Streaks -->
     <div class="dashboard-card">
-        <h2>Best Winning Streaks All Time</h2>
+        <h2>Best Winning Streaks ({{ selected_year }})</h2>
         {% if best_win_streaks %}
         <div class="streaks-list">
             {% for streak in best_win_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
@@ -126,15 +126,15 @@
         {% endif %}
     </div>
 
-    <!-- Best Losing Streaks All Time -->
+    <!-- Worst Losing Streaks -->
     <div class="dashboard-card">
-        <h2>Best Losing Streaks All Time</h2>
+        <h2>Worst Losing Streaks ({{ selected_year }})</h2>
         {% if best_loss_streaks %}
         <div class="streaks-list">
             {% for streak in best_loss_streaks[:10] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
                 </span>
                 <span class="streak-info">
                     {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
