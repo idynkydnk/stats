@@ -13,8 +13,9 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 # User authentication - you can add more users here
 USERS = {
-    'admin': 'stats2025',
-    'aaron': 'aaron2025'
+    'kyle': 'stats2025',
+    'aaron': 'aaron2025',
+    'dan': 'dan2025'
 }
 
 def login_required(f):
