@@ -11,9 +11,11 @@ import subprocess
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
-# Simple authentication - you can change these credentials
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'stats2025'
+# User authentication - you can add more users here
+USERS = {
+    'admin': 'stats2025',
+    'aaron': 'aaron2025'
+}
 
 def login_required(f):
     from functools import wraps
@@ -685,9 +687,10 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        if username in USERS and USERS[username] == password:
             session['logged_in'] = True
-            flash('Successfully logged in!', 'success')
+            session['username'] = username
+            flash(f'Successfully logged in as {username}!', 'success')
             return redirect(url_for('index'))
         else:
             flash('Invalid username or password.', 'error')
@@ -697,6 +700,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
+    session.pop('username', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
@@ -854,6 +858,13 @@ def streak_details(player_name, streak_type, streak_length, year=None):
 def tournaments():
     """Tournament results page"""
     return render_template('tournaments.html')
+
+@app.route('/glicko_rankings/')
+def glicko_rankings():
+    """Glicko-2 rankings page"""
+    from stat_functions import calculate_glicko_rankings
+    rankings = calculate_glicko_rankings()
+    return render_template('glicko_rankings.html', rankings=rankings)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

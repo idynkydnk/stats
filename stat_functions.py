@@ -960,6 +960,148 @@ def get_current_streaks_last_365_days():
 	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
 	return streak_list  # Return all streaks, not just top 10
 
+def calculate_glicko_rankings():
+	"""Calculate Glicko-2 rankings for all players based on doubles games"""
+	import math
+	from collections import defaultdict
+	
+	cur = set_cur()
+	cur.execute("SELECT * FROM games ORDER BY game_date ASC")
+	games = cur.fetchall()
+	
+	# Initialize player ratings (rating, rating_deviation, volatility)
+	# Glicko-2 default values
+	INITIAL_RATING = 1500
+	INITIAL_RD = 350
+	INITIAL_VOLATILITY = 0.06
+	TAU = 0.5  # System constraint
+	
+	player_ratings = defaultdict(lambda: {
+		'rating': INITIAL_RATING,
+		'rd': INITIAL_RD,
+		'volatility': INITIAL_VOLATILITY
+	})
+	
+	# Process games chronologically
+	for game in games:
+		# Get game date
+		game_date_str = game[1]
+		if len(game_date_str) > 19:
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S.%f")
+		else:
+			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S")
+		
+		# Skip players with question marks
+		winners = [game[2], game[3]]  # winner1, winner2
+		losers = [game[5], game[6]]   # loser1, loser2
+		
+		# Filter out players with question marks
+		winners = [w for w in winners if '?' not in w]
+		losers = [l for l in losers if '?' not in l]
+		
+		if not winners or not losers:
+			continue
+		
+		# Update ratings for each player
+		for winner in winners:
+			for loser in losers:
+				update_glicko_rating(player_ratings[winner], player_ratings[loser], 1, TAU)
+				update_glicko_rating(player_ratings[loser], player_ratings[winner], 0, TAU)
+	
+	# Convert to list and sort by rating
+	rankings = []
+	for player, rating_data in player_ratings.items():
+		rankings.append({
+			'player': player,
+			'rating': round(rating_data['rating']),
+			'rd': round(rating_data['rd']),
+			'volatility': round(rating_data['volatility'], 4)
+		})
+	
+	# Sort by rating (highest first)
+	rankings.sort(key=lambda x: x['rating'], reverse=True)
+	
+	return rankings
+
+def update_glicko_rating(player_rating, opponent_rating, score, tau):
+	"""Update a player's Glicko-2 rating after a game"""
+	import math
+	
+	# Convert ratings to Glicko scale
+	mu = (player_rating['rating'] - 1500) / 173.7178
+	phi = player_rating['rd'] / 173.7178
+	sigma = player_rating['volatility']
+	
+	opp_mu = (opponent_rating['rating'] - 1500) / 173.7178
+	opp_phi = opponent_rating['rd'] / 173.7178
+	
+	# Calculate Glicko-2 update
+	v = 1 / (g(opp_phi) * E(mu, opp_mu, opp_phi) * (1 - E(mu, opp_mu, opp_phi)))
+	delta = v * g(opp_phi) * (score - E(mu, opp_mu, opp_phi))
+	
+	# New volatility
+	a = math.log(sigma**2)
+	A = a
+	B = None
+	
+	if delta**2 > phi**2 + v:
+		B = math.log(delta**2 - phi**2 - v)
+	else:
+		k = 1
+		while f(a - k * tau, delta, phi, v, a, tau) < 0:
+			k += 1
+		B = a - k * tau
+	
+	fA = f(A, delta, phi, v, a, tau)
+	fB = f(B, delta, phi, v, a, tau)
+	
+	while abs(B - A) > 0.000001:
+		C = A + (A - B) * fA / (fB - fA)
+		fC = f(C, delta, phi, v, a, tau)
+		
+		if fC * fB < 0:
+			A = B
+			fA = fB
+		else:
+			fA = fA / 2
+		
+		B = C
+		fB = fC
+	
+	new_sigma = math.exp(A / 2)
+	
+	# New rating deviation
+	phi_star = math.sqrt(phi**2 + new_sigma**2)
+	new_phi = 1 / math.sqrt(1 / phi_star**2 + 1 / v)
+	
+	# New rating
+	new_mu = mu + new_phi**2 * g(opp_phi) * (score - E(mu, opp_mu, opp_phi))
+	
+	# Convert back to original scale
+	player_rating['rating'] = 173.7178 * new_mu + 1500
+	player_rating['rd'] = 173.7178 * new_phi
+	player_rating['volatility'] = new_sigma
+
+def g(phi):
+	"""Glicko-2 g function"""
+	import math
+	return 1 / math.sqrt(1 + 3 * phi**2 / math.pi**2)
+
+def E(mu, opp_mu, opp_phi):
+	"""Glicko-2 E function"""
+	import math
+	return 1 / (1 + math.exp(-g(opp_phi) * (mu - opp_mu)))
+
+def f(x, delta, phi, v, a, tau=0.5):
+	"""Glicko-2 f function"""
+	import math
+	ex = math.exp(x)
+	num1 = ex * (delta**2 - phi**2 - v - ex)
+	denom1 = 2 * (phi**2 + v + ex)**2
+	num2 = x - a
+	denom2 = tau**2
+	return num1 / denom1 - num2 / denom2
+
 def get_best_streaks_for_year(year):
 	"""Get the best win/loss streaks for a specific year"""
 	cur = set_cur()
