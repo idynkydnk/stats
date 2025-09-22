@@ -68,9 +68,9 @@ def stats_per_year(year, minimum_games):
                 no_wins.append([player, wins, losses, win_percentage])
             else:
                 stats.append([player, wins, losses, win_percentage])
-    #stats.sort(key=lambda x: x[1], reverse=True)
-    #stats.sort(key=lambda x: x[3], reverse=True)
-    #no_wins.sort(key=lambda x: x[2])
+    stats.sort(key=lambda x: x[1], reverse=True)
+    stats.sort(key=lambda x: x[3], reverse=True)
+    no_wins.sort(key=lambda x: x[2])
     for stat in no_wins:
         stats.append(stat)
     return stats
