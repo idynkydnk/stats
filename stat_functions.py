@@ -158,6 +158,54 @@ def todays_games():
     row = convert_ampm(games)
     return row
 
+def specific_date_stats(target_date):
+    """Get stats for a specific date"""
+    cur = set_cur()
+    cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (target_date,))
+    games = cur.fetchall()
+    games.sort(reverse=True)
+    converted_games = convert_ampm(games)
+    
+    players = all_players(games)
+    stats = []
+    for player in players:
+        wins, losses, differential = 0, 0, 0
+        for game in games:
+            if player == game[2] or player == game[3]:
+                wins += 1
+                differential += (game[4] - game[7])
+            elif player == game[5] or player == game[6]:
+                losses += 1
+                differential -= (game[4] - game[7])
+        win_percentage = wins / (wins + losses)
+        stats.append([player, wins, losses, win_percentage, differential])
+    stats.sort(key=lambda x: x[4], reverse=True)
+    stats.sort(key=lambda x: x[3], reverse=True)
+    return stats, converted_games
+
+def get_previous_date(current_date, days_back=1):
+    """Get the date that is days_back before current_date"""
+    from datetime import datetime, timedelta
+    if isinstance(current_date, str):
+        current_date = datetime.strptime(current_date, '%Y-%m-%d')
+    previous_date = current_date - timedelta(days=days_back)
+    return previous_date.strftime('%Y-%m-%d')
+
+def get_next_date(current_date, days_forward=1):
+    """Get the date that is days_forward after current_date"""
+    from datetime import datetime, timedelta
+    if isinstance(current_date, str):
+        current_date = datetime.strptime(current_date, '%Y-%m-%d')
+    next_date = current_date + timedelta(days=days_forward)
+    return next_date.strftime('%Y-%m-%d')
+
+def has_games_on_date(target_date):
+    """Check if there are games on a specific date"""
+    cur = set_cur()
+    cur.execute("SELECT COUNT(*) FROM games WHERE date(game_date) = ?", (target_date,))
+    count = cur.fetchone()[0]
+    return count > 0
+
 def convert_ampm(games):
     converted_games = []
     for game in games:

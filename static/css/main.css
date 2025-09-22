@@ -44,6 +44,66 @@ body {
   color: var(--text);
 }
 
+/* Date Navigation Styles */
+.date-navigation {
+  margin-bottom: 20px;
+}
+
+.date-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+
+.date-title {
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  background-color: var(--button-bg-1);
+  color: var(--button-text-1);
+  text-decoration: none;
+  border-radius: 50%;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  border: 2px solid var(--button-border-1);
+  flex-shrink: 0;
+}
+
+.nav-arrow:hover:not(.disabled) {
+  background-color: var(--button-text-1);
+  color: var(--button-bg-1);
+  transform: scale(1.1);
+}
+
+.nav-arrow.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background-color: var(--table-banding);
+  color: var(--caption);
+}
+
+.nav-left {
+  order: 1;
+}
+
+.date-title {
+  order: 2;
+}
+
+.nav-right {
+  order: 3;
+}
+
 h1 {
   max-width: 100vw;
   padding: 5px;

@@ -91,6 +91,8 @@ def login_required(f):
 
 @app.route('/')
 def index():
+    from datetime import datetime
+    
     games = year_games(str(date.today().year))
     if games:
         if len(games) < 30:
@@ -104,8 +106,18 @@ def index():
     games = todays_games()
     stats = stats_per_year(str(date.today().year), minimum_games)
     rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
+    
+    # Add navigation data for today
+    today = datetime.now().strftime('%Y-%m-%d')
+    previous_date = get_previous_date(today)
+    next_date = get_next_date(today)
+    has_previous = has_games_on_date(previous_date)
+    has_next = has_games_on_date(next_date)
+    
     return render_template('stats.html', todays_stats=t_stats, stats=stats, games=games, rare_stats=rare_stats, 
-        minimum_games=minimum_games, year=str(date.today().year), all_years=all_years)
+        minimum_games=minimum_games, year=str(date.today().year), all_years=all_years,
+        current_date=today, display_date="Today", previous_date=previous_date, next_date=next_date,
+        has_previous=has_previous, has_next=has_next)
 
 @app.route('/stats/<year>/')
 def stats(year):
@@ -121,6 +133,56 @@ def stats(year):
     stats = stats_per_year(year, minimum_games)
     rare_stats = rare_stats_per_year(year, minimum_games)
     return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+
+@app.route('/stats/<year>/<date>/')
+def stats_by_date(year, date):
+    """Stats page for a specific date with navigation"""
+    from datetime import datetime
+    
+    # Get stats for the specific date
+    date_stats, date_games = specific_date_stats(date)
+    
+    # Get year stats
+    games = year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    all_years = grab_all_years()
+    stats = stats_per_year(year, minimum_games)
+    rare_stats = rare_stats_per_year(year, minimum_games)
+    
+    # Navigation dates
+    previous_date = get_previous_date(date)
+    next_date = get_next_date(date)
+    
+    # Check if there are games on adjacent dates
+    has_previous = has_games_on_date(previous_date)
+    has_next = has_games_on_date(next_date)
+    
+    # Format date for display
+    try:
+        display_date = datetime.strptime(date, '%Y-%m-%d').strftime('%B %d, %Y')
+    except:
+        display_date = date
+    
+    return render_template('stats.html', 
+                         all_years=all_years, 
+                         stats=stats, 
+                         rare_stats=rare_stats, 
+                         minimum_games=minimum_games, 
+                         year=year,
+                         todays_stats=date_stats,
+                         games=date_games,
+                         current_date=date,
+                         display_date=display_date,
+                         previous_date=previous_date,
+                         next_date=next_date,
+                         has_previous=has_previous,
+                         has_next=has_next)
 
 @app.route('/top_teams/')
 def top_teams():

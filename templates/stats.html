@@ -15,8 +15,42 @@
     </nav>
         <div>
             {% if todays_stats %}
+            <div class="date-navigation">
+                {% if current_date %}
+                    <div class="date-header">
+                        {% if has_previous %}
+                            <a href="{{ url_for('stats_by_date', year=year, date=previous_date) }}" class="nav-arrow nav-left" title="Previous day">
+                                <i class="fa fa-chevron-left"></i>
+                            </a>
+                        {% else %}
+                            <span class="nav-arrow nav-left disabled">
+                                <i class="fa fa-chevron-left"></i>
+                            </span>
+                        {% endif %}
+                        
+                        <h1 class="date-title">
+                            {% if display_date %}
+                                {{ display_date }} Stats
+                            {% else %}
+                                Today's Stats
+                            {% endif %}
+                        </h1>
+                        
+                        {% if has_next %}
+                            <a href="{{ url_for('stats_by_date', year=year, date=next_date) }}" class="nav-arrow nav-right" title="Next day">
+                                <i class="fa fa-chevron-right"></i>
+                            </a>
+                        {% else %}
+                            <span class="nav-arrow nav-right disabled">
+                                <i class="fa fa-chevron-right"></i>
+                            </span>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <h1>Today's stats</h1>
+                {% endif %}
+            </div>
             <table>
-                <h1>Today's stats</h1>
                 <thead>
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>
@@ -45,7 +79,13 @@
                 </tbody>
             </table>
             <table>
-                <h1>Today's games</h1>
+                <h1>
+                    {% if current_date %}
+                        {{ display_date }} Games
+                    {% else %}
+                        Today's games
+                    {% endif %}
+                </h1>
                 <thead>
                     <tr>
                         <th scope="col" colspan="1">Date</th>
