@@ -165,7 +165,7 @@ def stats_by_date(year, date):
     
     # Format date for display
     try:
-        display_date = datetime.strptime(date, '%Y-%m-%d').strftime('%B %d, %Y')
+        display_date = datetime.strptime(date, '%Y-%m-%d').strftime('%m/%d/%y')
     except:
         display_date = date
     
