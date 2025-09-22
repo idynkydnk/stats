@@ -70,7 +70,7 @@ body {
   width: 35px;
   height: 35px;
   background-color: var(--button-bg-1);
-  color: var(--button-text-1);
+  color: #000000;
   text-decoration: none;
   border-radius: 50%;
   font-size: 16px;
@@ -102,6 +102,52 @@ body {
 
 .nav-right {
   order: 3;
+}
+
+/* Simple Performance Trend */
+.simple-trend {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--table-banding);
+}
+
+.trend-item:last-child {
+  border-bottom: none;
+}
+
+.month {
+  min-width: 60px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.performance-indicator {
+  flex: 1;
+  height: 8px;
+  background-color: var(--table-banding);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.win-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+  transition: width 0.3s ease;
+}
+
+.percentage {
+  min-width: 40px;
+  text-align: right;
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--text);
 }
 
 h1 {

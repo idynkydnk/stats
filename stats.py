@@ -1004,13 +1004,18 @@ def date_range_stats(start_date=None, end_date=None):
 @app.route('/dashboard/')
 def dashboard():
     """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data, grab_all_years
+    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date, get_next_date, has_games_on_date
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
     selected_year = request.args.get('year')
     if not selected_year:
         selected_year = str(datetime.now().year)
+    
+    # Get date from query parameter, default to today
+    target_date = request.args.get('date')
+    if not target_date:
+        target_date = datetime.now().strftime('%Y-%m-%d')
     
     # Get available years
     available_years = grab_all_years()
@@ -1020,6 +1025,32 @@ def dashboard():
     dashboard_data['selected_year'] = selected_year
     dashboard_data['available_years'] = available_years
     dashboard_data['current_year'] = datetime.now().year
+    
+    # Get stats for the specific date
+    date_stats, date_games = specific_date_stats(target_date)
+    
+    # Navigation dates
+    previous_date = get_previous_date(target_date)
+    next_date = get_next_date(target_date)
+    
+    # Check if there are games on adjacent dates
+    has_previous = has_games_on_date(previous_date)
+    has_next = has_games_on_date(next_date)
+    
+    # Format date for display
+    try:
+        display_date = datetime.strptime(target_date, '%Y-%m-%d').strftime('%m/%d/%y')
+    except:
+        display_date = target_date
+    
+    # Add date navigation data
+    dashboard_data['today_stats'] = date_stats
+    dashboard_data['current_date'] = target_date
+    dashboard_data['display_date'] = display_date
+    dashboard_data['previous_date'] = previous_date
+    dashboard_data['next_date'] = next_date
+    dashboard_data['has_previous'] = has_previous
+    dashboard_data['has_next'] = has_next
     
     return render_template('dashboard.html', **dashboard_data)
 

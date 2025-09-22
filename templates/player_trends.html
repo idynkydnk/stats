@@ -43,39 +43,20 @@
     </div>
     
     <div style="margin-bottom: 20px;">
-        <h3>Monthly Trends</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Games</th>
-                    <th>Wins</th>
-                    <th>Losses</th>
-                    <th>Win %</th>
-                    <th>Trend</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for month in monthly_stats %}
-                <tr>
-                    <td>{{ month.month }}</td>
-                    <td>{{ month.games }}</td>
-                    <td>{{ month.wins }}</td>
-                    <td>{{ month.losses }}</td>
-                    <td>{{ "{:.1f}".format(month.win_percentage * 100) }}%</td>
-                    <td>
-                        {% if month.games > 0 %}
-                            <div style="display: flex; align-items: center; width: 100px;">
-                                <div style="background-color: green; height: 20px; width: {{ (month.wins / month.games * 100)|round(1) }}%; border-radius: 3px 0 0 3px;"></div>
-                                <div style="background-color: red; height: 20px; width: {{ (month.losses / month.games * 100)|round(1) }}%; border-radius: 0 3px 3px 0;"></div>
-                            </div>
-                            <small style="color: #666;">{{ month.wins }}W-{{ month.losses }}L</small>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h3>Recent Performance</h3>
+        <div class="simple-trend">
+            {% for month in monthly_stats[:6] %}
+                {% if month.games > 0 %}
+                <div class="trend-item">
+                    <span class="month">{{ month.month.split(' ')[0][:3] }} {{ month.month.split(' ')[1] }}</span>
+                    <div class="performance-indicator">
+                        <div class="win-bar" style="width: {{ (month.win_percentage * 100)|round(1) }}%;"></div>
+                    </div>
+                    <span class="percentage">{{ "{:.0f}".format(month.win_percentage * 100) }}%</span>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
     </div>
     
     <div style="margin-bottom: 20px;">

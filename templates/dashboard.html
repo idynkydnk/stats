@@ -165,24 +165,93 @@
 
     <!-- Today's Stats -->
     <div class="dashboard-card">
-        <h2>Today's Activity</h2>
+        <div class="date-navigation">
+            {% if current_date %}
+                <div class="date-header">
+                    {% if has_previous %}
+                        <a href="{{ url_for('dashboard', year=selected_year, date=previous_date) }}" class="nav-arrow nav-left" title="Previous day">
+                            <i class="fa fa-chevron-left"></i>
+                        </a>
+                    {% else %}
+                        <span class="nav-arrow nav-left disabled">
+                            <i class="fa fa-chevron-left"></i>
+                        </span>
+                    {% endif %}
+                    
+                    <h1 class="date-title">
+                        {% if display_date %}
+                            {{ display_date }} Activity
+                        {% else %}
+                            Today's Activity
+                        {% endif %}
+                    </h1>
+                    
+                    {% if has_next %}
+                        <a href="{{ url_for('dashboard', year=selected_year, date=next_date) }}" class="nav-arrow nav-right" title="Next day">
+                            <i class="fa fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="nav-arrow nav-right disabled">
+                            <i class="fa fa-chevron-right"></i>
+                        </span>
+                    {% endif %}
+                </div>
+            {% else %}
+                <h1>Today's Activity</h1>
+            {% endif %}
+        </div>
         {% if today_stats %}
         <div class="today-stats">
-            <div class="stat-item">
-                <span class="stat-number">{{ today_stats|length }}</span>
-                <span class="stat-label">Players Today</span>
-            </div>
-            <div class="today-players">
-                {% for stat in today_stats %}
-                <div class="today-player">
-                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
-                    <span class="today-record">{{ stat[1] }}W-{{ stat[2] }}L</span>
+            <div class="today-summary">
+                <div class="stat-item">
+                    <span class="stat-number">{{ today_stats|length }}</span>
+                    <span class="stat-label">Players</span>
                 </div>
-                {% endfor %}
+                <div class="stat-item">
+                    <span class="stat-number">{{ today_stats|sum(attribute='1') + today_stats|sum(attribute='2') }}</span>
+                    <span class="stat-label">Total Games</span>
+                </div>
+            </div>
+            
+            <div class="today-leaderboard">
+                <h3>Today's Leaderboard</h3>
+                <div class="leaderboard-list">
+                    {% for stat in today_stats[:5] %}
+                    <div class="leaderboard-item">
+                        <div class="rank">{{ loop.index }}</div>
+                        <div class="player-info">
+                            <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                            <div class="player-stats">
+                                <span class="record">{{ stat[1] }}W-{{ stat[2] }}L</span>
+                                <span class="percentage">{{ "{:.1f}".format(stat[3] * 100) }}%</span>
+                            </div>
+                        </div>
+                        <div class="differential">
+                            {% if stat[4] > 0 %}
+                                <span class="positive">+{{ stat[4] }}</span>
+                            {% elif stat[4] < 0 %}
+                                <span class="negative">{{ stat[4] }}</span>
+                            {% else %}
+                                <span class="neutral">0</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if today_stats|length > 5 %}
+                <div class="more-players">
+                    <small>+{{ today_stats|length - 5 }} more players</small>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% else %}
-        <p>No games played today</p>
+        <div class="no-activity">
+            <div class="no-activity-icon">🏓</div>
+            <p>No games played today</p>
+            <small>Check back later for today's activity!</small>
+        </div>
         {% endif %}
     </div>
 
@@ -400,25 +469,122 @@
     text-align: center;
 }
 
-.today-players {
-    margin-top: 15px;
-}
-
-.today-player {
+.today-summary {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--table-banding);
+    border-radius: 12px;
+}
+
+.today-leaderboard h3 {
+    margin: 20px 0 15px 0;
+    color: var(--text);
+    font-size: 16px;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.leaderboard-item {
+    display: flex;
     align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--table-banding);
+    gap: 12px;
+    padding: 10px;
+    background-color: var(--table-banding);
+    border-radius: 8px;
+    border-left: 4px solid var(--button-bg-1);
 }
 
-.today-player:last-child {
-    border-bottom: none;
+.rank {
+    font-weight: bold;
+    font-size: 18px;
+    color: var(--button-bg-1);
+    min-width: 30px;
+    text-align: center;
 }
 
-.today-record {
+.player-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.player-info a {
+    font-weight: bold;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.player-info a:hover {
+    color: var(--button-bg-1);
+    text-decoration: underline;
+}
+
+.player-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.record {
+    color: var(--caption);
+}
+
+.percentage {
     color: var(--button-bg-1);
     font-weight: bold;
+}
+
+.differential {
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.positive {
+    color: #4CAF50;
+}
+
+.negative {
+    color: #f44336;
+}
+
+.neutral {
+    color: var(--caption);
+}
+
+.more-players {
+    text-align: center;
+    margin-top: 10px;
+    color: var(--caption);
+}
+
+.no-activity {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--caption);
+}
+
+.no-activity-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.no-activity p {
+    margin: 10px 0;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.no-activity small {
+    color: var(--caption);
 }
 
 .recent-games {
@@ -506,6 +672,15 @@
     color: var(--text);
     text-decoration: underline;
 }
+
+.dashboard-card .nav-arrow {
+    color: #000000 !important;
+}
+
+.dashboard-card .nav-arrow:hover:not(.disabled) {
+    color: var(--button-bg-1) !important;
+}
+
 
 @media (max-width: 768px) {
     .dashboard-grid {
