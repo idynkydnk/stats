@@ -1054,6 +1054,46 @@ def dashboard():
     
     return render_template('dashboard.html', **dashboard_data)
 
+@app.route('/api/dashboard/today-activity/')
+def dashboard_today_activity():
+    """API endpoint to get just the Today's Activity card content"""
+    from stat_functions import specific_date_stats, get_previous_date, get_next_date, has_games_on_date
+    from datetime import datetime
+    from flask import jsonify
+    
+    # Get date from query parameter, default to today
+    target_date = request.args.get('date')
+    if not target_date:
+        target_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Get stats for the specific date
+    date_stats, date_games = specific_date_stats(target_date)
+    
+    # Navigation dates
+    previous_date = get_previous_date(target_date)
+    next_date = get_next_date(target_date)
+    
+    # Check if there are games on adjacent dates
+    has_previous = has_games_on_date(previous_date)
+    has_next = has_games_on_date(next_date)
+    
+    # Format date for display
+    try:
+        display_date = datetime.strptime(target_date, '%Y-%m-%d').strftime('%m/%d/%y')
+    except:
+        display_date = target_date
+    
+    return jsonify({
+        'date_stats': date_stats,
+        'date_games': date_games,
+        'current_date': target_date,
+        'display_date': display_date,
+        'previous_date': previous_date,
+        'next_date': next_date,
+        'has_previous': has_previous,
+        'has_next': has_next
+    })
+
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/')
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/<year>/')
 def streak_details(player_name, streak_type, streak_length, year=None):

@@ -17,47 +17,105 @@
 </div>
 
 <div class="dashboard-grid">
-    <!-- Selected Year Stats -->
-    <div class="dashboard-card">
-        <h2>{{ selected_year }} Stats</h2>
-        <div class="stats-summary">
-            <div class="stat-item">
-                <span class="stat-number">{{ current_stats|length }}</span>
-                <span class="stat-label">Active Players</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">{{ recent_games|length }}</span>
-                <span class="stat-label">Recent Games</span>
+    <!-- Today's Stats -->
+    <div class="dashboard-card" id="today-activity-card">
+        <div class="date-navigation">
+            {% if current_date %}
+                <div class="date-header">
+                    {% if has_previous %}
+                        <a href="#" class="nav-arrow nav-left" title="Previous day" data-date="{{ previous_date }}">
+                            <i class="fa fa-chevron-left"></i>
+                        </a>
+                    {% else %}
+                        <span class="nav-arrow nav-left disabled">
+                            <i class="fa fa-chevron-left"></i>
+                        </span>
+                    {% endif %}
+                    
+                    <h1 class="date-title">
+                        {% if display_date %}
+                            {{ display_date }} Activity
+                        {% else %}
+                            Today's Activity
+                        {% endif %}
+                    </h1>
+                    
+                    {% if has_next %}
+                        <a href="#" class="nav-arrow nav-right" title="Next day" data-date="{{ next_date }}">
+                            <i class="fa fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="nav-arrow nav-right disabled">
+                            <i class="fa fa-chevron-right"></i>
+                        </span>
+                    {% endif %}
+                </div>
+            {% else %}
+                <h1>Today's Activity</h1>
+            {% endif %}
+        </div>
+        {% if today_stats %}
+        <div class="today-stats">
+            <div class="streaks-list">
+                {% for stat in today_stats[:10] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        <span class="record-info">{{ stat[1] }}-{{ stat[2] }} ({{ "{:.1f}".format(stat[3] * 100) }}%)</span>
+                        {% if stat[4] > 0 %}
+                            <span class="differential">+{{ stat[4] }}</span>
+                        {% elif stat[4] < 0 %}
+                            <span class="differential">{{ stat[4] }}</span>
+                        {% else %}
+                            <span class="differential">0</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
             </div>
         </div>
-        {% if top_win_percentage %}
-        <div class="top-players">
-            <h3>Top 10 in {{ selected_year }}</h3>
-            <ol>
-                {% for stat in top_win_percentage %}
-                <li>
-                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                    <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
-                </li>
-                {% endfor %}
-            </ol>
+        {% else %}
+        <div class="no-activity">
+            <div class="no-activity-icon">🏓</div>
+            <p>No games played today</p>
+            <small>Check back later for today's activity!</small>
         </div>
         {% endif %}
+    </div>
+
+    <!-- Selected Year Stats -->
+    <div class="dashboard-card">
+        <h2>{{ selected_year }} Win%</h2>
+        <div class="streaks-list">
+            {% if top_win_percentage %}
+            {% for stat in top_win_percentage[:10] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                </span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
     </div>
 
     <!-- Year Leaders -->
     <div class="dashboard-card">
         <h2>{{ selected_year }} Leaders</h2>
-        <div class="leaders-section">
-            <h3>Most Games Played</h3>
-            <ol>
-                {% for stat in top_games_played %}
-                <li>
+        <div class="streaks-list">
+            {% for stat in top_games_played[:10] %}
+            <div class="streak-item">
+                <span class="player-name">
                     <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                    <span class="game-count">{{ stat[1] + stat[2] }} games</span>
-                </li>
-                {% endfor %}
-            </ol>
+                </span>
+                <span class="streak-info">
+                    {{ stat[1] + stat[2] }} games
+                </span>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -150,141 +208,57 @@
     <!-- Monthly Activity -->
     <div class="dashboard-card">
         <h2>{{ selected_year }} Monthly Activity</h2>
-        <div class="monthly-chart">
+        <div class="streaks-list">
             {% for month in range(1, 13) %}
-            <div class="month-bar">
-                <div class="month-label">{{ month }}</div>
-                <div class="bar-container">
-                    <div class="bar" style="height: {{ (monthly_data[month] / monthly_data.values()|max * 100) if monthly_data.values()|max > 0 else 0 }}%"></div>
-                </div>
-                <div class="month-count">{{ monthly_data[month] }}</div>
+            <div class="streak-item">
+                <span class="player-name">
+                    {% if month == 1 %}January
+                    {% elif month == 2 %}February
+                    {% elif month == 3 %}March
+                    {% elif month == 4 %}April
+                    {% elif month == 5 %}May
+                    {% elif month == 6 %}June
+                    {% elif month == 7 %}July
+                    {% elif month == 8 %}August
+                    {% elif month == 9 %}September
+                    {% elif month == 10 %}October
+                    {% elif month == 11 %}November
+                    {% elif month == 12 %}December
+                    {% endif %}
+                </span>
+                <span class="streak-info">{{ monthly_data[month] }} games</span>
             </div>
             {% endfor %}
         </div>
-    </div>
-
-    <!-- Today's Stats -->
-    <div class="dashboard-card">
-        <div class="date-navigation">
-            {% if current_date %}
-                <div class="date-header">
-                    {% if has_previous %}
-                        <a href="{{ url_for('dashboard', year=selected_year, date=previous_date) }}" class="nav-arrow nav-left" title="Previous day">
-                            <i class="fa fa-chevron-left"></i>
-                        </a>
-                    {% else %}
-                        <span class="nav-arrow nav-left disabled">
-                            <i class="fa fa-chevron-left"></i>
-                        </span>
-                    {% endif %}
-                    
-                    <h1 class="date-title">
-                        {% if display_date %}
-                            {{ display_date }} Activity
-                        {% else %}
-                            Today's Activity
-                        {% endif %}
-                    </h1>
-                    
-                    {% if has_next %}
-                        <a href="{{ url_for('dashboard', year=selected_year, date=next_date) }}" class="nav-arrow nav-right" title="Next day">
-                            <i class="fa fa-chevron-right"></i>
-                        </a>
-                    {% else %}
-                        <span class="nav-arrow nav-right disabled">
-                            <i class="fa fa-chevron-right"></i>
-                        </span>
-                    {% endif %}
-                </div>
-            {% else %}
-                <h1>Today's Activity</h1>
-            {% endif %}
-        </div>
-        {% if today_stats %}
-        <div class="today-stats">
-            <div class="today-summary">
-                <div class="stat-item">
-                    <span class="stat-number">{{ today_stats|length }}</span>
-                    <span class="stat-label">Players</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">{{ today_stats|sum(attribute='1') + today_stats|sum(attribute='2') }}</span>
-                    <span class="stat-label">Total Games</span>
-                </div>
-            </div>
-            
-            <div class="today-leaderboard">
-                <h3>Today's Leaderboard</h3>
-                <div class="leaderboard-list">
-                    {% for stat in today_stats[:5] %}
-                    <div class="leaderboard-item">
-                        <div class="rank">{{ loop.index }}</div>
-                        <div class="player-info">
-                            <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
-                            <div class="player-stats">
-                                <span class="record">{{ stat[1] }}W-{{ stat[2] }}L</span>
-                                <span class="percentage">{{ "{:.1f}".format(stat[3] * 100) }}%</span>
-                            </div>
-                        </div>
-                        <div class="differential">
-                            {% if stat[4] > 0 %}
-                                <span class="positive">+{{ stat[4] }}</span>
-                            {% elif stat[4] < 0 %}
-                                <span class="negative">{{ stat[4] }}</span>
-                            {% else %}
-                                <span class="neutral">0</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                {% if today_stats|length > 5 %}
-                <div class="more-players">
-                    <small>+{{ today_stats|length - 5 }} more players</small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% else %}
-        <div class="no-activity">
-            <div class="no-activity-icon">🏓</div>
-            <p>No games played today</p>
-            <small>Check back later for today's activity!</small>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Recent Games -->
     <div class="dashboard-card">
         <h2>{{ selected_year }} Recent Games</h2>
         {% if recent_games %}
-        <div class="recent-games">
-            {% for game in recent_games[:5] %}
-            <div class="recent-game">
-                <div class="game-date">{{ game[1][0:10] }}</div>
-                <div class="game-result">
-                    <div class="game-teams">
-                        <div class="winners">
-                            <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
-                            <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
-                        </div>
-                        <div class="losers">
-                            <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a> & 
-                            <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
-                        </div>
-                    </div>
-                    <div class="game-scores">
-                        <span class="score">{{ game[4] }}</span>
-                        <span class="vs">vs</span>
-                        <span class="score">{{ game[7] }}</span>
-                    </div>
-                </div>
+        <div class="streaks-list">
+            {% for game in recent_games[:10] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    {{ game[1][0:10] }} - 
+                    <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
+                    <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ game[4] }} vs {{ game[7] }} - 
+                    <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a> & 
+                    <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
+                </span>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p>No recent games</p>
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No recent games</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
         {% endif %}
     </div>
 </div>
@@ -420,6 +394,19 @@
 .streak-info {
     font-weight: bold;
     color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.record-info {
+    font-size: inherit;
+    font-weight: bold;
+}
+
+.differential {
+    font-size: inherit;
+    font-weight: bold;
 }
 
 .monthly-chart {
@@ -699,4 +686,130 @@
     }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const leftArrow = document.querySelector('.nav-arrow.nav-left');
+    const rightArrow = document.querySelector('.nav-arrow.nav-right');
+    
+    function updateTodayActivity(date) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `/api/dashboard/today-activity/?date=${date}`, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                updateCardContent(data);
+            }
+        };
+        xhr.send();
+    }
+    
+    function updateCardContent(data) {
+        // Update the date title
+        const dateTitle = document.querySelector('.date-title');
+        if (dateTitle) {
+            dateTitle.textContent = `${data.display_date} Activity`;
+        }
+        
+        // Update the stats content
+        const todayStatsContainer = document.querySelector('#today-activity-card .streaks-list');
+        if (todayStatsContainer) {
+            if (data.date_stats && data.date_stats.length > 0) {
+                let streaksHTML = '';
+                data.date_stats.slice(0, 10).forEach((player) => {
+                    const record = `${player[1]}-${player[2]}`;
+                    const winPct = Math.round(player[3] * 100);
+                    const diff = player[4] > 0 ? `+${player[4]}` : player[4].toString();
+                    streaksHTML += `
+                        <div class="streak-item">
+                            <span class="player-name">
+                                <a href="/player/All years/${encodeURIComponent(player[0])}/">${player[0]}</a>
+                            </span>
+                            <span class="streak-info">
+                                <span class="record-info">${record} (${winPct}%)</span>
+                                <span class="differential">${diff}</span>
+                            </span>
+                        </div>
+                    `;
+                });
+                todayStatsContainer.innerHTML = streaksHTML;
+            } else {
+                // No games today
+                todayStatsContainer.innerHTML = `
+                    <div class="no-activity">
+                        <div class="no-activity-icon">🏓</div>
+                        <p>No games played on this date</p>
+                        <small>Check back later for activity!</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update navigation arrows
+        updateNavigationArrows(data);
+    }
+    
+    function updateNavigationArrows(data) {
+        const leftArrow = document.querySelector('.nav-arrow.nav-left');
+        const rightArrow = document.querySelector('.nav-arrow.nav-right');
+        
+        // Update left arrow
+        if (data.has_previous) {
+            leftArrow.removeAttribute('href');
+            leftArrow.setAttribute('data-date', data.previous_date);
+            leftArrow.classList.remove('disabled');
+            leftArrow.innerHTML = '<i class="fa fa-chevron-left"></i>';
+        } else {
+            leftArrow.classList.add('disabled');
+            leftArrow.innerHTML = '<i class="fa fa-chevron-left"></i>';
+        }
+        
+        // Update right arrow
+        if (data.has_next) {
+            rightArrow.removeAttribute('href');
+            rightArrow.setAttribute('data-date', data.next_date);
+            rightArrow.classList.remove('disabled');
+            rightArrow.innerHTML = '<i class="fa fa-chevron-right"></i>';
+        } else {
+            rightArrow.classList.add('disabled');
+            rightArrow.innerHTML = '<i class="fa fa-chevron-right"></i>';
+        }
+        
+        // Re-attach event listeners after updating the HTML
+        attachEventListeners();
+    }
+    
+    function attachEventListeners() {
+        const leftArrow = document.querySelector('.nav-arrow.nav-left');
+        const rightArrow = document.querySelector('.nav-arrow.nav-right');
+        
+        // Remove existing listeners to avoid duplicates
+        leftArrow.replaceWith(leftArrow.cloneNode(true));
+        rightArrow.replaceWith(rightArrow.cloneNode(true));
+        
+        // Get fresh references after cloning
+        const newLeftArrow = document.querySelector('.nav-arrow.nav-left');
+        const newRightArrow = document.querySelector('.nav-arrow.nav-right');
+        
+        if (newLeftArrow && newLeftArrow.getAttribute('data-date')) {
+            newLeftArrow.addEventListener('click', function(e) {
+                e.preventDefault();
+                const date = this.getAttribute('data-date');
+                updateTodayActivity(date);
+            });
+        }
+        
+        if (newRightArrow && newRightArrow.getAttribute('data-date')) {
+            newRightArrow.addEventListener('click', function(e) {
+                e.preventDefault();
+                const date = this.getAttribute('data-date');
+                updateTodayActivity(date);
+            });
+        }
+    }
+    
+    // Attach initial event listeners
+    attachEventListeners();
+});
+</script>
 {% endblock %}
