@@ -1,0 +1,31 @@
+name: Deploy to PythonAnywhere
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Deploy to PythonAnywhere
+      run: |
+        # Send webhook to trigger deployment
+        echo "Calling webhook at: https://${{ secrets.PA_DOMAIN }}/deploy"
+        curl -X POST "https://${{ secrets.PA_DOMAIN }}/deploy" \
+        -H "Content-Type: application/json" \
+        -d '{"ref": "refs/heads/main"}' \
+        -v
+        
+    - name: Notify deployment success
+      if: success()
+      run: echo "✅ Successfully deployed to PythonAnywhere!"
+      
+    - name: Notify deployment failure
+      if: failure()
+      run: echo "❌ Deployment failed. Check the logs above."

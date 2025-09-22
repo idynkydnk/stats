@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Glicko-2 Rankings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Glicko-2 Rankings</h1>
+    
+    <p><strong>Glicko-2</strong> considers rating deviation and volatility for more accurate skill assessment.</p>
+    <p><strong>Rating:</strong> Skill level | <strong>RD:</strong> Uncertainty | <strong>Volatility:</strong> Rating stability</p>
+    
+    <table>
+            <thead>
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Player</th>
+                    <th scope="col">Rating</th>
+                    <th scope="col">RD</th>
+                    <th scope="col">Volatility</th>
+                    <th scope="col">Confidence Interval</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ranking in rankings %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player_name">
+                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">
+                            {{ ranking.player }}
+                        </a>
+                    </td>
+                    <td class="rating">{{ ranking.rating }}</td>
+                    <td class="rd">{{ ranking.rd }}</td>
+                    <td class="volatility">{{ ranking.volatility }}</td>
+                    <td class="confidence">
+                        {{ ranking.rating - (2 * ranking.rd) }} - {{ ranking.rating + (2 * ranking.rd) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <h3>Rating Categories</h3>
+    <ul>
+        <li><strong>2400+:</strong> Master</li>
+        <li><strong>2200-2399:</strong> Expert</li>
+        <li><strong>2000-2199:</strong> Advanced</li>
+        <li><strong>1800-1999:</strong> Intermediate</li>
+        <li><strong>1600-1799:</strong> Novice</li>
+        <li><strong>Below 1600:</strong> Beginner</li>
+    </ul>
+</div>
+{% endblock %}

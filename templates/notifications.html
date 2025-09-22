@@ -1,0 +1,82 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Notifications - Stats Dashboard{% endblock %}
+
+{% block content %}
+<h1>User Activity Notifications</h1>
+
+{% if notifications %}
+    <form method="POST" action="{{ url_for('mark_notifications_read_route') }}">
+        <div style="margin-bottom: 20px;">
+            <button type="submit" onclick="return confirm('Mark selected notifications as read?')" 
+                    style="padding: 8px 16px; background: var(--button-bg-1); color: var(--button-text-1); 
+                           border: 2px solid var(--button-border-1); border-radius: 8px; cursor: pointer;">
+                Mark Selected as Read
+            </button>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background: var(--table-banding);">
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border); width: 30px;">
+                        <input type="checkbox" id="select-all" onchange="toggleAllCheckboxes()">
+                    </th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border);">User</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border);">Action</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border);">Details</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border);">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for notification in notifications %}
+                <tr style="background: var(--table-bg);">
+                    <td style="padding: 12px; border: 1px solid var(--border); text-align: center;">
+                        <input type="checkbox" name="notification_ids" value="{{ notification[0] }}" class="notification-checkbox">
+                    </td>
+                    <td style="padding: 12px; border: 1px solid var(--border); font-weight: 600; color: var(--button-bg-1);">
+                        {{ notification[1] }}
+                    </td>
+                    <td style="padding: 12px; border: 1px solid var(--border);">
+                        {{ notification[2] }}
+                    </td>
+                    <td style="padding: 12px; border: 1px solid var(--border);">
+                        {{ notification[3] or 'No details' }}
+                    </td>
+                    <td style="padding: 12px; border: 1px solid var(--border); color: var(--caption);">
+                        {{ notification[4] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+{% else %}
+    <div style="text-align: center; padding: 40px; color: var(--caption);">
+        <h3>No unread notifications</h3>
+        <p>You're all caught up! No pending actions from other users.</p>
+    </div>
+{% endif %}
+
+<script>
+function toggleAllCheckboxes() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.notification-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// Update select-all checkbox when individual checkboxes change
+document.querySelectorAll('.notification-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const allCheckboxes = document.querySelectorAll('.notification-checkbox');
+        const checkedCheckboxes = document.querySelectorAll('.notification-checkbox:checked');
+        const selectAll = document.getElementById('select-all');
+        
+        selectAll.checked = allCheckboxes.length === checkedCheckboxes.length;
+        selectAll.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+    });
+});
+</script>
+{% endblock %}

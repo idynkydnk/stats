@@ -1,0 +1,581 @@
+:root {
+  --bg: #1d2025;
+  --text: #dbe2ea;
+  --button-text-1: #3e526a;
+  --button-bg-1: #aeee98;
+  --button-border-1: #102a43;
+  --table-banding: #455a6d;
+  --table-bg: #2e445b;
+  --caption: #abb4bd;
+}
+
+
+/* Dark mode */
+:root[color-mode="dark"] {
+  --bg: #1d2025;
+  --text: #dbe2ea;
+  --button-text-1: #3e526a;
+  --button-bg-1: #aeee98;
+  --button-border-1: #102a43;
+  --table-banding: #455a6d;
+  --table-bg: #2e445b;
+  --caption: #abb4bd;
+}
+
+/* Dark mode */
+:root[color-mode="light"] {
+  --bg: #dbe2ea; 
+  --text: #1d2025;
+  --button-text-1: #3e526a;
+  --button-bg-1: #aeee98;
+  --button-border-1: #102a43;
+  --table-banding: #455a6d;
+  --table-bg: #2e445b;
+  --caption: #abb4bd;
+}
+
+
+body {
+  padding-top: 10px;
+  padding-bottom: 40px;
+  font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+h1 {
+  max-width: 100vw;
+  padding: 5px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Center all navigation elements */
+nav {
+  text-align: center;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+h2 {
+  max-width: 100%;
+  padding: 8px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 15px;
+}
+
+nav a {
+  max-width: 330px;
+  padding: 8px 12px;
+  margin: 0 8px;
+  text-align: center;
+  color: var(--button-text-1);
+  background-color: var(--button-bg-1);
+  text-decoration: none;
+  border-radius: 12px;
+  border: 2px solid var(--button-border-1);
+}
+
+nav a:hover {
+  border: 2px solid var(--button-bg-1);
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+form {
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+  max-width: 400px;
+}
+
+.dropdown {
+  overflow: visible;
+  margin: 0px;
+  width: 200px;
+  display: inline-block;
+  vertical-align: top;
+  position: relative;
+}
+
+.dropdown .dropbtn {
+  font-size: 17px;    
+  padding: 8px 16px;
+  margin: 0;
+  border-radius: 12px;
+  border: 2px solid var(--button-bg-1);
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+  width: 150px;
+}
+
+.dropdown .dropbtn i {
+  display: none;
+}
+
+/* Search container styling */
+.search-container {
+  display: block;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.search-container form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border: 2px solid var(--button-bg-1);
+  border-radius: 12px;
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+  font-size: 16px;
+  width: 200px;
+}
+
+.search-input::placeholder {
+  color: var(--button-bg-1);
+  opacity: 0.7;
+}
+
+.search-button {
+  padding: 8px 12px;
+  border: 2px solid var(--button-bg-1);
+  border-radius: 12px;
+  background-color: var(--button-bg-1);
+  color: var(--button-border-1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.search-button:hover {
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  width: 200px;
+  padding-top: 4px;
+  left: 0;
+  top: 100%;
+}
+
+.dropdown-content a {
+  padding: 8px 12px;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  margin: 6px auto;
+  border-radius: 12px;
+  width: 120px;
+}
+
+.dropdown:hover .dropbtn {
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+.dropdown-content a:hover {
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+tr:nth-child(even) {
+  background-color: var(--table-banding);
+}
+
+.table-double-row:nth-child(4n + 3) {
+  background-color: var(--table-banding);
+}
+
+.table-double-row:nth-child(4n + 4) {
+  background-color: var(--table-banding);
+}
+
+.table-double-row:nth-child(4n + 1) {
+  background-color: transparent;
+}
+
+.table-double-row:nth-child(4n + 2) {
+  background-color: transparent;
+}
+
+
+td a {
+  max-width: 330px;
+  padding: 2px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 13px;
+  color: var(--button-bg-1);
+  text-decoration: none;
+}
+
+table {
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+  background-color: var(--table-bg);
+  border-radius: 20px;
+  padding: 8px 16px;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+th, td {
+  height: 30px;
+}
+
+/* Date column styling to prevent wrapping */
+td:first-child {
+  white-space: nowrap;
+}
+
+/* Score columns styling - center the scores */
+td:nth-child(4), td:nth-child(6) {
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
+}
+
+p {
+  font-size: 16px;
+}
+
+caption {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--caption);
+  padding-bottom: 16px;
+}
+
+.numbered_stats {
+  text-align: center;
+}
+
+.alert {
+    padding: 20px;
+    margin: 5px;
+    color: #970020;
+    background-color: #ffd5de;
+}
+
+.message {
+    padding: 10px;
+    margin: 5px;
+    background-color: #f3f3f3;
+}
+
+.stats {
+  max-width: 330px;
+  margin: 0 auto;
+}
+
+.player_name {
+  font-size: 16px;
+  text-align: left;
+}
+
+.rank {
+  font-size: 16px;
+  text-align: center;
+}
+
+input, select {
+  max-width: 260px;
+  width: 100%;
+  text-align: center;
+  padding: 8px 12px;
+  margin: 8px;
+  display: inline-block;
+  box-sizing: border-box;
+  font-size: 16px;
+  border-radius: 12px;
+  
+  border: 2px solid var(--button-bg-1);
+  background-color: var(--table-bg);
+  color: var(--button-bg-1);
+}
+
+input::placeholder {
+  color: var(--caption);
+  opacity: .8;
+}
+
+input:focus-visible {
+  outline-color: var(--button-bg-1);
+}
+
+input[type=date] {
+  min-height: 2.5rem;
+}
+
+input[type=submit] {
+  max-width: 260px;
+  width: 100%;
+  text-align: center;
+  padding: 8px 12px;
+  margin: 8px;
+  display: inline-block;
+  box-sizing: border-box;
+  font-size: 16px;
+  border-radius: 12px;
+    
+  border: 2px solid var(--button-border-1);
+  background-color: var(--button-bg-1);
+  color: var(--button-text-1);
+}
+
+input[type=submit]:hover {
+  border: 2px solid var(--button-bg-1);
+  background-color: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+div {
+  text-align: center;
+  border-radius: 1px;
+  padding: 1px;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+
+
+
+
+/* New Simple Hamburger Menu */
+.menu-container {
+  position: relative;
+}
+
+.menu-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--button-bg-1);
+  color: #000000;
+  border: 2px solid var(--button-border-1);
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 1001;
+  transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+  background: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+.menu-toggle.active {
+  background: var(--button-border-1);
+  color: var(--button-bg-1);
+}
+
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-sidebar {
+  position: fixed;
+  top: 0;
+  right: -300px;
+  width: 300px;
+  height: 100%;
+  background: #1a1a1a;
+  z-index: 1000;
+  transition: right 0.3s ease;
+  padding: 20px;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
+  visibility: hidden;
+  overflow-y: auto;
+}
+
+.menu-sidebar.active {
+  right: 0;
+  visibility: visible;
+}
+
+.menu-close {
+  background: none;
+  border: none;
+  color: #000000;
+  font-size: 20px;
+  cursor: pointer;
+  float: right;
+  padding: 5px;
+  margin-bottom: 20px;
+}
+
+.menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  clear: both;
+}
+
+.menu-list li {
+  margin: 10px 0;
+}
+
+.menu-list a {
+  display: block;
+  padding: 10px 15px;
+  color: #000000;
+  text-decoration: none;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 600;
+  border: 2px solid transparent;
+}
+
+.menu-list a i {
+  margin-right: 10px;
+  width: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.menu-list a:hover {
+  background: var(--button-bg-1);
+  color: var(--button-text-1);
+  border: 2px solid var(--button-border-1);
+}
+
+/* 1v1 Games styling */
+.score {
+  font-weight: bold;
+  text-align: center;
+  font-size: 16px;
+}
+
+.winner-score {
+  color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.loser-score {
+  color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* Other Games Table Layout - Similar to 1v1 Games */
+.team-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  min-height: 60px;
+  padding: 12px 8px;
+  line-height: 1.6;
+}
+
+.player {
+  background: var(--table-banding);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  margin: 4px 2px;
+  display: inline-block;
+}
+
+.player.winner {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.player.loser {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* Make table cells much taller to accommodate multiple players */
+table td.team-players {
+  vertical-align: middle;
+  min-height: 80px;
+  height: auto;
+}
+
+/* Increase table row height for other games */
+table tbody tr {
+  height: auto;
+  min-height: 80px;
+}
+
+/* Mobile responsiveness for other games table */
+@media (max-width: 768px) {
+  .team-players {
+    flex-direction: column;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 4px;
+  }
+  
+  .player {
+    font-size: 12px;
+    padding: 6px 10px;
+    margin: 2px 1px;
+  }
+  
+  table td.team-players {
+    min-height: 60px;
+  }
+  
+  table tbody tr {
+    min-height: 60px;
+  }
+}
+

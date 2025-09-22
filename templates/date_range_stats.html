@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Date Range Stats{% endblock %}
+
+{% block content %}
+<h1>Date Range Stats</h1>
+
+<div>
+    <h2>Select Date Range</h2>
+        <form method="GET" style="display: flex; flex-direction: column; gap: 10px; max-width: 500px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="start_date" style="min-width: 80px;">Start Date:</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}" required>
+                <input type="time" id="start_time" name="start_time" value="{{ start_time or '00:00' }}" required>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="end_date" style="min-width: 80px;">End Date:</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}" required>
+                <input type="time" id="end_time" name="end_time" value="{{ end_time or '23:59' }}" required>
+            </div>
+            
+            <input type="submit" value="Get Stats" style="align-self: center;">
+        </form>
+</div>
+
+{% if has_results %}
+<div>
+    <h2>Stats for {{ start_date[5:7] }}/{{ start_date[8:10] }}/{{ start_date[2:4] }} {{ start_time_display }} to {{ end_date[5:7] }}/{{ end_date[8:10] }}/{{ end_date[2:4] }} {{ end_time_display }}</h2>
+    
+    {% if stats %}
+    <table>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Player</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name"><a href="{{ url_for('player_stats', year='All years', name=player[0] ) }}">{{ player[0] }}</a></td>
+                <td>{{ player[1] }}</td>
+                <td>{{ player[2] }}</td>
+                <td>{{ "{:.2f}".format(player[3]*100) }}</td>
+                {% if player[4] > 0 %}
+                    <td>+{{ player[4] }}</td>
+                {% else %}
+                    <td>{{ player[4] }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No games found in this date range.</p>
+    {% endif %}
+</div>
+
+<div>
+    <h2>Games for {{ start_date[5:7] }}/{{ start_date[8:10] }}/{{ start_date[2:4] }} {{ start_time_display }} to {{ end_date[5:7] }}/{{ end_date[8:10] }}/{{ end_date[2:4] }} {{ end_time_display }}</h2>
+    
+    {% if games %}
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Date/Time</th>
+                <th scope="col">Winners</th>
+                <th scope="col">Score</th>
+                <th scope="col">Losers</th>
+                <th scope="col">Score</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for game in games %}
+            <tr>
+                <td>{{ game[1][0:10] }}<br>
+                    {% if game[1]|length > 14 %}
+                        {{ game[1][11:19] }}
+                    {% endif %}</td>
+                <td><a href="{{ url_for('player_stats', year='All years', name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year='All years', name=game[3] ) }}">{{ game[3] }}</a></td>
+                <td class="score winner-score">{{ game[4] }}</td>
+                <td><a href="{{ url_for('player_stats', year='All years', name=game[5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year='All years', name=game[6] ) }}">{{ game[6] }}</a></td>
+                <td class="score loser-score">{{ game[7] }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No games found in this date range.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

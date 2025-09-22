@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('other_games_by_year', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    <h1>{% block title %} {{ year }} Other Games {% endblock %}</h1>
+        <div>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Date/Time</th>
+                        <th scope="col">Game</th>
+                        <th scope="col">Winner</th>
+                        <th scope="col">Score</th>
+                        <th scope="col">Loser</th>
+                        <th scope="col">Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for game in games %}
+                    <tr>
+                        <td>{{ game["game_date"][0:8] }}<br>
+                            {% if game["game_date"]|length > 9 %}
+                                {{ game["game_date"][9:] }}
+                            {% endif %}</td>
+                        <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game["game_name"] }}</a></td>
+                        <td>
+                            {% for i in range(1, 7) %}
+                                {% if game["winner" + i|string] %}
+                                    <a href="{{ url_for('other_player_stats', year=year, name=game['winner' + i|string]) }}">{{ game["winner" + i|string] }}</a><br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="score winner-score">{{ game["winner_score"] }}</td>
+                        <td>
+                            {% for i in range(1, 7) %}
+                                {% if game["loser" + i|string] %}
+                                    <a href="{{ url_for('other_player_stats', year=year, name=game['loser' + i|string]) }}">{{ game["loser" + i|string] }}</a><br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="score loser-score">{{ game["loser_score"] }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+{% endblock %}

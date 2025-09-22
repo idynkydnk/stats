@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+
+{% block title %}Tournaments{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Tournaments</h1>
+    
+    <style>
+        .tournaments-list table tbody tr {
+            height: 50px;
+        }
+        .tournaments-list table tbody td {
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+    </style>
+    
+    <div class="tournaments-list">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Place</th>
+                    <th scope="col">Team</th>
+                    <th scope="col">Location</th>
+                    <th scope="col">Tournament</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>09/16/25</td>
+                    <td>3rd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>09/07/25</td>
+                    <td>41st</td>
+                    <td>Cash Essert</td>
+                    <td>Hermosa Beach</td>
+                    <td>Hermosa Beach Open 2025</td>
+                </tr>
+                <tr>
+                    <td>08/30/25</td>
+                    <td>5th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Mich Ultra Premier Tour: $4,000 Gene Selznick Men's Open</td>
+                </tr>
+                <tr>
+                    <td>08/24/25</td>
+                    <td>1st</td>
+                    <td>John Ferraro</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's AA at Manhattan Pier</td>
+                </tr>
+                <tr>
+                    <td>08/17/25</td>
+                    <td>89th</td>
+                    <td>Kevin Cleary</td>
+                    <td>Hermosa Beach</td>
+                    <td>Heritage 2025</td>
+                </tr>
+                <tr>
+                    <td>08/06/25</td>
+                    <td>1st</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>07/27/25</td>
+                    <td>15th</td>
+                    <td>Tom Kohler</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's AA at Manhattan Pier</td>
+                </tr>
+                <tr>
+                    <td>07/23/25</td>
+                    <td>2nd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>07/17/25</td>
+                    <td>3rd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go Short Kings</td>
+                </tr>
+                <tr>
+                    <td>07/16/25</td>
+                    <td>2nd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>07/13/25</td>
+                    <td>2nd</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>07/08/25</td>
+                    <td>2nd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>07/05/25</td>
+                    <td>17th</td>
+                    <td>Kevin Cleary</td>
+                    <td>Long Beach</td>
+                    <td>Men's AA at Belmont Shore</td>
+                </tr>
+                <tr>
+                    <td>07/02/25</td>
+                    <td>1st</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>06/24/25</td>
+                    <td>3rd</td>
+                    <td>Solo</td>
+                    <td>Hermosa Beach</td>
+                    <td>Spike N Go</td>
+                </tr>
+                <tr>
+                    <td>04/26/25</td>
+                    <td>3rd</td>
+                    <td>Lisa Hoang</td>
+                    <td>New Jersey</td>
+                    <td>GAC Finale</td>
+                </tr>
+                <tr>
+                    <td>10/19/24</td>
+                    <td>2nd</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Volley4Sound 2024</td>
+                </tr>
+                <tr>
+                    <td>09/22/24</td>
+                    <td>1st</td>
+                    <td>Tyler Boone</td>
+                    <td>Hermosa Beach</td>
+                    <td>Pirate 4s 2024</td>
+                </tr>
+                <tr>
+                    <td>09/07/24</td>
+                    <td>41st</td>
+                    <td>Luis Sandoval</td>
+                    <td>Hermosa Beach</td>
+                    <td>Hermosa Beach Open 2024</td>
+                </tr>
+                <tr>
+                    <td>08/31/24</td>
+                    <td>5th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Mich Ultra Premier Tour: $5,000 Gene Selznick Men's Open</td>
+                </tr>
+                <tr>
+                    <td>08/18/24</td>
+                    <td>89th</td>
+                    <td>Kevin Cleary</td>
+                    <td>Hermosa Beach</td>
+                    <td>Heritage 2024</td>
+                </tr>
+                <tr>
+                    <td>08/04/24</td>
+                    <td>22nd</td>
+                    <td>Tyler Stock</td>
+                    <td>Hermosa Beach</td>
+                    <td>Mich Ultra Premier Tour: $2,000 Men's Open</td>
+                </tr>
+                <tr>
+                    <td>06/22/24</td>
+                    <td>2nd</td>
+                    <td>Brian Gadaleta</td>
+                    <td>New Jersey</td>
+                    <td>Big Wave Splash</td>
+                </tr>
+                <tr>
+                    <td>10/21/23</td>
+                    <td>9th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Volley4Sound 2023</td>
+                </tr>
+                <tr>
+                    <td>08/20/23</td>
+                    <td>89th</td>
+                    <td>Kevin Cleary</td>
+                    <td>Hermosa Beach</td>
+                    <td>Hermosa Beach Open 2023</td>
+                </tr>
+                <tr>
+                    <td>08/06/23</td>
+                    <td>9th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>AVP Manhattan Beach Wildcard Series: $2,500 Hermosa Beach Open Event 3 of Series 2 Men's Open</td>
+                </tr>
+                <tr>
+                    <td>06/10/23</td>
+                    <td>1st</td>
+                    <td>Justin Chow</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's AA at Manhattan Pier</td>
+                </tr>
+                <tr>
+                    <td>05/27/23</td>
+                    <td>25th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>AVP Hermosa Beach Wildcard Series: $2,500 Hermosa Beach Open Event 2 of Series 1 Men's Open</td>
+                </tr>
+                <tr>
+                    <td>05/14/23</td>
+                    <td>2nd</td>
+                    <td>Justin Chow</td>
+                    <td>Santa Monica</td>
+                    <td>Men's AA at Ocean Park, Santa Monica</td>
+                </tr>
+                <tr>
+                    <td>04/30/23</td>
+                    <td>3rd</td>
+                    <td>Justin Chow</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's AA at Manhattan Pier</td>
+                </tr>
+                <tr>
+                    <td>03/25/23</td>
+                    <td>9th</td>
+                    <td>Beach Baller & team</td>
+                    <td>Hermosa Beach</td>
+                    <td>Socal Cup 4 Man</td>
+                </tr>
+                <tr>
+                    <td>10/15/22</td>
+                    <td>9th</td>
+                    <td>Brian Fung</td>
+                    <td>Santa Barbara</td>
+                    <td>Men's Open at East Beach, Santa Barbara</td>
+                </tr>
+                <tr>
+                    <td>09/11/22</td>
+                    <td>2nd</td>
+                    <td>Brian Fung</td>
+                    <td>Santa Monica</td>
+                    <td>Men's AA at Ocean Park, Santa Monica</td>
+                </tr>
+                <tr>
+                    <td>09/03/22</td>
+                    <td>9th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>Gene Selznick-Premier Tour: $2,000 Hermosa Beach Men's Open</td>
+                </tr>
+                <tr>
+                    <td>08/28/22</td>
+                    <td>5th</td>
+                    <td>Cameron Steen</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's AA at Manhattan Pier</td>
+                </tr>
+                <tr>
+                    <td>07/28/22</td>
+                    <td>3rd</td>
+                    <td>Daniel Ferris</td>
+                    <td>Hermosa Beach</td>
+                    <td>QuickSand 2022</td>
+                </tr>
+                <tr>
+                    <td>06/04/22</td>
+                    <td>5th</td>
+                    <td>Brian O'Neill</td>
+                    <td>Santa Monica</td>
+                    <td>Men's AA at Ocean Park, Santa Monica</td>
+                </tr>
+                <tr>
+                    <td>05/15/22</td>
+                    <td>3rd</td>
+                    <td>Justin Chow</td>
+                    <td>Santa Monica</td>
+                    <td>Men's Open at Ocean Park, Santa Monica</td>
+                </tr>
+                <tr>
+                    <td>05/07/22</td>
+                    <td>13th</td>
+                    <td>Justin Chow</td>
+                    <td>Long Beach</td>
+                    <td>Men's Open at Belmont Shore</td>
+                </tr>
+                <tr>
+                    <td>04/30/22</td>
+                    <td>17th</td>
+                    <td>Justin Chow</td>
+                    <td>Manhattan Beach</td>
+                    <td>AVP Hermosa Beach Wildcard Series: Manhattan Beach Open Event #2 of 3 Men's Open</td>
+                </tr>
+                <tr>
+                    <td>10/17/21</td>
+                    <td>5th</td>
+                    <td>Luis Sandoval</td>
+                    <td>Santa Monica</td>
+                    <td>Men's AA at Will Rogers, Santa Monica</td>
+                </tr>
+                <tr>
+                    <td>07/11/21</td>
+                    <td>5th</td>
+                    <td>Chris Chown</td>
+                    <td>Long Beach</td>
+                    <td>Men's AA at Belmont Shore</td>
+                </tr>
+                <tr>
+                    <td>10/05/19</td>
+                    <td>9th</td>
+                    <td>Justin Chow</td>
+                    <td>Hermosa Beach</td>
+                    <td>AVP America Open Nationals</td>
+                </tr>
+                <tr>
+                    <td>10/05/19</td>
+                    <td>1st</td>
+                    <td>Lisa Hoang</td>
+                    <td>Hermosa Beach</td>
+                    <td>AVP America Open Nationals</td>
+                </tr>
+                <tr>
+                    <td>08/10/19</td>
+                    <td>9th</td>
+                    <td>Brian Gadaleta</td>
+                    <td>Hermosa Beach</td>
+                    <td>Miller Lite California Beach Volleyball Championships</td>
+                </tr>
+                <tr>
+                    <td>07/28/18</td>
+                    <td>5th</td>
+                    <td>Rob deAurora</td>
+                    <td>Manhattan Beach</td>
+                    <td>Men's Open at Marine Ave, Manhattan Beach</td>
+                </tr>
+                <tr>
+                    <td>05/26/18</td>
+                    <td>9th</td>
+                    <td>Chris Dedo</td>
+                    <td>Hermosa Beach</td>
+                    <td>$3,000 Open (2-Day) Men's Open at Hermosa Pier</td>
+                </tr>
+                <tr>
+                    <td>03/18/18</td>
+                    <td>1st</td>
+                    <td>Christopher Jones</td>
+                    <td>Long Beach</td>
+                    <td>Men's AA at Belmont Shore</td>
+                </tr>
+                <tr>
+                    <td>11/19/17</td>
+                    <td>5th</td>
+                    <td>Chris Dedo</td>
+                    <td>Huntington Beach</td>
+                    <td>Men's Open at Newland, Huntington Beach</td>
+                </tr>
+                <tr>
+                    <td>08/26/17</td>
+                    <td>N/A</td>
+                    <td>Scott Olson</td>
+                    <td>Hermosa Beach</td>
+                    <td>Campsurf Men's A at Hermosa Pier</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Player Names{% endblock %}
+
+{% block content %}
+<h1>Manage Player Names</h1>
+
+<div>
+    <h2>Select Player to Update</h2>
+    <input type="text" id="player_selector" 
+           placeholder="Player name"
+           list="all_players" 
+           onchange="selectPlayerForUpdate(this.value)">
+    <datalist id="all_players">
+        {% for player in all_players %}
+            <option value="{{ player }}">
+        {% endfor %}
+    </datalist>
+</div>
+
+<div>
+    <h2>Update Player Name</h2>
+    <form method="POST">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" id="old_name" name="old_name" required>
+        <input type="text" id="new_name" name="new_name" 
+               placeholder="Enter new name" required>
+        <input type="submit" value="Update Player Name" onclick="return confirmUpdate()">
+    </form>
+</div>
+
+
+
+<script>
+function selectPlayerForUpdate(playerName) {
+    if (playerName) {
+        document.getElementById('old_name').value = playerName;
+        document.getElementById('new_name').value = '';
+        document.getElementById('new_name').focus();
+    }
+}
+
+function confirmUpdate() {
+    const oldName = document.getElementById('old_name').value;
+    const newName = document.getElementById('new_name').value;
+    
+    if (!oldName || !newName) {
+        alert('Please select a player and enter a new name.');
+        return false;
+    }
+    
+    if (oldName === newName) {
+        alert('The new name must be different from the current name.');
+        return false;
+    }
+    
+    return confirm(`Are you sure you want to change "${oldName}" to "${newName}"?\n\nThis will update the name across ALL games in the database.`);
+}
+</script>
+{% endblock %}

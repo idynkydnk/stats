@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Stats Dashboard{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto; padding: 30px; background: var(--table-bg); border-radius: 15px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);">
+    <h1 style="text-align: center; color: var(--text); margin-bottom: 30px;">User Login</h1>
+    
+    <form method="POST" style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+            <label for="username" style="display: block; color: var(--text); margin-bottom: 8px; font-weight: 600;">Username:</label>
+            <input type="text" id="username" name="username" required 
+                   style="width: 100%; padding: 12px; border: 2px solid var(--button-border-1); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 16px;">
+        </div>
+        
+        <div>
+            <label for="password" style="display: block; color: var(--text); margin-bottom: 8px; font-weight: 600;">Password:</label>
+            <input type="password" id="password" name="password" required 
+                   style="width: 100%; padding: 12px; border: 2px solid var(--button-border-1); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 16px;">
+        </div>
+        
+        <button type="submit" 
+                style="padding: 12px 24px; background: var(--button-bg-1); color: var(--button-text-1); border: 2px solid var(--button-border-1); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+            Login
+        </button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('index') }}" style="color: var(--button-bg-1); text-decoration: none;">← Back to Stats</a>
+    </div>
+</div>
+{% endblock %}

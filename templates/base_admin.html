@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %} {% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width" />
+</head>
+<body>
+    {% if session.logged_in %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Add/Edit
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                <a href="{{ url_for('add_game') }}">Add game</a>
+                <a href="{{ url_for('add_vollis_game') }}">Add vollis game</a>
+                <a href="{{ url_for('edit_games') }}">Edit games</a>
+                <a href="{{ url_for('edit_vollis_games') }}">Edit vollis games</a>
+                <a href="{{ url_for('add_one_v_one_game') }}">Add 1v1 game</a>
+                <a href="{{ url_for('edit_one_v_one_games') }}">Edit 1v1 games</a>
+                <a href="{{ url_for('add_other_game') }}">Add other game</a>
+            </div>
+        </div>  
+    </nav>
+    {% endif %}
+    
+    <nav>
+        <div class="menu-container">
+            <button class="menu-toggle" id="menu-toggle">☰</button>
+            <div class="menu-overlay" id="menu-overlay"></div>
+            <div class="menu-sidebar" id="menu-sidebar">
+                <button class="menu-close" id="menu-close">×</button>
+                <ul class="menu-list">
+                    <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
+                    <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
+                    <li><a href="{{ url_for('games') }}"><i class="fas fa-list-alt"></i> Doubles Games</a></li>
+                    <li><a href="{{ url_for('vollis_games') }}"><i class="fas fa-plus-circle"></i> Vollis Games</a></li>
+                    <li><a href="{{ url_for('top_teams') }}"><i class="fas fa-trophy"></i> Top Teams</a></li>
+                    <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
+                    <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
+                    <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+                    <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
+                    <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
+                    <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
+        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
+        <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="{{ url_for('glicko_rankings') }}"><i class="fas fa-medal"></i> Glicko-2 Rankings</a></li>
+                    {% if session.logged_in %}
+                        {% if session.username == 'kyle' %}
+                            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
+                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="content">
+        {% for message in get_flashed_messages() %}
+            <div class="alert">{{ message }}</div>
+        {% endfor %}
+        {% block content %} {% endblock %}
+    </div>
+
+    <style>
+        /* Clear button styling */
+        .input-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--caption);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 0;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 10;
+        }
+
+        .clear-btn:hover {
+            background: var(--table-banding);
+            color: var(--text);
+        }
+
+        .input-container:hover .clear-btn,
+        .input-container input:focus + .clear-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .input-container input {
+            padding-right: 30px;
+            text-align: center;
+            width: 280px;
+        }
+
+        .input-container input::placeholder {
+            text-align: center;
+        }
+
+        /* Ensure forms stay centered */
+        form {
+            text-align: center;
+        }
+
+        .input-container {
+            text-align: center;
+        }
+    </style>
+
+    <script>
+        // Simple hamburger menu functionality
+        const menuToggle = document.getElementById('menu-toggle');
+        const menuClose = document.getElementById('menu-close');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const menuSidebar = document.getElementById('menu-sidebar');
+
+        function openMenu() {
+            menuOverlay.classList.add('active');
+            menuSidebar.classList.add('active');
+            menuToggle.classList.add('active');
+            menuToggle.textContent = '×';
+        }
+
+        function closeMenu() {
+            menuOverlay.classList.remove('active');
+            menuSidebar.classList.remove('active');
+            menuToggle.classList.remove('active');
+            menuToggle.textContent = '☰';
+        }
+
+        // Toggle menu when clicking hamburger button (opens if closed, closes if open)
+        menuToggle.addEventListener('click', function() {
+            if (menuToggle.classList.contains('active')) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+
+        // Close menu when clicking X button inside sidebar
+        menuClose.addEventListener('click', closeMenu);
+
+        // Close menu when clicking overlay (outside the sidebar)
+        menuOverlay.addEventListener('click', closeMenu);
+
+        // Close menu when clicking on menu links
+        document.querySelectorAll('.menu-list a').forEach(link => {
+            link.addEventListener('click', closeMenu);
+        });
+
+        // Clear button functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add clear buttons to all input fields
+            const inputs = document.querySelectorAll('input[type="text"], input[type="number"]');
+            
+            inputs.forEach(input => {
+                // Skip submit buttons
+                if (input.type === 'submit') return;
+                
+                // Create container if it doesn't exist
+                if (!input.parentElement.classList.contains('input-container')) {
+                    const container = document.createElement('div');
+                    container.className = 'input-container';
+                    input.parentNode.insertBefore(container, input);
+                    container.appendChild(input);
+                }
+                
+                // Create clear button
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'clear-btn';
+                clearBtn.innerHTML = '×';
+                clearBtn.title = 'Clear field';
+                
+                // Add clear functionality
+                clearBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    input.value = '';
+                    input.focus();
+                });
+                
+                // Insert clear button after input
+                input.parentElement.appendChild(clearBtn);
+                
+                // Show/hide clear button based on input value
+                function toggleClearButton() {
+                    if (input.value.trim() !== '') {
+                        clearBtn.style.opacity = '1';
+                        clearBtn.style.visibility = 'visible';
+                    } else {
+                        clearBtn.style.opacity = '0';
+                        clearBtn.style.visibility = 'hidden';
+                    }
+                }
+                
+                // Toggle on input and focus events
+                input.addEventListener('input', toggleClearButton);
+                input.addEventListener('focus', toggleClearButton);
+                input.addEventListener('blur', function() {
+                    setTimeout(toggleClearButton, 150);
+                });
+                
+                // Initial check
+                toggleClearButton();
+            });
+        });
+
+    </script>
+</body>
+</html>

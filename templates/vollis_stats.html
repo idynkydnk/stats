@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in all_years %}
+                    <a href="{{ url_for('vollis_stats', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    <div>
+    {% if todays_stats %}
+    <table>
+        <h1>Today's vollis stats</h1>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Player</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in todays_stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name"><a href="{{ url_for('vollis_player_stats', year=year, name=stat[0] ) }}">{{ stat[0] }}</a></td>
+                <td>{{ stat[1] }}</td>
+                <td>{{ stat[2] }}</td>
+                <td>{{ "{:.2f}".format(stat[3]*100) }}</td>
+                {% if stat[4] > 0 %}
+                    <td>+{{ stat[4] }}</td>
+                {% else %}
+                    <td>{{ stat[4] }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <table>
+        <h1>Today's vollis games</h1>
+        <thead>
+            <tr>
+                <th scope="col" colspan="1">Date/Updated</th>
+                <th scope="col" colspan="1">Winner</th>
+                <th scope="col" colspan="1">Loser</th>
+            </tr>
+            </thead>
+        <tbody>
+        {% for game in games %}
+            <tr class="table-double-row">
+                <td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
+                <td><a href="{{ url_for('vollis_player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
+                <td><a href="{{ url_for('vollis_player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
+            </tr>
+            <tr class="table-double-row">
+                <td>{{ game[6][0:10] }}<br>{{ game[6][11:19] }}</td>
+                <td>{{ game[3] }}</td>
+                <td>{{ game[5] }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    </div>
+    <h1>{% block title %} {{ year }} Vollis Stats {% endblock %}</h1>
+        <div>
+        	<table>
+        		<thead>
+    				<tr>
+                        <th class="rank" scope="col" colspan="1">#</th>
+      					<th class="player_name" scope="col" colspan="1">Player</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Games</th>
+    				</tr>
+  				</thead>
+        		<tbody>
+        			{% for player in stats %}
+        			<tr>
+                        <td class="rank">{{ loop.index }}</td>
+            			<td class="player_name"><a href="{{ url_for('vollis_player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
+            			<td>{{ player[1] }}</td>
+            			<td>{{ player[2] }}</td>
+            			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
+            			<td>{{ player[1] + player[2] }}</td>
+            		</tr>
+            		{% endfor %}
+            	</tbody>
+            </table>
+        </div>
+{% endblock %}

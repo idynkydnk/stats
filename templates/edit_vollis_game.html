@@ -1,0 +1,52 @@
+{% extends 'base_admin.html' %}
+
+{% block content %}
+	<h1>{% block title %} Edit Game {% endblock %}</h1>
+	<table>
+	   <thead>
+			<tr>
+				<th scope="col" colspan="1">Date/Updated</th>
+				<th scope="col" colspan="1">Winner</th>
+				<th scope="col" colspan="1">Loser</th>
+			</tr>
+		</thead>
+	   	<tbody>
+			<tr>
+				<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
+                <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
+                <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
+			</tr>
+			<tr>
+				<td>{{ game[6][5:7] }}/{{ game[6][8:10] }}/{{ game[6][0:4] }}<br>{{ game[6][11:16] }}</td>
+                <td>{{ game[3] }}</td>
+                <td>{{ game[5] }}</td>
+			</tr>
+		</tbody>
+	</table>
+	<div>
+	   <form method="post">
+			  <datalist id="players">
+					 {% for player in players %}
+							<option value= "{{ player }}">
+					 {% endfor %}
+			  </datalist>
+			  <input type="text" name="winner"
+					 placeholder="Winner"
+					 value="{{ request.form['winner'] }}"
+					 list="players">
+			  <input type="text" name="loser"
+					 placeholder="Loser"
+					 value="{{ request.form['loser'] }}"
+					 list="players">      
+			  <input type="number" pattern="[0-9]*" name="winner_score"
+					 placeholder="Winner's Score"
+					 value="{{ request.form['winner_score'] }}"
+					 list="scores">
+			  <input type="number" pattern="[0-9]*" name="loser_score"
+					 placeholder="Loser's Score"
+					 value="{{ request.form['loser_score'] }}"
+					 list="scores">    
+			  <input type="submit" value="Submit">
+		   </form>
+	   </div>
+{% endblock %}

@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Doubles Dashboard</h1>
+
+<div class="year-selector">
+    <form method="GET" style="display: inline-block;">
+        <label for="year">Select Year:</label>
+        <select name="year" id="year" onchange="this.form.submit()">
+            {% for year in available_years %}
+                <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Selected Year Stats -->
+    <div class="dashboard-card">
+        <h2>{{ selected_year }} Stats</h2>
+        <div class="stats-summary">
+            <div class="stat-item">
+                <span class="stat-number">{{ current_stats|length }}</span>
+                <span class="stat-label">Active Players</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">{{ recent_games|length }}</span>
+                <span class="stat-label">Recent Games</span>
+            </div>
+        </div>
+        {% if top_win_percentage %}
+        <div class="top-players">
+            <h3>Top 10 in {{ selected_year }}</h3>
+            <ol>
+                {% for stat in top_win_percentage %}
+                <li>
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="win-percentage">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Year Leaders -->
+    <div class="dashboard-card">
+        <h2>{{ selected_year }} Leaders</h2>
+        <div class="leaders-section">
+            <h3>Most Games Played</h3>
+            <ol>
+                {% for stat in top_games_played %}
+                <li>
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="game-count">{{ stat[1] + stat[2] }} games</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+
+    <!-- Winning Streaks -->
+    <div class="dashboard-card">
+        <h2>Current Winning Streaks</h2>
+        {% if win_streaks %}
+        <div class="streaks-list">
+            {% for streak in win_streaks[:10] %}
+            <div class="streak-item {{ streak[2] }}">
+                <span class="player-name">
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                    <small>(Best: {{ streak[3] }})</small>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No active winning streaks</p>
+        {% endif %}
+    </div>
+
+    <!-- Losing Streaks -->
+    <div class="dashboard-card">
+        <h2>Current Losing Streaks</h2>
+        {% if loss_streaks %}
+        <div class="streaks-list">
+            {% for streak in loss_streaks[:10] %}
+            <div class="streak-item {{ streak[2] }}">
+                <span class="player-name">
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                    <small>(Best: {{ streak[3] }})</small>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No active losing streaks</p>
+        {% endif %}
+    </div>
+
+    <!-- Best Winning Streaks -->
+    <div class="dashboard-card">
+        <h2>Best Winning Streaks ({{ selected_year }})</h2>
+        {% if best_win_streaks %}
+        <div class="streaks-list">
+            {% for streak in best_win_streaks[:10] %}
+            <div class="streak-item {{ streak[2] }}">
+                <span class="player-name">
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No winning streaks recorded</p>
+        {% endif %}
+    </div>
+
+    <!-- Worst Losing Streaks -->
+    <div class="dashboard-card">
+        <h2>Worst Losing Streaks ({{ selected_year }})</h2>
+        {% if best_loss_streaks %}
+        <div class="streaks-list">
+            {% for streak in best_loss_streaks[:10] %}
+            <div class="streak-item {{ streak[2] }}">
+                <span class="player-name">
+                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No losing streaks recorded</p>
+        {% endif %}
+    </div>
+
+    <!-- Monthly Activity -->
+    <div class="dashboard-card">
+        <h2>{{ selected_year }} Monthly Activity</h2>
+        <div class="monthly-chart">
+            {% for month in range(1, 13) %}
+            <div class="month-bar">
+                <div class="month-label">{{ month }}</div>
+                <div class="bar-container">
+                    <div class="bar" style="height: {{ (monthly_data[month] / monthly_data.values()|max * 100) if monthly_data.values()|max > 0 else 0 }}%"></div>
+                </div>
+                <div class="month-count">{{ monthly_data[month] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Today's Stats -->
+    <div class="dashboard-card">
+        <h2>Today's Activity</h2>
+        {% if today_stats %}
+        <div class="today-stats">
+            <div class="stat-item">
+                <span class="stat-number">{{ today_stats|length }}</span>
+                <span class="stat-label">Players Today</span>
+            </div>
+            <div class="today-players">
+                {% for stat in today_stats %}
+                <div class="today-player">
+                    <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
+                    <span class="today-record">{{ stat[1] }}W-{{ stat[2] }}L</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <p>No games played today</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Games -->
+    <div class="dashboard-card">
+        <h2>{{ selected_year }} Recent Games</h2>
+        {% if recent_games %}
+        <div class="recent-games">
+            {% for game in recent_games[:5] %}
+            <div class="recent-game">
+                <div class="game-date">{{ game[1][0:10] }}</div>
+                <div class="game-result">
+                    <div class="game-teams">
+                        <div class="winners">
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
+                        </div>
+                        <div class="losers">
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a> & 
+                            <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
+                        </div>
+                    </div>
+                    <div class="game-scores">
+                        <span class="score">{{ game[4] }}</span>
+                        <span class="vs">vs</span>
+                        <span class="score">{{ game[7] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No recent games</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.year-selector {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--table-bg);
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid var(--button-bg-1);
+}
+
+.year-selector label {
+    font-weight: bold;
+    margin-right: 10px;
+    color: var(--text);
+}
+
+.year-selector select {
+    padding: 8px 12px;
+    border: 2px solid var(--button-bg-1);
+    border-radius: 12px;
+    font-size: 16px;
+    background-color: var(--table-bg);
+    color: var(--button-bg-1);
+    max-width: 200px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.dashboard-card {
+    background: var(--table-bg);
+    border-radius: 20px;
+    padding: 20px;
+    border: 2px solid var(--button-bg-1);
+    margin: 10px 0;
+}
+
+.dashboard-card h2 {
+    margin-top: 0;
+    color: var(--text);
+    border-bottom: 2px solid var(--button-bg-1);
+    padding-bottom: 10px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.dashboard-card h3 {
+    color: var(--text);
+    text-align: center;
+    font-size: 16px;
+    margin: 15px 0 10px 0;
+}
+
+.stats-summary {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--button-bg-1);
+}
+
+.stat-label {
+    display: block;
+    color: var(--caption);
+    font-size: 0.9em;
+}
+
+.top-players ol, .leaders-section ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.top-players li, .leaders-section li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--table-banding);
+}
+
+.top-players li:last-child, .leaders-section li:last-child {
+    border-bottom: none;
+}
+
+.win-percentage, .game-count {
+    color: var(--button-bg-1);
+    font-weight: bold;
+}
+
+.streaks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.streak-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 12px;
+    border-left: 4px solid;
+}
+
+.streak-item.win {
+    background-color: rgba(76, 175, 80, 0.1);
+    border-left-color: #4CAF50;
+}
+
+.streak-item.loss {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left-color: #f44336;
+}
+
+.streak-info {
+    font-weight: bold;
+    color: var(--text);
+}
+
+.monthly-chart {
+    display: flex;
+    align-items: end;
+    gap: 5px;
+    height: 150px;
+    margin: 20px 0;
+}
+
+.month-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+
+.month-label {
+    font-size: 0.8em;
+    color: var(--caption);
+    margin-bottom: 5px;
+}
+
+.bar-container {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+}
+
+.bar {
+    width: 80%;
+    background-color: var(--button-bg-1);
+    min-height: 2px;
+    border-radius: 2px 2px 0 0;
+}
+
+.month-count {
+    font-size: 0.8em;
+    color: var(--caption);
+    margin-top: 5px;
+}
+
+.today-stats {
+    text-align: center;
+}
+
+.today-players {
+    margin-top: 15px;
+}
+
+.today-player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--table-banding);
+}
+
+.today-player:last-child {
+    border-bottom: none;
+}
+
+.today-record {
+    color: var(--button-bg-1);
+    font-weight: bold;
+}
+
+.recent-games {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.recent-game {
+    padding: 12px;
+    background-color: var(--table-banding);
+    border-radius: 12px;
+    border: 1px solid var(--button-bg-1);
+}
+
+.game-date {
+    font-size: 0.85em;
+    color: var(--caption);
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.game-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.game-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.winners, .losers {
+    font-weight: bold;
+    color: var(--text);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.winners {
+    color: #4CAF50;
+}
+
+.losers {
+    color: #f44336;
+}
+
+.game-scores {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.score {
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.9em;
+    min-width: 30px;
+    text-align: center;
+}
+
+.vs {
+    color: var(--caption);
+    font-style: italic;
+    font-size: 0.8em;
+}
+
+.dashboard-card a {
+    color: var(--button-bg-1);
+    text-decoration: none;
+}
+
+.dashboard-card a:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .game-result {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .stats-summary {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+</style>
+{% endblock %}

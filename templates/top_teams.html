@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<nav>
+    <div class="dropdown">
+        <button class="dropbtn">Select a year
+            <i class="fa fa-caret-down"></i>
+        </button>
+        <div class="dropdown-content">
+            {% for year in all_years %}
+                <a href="{{ url_for('top_teams_by_year', year=year) }}">{{ year }}</a>
+            {% endfor %}
+        </div>
+    </div>       
+</nav>
+<h1>{% block title %} {{ year }} Team Stats {% endblock %}</h1>
+    <table>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Team</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                <th class="numbered_stats" scope="col" colspan="1">Games</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=stat['team']['player1'] ) }}">{{ stat['team']['player1'] }}</a><br><a href="{{ url_for('player_stats', year=year, name=stat['team']['player2'] ) }}">{{ stat['team']['player2'] }}</a></td>
+                <td>{{ stat['wins'] }}</td>
+                <td>{{ stat['losses'] }}</td>
+                <td>{{ "{:.2f}".format(stat['win_percentage']*100) }}</td>
+                <td>{{ stat['total_games'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>     
+{% endblock %}

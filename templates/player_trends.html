@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <form method="GET" action="{{ url_for('player_trends') }}" style="display: inline-block;">
+            <input type="text" name="player_name" placeholder="Type player name..." 
+                   value="{{ player_name or '' }}" list="players" 
+                   style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+            <datalist id="players">
+                {% for player in all_players %}
+                    <option value="{{ player }}">
+                {% endfor %}
+            </datalist>
+            <button type="submit" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; margin-left: 5px;">View Trends</button>
+        </form>
+    </nav>
+    
+    {% if player_name %}
+    <h1>{{ player_name }} - Doubles Win/Loss Trends</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <h3>Overall Statistics</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Total Games</th>
+                    <th>Wins</th>
+                    <th>Losses</th>
+                    <th>Win %</th>
+                    <th>Current Streak</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ total_games }}</td>
+                    <td>{{ total_wins }}</td>
+                    <td>{{ total_losses }}</td>
+                    <td>{{ "{:.1f}".format(win_percentage * 100) }}%</td>
+                    <td>{{ current_streak }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <h3>Monthly Trends</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Games</th>
+                    <th>Wins</th>
+                    <th>Losses</th>
+                    <th>Win %</th>
+                    <th>Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month in monthly_stats %}
+                <tr>
+                    <td>{{ month.month }}</td>
+                    <td>{{ month.games }}</td>
+                    <td>{{ month.wins }}</td>
+                    <td>{{ month.losses }}</td>
+                    <td>{{ "{:.1f}".format(month.win_percentage * 100) }}%</td>
+                    <td>
+                        {% if month.games > 0 %}
+                            <div style="display: flex; align-items: center; width: 100px;">
+                                <div style="background-color: green; height: 20px; width: {{ (month.wins / month.games * 100)|round(1) }}%; border-radius: 3px 0 0 3px;"></div>
+                                <div style="background-color: red; height: 20px; width: {{ (month.losses / month.games * 100)|round(1) }}%; border-radius: 0 3px 3px 0;"></div>
+                            </div>
+                            <small style="color: #666;">{{ month.wins }}W-{{ month.losses }}L</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <h3>Recent Games (Last 20)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Game Type</th>
+                    <th>Result</th>
+                    <th>Score</th>
+                    <th>Opponent(s)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in recent_games %}
+                <tr>
+                    <td>{{ game.date }}</td>
+                    <td>{{ game.game_type }}</td>
+                    <td>
+                        {% if game.result == 'Win' %}
+                            <span style="color: green; font-weight: bold;">W</span>
+                        {% else %}
+                            <span style="color: red; font-weight: bold;">L</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ game.score }}</td>
+                    <td>{{ game.opponents }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div>
+        <h3>Win/Loss Streaks</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Length</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for streak in streaks %}
+                <tr>
+                    <td>
+                        {% if streak.type == 'Win' %}
+                            <span style="color: green; font-weight: bold;">Win Streak</span>
+                        {% else %}
+                            <span style="color: red; font-weight: bold;">Loss Streak</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ streak.length }}</td>
+                    <td>{{ streak.start_date }}</td>
+                    <td>{{ streak.end_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% else %}
+    <h1>Player Trends</h1>
+    <p>Select a player from the dropdown above to view their doubles win/loss trends.</p>
+    {% endif %}
+{% endblock %}
