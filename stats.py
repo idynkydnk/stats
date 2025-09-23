@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, flash, redirect, session
+from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify
 from database_functions import *
 from stat_functions import *
 from datetime import datetime, date
@@ -338,6 +338,12 @@ def update(id):
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
             update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
+            
+            # Log the action for notifications
+            user = session.get('username', 'unknown')
+            details = f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})"
+            log_user_action(user, 'Edited doubles game', details)
+            
             return redirect(url_for('edit_games'))
  
     return render_template('edit_game.html', game=game, players=players, 
@@ -367,6 +373,13 @@ def delete_game(id):
     game_id = id
     game = find_game(id)
     if request.method == 'POST':
+        # Log the action for notifications before deleting
+        if game and len(game) > 0 and len(game[0]) >= 8:
+            user = session.get('username', 'unknown')
+            game_data = game[0]  # Get the first (and only) row
+            details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]} ({game_data[4]}-{game_data[7]})"
+            log_user_action(user, 'Deleted doubles game', details)
+        
         remove_game(game_id)
         return redirect(url_for('edit_games'))
  
@@ -476,6 +489,12 @@ def update_vollis_game(id):
             flash('All fields required!')
         else:
             edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            
+            # Log the action for notifications
+            user = session.get('username', 'unknown')
+            details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
+            log_user_action(user, 'Edited vollis game', details)
+            
             return redirect(url_for('edit_vollis_games'))
  
     return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))
@@ -486,6 +505,11 @@ def delete_vollis_game(id):
     game_id = id
     game = find_vollis_game(id)
     if request.method == 'POST':
+        # Log the action for notifications before deleting
+        user = session.get('username', 'unknown')
+        details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
+        log_user_action(user, 'Deleted vollis game', details)
+        
         remove_vollis_game(game_id)
         return redirect(url_for('edit_vollis_games'))
  
@@ -622,6 +646,12 @@ def update_one_v_one_game(id):
             flash('All fields required!')
         else:
             edit_one_v_one_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            
+            # Log the action for notifications
+            user = session.get('username', 'unknown')
+            details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
+            log_user_action(user, 'Edited 1v1 game', details)
+            
             return redirect(url_for('edit_one_v_one_games'))
  
     return render_template('edit_one_v_one_game.html', game=game, players=players, year=str(date.today().year))
@@ -632,6 +662,11 @@ def delete_one_v_one_game(id):
     game_id = id
     game = find_one_v_one_game(id)
     if request.method == 'POST':
+        # Log the action for notifications before deleting
+        user = session.get('username', 'unknown')
+        details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
+        log_user_action(user, 'Deleted 1v1 game', details)
+        
         remove_one_v_one_game(game_id)
         return redirect(url_for('edit_one_v_one_games'))
  
@@ -790,6 +825,12 @@ def update_other_game(id):
             flash('All fields required!')
         else:
             edit_other_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            
+            # Log the action for notifications
+            user = session.get('username', 'unknown')
+            details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
+            log_user_action(user, 'Edited other game', details)
+            
             return redirect(url_for('edit_other_games'))
  
     return render_template('edit_other_game.html', game=game, players=players, year=str(date.today().year))
@@ -800,6 +841,11 @@ def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
     if request.method == 'POST':
+        # Log the action for notifications before deleting
+        user = session.get('username', 'unknown')
+        details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
+        log_user_action(user, 'Deleted other game', details)
+        
         remove_other_game(game_id)
         return redirect(url_for('edit_other_games'))
  
@@ -890,6 +936,16 @@ def mark_notifications_read_route():
         flash(f'Marked {len(notification_ids)} notification(s) as read.', 'success')
     
     return redirect(url_for('notifications'))
+
+@app.route('/api/notifications/count')
+@login_required
+def get_notification_count():
+    """API endpoint to get notification count for Kyle"""
+    if session.get('username') != 'kyle':
+        return jsonify({'count': 0})
+    
+    notifications = get_unread_notifications()
+    return jsonify({'count': len(notifications)})
 
 @app.route('/deploy', methods=['POST'])
 def deploy():
