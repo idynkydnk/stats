@@ -233,10 +233,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.value.trim() !== '') {
                     const nextField = document.getElementById(nextFields[index]);
                     if (nextField) {
-                        // Small delay to ensure the selection is complete
+                        // Longer delay for mobile to show keyboard suggestions
                         setTimeout(() => {
                             nextField.focus();
-                        }, 100);
+                        }, 300);
                     }
                 }
             });
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (this.value.trim() !== '') {
                                 nextField.focus();
                             }
-                        }, 150);
+                        }, 400);
                     }
                 }
             });
