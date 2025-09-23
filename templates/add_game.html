@@ -220,6 +220,43 @@ function updateLoserScoreOptions() {
 // Initialize loser score options on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateLoserScoreOptions();
+    
+    // Auto-focus next field when a player name is selected (including mobile keyboard suggestions)
+    const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
+    const nextFields = ['winner2', 'loser1', 'loser2', 'winner_score'];
+    
+    nameFields.forEach((fieldId, index) => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            // Handle selection from mobile keyboard suggestions and regular dropdown
+            field.addEventListener('change', function() {
+                if (this.value.trim() !== '') {
+                    const nextField = document.getElementById(nextFields[index]);
+                    if (nextField) {
+                        // Small delay to ensure the selection is complete
+                        setTimeout(() => {
+                            nextField.focus();
+                        }, 100);
+                    }
+                }
+            });
+            
+            // Also handle input events for mobile compatibility
+            field.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    const nextField = document.getElementById(nextFields[index]);
+                    if (nextField) {
+                        // Check if this was a selection (not typing)
+                        setTimeout(() => {
+                            if (this.value.trim() !== '') {
+                                nextField.focus();
+                            }
+                        }, 150);
+                    }
+                }
+            });
+        }
+    });
 });
 </script>
 {% endblock %}
