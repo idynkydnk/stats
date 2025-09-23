@@ -51,7 +51,7 @@ body {
 
 .date-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 5px;
   margin-bottom: 15px;
@@ -67,22 +67,22 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 35px;
-  height: 35px;
+  width: 28px;
+  height: 28px;
   background-color: var(--button-bg-1);
   color: #000000;
   text-decoration: none !important;
   border-radius: 50%;
-  font-size: 16px;
+  font-size: 12px;
   transition: all 0.3s ease;
   border: 2px solid var(--button-border-1);
   flex-shrink: 0;
+  margin-top: 5px;
 }
 
 .nav-arrow:hover:not(.disabled) {
   background-color: var(--button-text-1);
   color: var(--button-bg-1);
-  transform: scale(1.1);
 }
 
 .nav-arrow.disabled {

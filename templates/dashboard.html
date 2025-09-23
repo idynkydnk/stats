@@ -19,39 +19,33 @@
 <div class="dashboard-grid">
     <!-- Today's Stats -->
     <div class="dashboard-card" id="today-activity-card">
-        <div class="date-navigation">
-            {% if current_date %}
-                <div class="date-header">
-                    {% if has_previous %}
-                        <a href="#" class="nav-arrow nav-left" title="Previous day" data-date="{{ previous_date }}">
-                            <i class="fa fa-chevron-left"></i>
-                        </a>
-                    {% else %}
-                        <span class="nav-arrow nav-left disabled">
-                            <i class="fa fa-chevron-left"></i>
-                        </span>
-                    {% endif %}
-                    
-                    <h1 class="date-title">
-                        {% if display_date %}
-                            {{ display_date }} Activity
-                        {% else %}
-                            Today's Activity
-                        {% endif %}
-                    </h1>
-                    
-                    {% if has_next %}
-                        <a href="#" class="nav-arrow nav-right" title="Next day" data-date="{{ next_date }}">
-                            <i class="fa fa-chevron-right"></i>
-                        </a>
-                    {% else %}
-                        <span class="nav-arrow nav-right disabled">
-                            <i class="fa fa-chevron-right"></i>
-                        </span>
-                    {% endif %}
-                </div>
+        <div class="card-navigation">
+            {% if has_previous %}
+                <a href="#" class="nav-arrow nav-left" title="Previous day" data-date="{{ previous_date }}">
+                    <i class="fa fa-chevron-left"></i>
+                </a>
             {% else %}
-                <h1>Today's Activity</h1>
+                <span class="nav-arrow nav-left disabled">
+                    <i class="fa fa-chevron-left"></i>
+                </span>
+            {% endif %}
+            
+            <h2>
+                {% if display_date %}
+                    {{ display_date }} Activity
+                {% else %}
+                    Today's Activity
+                {% endif %}
+            </h2>
+            
+            {% if has_next %}
+                <a href="#" class="nav-arrow nav-right" title="Next day" data-date="{{ next_date }}">
+                    <i class="fa fa-chevron-right"></i>
+                </a>
+            {% else %}
+                <span class="nav-arrow nav-right disabled">
+                    <i class="fa fa-chevron-right"></i>
+                </span>
             {% endif %}
         </div>
         {% if today_stats %}
@@ -240,7 +234,6 @@
             {% for game in recent_games[:10] %}
             <div class="streak-item">
                 <span class="player-name">
-                    {{ game[1][0:10] }} - 
                     <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
                     <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
                 </span>
@@ -311,6 +304,19 @@
     padding-bottom: 10px;
     text-align: center;
     font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.dashboard-card .date-title {
+    margin-top: 0;
+    color: var(--text);
+    border-bottom: 2px solid var(--button-bg-1);
+    padding-bottom: 10px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
 }
 
 .dashboard-card h3 {
@@ -369,26 +375,25 @@
 .streaks-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
 }
 
-.streak-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    border-radius: 12px;
-    border-left: 4px solid;
+/* Standardized card content styling */
+.player-name {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--text);
 }
 
-.streak-item.win {
-    background-color: rgba(76, 175, 80, 0.1);
-    border-left-color: #4CAF50;
+.player-name a {
+    color: var(--button-bg-1);
+    text-decoration: none;
+    font-weight: normal;
 }
 
-.streak-item.loss {
-    background-color: rgba(244, 67, 54, 0.1);
-    border-left-color: #f44336;
+.player-name a:hover {
+    color: var(--text);
+    text-decoration: underline;
 }
 
 .streak-info {
@@ -397,16 +402,109 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    font-size: 14px;
 }
 
 .record-info {
-    font-size: inherit;
+    font-size: 14px;
     font-weight: bold;
 }
 
 .differential {
-    font-size: inherit;
+    font-size: 14px;
     font-weight: bold;
+}
+
+/* Ensure all card content uses consistent styling */
+.dashboard-card .streak-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid var(--button-bg-1);
+    background-color: rgba(174, 238, 152, 0.05);
+    margin-bottom: 8px;
+}
+
+.dashboard-card .streak-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Restore original streak colors */
+.dashboard-card .streak-item.win {
+    background-color: rgba(76, 175, 80, 0.1);
+    border-left-color: #4CAF50;
+}
+
+.dashboard-card .streak-item.loss {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left-color: #f44336;
+}
+
+/* Standardize all text elements in cards */
+.dashboard-card {
+    font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.dashboard-card p, .dashboard-card small {
+    font-size: 14px;
+    color: var(--text);
+    margin: 0;
+}
+
+.dashboard-card a {
+    color: var(--button-bg-1);
+    text-decoration: none;
+    font-weight: normal;
+}
+
+.dashboard-card a:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+/* Ensure consistent spacing */
+.dashboard-card .streaks-list {
+    margin: 0;
+    padding: 0;
+}
+
+/* Card navigation - arrows positioned outside header */
+.card-navigation {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.card-navigation .nav-arrow {
+    position: absolute;
+    top: 40%;
+    transform: translateY(-50%);
+    z-index: 10;
+}
+
+.card-navigation .nav-left {
+    left: 10px;
+}
+
+.card-navigation .nav-right {
+    right: 10px;
+}
+
+.card-navigation h2 {
+    margin: 0;
+    color: var(--text);
+    border-bottom: 2px solid var(--button-bg-1);
+    padding-bottom: 10px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    width: 100%;
 }
 
 .monthly-chart {
@@ -706,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateCardContent(data) {
         // Update the date title
-        const dateTitle = document.querySelector('.date-title');
+        const dateTitle = document.querySelector('#today-activity-card .card-navigation h2');
         if (dateTitle) {
             dateTitle.textContent = `${data.display_date} Activity`;
         }
