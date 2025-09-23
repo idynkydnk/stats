@@ -1,5 +1,49 @@
 {% extends 'base_admin.html' %}
 
+<style>
+.autocomplete {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.autocomplete input {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 1px solid #ccc;
+    background: white;
+    z-index: 999;
+    display: none;
+    max-height: 150px;
+    overflow-y: auto;
+    width: 280px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.autocomplete-list div {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.autocomplete-list div:hover {
+    background: #f5f5f5;
+}
+
+.autocomplete-list div:last-child {
+    border-bottom: none;
+}
+</style>
+
 {% block content %}
 	<h1>{% block title %} Add Doubles Game {% endblock %}</h1>
 	<div class="container">
@@ -21,26 +65,34 @@
 				<option value= "{{ score }}"></option>
 			{% endfor %}
 		</datalist>
-		<input type="text" name="winner1" id="winner1"
-				placeholder="Winner 1"
-				value="{{ request.form['winner1'] }}"
-				list="players"
-				onchange="updatePlayerOptions()">
-		<input type="text" name="winner2" id="winner2"
-				placeholder="Winner 2"
-				value="{{ request.form['winner2'] }}"
-				list="players"
-				onchange="updatePlayerOptions()">
-		<input type="text" name="loser1" id="loser1"
-				placeholder="Loser 1"
-				value="{{ request.form['loser1'] }}"
-				list="players"
-				onchange="updatePlayerOptions()">      
-		<input type="text" name="loser2" id="loser2"
-				placeholder="Loser 2"
-				value="{{ request.form['loser2'] }}"
-				list="players"
-				onchange="updatePlayerOptions()">
+		<div class="autocomplete">
+			<input type="text" name="winner1" id="winner1"
+					placeholder="Winner 1"
+					value="{{ request.form['winner1'] }}"
+					onchange="updatePlayerOptions()">
+			<div class="autocomplete-list" id="winner1List"></div>
+		</div>
+		<div class="autocomplete">
+			<input type="text" name="winner2" id="winner2"
+					placeholder="Winner 2"
+					value="{{ request.form['winner2'] }}"
+					onchange="updatePlayerOptions()">
+			<div class="autocomplete-list" id="winner2List"></div>
+		</div>
+		<div class="autocomplete">
+			<input type="text" name="loser1" id="loser1"
+					placeholder="Loser 1"
+					value="{{ request.form['loser1'] }}"
+					onchange="updatePlayerOptions()">
+			<div class="autocomplete-list" id="loser1List"></div>
+		</div>
+		<div class="autocomplete">
+			<input type="text" name="loser2" id="loser2"
+					placeholder="Loser 2"
+					value="{{ request.form['loser2'] }}"
+					onchange="updatePlayerOptions()">
+			<div class="autocomplete-list" id="loser2List"></div>
+		</div>
 		<input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
 				placeholder="Winners' Score"
 				value="{{ request.form['winner_score'] or '21' }}"
@@ -221,48 +273,110 @@ function updateLoserScoreOptions() {
 document.addEventListener('DOMContentLoaded', function() {
     updateLoserScoreOptions();
     
-    // Auto-focus next field when a player name is selected (including mobile keyboard suggestions)
+    // Get all players for autocomplete
+    const allPlayers = Array.from(document.getElementById('players').options).map(option => option.value);
     const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
     const nextFields = ['winner2', 'loser1', 'loser2', 'winner_score'];
     
+    // Initialize autocomplete for each field
     nameFields.forEach((fieldId, index) => {
         const field = document.getElementById(fieldId);
-        if (field) {
-            // Handle selection from mobile keyboard suggestions and regular dropdown
-            field.addEventListener('change', function() {
-                if (this.value.trim() !== '') {
-                    const nextField = document.getElementById(nextFields[index]);
-                    if (nextField) {
-                        // Small delay to ensure the selection is complete
-                        setTimeout(() => {
-                            nextField.focus();
-                            // Trigger the datalist dropdown to show suggestions
-                            nextField.click();
-                            nextField.dispatchEvent(new Event('input', { bubbles: true }));
-                        }, 100);
-                    }
-                }
+        const list = document.getElementById(fieldId + 'List');
+        
+        if (field && list) {
+            // Show list when input gets focus
+            field.addEventListener('focus', () => {
+                showPlayerList(field, list, allPlayers, nameFields);
             });
             
-            // Also handle input events for mobile compatibility
-            field.addEventListener('input', function() {
-                if (this.value.trim() !== '') {
+            // Filter list as user types
+            field.addEventListener('input', () => {
+                filterPlayerList(field, list, allPlayers, nameFields);
+            });
+            
+            // Handle selection and auto-focus next field
+            list.addEventListener('click', (e) => {
+                if (e.target.tagName === 'DIV') {
+                    field.value = e.target.textContent;
+                    list.style.display = 'none';
+                    updatePlayerOptions();
+                    
+                    // Auto-focus next field
                     const nextField = document.getElementById(nextFields[index]);
                     if (nextField) {
-                        // Check if this was a selection (not typing)
                         setTimeout(() => {
-                            if (this.value.trim() !== '') {
-                                nextField.focus();
-                                // Trigger the datalist dropdown to show suggestions
-                                nextField.click();
-                                nextField.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                        }, 150);
+                            nextField.focus();
+                        }, 100);
                     }
                 }
             });
         }
     });
+    
+    // Hide lists when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete')) {
+            nameFields.forEach(fieldId => {
+                const list = document.getElementById(fieldId + 'List');
+                if (list) list.style.display = 'none';
+            });
+        }
+    });
 });
+
+// Show player list for a field
+function showPlayerList(field, list, allPlayers, nameFields) {
+    // Get currently selected players
+    const selectedPlayers = [];
+    nameFields.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim() && input !== field) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Filter out selected players
+    const availablePlayers = allPlayers.filter(player => !selectedPlayers.includes(player));
+    
+    // Populate list
+    list.innerHTML = '';
+    availablePlayers.forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+}
+
+// Filter player list based on input
+function filterPlayerList(field, list, allPlayers, nameFields) {
+    const inputValue = field.value.toLowerCase();
+    
+    // Get currently selected players
+    const selectedPlayers = [];
+    nameFields.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim() && input !== field) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Filter players
+    const filteredPlayers = allPlayers.filter(player => 
+        !selectedPlayers.includes(player) && 
+        player.toLowerCase().includes(inputValue)
+    );
+    
+    // Update list
+    list.innerHTML = '';
+    filteredPlayers.forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        list.appendChild(div);
+    });
+    
+    list.style.display = filteredPlayers.length > 0 ? 'block' : 'none';
+}
 </script>
 {% endblock %}
