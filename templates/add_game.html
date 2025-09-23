@@ -30,9 +30,11 @@
 }
 
 .autocomplete-list div {
-    padding: 8px 12px;
+    padding: 12px 16px;
     cursor: pointer;
     border-bottom: 1px solid #eee;
+    font-size: 18px !important;
+    line-height: 1.4;
 }
 
 .autocomplete-list div:hover {
@@ -93,15 +95,19 @@
 					onchange="updatePlayerOptions()">
 			<div class="autocomplete-list" id="loser2List"></div>
 		</div>
-		<input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
-				placeholder="Winners' Score"
-				value="{{ request.form['winner_score'] or '21' }}"
-				list="w_scores"
-				onchange="updateLoserScoreOptions()">
-		<input type="number" pattern="[0-9]*" name="loser_score" id="loser_score"
-				placeholder="Losers' Score"
-				value="{{ request.form['loser_score'] }}"
-				list="l_scores">    
+		<div class="autocomplete">
+			<input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
+					placeholder="Winners' Score"
+					value="{{ request.form['winner_score'] or '' }}"
+					onchange="updateLoserScoreOptions()">
+			<div class="autocomplete-list" id="winner_scoreList"></div>
+		</div>
+		<div class="autocomplete">
+			<input type="number" pattern="[0-9]*" name="loser_score" id="loser_score"
+					placeholder="Losers' Score"
+					value="{{ request.form['loser_score'] }}">
+			<div class="autocomplete-list" id="loser_scoreList"></div>
+		</div>    
 		<input type="submit" value="Submit">
 	</form>
 	</div>
@@ -278,6 +284,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
     const nextFields = ['winner2', 'loser1', 'loser2', 'winner_score'];
     
+    // Get score options for autocomplete
+    const winnerScores = ['21', '15', '22', '23', '16'];
+    const scoreFields = ['winner_score', 'loser_score'];
+    
     // Initialize autocomplete for each field
     nameFields.forEach((fieldId, index) => {
         const field = document.getElementById(fieldId);
@@ -313,10 +323,68 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Initialize autocomplete for score fields
+    scoreFields.forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        const list = document.getElementById(fieldId + 'List');
+        
+        if (field && list) {
+            // Show list when input gets focus
+            field.addEventListener('focus', () => {
+                if (fieldId === 'winner_score') {
+                    showScoreList(field, list, winnerScores);
+                } else if (fieldId === 'loser_score') {
+                    // Get loser scores based on winner score
+                    const winnerScore = parseInt(document.getElementById('winner_score').value) || 21;
+                    const loserScores = [];
+                    const maxLoserScore = Math.max(0, winnerScore - 2);
+                    for (let score = maxLoserScore; score >= 0; score--) {
+                        loserScores.push(score.toString());
+                    }
+                    showScoreList(field, list, loserScores);
+                }
+            });
+            
+            // Filter list as user types
+            field.addEventListener('input', () => {
+                if (fieldId === 'winner_score') {
+                    filterScoreList(field, list, winnerScores);
+                } else if (fieldId === 'loser_score') {
+                    // Get loser scores based on winner score
+                    const winnerScore = parseInt(document.getElementById('winner_score').value) || 21;
+                    const loserScores = [];
+                    const maxLoserScore = Math.max(0, winnerScore - 2);
+                    for (let score = maxLoserScore; score >= 0; score--) {
+                        loserScores.push(score.toString());
+                    }
+                    filterScoreList(field, list, loserScores);
+                }
+            });
+            
+            // Handle selection
+            list.addEventListener('click', (e) => {
+                if (e.target.tagName === 'DIV') {
+                    field.value = e.target.textContent;
+                    list.style.display = 'none';
+                    if (fieldId === 'winner_score') {
+                        updateLoserScoreOptions();
+                        // Auto-focus loser score field
+                        setTimeout(() => {
+                            const loserScoreField = document.getElementById('loser_score');
+                            if (loserScoreField) {
+                                loserScoreField.focus();
+                            }
+                        }, 100);
+                    }
+                }
+            });
+        }
+    });
+    
     // Hide lists when clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.autocomplete')) {
-            nameFields.forEach(fieldId => {
+            [...nameFields, ...scoreFields].forEach(fieldId => {
                 const list = document.getElementById(fieldId + 'List');
                 if (list) list.style.display = 'none';
             });
@@ -338,9 +406,9 @@ function showPlayerList(field, list, allPlayers, nameFields) {
     // Filter out selected players
     const availablePlayers = allPlayers.filter(player => !selectedPlayers.includes(player));
     
-    // Populate list
+    // Populate list (max 10 entries)
     list.innerHTML = '';
-    availablePlayers.forEach(player => {
+    availablePlayers.slice(0, 10).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
         list.appendChild(div);
@@ -368,15 +436,48 @@ function filterPlayerList(field, list, allPlayers, nameFields) {
         player.toLowerCase().includes(inputValue)
     );
     
-    // Update list
+    // Update list (max 10 entries)
     list.innerHTML = '';
-    filteredPlayers.forEach(player => {
+    filteredPlayers.slice(0, 10).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
         list.appendChild(div);
     });
     
     list.style.display = filteredPlayers.length > 0 ? 'block' : 'none';
+}
+
+// Show score list for a field
+function showScoreList(field, list, scores) {
+    // Populate list with scores (max 10 entries)
+    list.innerHTML = '';
+    scores.slice(0, 10).forEach(score => {
+        const div = document.createElement('div');
+        div.textContent = score;
+        list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+}
+
+// Filter score list based on input
+function filterScoreList(field, list, scores) {
+    const inputValue = field.value;
+    
+    // Filter scores
+    const filteredScores = scores.filter(score => 
+        score.includes(inputValue)
+    );
+    
+    // Update list (max 10 entries)
+    list.innerHTML = '';
+    filteredScores.slice(0, 10).forEach(score => {
+        const div = document.createElement('div');
+        div.textContent = score;
+        list.appendChild(div);
+    });
+    
+    list.style.display = filteredScores.length > 0 ? 'block' : 'none';
 }
 </script>
 {% endblock %}
