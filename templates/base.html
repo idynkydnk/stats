@@ -34,6 +34,7 @@
             <div class="menu-sidebar" id="menu-sidebar">
                 <button class="menu-close" id="menu-close">×</button>
                 <ul class="menu-list">
+                    <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                     <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
                     <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
                     <li><a href="{{ url_for('games') }}"><i class="fas fa-list-alt"></i> Doubles Games</a></li>
@@ -45,7 +46,6 @@
                     <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
                     <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
                     <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
-        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
         <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
         <li><a href="{{ url_for('glicko_rankings') }}"><i class="fas fa-medal"></i> Glicko-2 Rankings</a></li>
                     {% if session.logged_in %}

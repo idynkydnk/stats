@@ -82,14 +82,29 @@
         </div>
         <div class="streaks-list">
             {% if top_win_percentage %}
-            {% for stat in top_win_percentage[:10] %}
-            <div class="streak-item">
+            {% for stat in top_win_percentage[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
                 <span class="player-name">
                     <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                 </span>
                 <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
             </div>
             {% endfor %}
+            {% if top_win_percentage|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'win-percentage-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="win-percentage-more">
+                {% for stat in top_win_percentage[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    </span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -100,7 +115,7 @@
             <h2>{{ selected_year }} Games</h2>
         </div>
         <div class="streaks-list">
-            {% for stat in top_games_played[:10] %}
+            {% for stat in top_games_played[:5] %}
             <div class="streak-item">
                 <span class="player-name">
                     <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
@@ -110,6 +125,23 @@
                 </span>
             </div>
             {% endfor %}
+            {% if top_games_played|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'games-played-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="games-played-more">
+                {% for stat in top_games_played[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ stat[1] + stat[2] }} games
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -120,7 +152,7 @@
         </div>
         {% if win_streaks %}
         <div class="streaks-list">
-            {% for streak in win_streaks[:10] %}
+            {% for streak in win_streaks[:5] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
                     <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
@@ -131,6 +163,24 @@
                 </span>
             </div>
             {% endfor %}
+            {% if win_streaks|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'win-streaks-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="win-streaks-more">
+                {% for streak in win_streaks[5:20] %}
+                <div class="streak-item {{ streak[2] }}">
+                    <span class="player-name">
+                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                        <small>(Best: {{ streak[3] }})</small>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <p>No active winning streaks</p>
@@ -144,7 +194,7 @@
         </div>
         {% if loss_streaks %}
         <div class="streaks-list">
-            {% for streak in loss_streaks[:10] %}
+            {% for streak in loss_streaks[:5] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
                     <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
@@ -155,6 +205,24 @@
                 </span>
             </div>
             {% endfor %}
+            {% if loss_streaks|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'loss-streaks-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="loss-streaks-more">
+                {% for streak in loss_streaks[5:20] %}
+                <div class="streak-item {{ streak[2] }}">
+                    <span class="player-name">
+                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                        <small>(Best: {{ streak[3] }})</small>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <p>No active losing streaks</p>
@@ -168,7 +236,7 @@
         </div>
         {% if best_win_streaks %}
         <div class="streaks-list">
-            {% for streak in best_win_streaks[:10] %}
+            {% for streak in best_win_streaks[:5] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
                     <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
@@ -178,6 +246,23 @@
                 </span>
             </div>
             {% endfor %}
+            {% if best_win_streaks|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'best-win-streaks-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="best-win-streaks-more">
+                {% for streak in best_win_streaks[5:20] %}
+                <div class="streak-item {{ streak[2] }}">
+                    <span class="player-name">
+                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <p>No winning streaks recorded</p>
@@ -191,7 +276,7 @@
         </div>
         {% if best_loss_streaks %}
         <div class="streaks-list">
-            {% for streak in best_loss_streaks[:10] %}
+            {% for streak in best_loss_streaks[:5] %}
             <div class="streak-item {{ streak[2] }}">
                 <span class="player-name">
                     <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
@@ -201,6 +286,23 @@
                 </span>
             </div>
             {% endfor %}
+            {% if best_loss_streaks|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'best-loss-streaks-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="best-loss-streaks-more">
+                {% for streak in best_loss_streaks[5:20] %}
+                <div class="streak-item {{ streak[2] }}">
+                    <span class="player-name">
+                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <p>No losing streaks recorded</p>
@@ -213,7 +315,7 @@
             <h2>{{ selected_year }} Monthly Activity</h2>
         </div>
         <div class="streaks-list">
-            {% for month in range(1, 13) %}
+            {% for month in range(1, 6) %}
             <div class="streak-item">
                 <span class="player-name">
                     {% if month == 1 %}January
@@ -233,6 +335,31 @@
                 <span class="streak-info">{{ monthly_data[month] }} games</span>
             </div>
             {% endfor %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'monthly-activity-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="monthly-activity-more">
+                {% for month in range(6, 13) %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        {% if month == 1 %}January
+                        {% elif month == 2 %}February
+                        {% elif month == 3 %}March
+                        {% elif month == 4 %}April
+                        {% elif month == 5 %}May
+                        {% elif month == 6 %}June
+                        {% elif month == 7 %}July
+                        {% elif month == 8 %}August
+                        {% elif month == 9 %}September
+                        {% elif month == 10 %}October
+                        {% elif month == 11 %}November
+                        {% elif month == 12 %}December
+                        {% endif %}
+                    </span>
+                    <span class="streak-info">{{ monthly_data[month] }} games</span>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
@@ -243,7 +370,7 @@
         </div>
         {% if recent_games %}
         <div class="streaks-list">
-            {% for game in recent_games[:10] %}
+            {% for game in recent_games[:5] %}
             <div class="streak-item">
                 <span class="player-name">
                     <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
@@ -256,11 +383,78 @@
                 </span>
             </div>
             {% endfor %}
+            {% if recent_games|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'recent-games-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="recent-games-more">
+                {% for game in recent_games[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a> & 
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ game[4] }} vs {{ game[7] }} - 
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a> & 
+                        <a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="streaks-list">
             <div class="streak-item">
                 <span class="player-name">No recent games</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Glicko Rankings -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>Glicko-2 Rankings</h2>
+        </div>
+        {% if glicko_rankings %}
+        <div class="streaks-list">
+            {% for ranking in glicko_rankings[:5] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
+                </span>
+                <span class="streak-info">
+                    <span class="glicko-rating">{{ ranking.rating }}</span>
+                    <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                </span>
+            </div>
+            {% endfor %}
+            {% if glicko_rankings|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'glicko-rankings-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="glicko-rankings-more">
+                {% for ranking in glicko_rankings[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
+                    </span>
+                    <span class="streak-info">
+                        <span class="glicko-rating">{{ ranking.rating }}</span>
+                        <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No rankings available</span>
                 <span class="streak-info">Check back later</span>
             </div>
         </div>
@@ -813,6 +1007,65 @@
     color: var(--button-bg-1) !important;
 }
 
+/* Show More functionality */
+.show-more-container {
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.show-more-btn {
+    background-color: transparent;
+    color: var(--caption);
+    border: 1px solid var(--caption);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: normal;
+    transition: all 0.3s ease;
+}
+
+.show-more-btn:hover {
+    background-color: var(--caption);
+    color: var(--bg);
+}
+
+.hidden {
+    display: none;
+}
+
+/* Ensure seamless transition when showing more content */
+.streaks-list:not(.hidden) {
+    margin: 0;
+    padding: 0;
+}
+
+/* Remove any margin from the first item in expanded content */
+#win-percentage-more .streak-item:first-child,
+#games-played-more .streak-item:first-child,
+#win-streaks-more .streak-item:first-child,
+#loss-streaks-more .streak-item:first-child,
+#best-win-streaks-more .streak-item:first-child,
+#best-loss-streaks-more .streak-item:first-child,
+#monthly-activity-more .streak-item:first-child,
+#recent-games-more .streak-item:first-child {
+    margin-top: 0;
+}
+
+/* Glicko rankings styling */
+.glicko-rating {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--button-bg-1);
+}
+
+.glicko-rd {
+    font-size: 12px;
+    color: var(--caption);
+    margin-left: 8px;
+}
+
 
 @media (max-width: 768px) {
     .dashboard-grid {
@@ -963,5 +1216,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attach initial event listeners
     attachEventListeners();
 });
+
+// Show More functionality
+function toggleShowMore(button, sectionId) {
+    const moreSection = document.getElementById(sectionId);
+    if (moreSection) {
+        if (moreSection.classList.contains('hidden')) {
+            moreSection.classList.remove('hidden');
+            // Hide the entire button container after expanding
+            button.parentElement.style.display = 'none';
+        }
+    }
+}
 </script>
 {% endblock %}

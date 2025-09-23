@@ -1004,7 +1004,7 @@ def date_range_stats(start_date=None, end_date=None):
 @app.route('/dashboard/')
 def dashboard():
     """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date
+    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date, calculate_glicko_rankings
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
@@ -1049,6 +1049,9 @@ def dashboard():
     except:
         display_date = target_date
     
+    # Get glicko rankings
+    glicko_rankings = calculate_glicko_rankings()
+    
     # Add date navigation data
     dashboard_data['today_stats'] = date_stats
     dashboard_data['current_date'] = target_date
@@ -1057,6 +1060,7 @@ def dashboard():
     dashboard_data['next_date'] = next_date
     dashboard_data['has_previous'] = has_previous
     dashboard_data['has_next'] = has_next
+    dashboard_data['glicko_rankings'] = glicko_rankings
     
     return render_template('dashboard.html', **dashboard_data)
 

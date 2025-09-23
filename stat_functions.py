@@ -855,10 +855,10 @@ def get_dashboard_data(selected_year=None):
 	# Get top performers for selected year
 	# Top 10 by win percentage (must meet minimum games requirement)
 	qualified_players = [s for s in current_stats if s[1] + s[2] >= minimum_games]
-	top_win_percentage = sorted(qualified_players, key=lambda x: x[3], reverse=True)[:10]
+	top_win_percentage = sorted(qualified_players, key=lambda x: x[3], reverse=True)[:20]
 	
 	# Top 10 by games played (no minimum games requirement - show actual top 10)
-	top_games_played = sorted(current_stats, key=lambda x: x[1] + x[2], reverse=True)[:10]
+	top_games_played = sorted(current_stats, key=lambda x: x[1] + x[2], reverse=True)[:20]
 	
 	# Get today's stats (always show today's activity regardless of selected year)
 	today_stats = todays_stats()
