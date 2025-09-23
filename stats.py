@@ -16,7 +16,9 @@ app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 USERS = {
     'kyle': 'stats2025',
     'aaron': 'aaron2025',
-    'dan': 'dan2025'
+    'dan': 'dan2025',
+    'ryan': 'ryan2025',
+    'arbel': 'arbel2025'
 }
 
 def init_notifications_db():
