@@ -233,10 +233,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.value.trim() !== '') {
                     const nextField = document.getElementById(nextFields[index]);
                     if (nextField) {
-                        // Longer delay for mobile to show keyboard suggestions
+                        // Small delay to ensure the selection is complete
                         setTimeout(() => {
                             nextField.focus();
-                        }, 300);
+                            // Trigger the datalist dropdown to show suggestions
+                            nextField.click();
+                            nextField.dispatchEvent(new Event('input', { bubbles: true }));
+                        }, 100);
                     }
                 }
             });
@@ -250,8 +253,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         setTimeout(() => {
                             if (this.value.trim() !== '') {
                                 nextField.focus();
+                                // Trigger the datalist dropdown to show suggestions
+                                nextField.click();
+                                nextField.dispatchEvent(new Event('input', { bubbles: true }));
                             }
-                        }, 400);
+                        }, 150);
                     }
                 }
             });
