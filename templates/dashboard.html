@@ -7,7 +7,6 @@
 
 <div class="year-selector">
     <form method="GET" style="display: inline-block;">
-        <label for="year">Select Year:</label>
         <select name="year" id="year" onchange="this.form.submit()">
             {% for year in available_years %}
                 <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
@@ -98,7 +97,7 @@
     <!-- Year Leaders -->
     <div class="dashboard-card">
         <div class="card-navigation">
-            <h2>{{ selected_year }} Leaders</h2>
+            <h2>{{ selected_year }} Games</h2>
         </div>
         <div class="streaks-list">
             {% for stat in top_games_played[:10] %}

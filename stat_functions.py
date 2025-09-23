@@ -232,6 +232,18 @@ def get_next_date_with_games(current_date, max_days_forward=30):
             return date_str
     return None
 
+def get_most_recent_date_with_games(max_days_back=30):
+    """Get the most recent date that has games, looking back from today"""
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    
+    for days_back in range(0, max_days_back + 1):
+        check_date = today - timedelta(days=days_back)
+        date_str = check_date.strftime('%Y-%m-%d')
+        if has_games_on_date(date_str):
+            return date_str
+    return None
+
 def convert_ampm(games):
     converted_games = []
     for game in games:

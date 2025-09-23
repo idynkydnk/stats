@@ -1004,7 +1004,7 @@ def date_range_stats(start_date=None, end_date=None):
 @app.route('/dashboard/')
 def dashboard():
     """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games
+    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
@@ -1025,6 +1025,12 @@ def dashboard():
     dashboard_data['selected_year'] = selected_year
     dashboard_data['available_years'] = available_years
     dashboard_data['current_year'] = datetime.now().year
+    
+    # If no games on target date, find the most recent date with games
+    if not has_games_on_date(target_date):
+        most_recent_date = get_most_recent_date_with_games()
+        if most_recent_date:
+            target_date = most_recent_date
     
     # Get stats for the specific date
     date_stats, date_games = specific_date_stats(target_date)
@@ -1057,7 +1063,7 @@ def dashboard():
 @app.route('/api/dashboard/today-activity/')
 def dashboard_today_activity():
     """API endpoint to get just the Today's Activity card content"""
-    from stat_functions import specific_date_stats, get_previous_date_with_games, get_next_date_with_games
+    from stat_functions import specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date
     from datetime import datetime
     from flask import jsonify
     
@@ -1065,6 +1071,12 @@ def dashboard_today_activity():
     target_date = request.args.get('date')
     if not target_date:
         target_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # If no games on target date, find the most recent date with games
+    if not has_games_on_date(target_date):
+        most_recent_date = get_most_recent_date_with_games()
+        if most_recent_date:
+            target_date = most_recent_date
     
     # Get stats for the specific date
     date_stats, date_games = specific_date_stats(target_date)
