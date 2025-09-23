@@ -33,8 +33,16 @@
     padding: 12px 16px;
     cursor: pointer;
     border-bottom: 1px solid #eee;
-    font-size: 18px !important;
+    font-size: 20px !important;
     line-height: 1.4;
+    font-weight: normal !important;
+}
+
+/* More specific selector to override any base styles */
+.autocomplete .autocomplete-list div {
+    font-size: 20px !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
 }
 
 .autocomplete-list div:hover {
@@ -411,6 +419,8 @@ function showPlayerList(field, list, allPlayers, nameFields) {
     availablePlayers.slice(0, 10).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
         list.appendChild(div);
     });
     
@@ -441,6 +451,8 @@ function filterPlayerList(field, list, allPlayers, nameFields) {
     filteredPlayers.slice(0, 10).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
         list.appendChild(div);
     });
     
@@ -454,6 +466,8 @@ function showScoreList(field, list, scores) {
     scores.slice(0, 10).forEach(score => {
         const div = document.createElement('div');
         div.textContent = score;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
         list.appendChild(div);
     });
     
@@ -474,6 +488,8 @@ function filterScoreList(field, list, scores) {
     filteredScores.slice(0, 10).forEach(score => {
         const div = document.createElement('div');
         div.textContent = score;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
         list.appendChild(div);
     });
     
