@@ -32,9 +32,9 @@
             
             <h2>
                 {% if display_date %}
-                    {{ display_date }} Activity
+                    {{ display_date }} Stats
                 {% else %}
-                    Today's Activity
+                    Today's Stats
                 {% endif %}
             </h2>
             
@@ -48,11 +48,10 @@
                 </span>
             {% endif %}
         </div>
-        {% if today_stats %}
-        <div class="today-stats">
-            <div class="streaks-list">
+        <div class="streaks-list">
+            {% if today_stats %}
                 {% for stat in today_stats[:10] %}
-                <div class="streak-item">
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
                     <span class="player-name">
                         <a href="{{ url_for('player_stats', year='All years', name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -68,20 +67,20 @@
                     </span>
                 </div>
                 {% endfor %}
-            </div>
+            {% else %}
+                <div class="streak-item">
+                    <span class="player-name">No games played today</span>
+                    <span class="streak-info">Check back later for activity!</span>
+                </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="no-activity">
-            <div class="no-activity-icon">🏓</div>
-            <p>No games played today</p>
-            <small>Check back later for today's activity!</small>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Selected Year Stats -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Win%</h2>
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Win%</h2>
+        </div>
         <div class="streaks-list">
             {% if top_win_percentage %}
             {% for stat in top_win_percentage[:10] %}
@@ -98,7 +97,9 @@
 
     <!-- Year Leaders -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Leaders</h2>
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Leaders</h2>
+        </div>
         <div class="streaks-list">
             {% for stat in top_games_played[:10] %}
             <div class="streak-item">
@@ -115,7 +116,9 @@
 
     <!-- Winning Streaks -->
     <div class="dashboard-card">
-        <h2>Current Winning Streaks</h2>
+        <div class="card-navigation">
+            <h2>Current Winning Streaks</h2>
+        </div>
         {% if win_streaks %}
         <div class="streaks-list">
             {% for streak in win_streaks[:10] %}
@@ -137,7 +140,9 @@
 
     <!-- Losing Streaks -->
     <div class="dashboard-card">
-        <h2>Current Losing Streaks</h2>
+        <div class="card-navigation">
+            <h2>Current Losing Streaks</h2>
+        </div>
         {% if loss_streaks %}
         <div class="streaks-list">
             {% for streak in loss_streaks[:10] %}
@@ -159,7 +164,9 @@
 
     <!-- Best Winning Streaks -->
     <div class="dashboard-card">
-        <h2>Best Winning Streaks ({{ selected_year }})</h2>
+        <div class="card-navigation">
+            <h2>Best Winning Streaks ({{ selected_year }})</h2>
+        </div>
         {% if best_win_streaks %}
         <div class="streaks-list">
             {% for streak in best_win_streaks[:10] %}
@@ -180,7 +187,9 @@
 
     <!-- Worst Losing Streaks -->
     <div class="dashboard-card">
-        <h2>Worst Losing Streaks ({{ selected_year }})</h2>
+        <div class="card-navigation">
+            <h2>Worst Losing Streaks ({{ selected_year }})</h2>
+        </div>
         {% if best_loss_streaks %}
         <div class="streaks-list">
             {% for streak in best_loss_streaks[:10] %}
@@ -201,7 +210,9 @@
 
     <!-- Monthly Activity -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Monthly Activity</h2>
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Monthly Activity</h2>
+        </div>
         <div class="streaks-list">
             {% for month in range(1, 13) %}
             <div class="streak-item">
@@ -228,7 +239,9 @@
 
     <!-- Recent Games -->
     <div class="dashboard-card">
-        <h2>{{ selected_year }} Recent Games</h2>
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Recent Games</h2>
+        </div>
         {% if recent_games %}
         <div class="streaks-list">
             {% for game in recent_games[:10] %}
@@ -405,14 +418,19 @@
     font-size: 14px;
 }
 
+
 .record-info {
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
+    min-width: 60px;
+    text-align: center;
 }
 
 .differential {
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
+    min-width: 40px;
+    text-align: center;
 }
 
 /* Ensure all card content uses consistent styling */
@@ -431,6 +449,37 @@
     margin-bottom: 0;
 }
 
+/* Today's Activity specific styling */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid var(--button-bg-1);
+    background-color: rgba(174, 238, 152, 0.05);
+    margin-bottom: 8px;
+}
+
+.activity-item:last-child {
+    margin-bottom: 0;
+}
+
+.activity-info {
+    font-weight: normal;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
 /* Restore original streak colors */
 .dashboard-card .streak-item.win {
     background-color: rgba(76, 175, 80, 0.1);
@@ -440,6 +489,11 @@
 .dashboard-card .streak-item.loss {
     background-color: rgba(244, 67, 54, 0.1);
     border-left-color: #f44336;
+}
+
+.dashboard-card .streak-item.neutral {
+    background-color: rgba(158, 158, 158, 0.1);
+    border-left-color: #9E9E9E;
 }
 
 /* Standardize all text elements in cards */
@@ -483,7 +537,7 @@
 
 .card-navigation .nav-arrow {
     position: absolute;
-    top: 40%;
+    top: 30%;
     transform: translateY(-50%);
     z-index: 10;
 }
@@ -626,12 +680,6 @@
     font-weight: bold;
 }
 
-.differential {
-    min-width: 40px;
-    text-align: center;
-    font-weight: bold;
-    font-size: 16px;
-}
 
 .positive {
     color: #4CAF50;
@@ -806,20 +854,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update the date title
         const dateTitle = document.querySelector('#today-activity-card .card-navigation h2');
         if (dateTitle) {
-            dateTitle.textContent = `${data.display_date} Activity`;
+            dateTitle.textContent = `${data.display_date} Stats`;
         }
         
         // Update the stats content
-        const todayStatsContainer = document.querySelector('#today-activity-card .streaks-list');
-        if (todayStatsContainer) {
+        const activityList = document.querySelector('#today-activity-card .streaks-list');
+        if (activityList) {
             if (data.date_stats && data.date_stats.length > 0) {
-                let streaksHTML = '';
+                let activityHTML = '';
                 data.date_stats.slice(0, 10).forEach((player) => {
                     const record = `${player[1]}-${player[2]}`;
                     const winPct = Math.round(player[3] * 100);
                     const diff = player[4] > 0 ? `+${player[4]}` : player[4].toString();
-                    streaksHTML += `
-                        <div class="streak-item">
+                    let itemClass = '';
+                    if (player[3] < 0.5) {
+                        itemClass = ' loss';
+                    } else if (player[3] == 0.5) {
+                        itemClass = ' neutral';
+                    } else {
+                        itemClass = ' win';
+                    }
+                    activityHTML += `
+                        <div class="streak-item${itemClass}">
                             <span class="player-name">
                                 <a href="/player/All years/${encodeURIComponent(player[0])}/">${player[0]}</a>
                             </span>
@@ -830,14 +886,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
                 });
-                todayStatsContainer.innerHTML = streaksHTML;
+                activityList.innerHTML = activityHTML;
             } else {
                 // No games today
-                todayStatsContainer.innerHTML = `
-                    <div class="no-activity">
-                        <div class="no-activity-icon">🏓</div>
-                        <p>No games played on this date</p>
-                        <small>Check back later for activity!</small>
+                activityList.innerHTML = `
+                    <div class="streak-item">
+                        <span class="player-name">No games played on this date</span>
+                        <span class="streak-info">Check back later for activity!</span>
                     </div>
                 `;
             }

@@ -206,6 +206,32 @@ def has_games_on_date(target_date):
     count = cur.fetchone()[0]
     return count > 0
 
+def get_previous_date_with_games(current_date, max_days_back=30):
+    """Get the previous date that has games, skipping days with no games"""
+    from datetime import datetime, timedelta
+    if isinstance(current_date, str):
+        current_date = datetime.strptime(current_date, '%Y-%m-%d')
+    
+    for days_back in range(1, max_days_back + 1):
+        previous_date = current_date - timedelta(days=days_back)
+        date_str = previous_date.strftime('%Y-%m-%d')
+        if has_games_on_date(date_str):
+            return date_str
+    return None
+
+def get_next_date_with_games(current_date, max_days_forward=30):
+    """Get the next date that has games, skipping days with no games"""
+    from datetime import datetime, timedelta
+    if isinstance(current_date, str):
+        current_date = datetime.strptime(current_date, '%Y-%m-%d')
+    
+    for days_forward in range(1, max_days_forward + 1):
+        next_date = current_date + timedelta(days=days_forward)
+        date_str = next_date.strftime('%Y-%m-%d')
+        if has_games_on_date(date_str):
+            return date_str
+    return None
+
 def convert_ampm(games):
     converted_games = []
     for game in games:

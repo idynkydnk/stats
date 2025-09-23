@@ -1004,7 +1004,7 @@ def date_range_stats(start_date=None, end_date=None):
 @app.route('/dashboard/')
 def dashboard():
     """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date, get_next_date, has_games_on_date
+    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
@@ -1029,13 +1029,13 @@ def dashboard():
     # Get stats for the specific date
     date_stats, date_games = specific_date_stats(target_date)
     
-    # Navigation dates
-    previous_date = get_previous_date(target_date)
-    next_date = get_next_date(target_date)
+    # Navigation dates - skip days without games
+    previous_date = get_previous_date_with_games(target_date)
+    next_date = get_next_date_with_games(target_date)
     
-    # Check if there are games on adjacent dates
-    has_previous = has_games_on_date(previous_date)
-    has_next = has_games_on_date(next_date)
+    # Check if there are previous/next dates with games
+    has_previous = previous_date is not None
+    has_next = next_date is not None
     
     # Format date for display
     try:
@@ -1057,7 +1057,7 @@ def dashboard():
 @app.route('/api/dashboard/today-activity/')
 def dashboard_today_activity():
     """API endpoint to get just the Today's Activity card content"""
-    from stat_functions import specific_date_stats, get_previous_date, get_next_date, has_games_on_date
+    from stat_functions import specific_date_stats, get_previous_date_with_games, get_next_date_with_games
     from datetime import datetime
     from flask import jsonify
     
@@ -1069,13 +1069,13 @@ def dashboard_today_activity():
     # Get stats for the specific date
     date_stats, date_games = specific_date_stats(target_date)
     
-    # Navigation dates
-    previous_date = get_previous_date(target_date)
-    next_date = get_next_date(target_date)
+    # Navigation dates - skip days without games
+    previous_date = get_previous_date_with_games(target_date)
+    next_date = get_next_date_with_games(target_date)
     
-    # Check if there are games on adjacent dates
-    has_previous = has_games_on_date(previous_date)
-    has_next = has_games_on_date(next_date)
+    # Check if there are previous/next dates with games
+    has_previous = previous_date is not None
+    has_next = next_date is not None
     
     # Format date for display
     try:
