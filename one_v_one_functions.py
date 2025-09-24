@@ -18,10 +18,10 @@ def get_one_v_one_dashboard_data(year):
                 elif player == game.get('loser1'):  # loser
                     losses += 1
             else:
-                # Handle tuple/list format
-                if len(game) > 3 and player == game[3]:  # winner
+                # Handle tuple/list format - winner is at index 4, loser at index 6
+                if len(game) > 4 and player == game[4]:  # winner
                     wins += 1
-                elif len(game) > 5 and player == game[5]:  # loser
+                elif len(game) > 6 and player == game[6]:  # loser
                     losses += 1
         
         if wins + losses > 0:
