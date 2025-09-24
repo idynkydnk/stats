@@ -1051,13 +1051,16 @@ def get_current_streaks_last_365_days():
 	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
 	return streak_list  # Return all streaks, not just top 10
 
-def calculate_glicko_rankings():
+def calculate_glicko_rankings(year=None):
 	"""Calculate Glicko-2 rankings for all players based on doubles games"""
 	import math
 	from collections import defaultdict
 	
 	cur = set_cur()
-	cur.execute("SELECT * FROM games ORDER BY game_date ASC")
+	if year and year != 'All years':
+		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date ASC", (str(year),))
+	else:
+		cur.execute("SELECT * FROM games ORDER BY game_date ASC")
 	games = cur.fetchall()
 	
 	# Initialize player ratings (rating, rating_deviation, volatility)

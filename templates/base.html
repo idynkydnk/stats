@@ -42,12 +42,7 @@
                     <li><a href="{{ url_for('top_teams') }}"><i class="fas fa-trophy"></i> Top Teams</a></li>
                     <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
                     <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
-                    <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-                    <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-                    <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
-                    <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
-        <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="{{ url_for('glicko_rankings') }}"><i class="fas fa-medal"></i> Glicko-2 Rankings</a></li>
+                    <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>

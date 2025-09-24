@@ -6,6 +6,17 @@
 <div class="container">
     <h1>Glicko-2 Rankings</h1>
     
+    <!-- Year Selector -->
+    <div class="year-selector" style="margin-bottom: 20px;">
+        <form method="GET" style="display: inline-block;">
+            <select name="year" onchange="this.form.submit()" style="padding: 8px; font-size: 16px; border: 2px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);">
+                {% for year in available_years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    
     <p><strong>Glicko-2</strong> considers rating deviation and volatility for more accurate skill assessment.</p>
     <p><strong>Rating:</strong> Skill level | <strong>RD:</strong> Uncertainty | <strong>Volatility:</strong> Rating stability</p>
     

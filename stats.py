@@ -1107,8 +1107,8 @@ def dashboard():
     except:
         display_date = target_date
     
-    # Get glicko rankings
-    glicko_rankings = calculate_glicko_rankings()
+    # Get glicko rankings for the selected year
+    glicko_rankings = calculate_glicko_rankings(selected_year)
     
     # Add date navigation data
     dashboard_data['today_stats'] = date_stats
@@ -1192,9 +1192,53 @@ def tournaments():
 @app.route('/glicko_rankings/')
 def glicko_rankings():
     """Glicko-2 rankings page"""
-    from stat_functions import calculate_glicko_rankings
-    rankings = calculate_glicko_rankings()
-    return render_template('glicko_rankings.html', rankings=rankings)
+    from stat_functions import calculate_glicko_rankings, grab_all_years
+    from datetime import datetime
+    
+    # Get selected year from query parameter, default to current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = str(datetime.now().year)
+    
+    # Get available years
+    available_years = grab_all_years()
+    
+    rankings = calculate_glicko_rankings(selected_year)
+    return render_template('glicko_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
+
+@app.route('/game_hub')
+def game_hub():
+    """Game Hub dashboard showing vollis, 1v1, and other game statistics"""
+    from stat_functions import grab_all_years
+    from vollis_functions import get_vollis_dashboard_data
+    from one_v_one_functions import get_one_v_one_dashboard_data
+    from other_functions import get_other_dashboard_data
+    from datetime import datetime
+    
+    # Get selected year from query parameter, default to current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = str(datetime.now().year)
+    
+    # Get available years
+    available_years = grab_all_years()
+    
+    # Get dashboard data for each game type
+    vollis_data = get_vollis_dashboard_data(selected_year)
+    one_v_one_data = get_one_v_one_dashboard_data(selected_year)
+    other_data = get_other_dashboard_data(selected_year)
+    
+    return render_template('game_hub.html', 
+                          selected_year=selected_year,
+                          available_years=available_years,
+                          vollis_data=vollis_data,
+                          one_v_one_data=one_v_one_data,
+                          other_data=other_data)
+
+@app.route('/work_in_progress')
+def work_in_progress():
+    """Work in Progress page with links to various features"""
+    return render_template('work_in_progress.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

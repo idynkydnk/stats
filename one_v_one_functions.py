@@ -1,6 +1,51 @@
 from create_one_v_one_database import *
 from datetime import datetime, date
 
+def get_one_v_one_dashboard_data(year):
+    """Get dashboard data for 1v1 games"""
+    games = one_v_one_year_games(year)
+    players = all_one_v_one_players(games)
+    
+    # Calculate stats for each player
+    player_stats = []
+    for player in players:
+        wins, losses = 0, 0
+        for game in games:
+            # Check if this is a dictionary (from readable_games_data) or tuple
+            if isinstance(game, dict):
+                if player == game.get('winner1'):  # winner
+                    wins += 1
+                elif player == game.get('loser1'):  # loser
+                    losses += 1
+            else:
+                # Handle tuple/list format
+                if len(game) > 3 and player == game[3]:  # winner
+                    wins += 1
+                elif len(game) > 5 and player == game[5]:  # loser
+                    losses += 1
+        
+        if wins + losses > 0:
+            win_percentage = wins / (wins + losses)
+            player_stats.append([player, wins, losses, win_percentage, wins - losses])
+    
+    # Sort by win percentage
+    player_stats.sort(key=lambda x: x[3], reverse=True)
+    
+    # Get top players by win percentage and games played
+    top_win_percentage = player_stats[:20]
+    top_games_played = sorted(player_stats, key=lambda x: x[1] + x[2], reverse=True)[:20]
+    
+    # Get recent games
+    recent_games = games[-10:] if games else []
+    
+    return {
+        'top_win_percentage': top_win_percentage,
+        'top_games_played': top_games_played,
+        'recent_games': recent_games,
+        'total_players': len(players),
+        'total_games': len(games)
+    }
+
 def one_v_one_stats_per_year(year, minimum_games):
     games = one_v_one_year_games(year)
     players = all_one_v_one_players(games)
