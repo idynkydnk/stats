@@ -38,12 +38,51 @@ def get_one_v_one_dashboard_data(year):
     # Get recent games
     recent_games = games[-10:] if games else []
     
+    # Get game types
+    game_types = one_v_one_game_types(games)
+    
+    # Get game-specific data for popular games
+    game_specific_data = {}
+    popular_games = ['Gin rummy 500', 'Half court long ways', 'Backgammon', 'Matterhorn', 'Short court two touch only']
+    
+    for game_name in popular_games:
+        game_games = [game for game in games if len(game) > 3 and game[3] == game_name]  # game_name is at index 3
+        if game_games:
+            game_players = []
+            for game in game_games:
+                if len(game) > 4 and game[4] not in game_players:  # winner at index 4
+                    game_players.append(game[4])
+                if len(game) > 6 and game[6] not in game_players:  # loser at index 6
+                    game_players.append(game[6])
+            
+            game_player_stats = []
+            for player in game_players:
+                wins, losses = 0, 0
+                for game in game_games:
+                    if len(game) > 4 and player == game[4]:  # winner
+                        wins += 1
+                    elif len(game) > 6 and player == game[6]:  # loser
+                        losses += 1
+                
+                if wins + losses > 0:
+                    win_percentage = wins / (wins + losses)
+                    game_player_stats.append([player, wins, losses, win_percentage, wins - losses])
+            
+            game_player_stats.sort(key=lambda x: x[3], reverse=True)
+            game_specific_data[game_name] = {
+                'top_players': game_player_stats[:10],
+                'total_games': len(game_games),
+                'total_players': len(game_players)
+            }
+    
     return {
         'top_win_percentage': top_win_percentage,
         'top_games_played': top_games_played,
         'recent_games': recent_games,
         'total_players': len(players),
-        'total_games': len(games)
+        'total_games': len(games),
+        'game_types': game_types,
+        'game_specific': game_specific_data
     }
 
 def one_v_one_stats_per_year(year, minimum_games):

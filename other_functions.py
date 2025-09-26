@@ -30,12 +30,43 @@ def get_other_dashboard_data(year):
     # Get recent games
     recent_games = games[-10:] if games else []
     
+    # Get game types
+    game_types = other_game_types(games)
+    
+    # Get game-specific data
+    game_specific_data = {}
+    for game_name in ['Sequence', 'Coed', 'No jump', 'Mixed doubles', 'Euchre']:
+        game_games = [game for game in games if game.get('game_name') == game_name]
+        if game_games:
+            game_players = all_other_players(game_games)
+            game_player_stats = []
+            for player in game_players:
+                wins, losses = 0, 0
+                for game in game_games:
+                    if player == game.get('winner1'):  # winner
+                        wins += 1
+                    elif player == game.get('loser1'):  # loser
+                        losses += 1
+                
+                if wins + losses > 0:
+                    win_percentage = wins / (wins + losses)
+                    game_player_stats.append([player, wins, losses, win_percentage, wins - losses])
+            
+            game_player_stats.sort(key=lambda x: x[3], reverse=True)
+            game_specific_data[game_name] = {
+                'top_players': game_player_stats[:10],
+                'total_games': len(game_games),
+                'total_players': len(game_players)
+            }
+    
     return {
         'top_win_percentage': top_win_percentage,
         'top_games_played': top_games_played,
         'recent_games': recent_games,
         'total_players': len(players),
-        'total_games': len(games)
+        'total_games': len(games),
+        'game_types': game_types,
+        'game_specific': game_specific_data
     }
 
 def add_other_stats(game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 

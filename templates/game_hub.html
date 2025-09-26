@@ -31,13 +31,13 @@
                 <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
             </div>
             {% endfor %}
-            {% if vollis_data.top_win_percentage|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'vollis-win-more')">Show More</button>
-            </div>
+        {% if vollis_data.top_win_percentage|length > 5 %}
+        <div class="show-more-container">
+            <button class="show-more-btn" onclick="toggleShowMore(this, 'vollis-win-more')">Show More</button>
+        </div>
             <div class="streaks-list hidden" id="vollis-win-more">
-                {% for stat in vollis_data.top_win_percentage[5:20] %}
-                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+            {% for stat in vollis_data.top_win_percentage[5:20] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
                     <span class="player-name">
                         <a href="{{ url_for('vollis_player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -65,13 +65,13 @@
                 <span class="streak-info">{{ stat[1] + stat[2] }} games</span>
             </div>
             {% endfor %}
-            {% if vollis_data.top_games_played|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'vollis-games-more')">Show More</button>
-            </div>
+        {% if vollis_data.top_games_played|length > 5 %}
+        <div class="show-more-container">
+            <button class="show-more-btn" onclick="toggleShowMore(this, 'vollis-games-more')">Show More</button>
+        </div>
             <div class="streaks-list hidden" id="vollis-games-more">
-                {% for stat in vollis_data.top_games_played[5:20] %}
-                <div class="streak-item">
+            {% for stat in vollis_data.top_games_played[5:20] %}
+            <div class="streak-item">
                     <span class="player-name">
                         <a href="{{ url_for('vollis_player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -99,13 +99,13 @@
                 <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
             </div>
             {% endfor %}
-            {% if one_v_one_data.top_win_percentage|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'onevone-win-more')">Show More</button>
-            </div>
+        {% if one_v_one_data.top_win_percentage|length > 5 %}
+        <div class="show-more-container">
+            <button class="show-more-btn" onclick="toggleShowMore(this, 'onevone-win-more')">Show More</button>
+        </div>
             <div class="streaks-list hidden" id="onevone-win-more">
-                {% for stat in one_v_one_data.top_win_percentage[5:20] %}
-                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+            {% for stat in one_v_one_data.top_win_percentage[5:20] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
                     <span class="player-name">
                         <a href="{{ url_for('one_v_one_player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -133,13 +133,13 @@
                 <span class="streak-info">{{ stat[1] + stat[2] }} games</span>
             </div>
             {% endfor %}
-            {% if one_v_one_data.top_games_played|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'onevone-games-more')">Show More</button>
-            </div>
+        {% if one_v_one_data.top_games_played|length > 5 %}
+        <div class="show-more-container">
+            <button class="show-more-btn" onclick="toggleShowMore(this, 'onevone-games-more')">Show More</button>
+        </div>
             <div class="streaks-list hidden" id="onevone-games-more">
-                {% for stat in one_v_one_data.top_games_played[5:20] %}
-                <div class="streak-item">
+            {% for stat in one_v_one_data.top_games_played[5:20] %}
+            <div class="streak-item">
                     <span class="player-name">
                         <a href="{{ url_for('one_v_one_player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -167,13 +167,13 @@
                 <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
             </div>
             {% endfor %}
-            {% if other_data.top_win_percentage|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'other-win-more')">Show More</button>
-            </div>
+        {% if other_data.top_win_percentage|length > 5 %}
+        <div class="show-more-container">
+            <button class="show-more-btn" onclick="toggleShowMore(this, 'other-win-more')">Show More</button>
+        </div>
             <div class="streaks-list hidden" id="other-win-more">
-                {% for stat in other_data.top_win_percentage[5:20] %}
-                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+            {% for stat in other_data.top_win_percentage[5:20] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
                     <span class="player-name">
                         <a href="{{ url_for('other_player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
                     </span>
@@ -219,6 +219,254 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- 1v1 Game Types -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} 1v1 Game Types</h2>
+        </div>
+        <div class="streaks-list">
+            {% if one_v_one_data.game_types %}
+            {% for game_type in one_v_one_data.game_types[:5] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('one_v_one_games_by_type', game_type=game_type) }}">{{ game_type }}</a>
+                </span>
+                <span class="streak-info">Game Type</span>
+            </div>
+            {% endfor %}
+            {% if one_v_one_data.game_types|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'onevone-types-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="onevone-types-more">
+                {% for game_type in one_v_one_data.game_types[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('one_v_one_games_by_type', game_type=game_type) }}">{{ game_type }}</a>
+                    </span>
+                    <span class="streak-info">Game Type</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Other Game Types -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Other Game Types</h2>
+        </div>
+        <div class="streaks-list">
+            {% if other_data.game_types %}
+            {% for game_type in other_data.game_types[:5] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('other_games_by_year', year=selected_year) }}">{{ game_type }}</a>
+                </span>
+                <span class="streak-info">Game Type</span>
+            </div>
+            {% endfor %}
+            {% if other_data.game_types|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'other-types-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="other-types-more">
+                {% for game_type in other_data.game_types[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('other_games_by_year', year=selected_year) }}">{{ game_type }}</a>
+                    </span>
+                    <span class="streak-info">Game Type</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Sequence Stats -->
+    {% if other_data.game_specific and other_data.game_specific.get('Sequence') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Sequence Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in other_data.game_specific.Sequence.top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if other_data.game_specific.Sequence.top_players|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'sequence-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="sequence-more">
+                {% for stat in other_data.game_specific.Sequence.top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Coed Stats -->
+    {% if other_data.game_specific and other_data.game_specific.get('Coed') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Coed Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in other_data.game_specific.Coed.top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if other_data.game_specific.Coed.top_players|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'coed-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="coed-more">
+                {% for stat in other_data.game_specific.Coed.top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- No Jump Stats -->
+    {% if other_data.game_specific and other_data.game_specific.get('No jump') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} No Jump Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in other_data.game_specific['No jump'].top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if other_data.game_specific['No jump'].top_players|length > 5 %}
+        <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'nojump-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="nojump-more">
+                {% for stat in other_data.game_specific['No jump'].top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Gin Rummy 500 Stats -->
+    {% if one_v_one_data.game_specific and one_v_one_data.game_specific.get('Gin rummy 500') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Gin Rummy 500 Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in one_v_one_data.game_specific['Gin rummy 500'].top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if one_v_one_data.game_specific['Gin rummy 500'].top_players|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'ginrummy-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="ginrummy-more">
+                {% for stat in one_v_one_data.game_specific['Gin rummy 500'].top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Half Court Long Ways Stats -->
+    {% if one_v_one_data.game_specific and one_v_one_data.game_specific.get('Half court long ways') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Half Court Long Ways Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in one_v_one_data.game_specific['Half court long ways'].top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if one_v_one_data.game_specific['Half court long ways'].top_players|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'halfcourt-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="halfcourt-more">
+                {% for stat in one_v_one_data.game_specific['Half court long ways'].top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Backgammon Stats -->
+    {% if one_v_one_data.game_specific and one_v_one_data.game_specific.get('Backgammon') %}
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Backgammon Stats</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in one_v_one_data.game_specific.Backgammon.top_players[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">{{ stat[0] }}</span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if one_v_one_data.game_specific.Backgammon.top_players|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'backgammon-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="backgammon-more">
+                {% for stat in one_v_one_data.game_specific.Backgammon.top_players[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">{{ stat[0] }}</span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>

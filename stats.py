@@ -1215,10 +1215,10 @@ def game_hub():
     from other_functions import get_other_dashboard_data
     from datetime import datetime
     
-    # Get selected year from query parameter, default to current year
+    # Get selected year from query parameter, default to All years
     selected_year = request.args.get('year')
     if not selected_year:
-        selected_year = str(datetime.now().year)
+        selected_year = 'All years'
     
     # Get available years
     available_years = grab_all_years()
