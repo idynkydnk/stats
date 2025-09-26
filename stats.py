@@ -1119,6 +1119,7 @@ def dashboard():
     dashboard_data['has_previous'] = has_previous
     dashboard_data['has_next'] = has_next
     dashboard_data['glicko_rankings'] = glicko_rankings
+    dashboard_data['current_month'] = datetime.now().month
     
     return render_template('dashboard.html', **dashboard_data)
 
