@@ -344,10 +344,16 @@ def update(id):
             details = f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited doubles game', details)
             
-            return redirect(url_for('edit_games'))
+            # Check if user came from add game page
+            from_add_game = request.form.get('from_add_game')
+            if from_add_game == 'true':
+                return redirect(url_for('add_game'))
+            else:
+                return redirect(url_for('edit_games'))
  
     return render_template('edit_game.html', game=game, players=players, 
-        w_scores=w_scores, l_scores=l_scores, year=str(date.today().year))
+        w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
+        from_add_game=request.args.get('from_add_game'))
 
 @app.route('/player_trends/')
 def player_trends():

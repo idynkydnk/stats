@@ -25,6 +25,9 @@
 	</table>
 	<div>
 	   <form method="post">
+			  {% if from_add_game %}
+			  <input type="hidden" name="from_add_game" value="true">
+			  {% endif %}
 			  <datalist id="players">
 					 {% for player in players %}
 							<option value= "{{ player }}">
