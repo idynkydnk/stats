@@ -1,8 +1,62 @@
 {% extends 'base_admin.html' %}
 
+<style>
+.autocomplete {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.autocomplete input {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 1px solid #ccc;
+    background: white;
+    z-index: 999;
+    display: none;
+    max-height: 150px;
+    overflow-y: auto;
+    width: 280px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.autocomplete-list div {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    font-size: 20px !important;
+    line-height: 1.4;
+    font-weight: normal !important;
+}
+
+/* More specific selector to override any base styles */
+.autocomplete .autocomplete-list div {
+    font-size: 20px !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
+}
+
+.autocomplete-list div:hover {
+    background: #f5f5f5;
+}
+
+.autocomplete-list div:last-child {
+    border-bottom: none;
+}
+</style>
+
 {% block content %}
     <h1>{% block title %} Add Vollis Game {% endblock %}</h1>
-    <div>
+    <div class="container">
     <form method="post">
         <datalist id="players">
             {% for player in players %}
@@ -19,24 +73,33 @@
                 <option value= "{{ score }}"></option>
             {% endfor %}
         </datalist>
-        <input type="text" name="winner" id="winner"
-                placeholder="Winner"
-                value="{{ request.form['winner'] }}"
-                list="players"
-                onchange="updatePlayerOptions()">
-        <input type="text" name="loser" id="loser"
-                placeholder="Loser"
-                value="{{ request.form['loser'] }}"
-                list="players"
-                onchange="updatePlayerOptions()">     
-        <input type="number" pattern="[0-9]*" name="winner_score"
-                placeholder="Winner's Score"
-                value="{{ request.form['winner_score'] }}"
-                list="winning_scores">
-        <input type="number" pattern="[0-9]*" name="loser_score"
-                placeholder="Loser's Score"
-                value="{{ request.form['loser_score'] }}"
-                list="losing_scores">    
+        <div class="autocomplete">
+            <input type="text" name="winner" id="winner"
+                    placeholder="Winner"
+                    value="{{ request.form['winner'] }}"
+                    onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="winnerList"></div>
+        </div>
+        <div class="autocomplete">
+            <input type="text" name="loser" id="loser"
+                    placeholder="Loser"
+                    value="{{ request.form['loser'] }}"
+                    onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="loserList"></div>
+        </div>     
+        <div class="autocomplete">
+            <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
+                    placeholder="Winner's Score"
+                    value="{{ request.form['winner_score'] or '' }}"
+                    onchange="updateLoserScoreOptions()">
+            <div class="autocomplete-list" id="winner_scoreList"></div>
+        </div>
+        <div class="autocomplete">
+            <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score"
+                    placeholder="Loser's Score"
+                    value="{{ request.form['loser_score'] }}">
+            <div class="autocomplete-list" id="loser_scoreList"></div>
+        </div>    
         <input type="submit" value="Submit">
     </form>
     </div>
@@ -126,6 +189,238 @@ function updatePlayerOptions() {
             playersDatalist.appendChild(option);
         }
     });
+}
+
+function updateLoserScoreOptions() {
+    const winnerScoreInput = document.getElementById('winner_score');
+    const loserScoreDatalist = document.getElementById('losing_scores');
+    const winnerScore = parseInt(winnerScoreInput.value);
+    
+    // Clear existing options
+    loserScoreDatalist.innerHTML = '';
+    
+    // Generate loser score options from (winner score - 2) down to 0
+    if (winnerScore && winnerScore > 0) {
+        const maxLoserScore = Math.max(0, winnerScore - 2);
+        for (let score = maxLoserScore; score >= 0; score--) {
+            const option = document.createElement('option');
+            option.value = score;
+            loserScoreDatalist.appendChild(option);
+        }
+    }
+}
+
+// Initialize autocomplete functionality
+document.addEventListener('DOMContentLoaded', function() {
+    updateLoserScoreOptions();
+    
+    // Get all players for autocomplete
+    const allPlayers = Array.from(document.getElementById('players').options).map(option => option.value);
+    const nameFields = ['winner', 'loser'];
+    const nextFields = ['loser', 'winner_score', 'loser_score'];
+    
+    // Get score options for autocomplete
+    const winnerScores = ['21', '15', '22', '23', '16'];
+    const scoreFields = ['winner_score', 'loser_score'];
+    
+    // Initialize autocomplete for each name field
+    nameFields.forEach((fieldId, index) => {
+        const field = document.getElementById(fieldId);
+        const list = document.getElementById(fieldId + 'List');
+        
+        if (field && list) {
+            // Show list when input gets focus
+            field.addEventListener('focus', () => {
+                showPlayerList(field, list, allPlayers, nameFields);
+            });
+            
+            // Filter list as user types
+            field.addEventListener('input', () => {
+                filterPlayerList(field, list, allPlayers, nameFields);
+            });
+            
+            // Handle selection and auto-focus next field
+            list.addEventListener('click', (e) => {
+                if (e.target.tagName === 'DIV') {
+                    field.value = e.target.textContent;
+                    list.style.display = 'none';
+                    updatePlayerOptions();
+                    
+                    // Auto-focus next field
+                    const nextField = document.getElementById(nextFields[index]);
+                    if (nextField) {
+                        setTimeout(() => {
+                            nextField.focus();
+                        }, 100);
+                    }
+                }
+            });
+        }
+    });
+    
+    // Initialize autocomplete for score fields
+    scoreFields.forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        const list = document.getElementById(fieldId + 'List');
+        
+        if (field && list) {
+            // Show list when input gets focus
+            field.addEventListener('focus', () => {
+                if (fieldId === 'winner_score') {
+                    showScoreList(field, list, winnerScores);
+                } else if (fieldId === 'loser_score') {
+                    // Get loser scores based on winner score
+                    const winnerScore = parseInt(document.getElementById('winner_score').value) || 21;
+                    const loserScores = [];
+                    const maxLoserScore = Math.max(0, winnerScore - 2);
+                    for (let score = maxLoserScore; score >= 0; score--) {
+                        loserScores.push(score.toString());
+                    }
+                    showScoreList(field, list, loserScores);
+                }
+            });
+            
+            // Filter list as user types
+            field.addEventListener('input', () => {
+                if (fieldId === 'winner_score') {
+                    filterScoreList(field, list, winnerScores);
+                } else if (fieldId === 'loser_score') {
+                    // Get loser scores based on winner score
+                    const winnerScore = parseInt(document.getElementById('winner_score').value) || 21;
+                    const loserScores = [];
+                    const maxLoserScore = Math.max(0, winnerScore - 2);
+                    for (let score = maxLoserScore; score >= 0; score--) {
+                        loserScores.push(score.toString());
+                    }
+                    filterScoreList(field, list, loserScores);
+                }
+            });
+            
+            // Handle selection
+            list.addEventListener('click', (e) => {
+                if (e.target.tagName === 'DIV') {
+                    field.value = e.target.textContent;
+                    list.style.display = 'none';
+                    if (fieldId === 'winner_score') {
+                        updateLoserScoreOptions();
+                        // Auto-focus loser score field
+                        setTimeout(() => {
+                            const loserScoreField = document.getElementById('loser_score');
+                            if (loserScoreField) {
+                                loserScoreField.focus();
+                            }
+                        }, 100);
+                    }
+                }
+            });
+        }
+    });
+    
+    // Hide lists when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete')) {
+            [...nameFields, ...scoreFields].forEach(fieldId => {
+                const list = document.getElementById(fieldId + 'List');
+                if (list) list.style.display = 'none';
+            });
+        }
+    });
+});
+
+// Show player list for a field
+function showPlayerList(field, list, allPlayers, nameFields) {
+    // Get currently selected players
+    const selectedPlayers = [];
+    nameFields.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim() && input !== field) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Filter out selected players
+    const availablePlayers = allPlayers.filter(player => !selectedPlayers.includes(player));
+    
+    // Populate list (max 10 entries)
+    list.innerHTML = '';
+    availablePlayers.slice(0, 10).forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+}
+
+// Filter player list based on input
+function filterPlayerList(field, list, allPlayers, nameFields) {
+    const inputValue = field.value.toLowerCase();
+    
+    // Get currently selected players
+    const selectedPlayers = [];
+    nameFields.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value.trim() && input !== field) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    
+    // Filter players
+    const filteredPlayers = allPlayers.filter(player => 
+        !selectedPlayers.includes(player) && 
+        player.toLowerCase().includes(inputValue)
+    );
+    
+    // Update list (max 10 entries)
+    list.innerHTML = '';
+    filteredPlayers.slice(0, 10).forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = filteredPlayers.length > 0 ? 'block' : 'none';
+}
+
+// Show score list for a field
+function showScoreList(field, list, scores) {
+    // Populate list with scores (max 10 entries)
+    list.innerHTML = '';
+    scores.slice(0, 10).forEach(score => {
+        const div = document.createElement('div');
+        div.textContent = score;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+}
+
+// Filter score list based on input
+function filterScoreList(field, list, scores) {
+    const inputValue = field.value;
+    
+    // Filter scores
+    const filteredScores = scores.filter(score => 
+        score.includes(inputValue)
+    );
+    
+    // Update list (max 10 entries)
+    list.innerHTML = '';
+    filteredScores.slice(0, 10).forEach(score => {
+        const div = document.createElement('div');
+        div.textContent = score;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = filteredScores.length > 0 ? 'block' : 'none';
 }
 </script>
 {% endblock %}

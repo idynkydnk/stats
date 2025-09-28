@@ -1102,15 +1102,38 @@ def calculate_glicko_rankings(year=None):
 				update_glicko_rating(player_ratings[winner], player_ratings[loser], 1, TAU)
 				update_glicko_rating(player_ratings[loser], player_ratings[winner], 0, TAU)
 	
-	# Convert to list and sort by rating
+	# Calculate minimum games requirement (same as doubles stats page)
+	if len(games) < 30:
+		minimum_games = 1
+	else:
+		minimum_games = len(games) // 30
+	
+	# Count games per player
+	player_game_counts = defaultdict(int)
+	for game in games:
+		# Count games for each player
+		winners = [game[2], game[3]]  # winner1, winner2
+		losers = [game[5], game[6]]   # loser1, loser2
+		
+		# Filter out players with question marks
+		winners = [w for w in winners if '?' not in w]
+		losers = [l for l in losers if '?' not in l]
+		
+		for player in winners + losers:
+			player_game_counts[player] += 1
+	
+	# Convert to list and sort by rating, filtering by minimum games
 	rankings = []
 	for player, rating_data in player_ratings.items():
-		rankings.append({
-			'player': player,
-			'rating': round(rating_data['rating']),
-			'rd': round(rating_data['rd']),
-			'volatility': round(rating_data['volatility'], 4)
-		})
+		# Only include players who meet the minimum games requirement
+		if player_game_counts[player] >= minimum_games:
+			rankings.append({
+				'player': player,
+				'rating': round(rating_data['rating']),
+				'rd': round(rating_data['rd']),
+				'volatility': round(rating_data['volatility'], 4),
+				'games_played': player_game_counts[player]
+			})
 	
 	# Sort by rating (highest first)
 	rankings.sort(key=lambda x: x['rating'], reverse=True)

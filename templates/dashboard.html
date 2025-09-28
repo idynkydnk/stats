@@ -109,6 +109,53 @@
         </div>
     </div>
 
+    <!-- Glicko Rankings -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>Glicko-2 Rankings</h2>
+        </div>
+        {% if glicko_rankings %}
+        <div class="streaks-list">
+            {% for ranking in glicko_rankings[:5] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
+                </span>
+                <span class="streak-info">
+                    <span class="glicko-rating">{{ ranking.rating }}</span>
+                    <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                </span>
+            </div>
+            {% endfor %}
+            {% if glicko_rankings|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'glicko-rankings-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="glicko-rankings-more">
+                {% for ranking in glicko_rankings[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
+                    </span>
+                    <span class="streak-info">
+                        <span class="glicko-rating">{{ ranking.rating }}</span>
+                        <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No rankings available</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Year Leaders -->
     <div class="dashboard-card">
         <div class="card-navigation">
@@ -418,52 +465,6 @@
         {% endif %}
     </div>
 
-    <!-- Glicko Rankings -->
-    <div class="dashboard-card">
-        <div class="card-navigation">
-            <h2>Glicko-2 Rankings</h2>
-        </div>
-        {% if glicko_rankings %}
-        <div class="streaks-list">
-            {% for ranking in glicko_rankings[:5] %}
-            <div class="streak-item">
-                <span class="player-name">
-                    <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
-                </span>
-                <span class="streak-info">
-                    <span class="glicko-rating">{{ ranking.rating }}</span>
-                    <small class="glicko-rd">RD: {{ ranking.rd }}</small>
-                </span>
-            </div>
-            {% endfor %}
-            {% if glicko_rankings|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'glicko-rankings-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="glicko-rankings-more">
-                {% for ranking in glicko_rankings[5:20] %}
-                <div class="streak-item">
-                    <span class="player-name">
-                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
-                    </span>
-                    <span class="streak-info">
-                        <span class="glicko-rating">{{ ranking.rating }}</span>
-                        <small class="glicko-rd">RD: {{ ranking.rd }}</small>
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="streaks-list">
-            <div class="streak-item">
-                <span class="player-name">No rankings available</span>
-                <span class="streak-info">Check back later</span>
-            </div>
-        </div>
-        {% endif %}
-    </div>
 </div>
 
 <style>
