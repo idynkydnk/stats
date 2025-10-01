@@ -1,0 +1,147 @@
+{% extends 'base_admin.html' %}
+
+{% block content %}
+    <h1>{% block title %} Edit Other Game {% endblock %}</h1>
+    <div class="container">
+        <form method="post">
+            <datalist id="players">
+                {% for player in players %}
+                    <option value="{{ player }}">
+                {% endfor %}
+            </datalist>
+            
+            <div class="form-group">
+                <label for="game_type">Game Type:</label>
+                <input type="text" name="game_type" id="game_type" value="{{ game[2] }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="game_name">Game Name:</label>
+                <input type="text" name="game_name" id="game_name" value="{{ game[3] }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="winner1">Winner 1:</label>
+                <input type="text" name="winner1" id="winner1" value="{{ game[4] }}" list="players" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="winner2">Winner 2:</label>
+                <input type="text" name="winner2" id="winner2" value="{{ game[5] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="winner3">Winner 3:</label>
+                <input type="text" name="winner3" id="winner3" value="{{ game[6] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="winner4">Winner 4:</label>
+                <input type="text" name="winner4" id="winner4" value="{{ game[7] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="winner5">Winner 5:</label>
+                <input type="text" name="winner5" id="winner5" value="{{ game[8] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="winner6">Winner 6:</label>
+                <input type="text" name="winner6" id="winner6" value="{{ game[9] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="winner_score">Winner Score:</label>
+                <input type="number" name="winner_score" id="winner_score" value="{{ game[10] }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="loser1">Loser 1:</label>
+                <input type="text" name="loser1" id="loser1" value="{{ game[11] }}" list="players" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="loser2">Loser 2:</label>
+                <input type="text" name="loser2" id="loser2" value="{{ game[12] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="loser3">Loser 3:</label>
+                <input type="text" name="loser3" id="loser3" value="{{ game[13] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="loser4">Loser 4:</label>
+                <input type="text" name="loser4" id="loser4" value="{{ game[14] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="loser5">Loser 5:</label>
+                <input type="text" name="loser5" id="loser5" value="{{ game[15] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="loser6">Loser 6:</label>
+                <input type="text" name="loser6" id="loser6" value="{{ game[16] }}" list="players">
+            </div>
+            
+            <div class="form-group">
+                <label for="loser_score">Loser Score:</label>
+                <input type="number" name="loser_score" id="loser_score" value="{{ game[17] }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="comment">Comment:</label>
+                <input type="text" name="comment" id="comment" value="{{ game[18] }}">
+            </div>
+            
+            <div class="form-group">
+                <input type="submit" value="Update Game" class="btn btn-primary">
+                <a href="{{ url_for('edit_other_games') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+    
+    <style>
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+{% endblock %}

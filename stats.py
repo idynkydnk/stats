@@ -18,7 +18,8 @@ USERS = {
     'aaron': 'aaron2025',
     'dan': 'dan2025',
     'ryan': 'ryan2025',
-    'arbel': 'arbel2025'
+    'arbel': 'arbel2025',
+    'mark': 'mark2025'
 }
 
 def init_notifications_db():
@@ -741,32 +742,37 @@ def other():
 @app.route('/add_other_game/', methods=('GET', 'POST'))
 @login_required
 def add_other_game():
-    games = other_year_games('All years')
-    game_types = other_game_types(games)
-    game_names = other_game_names(games)
-    players = all_other_players(games)
+    from other_functions import convert_other_ampm, all_combined_players
+    games_raw = other_year_games_raw('All years')
+    games = convert_other_ampm(games_raw)
+    
+    # Get helper data using the old format
+    games_dict = other_year_games('All years')
+    game_types = other_game_types(games_dict)
+    game_names = other_game_names(games_dict)
+    players = all_combined_players()
     stats = todays_other_stats()
     year = str(date.today().year)
     winning_scores = other_winning_scores()
     losing_scores = other_losing_scores()
     if request.method == 'POST':
-        game_type = request.form['game_type']
-        game_name = request.form['game_name']
-        winner1 = request.form['winner1']
-        winner2 = request.form['winner2']
-        winner3 = request.form['winner3']
-        winner4 = request.form['winner4']
-        winner5 = request.form['winner5']
-        winner6 = request.form['winner6']
-        loser1 = request.form['loser1']
-        loser2 = request.form['loser2']
-        loser3 = request.form['loser3']
-        loser4 = request.form['loser4']
-        loser5 = request.form['loser5']
-        loser6 = request.form['loser6']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-        comment = request.form['comment']
+        game_type = request.form.get('game_type', '')
+        game_name = request.form.get('game_name', '')
+        winner1 = request.form.get('winner1', '')
+        winner2 = request.form.get('winner2', '')
+        winner3 = request.form.get('winner3', '')
+        winner4 = request.form.get('winner4', '')
+        winner5 = request.form.get('winner5', '')
+        winner6 = request.form.get('winner6', '')
+        loser1 = request.form.get('loser1', '')
+        loser2 = request.form.get('loser2', '')
+        loser3 = request.form.get('loser3', '')
+        loser4 = request.form.get('loser4', '')
+        loser5 = request.form.get('loser5', '')
+        loser6 = request.form.get('loser6', '')
+        winner_score = request.form.get('winner_score', '')
+        loser_score = request.form.get('loser_score', '')
+        comment = request.form.get('comment', '')
 
         if not game_type or not game_name or not winner1 or not loser1:
             flash('Some fields missing!')
@@ -818,23 +824,55 @@ def other_games_by_year(year):
 def update_other_game(id):
     game_id = id
     x = find_other_game(game_id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6]]
+    if not x:
+        flash('Game not found!')
+        return redirect(url_for('edit_other_games'))
+    
+    # Get the full game data (all 20 fields)
+    game = x[0]
     games = other_year_games(str(date.today().year))
     players = all_other_players(games)
+    
     if request.method == 'POST':
-        winner = request.form['winner']
-        loser = request.form['loser']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
+        game_type = request.form.get('game_type', '')
+        game_name = request.form.get('game_name', '')
+        winner1 = request.form.get('winner1', '')
+        winner2 = request.form.get('winner2', '')
+        winner3 = request.form.get('winner3', '')
+        winner4 = request.form.get('winner4', '')
+        winner5 = request.form.get('winner5', '')
+        winner6 = request.form.get('winner6', '')
+        loser1 = request.form.get('loser1', '')
+        loser2 = request.form.get('loser2', '')
+        loser3 = request.form.get('loser3', '')
+        loser4 = request.form.get('loser4', '')
+        loser5 = request.form.get('loser5', '')
+        loser6 = request.form.get('loser6', '')
+        winner_score = request.form.get('winner_score', '')
+        loser_score = request.form.get('loser_score', '')
+        comment = request.form.get('comment', '')
 
-        if not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
+        if not game_type or not game_name or not winner1 or not loser1 or not winner_score or not loser_score:
+            flash('Required fields missing!')
         else:
-            edit_other_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            # Update the game using the database function
+            from other_functions import database_update_other_game
+            from database_functions import create_connection
+            
+            database = '/home/Idynkydnk/stats/stats.db'
+            conn = create_connection(database)
+            if conn is None:
+                database = r'stats.db'
+                conn = create_connection(database)
+            
+            with conn:
+                game_data = (game_id, game[1], game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
+                           winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, datetime.now(), game_id)
+                database_update_other_game(conn, game_data)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
-            details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
+            details = f"Game ID {game_id}: {game_type} - {game_name}; {winner1} vs {loser1} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited other game', details)
             
             return redirect(url_for('edit_other_games'))
@@ -846,16 +884,21 @@ def update_other_game(id):
 def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
+    if not game:
+        flash('Game not found!')
+        return redirect(url_for('edit_other_games'))
+    
     if request.method == 'POST':
         # Log the action for notifications before deleting
         user = session.get('username', 'unknown')
-        details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
+        # Raw database structure: [id, game_date, game_type, game_name, winner1, winner2, ..., winner_score, loser1, ..., loser_score, comment, updated_at]
+        details = f"Game ID {game_id}: {game[0][2]} - {game[0][3]} ({game[0][4]} vs {game[0][11]})"
         log_user_action(user, 'Deleted other game', details)
         
         remove_other_game(game_id)
         return redirect(url_for('edit_other_games'))
  
-    return render_template('delete_other_game.html', game=game)
+    return render_template('delete_other_game.html', game=game[0])
 
 @app.route('/other_player/<year>/<name>')
 def other_player_stats(year, name):

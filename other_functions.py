@@ -94,20 +94,32 @@ def readable_games_data(games):
     readable_games = []
     for game in games:
         # Convert game_date format
-        if len(game[1]) > 19:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-        else:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-            game_date = game_datetime.strftime("%m/%d/%y")
+        try:
+            if len(game[1]) > 19:
+                game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+                game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+            elif len(game[1]) > 10:
+                game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+                game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+            else:
+                game_datetime = datetime.strptime(game[1], "%Y-%m-%d")
+                game_date = game_datetime.strftime("%m/%d/%y")
+        except:
+            game_date = game[1]
         
         # Convert updated_at format
-        if len(game[19]) > 19:
-            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
-            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-        else:
-            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
-            updated_date = updated_datetime.strftime("%m/%d/%y")
+        try:
+            if len(game[19]) > 19:
+                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
+                updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+            elif len(game[19]) > 10:
+                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
+                updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+            else:
+                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d")
+                updated_date = updated_datetime.strftime("%m/%d/%y")
+        except:
+            updated_date = game[19]
         
         data = {'game_id':game[0], 'game_date':game_date, 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
                 'winner3':game[6], 'winner4':game[7], 'winner5':game[8], 'winner6':game[9], 'winner_score':game[10], 'loser1':game[11], 
@@ -164,6 +176,27 @@ def all_other_players(games):
     if "" in players: players.remove("")
     return players
 
+def all_combined_players():
+    """Get all players from both doubles games and other games"""
+    from stat_functions import all_players, year_games
+    
+    # Get players from doubles games
+    doubles_games = year_games('All years')
+    doubles_players = all_players(doubles_games)
+    
+    # Get players from other games
+    other_games = other_year_games('All years')
+    other_players = all_other_players(other_games)
+    
+    # Combine and remove duplicates
+    all_players_list = list(set(doubles_players + other_players))
+    
+    # Remove empty strings
+    if "" in all_players_list:
+        all_players_list.remove("")
+    
+    return sorted(all_players_list)
+
 def other_game_types(games):
     game_types = []
     for game in games:
@@ -196,6 +229,34 @@ def other_year_games(year):
     games = readable_games_data(row)
     return games
 
+def other_year_games_raw(year):
+    cur = set_cur()
+    if year == 'All years':
+        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC")
+    else:
+        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
+    row = cur.fetchall()
+    return row
+
+def convert_other_ampm(games):
+    from datetime import datetime
+    converted_games = []
+    for game in games:
+        if len(game[1]) > 19:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
+            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
+        else:
+            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
+            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
+        if len(game[19]) > 19:
+            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
+            updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+        else:
+            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
+            updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+        converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15], game[16], game[17], game[18], updated_date])
+    return converted_games
+
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -227,6 +288,7 @@ def edit_other_game(game_id, game_date, game_type, game_name, winner, winner_sco
         database_update_other_game(conn, game)
 
 def remove_other_game(game_id):
+    from create_other_database import database_delete_other_game
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
