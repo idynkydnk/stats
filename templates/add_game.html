@@ -322,40 +322,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the first field (winner1) when page loads
     const firstField = document.getElementById('winner1');
     if (firstField) {
-        // Try multiple approaches to get keyboard to show on mobile
+        // Try to trigger keyboard on mobile by simulating user interaction
         setTimeout(() => {
-            // Method 1: Simple focus
             firstField.focus();
             
-            // Method 2: Click to trigger keyboard
-            firstField.click();
-            
-            // Method 3: Trigger input event
-            firstField.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            // Method 4: Try showPicker for datalist
-            if (firstField.list) {
-                try {
-                    if (firstField.showPicker) {
-                        firstField.showPicker();
-                    }
-                } catch (e) {
-                    // Ignore errors
-                }
-            }
-            
-            // Method 5: Additional focus after delay
-            setTimeout(() => {
-                firstField.focus();
-                firstField.click();
-            }, 200);
-            
+            // For mobile, try to trigger keyboard by dispatching events
+            firstField.dispatchEvent(new Event('touchstart', { bubbles: true }));
+            firstField.dispatchEvent(new Event('touchend', { bubbles: true }));
+            firstField.dispatchEvent(new Event('click', { bubbles: true }));
         }, 100);
-        
-        // Method 6: Add click event listener for manual trigger
-        firstField.addEventListener('click', function() {
-            this.focus();
-        });
     }
     
     // Get all players for autocomplete
