@@ -322,35 +322,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the first field (winner1) when page loads
     const firstField = document.getElementById('winner1');
     if (firstField) {
-        // Small delay to ensure page is fully loaded
+        // Simulate a real tap on the field to trigger keyboard
         setTimeout(() => {
-            // Multiple methods to ensure keyboard shows on mobile
-            firstField.focus();
-            firstField.click();
+            // Create and dispatch a touch event to simulate real user tap
+            const touchEvent = new TouchEvent('touchstart', {
+                bubbles: true,
+                cancelable: true,
+                touches: [new Touch({
+                    identifier: 1,
+                    target: firstField,
+                    clientX: firstField.offsetLeft + firstField.offsetWidth / 2,
+                    clientY: firstField.offsetTop + firstField.offsetHeight / 2
+                })]
+            });
             
-            // Trigger input event to show keyboard
-            firstField.dispatchEvent(new Event('input', { bubbles: true }));
-            firstField.dispatchEvent(new Event('focus', { bubbles: true }));
+            firstField.dispatchEvent(touchEvent);
             
-            // Also trigger the datalist to show on mobile
-            if (firstField.list) {
-                try {
-                    if (firstField.showPicker) {
-                        firstField.showPicker();
-                    } else {
-                        firstField.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                } catch (e) {
-                    // If showPicker fails, try alternative method
-                    firstField.click();
-                }
-            }
-            
-            // Additional mobile keyboard trigger
+            // Also dispatch touchend to complete the tap
             setTimeout(() => {
+                const touchEndEvent = new TouchEvent('touchend', {
+                    bubbles: true,
+                    cancelable: true,
+                    touches: []
+                });
+                firstField.dispatchEvent(touchEndEvent);
+                
+                // Then focus the field
                 firstField.focus();
-                firstField.click();
-            }, 50);
+            }, 10);
         }, 100);
         
         // Add touch event listener for mobile keyboard
