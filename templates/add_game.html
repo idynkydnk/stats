@@ -287,6 +287,29 @@ function updateLoserScoreOptions() {
 document.addEventListener('DOMContentLoaded', function() {
     updateLoserScoreOptions();
     
+    // Auto-focus the first field (winner1) when page loads
+    const firstField = document.getElementById('winner1');
+    if (firstField) {
+        // Small delay to ensure page is fully loaded
+        setTimeout(() => {
+            firstField.focus();
+            
+            // Also trigger the datalist to show on mobile
+            if (firstField.list) {
+                try {
+                    if (firstField.showPicker) {
+                        firstField.showPicker();
+                    } else {
+                        firstField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } catch (e) {
+                    // If showPicker fails, try alternative method
+                    firstField.click();
+                }
+            }
+        }, 100);
+    }
+    
     // Get all players for autocomplete
     const allPlayers = Array.from(document.getElementById('players').options).map(option => option.value);
     const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
