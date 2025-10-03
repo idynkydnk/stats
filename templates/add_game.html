@@ -283,6 +283,38 @@ function updateLoserScoreOptions() {
     }
 }
 
+function focusFieldWithKeyboard(field) {
+    if (!field) return;
+    
+    // Multiple methods to ensure keyboard shows on mobile
+    field.focus();
+    field.click();
+    
+    // Trigger input event to show keyboard
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('focus', { bubbles: true }));
+    
+    // Also trigger the datalist to show on mobile
+    if (field.list) {
+        try {
+            if (field.showPicker) {
+                field.showPicker();
+            } else {
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        } catch (e) {
+            // If showPicker fails, try alternative method
+            field.click();
+        }
+    }
+    
+    // Additional mobile keyboard trigger
+    setTimeout(() => {
+        field.focus();
+        field.click();
+    }, 50);
+}
+
 // Initialize loser score options on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateLoserScoreOptions();
@@ -292,33 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (firstField) {
         // Small delay to ensure page is fully loaded
         setTimeout(() => {
-            // Multiple methods to ensure keyboard shows on mobile
-            firstField.focus();
-            firstField.click();
-            
-            // Trigger input event to show keyboard
-            firstField.dispatchEvent(new Event('input', { bubbles: true }));
-            firstField.dispatchEvent(new Event('focus', { bubbles: true }));
-            
-            // Also trigger the datalist to show on mobile
-            if (firstField.list) {
-                try {
-                    if (firstField.showPicker) {
-                        firstField.showPicker();
-                    } else {
-                        firstField.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                } catch (e) {
-                    // If showPicker fails, try alternative method
-                    firstField.click();
-                }
-            }
-            
-            // Additional mobile keyboard trigger
-            setTimeout(() => {
-                firstField.focus();
-                firstField.click();
-            }, 50);
+            focusFieldWithKeyboard(firstField);
         }, 100);
         
         // Add touch event listener for mobile keyboard
@@ -402,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const nextField = document.getElementById(nextFields[index]);
                     if (nextField) {
                         setTimeout(() => {
-                            nextField.focus();
+                            focusFieldWithKeyboard(nextField);
                         }, 100);
                     }
                 }
@@ -494,9 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Auto-focus loser score field
                         setTimeout(() => {
                             const loserScoreField = document.getElementById('loser_score');
-                            if (loserScoreField) {
-                                loserScoreField.focus();
-                            }
+                            focusFieldWithKeyboard(loserScoreField);
                         }, 100);
                     }
                 }
