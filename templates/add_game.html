@@ -322,15 +322,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the first field (winner1) when page loads
     const firstField = document.getElementById('winner1');
     if (firstField) {
-        // Try to trigger keyboard on mobile by simulating user interaction
+        // Small delay to ensure page is fully loaded
         setTimeout(() => {
+            // Multiple methods to ensure keyboard shows on mobile
             firstField.focus();
+            firstField.click();
             
-            // For mobile, try to trigger keyboard by dispatching events
-            firstField.dispatchEvent(new Event('touchstart', { bubbles: true }));
-            firstField.dispatchEvent(new Event('touchend', { bubbles: true }));
-            firstField.dispatchEvent(new Event('click', { bubbles: true }));
+            // Trigger input event to show keyboard
+            firstField.dispatchEvent(new Event('input', { bubbles: true }));
+            firstField.dispatchEvent(new Event('focus', { bubbles: true }));
+            
+            // Also trigger the datalist to show on mobile
+            if (firstField.list) {
+                try {
+                    if (firstField.showPicker) {
+                        firstField.showPicker();
+                    } else {
+                        firstField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } catch (e) {
+                    // If showPicker fails, try alternative method
+                    firstField.click();
+                }
+            }
+            
+            // Additional mobile keyboard trigger
+            setTimeout(() => {
+                firstField.focus();
+                firstField.click();
+            }, 50);
         }, 100);
+        
+        // Add touch event listener for mobile keyboard
+        firstField.addEventListener('touchstart', function() {
+            setTimeout(() => {
+                this.focus();
+                this.click();
+            }, 10);
+        });
     }
     
     // Get all players for autocomplete
