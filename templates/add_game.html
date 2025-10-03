@@ -322,29 +322,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the first field (winner1) when page loads
     const firstField = document.getElementById('winner1');
     if (firstField) {
-        // Small delay to ensure page is fully loaded
+        // Try multiple approaches to get keyboard to show on mobile
         setTimeout(() => {
+            // Method 1: Simple focus
             firstField.focus();
             
-            // Also trigger the datalist to show on mobile
+            // Method 2: Click to trigger keyboard
+            firstField.click();
+            
+            // Method 3: Trigger input event
+            firstField.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Method 4: Try showPicker for datalist
             if (firstField.list) {
-                // Small delay to ensure the field is fully focused
-                setTimeout(() => {
-                    try {
-                        // Try to show the native datalist picker
-                        if (firstField.showPicker) {
-                            firstField.showPicker();
-                        } else {
-                            // Fallback: trigger input event to show datalist
-                            firstField.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    } catch (e) {
-                        // If showPicker fails, try alternative method
-                        firstField.click();
+                try {
+                    if (firstField.showPicker) {
+                        firstField.showPicker();
                     }
-                }, 50);
+                } catch (e) {
+                    // Ignore errors
+                }
             }
+            
+            // Method 5: Additional focus after delay
+            setTimeout(() => {
+                firstField.focus();
+                firstField.click();
+            }, 200);
+            
         }, 100);
+        
+        // Method 6: Add click event listener for manual trigger
+        firstField.addEventListener('click', function() {
+            this.focus();
+        });
     }
     
     // Get all players for autocomplete
