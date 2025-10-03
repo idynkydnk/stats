@@ -305,6 +305,42 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show list when input gets focus
             field.addEventListener('focus', () => {
                 showPlayerList(field, list, allPlayers, nameFields);
+                
+                // On mobile, also trigger the native datalist to show with keyboard
+                if (field.list) {
+                    // Small delay to ensure the field is fully focused
+                    setTimeout(() => {
+                        try {
+                            // Try to show the native datalist picker
+                            if (field.showPicker) {
+                                field.showPicker();
+                            } else {
+                                // Fallback: trigger input event to show datalist
+                                field.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        } catch (e) {
+                            // If showPicker fails, try alternative method
+                            field.click();
+                        }
+                    }, 50);
+                }
+            });
+            
+            // Also trigger datalist on click (mobile backup)
+            field.addEventListener('click', () => {
+                if (field.list) {
+                    setTimeout(() => {
+                        try {
+                            if (field.showPicker) {
+                                field.showPicker();
+                            } else {
+                                field.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        } catch (e) {
+                            field.click();
+                        }
+                    }, 50);
+                }
             });
             
             // Filter list as user types
@@ -350,6 +386,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         loserScores.push(score.toString());
                     }
                     showScoreList(field, list, loserScores);
+                }
+                
+                // On mobile, also trigger the native datalist to show with keyboard
+                if (field.list) {
+                    // Small delay to ensure the field is fully focused
+                    setTimeout(() => {
+                        try {
+                            // Try to show the native datalist picker
+                            if (field.showPicker) {
+                                field.showPicker();
+                            } else {
+                                // Fallback: trigger input event to show datalist
+                                field.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        } catch (e) {
+                            // If showPicker fails, try alternative method
+                            field.click();
+                        }
+                    }, 50);
+                }
+            });
+            
+            // Also trigger datalist on click (mobile backup)
+            field.addEventListener('click', () => {
+                if (field.list) {
+                    setTimeout(() => {
+                        try {
+                            if (field.showPicker) {
+                                field.showPicker();
+                            } else {
+                                field.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        } catch (e) {
+                            field.click();
+                        }
+                    }, 50);
                 }
             });
             
