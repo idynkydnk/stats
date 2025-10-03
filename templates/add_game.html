@@ -324,7 +324,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (firstField) {
         // Small delay to ensure page is fully loaded
         setTimeout(() => {
-            focusFieldWithKeyboard(firstField);
+            // Multiple methods to ensure keyboard shows on mobile
+            firstField.focus();
+            firstField.click();
+            
+            // Trigger input event to show keyboard
+            firstField.dispatchEvent(new Event('input', { bubbles: true }));
+            firstField.dispatchEvent(new Event('focus', { bubbles: true }));
+            
+            // Also trigger the datalist to show on mobile
+            if (firstField.list) {
+                try {
+                    if (firstField.showPicker) {
+                        firstField.showPicker();
+                    } else {
+                        firstField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } catch (e) {
+                    // If showPicker fails, try alternative method
+                    firstField.click();
+                }
+            }
+            
+            // Additional mobile keyboard trigger
+            setTimeout(() => {
+                firstField.focus();
+                firstField.click();
+            }, 50);
         }, 100);
         
         // Add touch event listener for mobile keyboard
