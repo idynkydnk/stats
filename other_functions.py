@@ -177,25 +177,42 @@ def all_other_players(games):
     return players
 
 def all_combined_players():
-    """Get all players from both doubles games and other games"""
-    from stat_functions import all_players, year_games
+    """Get all players from both doubles games and other games, ordered by most recent game"""
+    from stat_functions import year_games
+    from datetime import datetime
     
-    # Get players from doubles games
+    # Get all games from both doubles and other games
     doubles_games = year_games('All years')
-    doubles_players = all_players(doubles_games)
+    other_games_raw = other_year_games_raw('All years')  # Use raw data for other games
     
-    # Get players from other games
-    other_games = other_year_games('All years')
-    other_players = all_other_players(other_games)
+    # Create a dictionary to track each player's most recent game date
+    player_last_game = {}
     
-    # Combine and remove duplicates
-    all_players_list = list(set(doubles_players + other_players))
+    # Process doubles games (these are already processed)
+    for game in doubles_games:
+        game_date = game[1]  # game_date is at index 1
+        players = [game[2], game[3], game[5], game[6]]  # winner1, winner2, loser1, loser2
+        
+        for player in players:
+            if player and isinstance(player, str) and player.strip():  # Skip empty players and non-strings
+                if player not in player_last_game or game_date > player_last_game[player]:
+                    player_last_game[player] = game_date
     
-    # Remove empty strings
-    if "" in all_players_list:
-        all_players_list.remove("")
+    # Process other games (raw data - tuples from database)
+    for game in other_games_raw:
+        game_date = game[1]  # game_date is at index 1 in raw data
+        players = [game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15]]  # winner1-6, loser1-6
+        
+        for player in players:
+            if player and isinstance(player, str) and player.strip():  # Skip empty players and non-strings
+                if player not in player_last_game or game_date > player_last_game[player]:
+                    player_last_game[player] = game_date
     
-    return sorted(all_players_list)
+    # Sort players by their most recent game date (most recent first)
+    sorted_players = sorted(player_last_game.items(), key=lambda x: x[1], reverse=True)
+    
+    # Return just the player names in order
+    return [player[0] for player in sorted_players]
 
 def other_game_types(games):
     game_types = []
