@@ -1,13 +1,15 @@
-from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify
+from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response
 from database_functions import *
 from stat_functions import *
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from vollis_functions import *
 from one_v_one_functions import *
 from other_functions import *
 import os
 import subprocess
 import sqlite3
+import secrets
+import hashlib
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -36,6 +38,93 @@ def init_notifications_db():
             read_status INTEGER DEFAULT 0
         )
     ''')
+    conn.commit()
+    conn.close()
+
+def init_auth_tokens_db():
+    """Initialize the auth_tokens table for remember me functionality"""
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS auth_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            token_hash TEXT NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def generate_auth_token():
+    """Generate a secure random token"""
+    return secrets.token_urlsafe(32)
+
+def hash_token(token):
+    """Hash a token for secure storage"""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def create_auth_token(username):
+    """Create a new authentication token for a user"""
+    token = generate_auth_token()
+    token_hash = hash_token(token)
+    expires_at = datetime.now() + timedelta(days=30)  # Token expires in 30 days
+    
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO auth_tokens (username, token_hash, expires_at)
+        VALUES (?, ?, ?)
+    ''', (username, token_hash, expires_at))
+    conn.commit()
+    conn.close()
+    
+    return token
+
+def validate_auth_token(token):
+    """Validate an authentication token and return username if valid"""
+    if not token:
+        return None
+    
+    token_hash = hash_token(token)
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT username FROM auth_tokens 
+        WHERE token_hash = ? AND expires_at > ?
+    ''', (token_hash, datetime.now()))
+    
+    result = cur.fetchone()
+    conn.close()
+    
+    return result[0] if result else None
+
+def revoke_auth_token(token):
+    """Revoke a specific authentication token"""
+    if not token:
+        return
+    
+    token_hash = hash_token(token)
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('DELETE FROM auth_tokens WHERE token_hash = ?', (token_hash,))
+    conn.commit()
+    conn.close()
+
+def revoke_all_user_tokens(username):
+    """Revoke all authentication tokens for a user"""
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('DELETE FROM auth_tokens WHERE username = ?', (username,))
+    conn.commit()
+    conn.close()
+
+def cleanup_expired_tokens():
+    """Remove expired authentication tokens"""
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('DELETE FROM auth_tokens WHERE expires_at <= ?', (datetime.now(),))
     conn.commit()
     conn.close()
 
@@ -79,17 +168,37 @@ def mark_notifications_read(notification_ids):
         conn.commit()
         conn.close()
 
-# Initialize notifications table
+# Initialize database tables
 init_notifications_db()
+init_auth_tokens_db()
 
 def login_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
-            flash('Please log in to access this page.', 'error')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
+        # Check if user is logged in via session
+        if session.get('logged_in'):
+            return f(*args, **kwargs)
+        
+        # Check if user is logged in via remember me cookie
+        auth_token = request.cookies.get('remember_token')
+        if auth_token:
+            username = validate_auth_token(auth_token)
+            if username:
+                # Auto-login the user
+                session['logged_in'] = True
+                session['username'] = username
+                flash(f'Welcome back, {username}!', 'success')
+                return f(*args, **kwargs)
+            else:
+                # Invalid or expired token, clear the cookie
+                response = make_response(redirect(url_for('login')))
+                response.set_cookie('remember_token', '', expires=0)
+                flash('Please log in to access this page.', 'error')
+                return response
+        
+        flash('Please log in to access this page.', 'error')
+        return redirect(url_for('login'))
     return decorated_function
 
 @app.route('/')
@@ -932,9 +1041,22 @@ def game_name_stats_with_year(game_name, year):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Check if user is already logged in via remember me cookie
+    if not session.get('logged_in'):
+        auth_token = request.cookies.get('remember_token')
+        if auth_token:
+            username = validate_auth_token(auth_token)
+            if username:
+                # Auto-login the user
+                session['logged_in'] = True
+                session['username'] = username
+                flash(f'Welcome back, {username}!', 'success')
+                return redirect(url_for('index'))
+    
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        remember_me = request.form.get('remember_me') == 'on'
         
         if username in USERS and USERS[username] == password:
             session['logged_in'] = True
@@ -947,7 +1069,19 @@ def login():
                 if notifications:
                     flash(f'You have {len(notifications)} unread notification(s) from other users. Check the notifications menu.', 'info')
             
-            return redirect(url_for('index'))
+            response = make_response(redirect(url_for('index')))
+            
+            # Set remember me cookie if requested
+            if remember_me:
+                auth_token = create_auth_token(username)
+                response.set_cookie('remember_token', auth_token, 
+                                  max_age=30*24*60*60,  # 30 days
+                                  secure=False,  # Set to True in production with HTTPS
+                                  httponly=True,  # Prevent XSS attacks
+                                  samesite='Lax')  # CSRF protection
+                flash('You will stay logged in on this device for 30 days.', 'info')
+            
+            return response
         else:
             flash('Invalid username or password.', 'error')
     
@@ -955,10 +1089,27 @@ def login():
 
 @app.route('/logout')
 def logout():
+    # Get the current user before clearing session
+    username = session.get('username')
+    
+    # Clear session
     session.pop('logged_in', None)
     session.pop('username', None)
+    
+    # Clear remember me cookie
+    auth_token = request.cookies.get('remember_token')
+    if auth_token:
+        revoke_auth_token(auth_token)
+    
+    # Revoke all tokens for this user (optional - for security)
+    if username:
+        revoke_all_user_tokens(username)
+    
+    response = make_response(redirect(url_for('index')))
+    response.set_cookie('remember_token', '', expires=0)
+    
     flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))
+    return response
 
 @app.route('/notifications')
 @login_required
@@ -1289,6 +1440,12 @@ def game_hub():
 def work_in_progress():
     """Work in Progress page with links to various features"""
     return render_template('work_in_progress.html')
+
+@app.route('/cleanup_tokens')
+def cleanup_tokens():
+    """Clean up expired authentication tokens (can be called periodically)"""
+    cleanup_expired_tokens()
+    return 'Expired tokens cleaned up successfully', 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
