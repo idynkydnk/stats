@@ -749,7 +749,7 @@ def one_v_one_games_by_type(game_type):
 def update_one_v_one_game(id):
     game_id = id
     x = find_one_v_one_game(game_id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6]]
+    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
     games = one_v_one_year_games(str(date.today().year))
     players = all_one_v_one_players(games)
     if request.method == 'POST':
@@ -761,7 +761,7 @@ def update_one_v_one_game(id):
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            edit_one_v_one_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            edit_one_v_one_game(game_id, game[1], game[2], game[3], winner, winner_score, loser, loser_score, datetime.now(), game_id)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
