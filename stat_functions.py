@@ -1337,22 +1337,21 @@ def calculate_trueskill_rankings(year=None):
 			player_game_counts[player] += 1
 	
 	# Convert to list and sort by conservative rating (mu - 3*sigma)
-	rankings = []
+	all_rankings = []
 	for player, rating_data in player_ratings.items():
-		if player_game_counts[player] >= minimum_games:
-			conservative_rating = rating_data['mu'] - 3 * rating_data['sigma']
-			rankings.append({
-				'player': player,
-				'mu': round(rating_data['mu'], 2),
-				'sigma': round(rating_data['sigma'], 2),
-				'rating': round(conservative_rating, 2),
-				'games_played': player_game_counts[player]
-			})
+		conservative_rating = rating_data['mu'] - 3 * rating_data['sigma']
+		all_rankings.append({
+			'player': player,
+			'mu': round(rating_data['mu'], 2),
+			'sigma': round(rating_data['sigma'], 2),
+			'rating': round(conservative_rating, 2),
+			'games_played': player_game_counts[player]
+		})
 	
 	# Sort by conservative rating (highest first)
-	rankings.sort(key=lambda x: x['rating'], reverse=True)
+	all_rankings.sort(key=lambda x: x['rating'], reverse=True)
 	
-	return rankings
+	return all_rankings
 
 def v_win(t):
 	"""TrueSkill v function for winners"""

@@ -1410,7 +1410,7 @@ def glicko_rankings():
 @app.route('/trueskill_rankings/')
 def trueskill_rankings():
     """TrueSkill rankings page"""
-    from stat_functions import calculate_trueskill_rankings, grab_all_years
+    from stat_functions import calculate_trueskill_rankings, grab_all_years, year_games
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
@@ -1421,7 +1421,22 @@ def trueskill_rankings():
     # Get available years
     available_years = grab_all_years()
     
-    rankings = calculate_trueskill_rankings(selected_year)
+    # Calculate minimum games requirement
+    if selected_year == 'All years':
+        from stat_functions import all_games
+        games = all_games()
+    else:
+        games = year_games(selected_year)
+    
+    if len(games) < 30:
+        minimum_games = 1
+    else:
+        minimum_games = len(games) // 30
+    
+    # Get all rankings and filter by minimum games
+    all_rankings = calculate_trueskill_rankings(selected_year)
+    rankings = [r for r in all_rankings if r['games_played'] >= minimum_games]
+    
     return render_template('trueskill_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
 
 @app.route('/game_hub')
