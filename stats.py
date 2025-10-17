@@ -1407,6 +1407,23 @@ def glicko_rankings():
     rankings = calculate_glicko_rankings(selected_year)
     return render_template('glicko_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
 
+@app.route('/trueskill_rankings/')
+def trueskill_rankings():
+    """TrueSkill rankings page"""
+    from stat_functions import calculate_trueskill_rankings, grab_all_years
+    from datetime import datetime
+    
+    # Get selected year from query parameter, default to current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = str(datetime.now().year)
+    
+    # Get available years
+    available_years = grab_all_years()
+    
+    rankings = calculate_trueskill_rankings(selected_year)
+    return render_template('trueskill_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
+
 @app.route('/game_hub')
 def game_hub():
     """Game Hub dashboard showing vollis, 1v1, and other game statistics"""

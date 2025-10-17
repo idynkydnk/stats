@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}TrueSkill Rankings{% endblock %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for year in available_years %}
+                    <a href="{{ url_for('trueskill_rankings', year=year) }}">{{ year }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+<div class="container">
+    <h1>{{ selected_year }} TrueSkill Rankings</h1>
+    
+    <p><strong>TrueSkill</strong> is a Bayesian ranking system that tracks skill (μ) and uncertainty (σ) to provide accurate team-based rankings.</p>
+    <p><strong>μ:</strong> Estimated skill level | <strong>σ:</strong> Skill uncertainty | <strong>Rating:</strong> Conservative estimate (μ - 3σ)</p>
+    
+    <table>
+            <thead>
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Player</th>
+                    <th scope="col">Rating</th>
+                    <th scope="col">μ (Skill)</th>
+                    <th scope="col">σ (Uncertainty)</th>
+                    <th scope="col">Confidence Interval</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ranking in rankings %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player_name">
+                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">
+                            {{ ranking.player }}
+                        </a>
+                    </td>
+                    <td class="rating">{{ ranking.rating }}</td>
+                    <td class="mu">{{ ranking.mu }}</td>
+                    <td class="sigma">{{ ranking.sigma }}</td>
+                    <td class="confidence">
+                        {{ (ranking.mu - 3 * ranking.sigma)|round(2) }} - {{ (ranking.mu + 3 * ranking.sigma)|round(2) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <h3>Rating Categories</h3>
+    <ul>
+        <li><strong>15+:</strong> Elite</li>
+        <li><strong>12-14.99:</strong> Expert</li>
+        <li><strong>9-11.99:</strong> Advanced</li>
+        <li><strong>6-8.99:</strong> Intermediate</li>
+        <li><strong>3-5.99:</strong> Novice</li>
+        <li><strong>Below 3:</strong> Beginner</li>
+    </ul>
+    
+    <h3>About TrueSkill</h3>
+    <p>TrueSkill was developed by Microsoft Research for ranking and matchmaking in games. It models each player's skill as a Gaussian distribution and updates these distributions after each game.</p>
+    <p>The <strong>Rating</strong> shown is the conservative skill estimate (μ - 3σ), meaning there's a 99% confidence the player's true skill is above this value.</p>
+</div>
+{% endblock %}
+
