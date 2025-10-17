@@ -1,8 +1,62 @@
 {% extends 'base_admin.html' %}
 
+<style>
+.autocomplete {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.autocomplete input {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 1px solid #ccc;
+    background: white;
+    z-index: 999;
+    display: none;
+    max-height: 150px;
+    overflow-y: auto;
+    width: 280px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.autocomplete-list div {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    font-size: 20px !important;
+    line-height: 1.4;
+    font-weight: normal !important;
+}
+
+/* More specific selector to override any base styles */
+.autocomplete .autocomplete-list div {
+    font-size: 20px !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
+}
+
+.autocomplete-list div:hover {
+    background: #f5f5f5;
+}
+
+.autocomplete-list div:last-child {
+    border-bottom: none;
+}
+</style>
+
 {% block content %}
     <h1>{% block title %} Add 1v1 Game {% endblock %}</h1>
-    <div>
+    <div class="container">
     <form method="post">
         <datalist id="game_types">
             {% for game_type in game_types %}
@@ -29,33 +83,45 @@
                 <option value= "{{ score }}"></option>
             {% endfor %}
         </datalist>
+        <div class="autocomplete">
         <input type="text" name="game_name" id="game_name"
                 placeholder="Game name"
                 value="{{ request.form['game_name'] }}"
-                list="game_names"
                 onchange="autoFillGameType('one_v_one')">
+            <div class="autocomplete-list" id="game_nameList"></div>
+        </div>
+        <div class="autocomplete">
         <input type="text" name="game_type" id="game_type"
                 placeholder="Game type"
-                value="{{ request.form['game_type'] }}"
-                list="game_types">
+                value="{{ request.form['game_type'] }}">
+            <div class="autocomplete-list" id="game_typeList"></div>
+        </div>
+        <div class="autocomplete">
         <input type="text" name="winner" id="winner"
                 placeholder="Winner"
                 value="{{ request.form['winner'] }}"
-                list="players"
                 onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="winnerList"></div>
+        </div>
+        <div class="autocomplete">
         <input type="text" name="loser" id="loser"
                 placeholder="Loser"
                 value="{{ request.form['loser'] }}"
-                list="players"
-                onchange="updatePlayerOptions()">     
-        <input type="number" pattern="[0-9]*" name="winner_score"
+                onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="loserList"></div>
+        </div>
+        <div class="autocomplete">
+        <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score"
                 placeholder="Winner's Score"
-                value="{{ request.form['winner_score'] }}"
-                list="winning_scores">
-        <input type="number" pattern="[0-9]*" name="loser_score"
+                value="{{ request.form['winner_score'] }}">
+            <div class="autocomplete-list" id="winner_scoreList"></div>
+        </div>
+        <div class="autocomplete">
+        <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score"
                 placeholder="Loser's Score"
-                value="{{ request.form['loser_score'] }}"
-                list="losing_scores">    
+                value="{{ request.form['loser_score'] }}">
+            <div class="autocomplete-list" id="loser_scoreList"></div>
+        </div>
         <input type="submit" value="Submit">
     </form>
     </div>
@@ -121,8 +187,12 @@
     </div>
 
 <script>
-// Store original player options
+// Store original options
 const originalPlayerOptions = Array.from(document.getElementById('players').options).map(option => option.value);
+const originalGameNames = Array.from(document.getElementById('game_names').options).map(option => option.value);
+const originalGameTypes = Array.from(document.getElementById('game_types').options).map(option => option.value);
+const winningScores = Array.from(document.getElementById('winning_scores').options).map(option => option.value);
+const losingScores = Array.from(document.getElementById('losing_scores').options).map(option => option.value);
 
 function autoFillGameType(gameType) {
     const gameNameInput = document.getElementById('game_name');
@@ -139,6 +209,10 @@ function autoFillGameType(gameType) {
             .then(data => {
                 if (data.game_type) {
                     gameTypeInput.value = data.game_type;
+                    // Auto-focus winner field after game type is filled
+                    setTimeout(() => {
+                        focusFieldWithKeyboard(gameTypeInput);
+                    }, 100);
                 }
             })
             .catch(error => {
@@ -168,6 +242,269 @@ function updatePlayerOptions() {
             playersDatalist.appendChild(option);
         }
     });
+}
+
+function focusFieldWithKeyboard(field) {
+    if (!field) return;
+    
+    // Multiple methods to ensure keyboard shows on mobile
+    field.focus();
+    field.click();
+    
+    // Trigger input event to show keyboard
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('focus', { bubbles: true }));
+    
+    // Also trigger the datalist to show on mobile
+    if (field.list) {
+        try {
+            if (field.showPicker) {
+                field.showPicker();
+            } else {
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        } catch (e) {
+            // If showPicker fails, try alternative method
+            field.click();
+        }
+    }
+    
+    // Additional mobile keyboard trigger
+    setTimeout(() => {
+        field.focus();
+        field.click();
+    }, 50);
+}
+
+// Initialize autocomplete on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the first field (game_name) when page loads
+    const firstField = document.getElementById('game_name');
+    if (firstField) {
+        setTimeout(() => {
+            focusFieldWithKeyboard(firstField);
+        }, 100);
+    }
+    
+    // Define field progression
+    const fields = ['game_name', 'game_type', 'winner', 'loser', 'winner_score', 'loser_score'];
+    const nextFields = ['game_type', 'winner', 'loser', 'winner_score', 'loser_score', null];
+    
+    // Setup autocomplete for game names
+    const gameNameField = document.getElementById('game_name');
+    const gameNameList = document.getElementById('game_nameList');
+    
+    if (gameNameField && gameNameList) {
+        gameNameField.addEventListener('focus', () => {
+            showList(gameNameList, originalGameNames);
+        });
+        
+        gameNameField.addEventListener('input', () => {
+            filterList(gameNameList, originalGameNames, gameNameField.value);
+        });
+        
+        gameNameList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                gameNameField.value = e.target.textContent;
+                gameNameList.style.display = 'none';
+                autoFillGameType('one_v_one');
+                setTimeout(() => {
+                    focusFieldWithKeyboard(document.getElementById('game_type'));
+                }, 300);
+            }
+        });
+    }
+    
+    // Setup autocomplete for game types
+    const gameTypeField = document.getElementById('game_type');
+    const gameTypeList = document.getElementById('game_typeList');
+    
+    if (gameTypeField && gameTypeList) {
+        gameTypeField.addEventListener('focus', () => {
+            showList(gameTypeList, originalGameTypes);
+        });
+        
+        gameTypeField.addEventListener('input', () => {
+            filterList(gameTypeList, originalGameTypes, gameTypeField.value);
+        });
+        
+        gameTypeList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                gameTypeField.value = e.target.textContent;
+                gameTypeList.style.display = 'none';
+                setTimeout(() => {
+                    focusFieldWithKeyboard(document.getElementById('winner'));
+                }, 100);
+            }
+        });
+    }
+    
+    // Setup autocomplete for player fields
+    const playerFields = ['winner', 'loser'];
+    playerFields.forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        const list = document.getElementById(fieldId + 'List');
+        
+        if (field && list) {
+            field.addEventListener('focus', () => {
+                showPlayerList(list, fieldId);
+            });
+            
+            field.addEventListener('input', () => {
+                filterPlayerList(list, field.value, fieldId);
+            });
+            
+            list.addEventListener('click', (e) => {
+                if (e.target.tagName === 'DIV') {
+                    field.value = e.target.textContent;
+                    list.style.display = 'none';
+                    updatePlayerOptions();
+                    
+                    // Auto-focus next field
+                    const nextField = fieldId === 'winner' ? 'loser' : 'winner_score';
+                    setTimeout(() => {
+                        focusFieldWithKeyboard(document.getElementById(nextField));
+                    }, 100);
+                }
+            });
+        }
+    });
+    
+    // Setup autocomplete for score fields
+    const winnerScoreField = document.getElementById('winner_score');
+    const winnerScoreList = document.getElementById('winner_scoreList');
+    
+    if (winnerScoreField && winnerScoreList) {
+        winnerScoreField.addEventListener('focus', () => {
+            showList(winnerScoreList, winningScores);
+        });
+        
+        winnerScoreField.addEventListener('input', () => {
+            filterList(winnerScoreList, winningScores, winnerScoreField.value);
+        });
+        
+        winnerScoreList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                winnerScoreField.value = e.target.textContent;
+                winnerScoreList.style.display = 'none';
+                setTimeout(() => {
+                    focusFieldWithKeyboard(document.getElementById('loser_score'));
+                }, 100);
+            }
+        });
+    }
+    
+    const loserScoreField = document.getElementById('loser_score');
+    const loserScoreList = document.getElementById('loser_scoreList');
+    
+    if (loserScoreField && loserScoreList) {
+        loserScoreField.addEventListener('focus', () => {
+            showList(loserScoreList, losingScores);
+        });
+        
+        loserScoreField.addEventListener('input', () => {
+            filterList(loserScoreList, losingScores, loserScoreField.value);
+        });
+        
+        loserScoreList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                loserScoreField.value = e.target.textContent;
+                loserScoreList.style.display = 'none';
+            }
+        });
+    }
+    
+    // Hide lists when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete')) {
+            fields.forEach(fieldId => {
+                const list = document.getElementById(fieldId + 'List');
+                if (list) list.style.display = 'none';
+            });
+        }
+    });
+});
+
+// Show list for a field
+function showList(list, items) {
+    list.innerHTML = '';
+    items.slice(0, 10).forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = item;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    list.style.display = 'block';
+}
+
+// Filter list based on input
+function filterList(list, items, inputValue) {
+    const filtered = items.filter(item => 
+        item.toLowerCase().includes(inputValue.toLowerCase())
+    );
+    
+    list.innerHTML = '';
+    filtered.slice(0, 10).forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = item;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = filtered.length > 0 ? 'block' : 'none';
+}
+
+// Show player list (filtering out selected players)
+function showPlayerList(list, fieldId) {
+    const selectedPlayers = [];
+    ['winner', 'loser'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field && field.value.trim() && id !== fieldId) {
+            selectedPlayers.push(field.value.trim());
+        }
+    });
+    
+    const availablePlayers = originalPlayerOptions.filter(player => !selectedPlayers.includes(player));
+    
+    list.innerHTML = '';
+    availablePlayers.slice(0, 10).forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+}
+
+// Filter player list based on input
+function filterPlayerList(list, inputValue, fieldId) {
+    const selectedPlayers = [];
+    ['winner', 'loser'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field && field.value.trim() && id !== fieldId) {
+            selectedPlayers.push(field.value.trim());
+        }
+    });
+    
+    const filtered = originalPlayerOptions.filter(player => 
+        !selectedPlayers.includes(player) && 
+        player.toLowerCase().includes(inputValue.toLowerCase())
+    );
+    
+    list.innerHTML = '';
+    filtered.slice(0, 10).forEach(player => {
+        const div = document.createElement('div');
+        div.textContent = player;
+        div.style.fontSize = '20px';
+        div.style.lineHeight = '1.4';
+        list.appendChild(div);
+    });
+    
+    list.style.display = filtered.length > 0 ? 'block' : 'none';
 }
 </script>
 {% endblock %}
