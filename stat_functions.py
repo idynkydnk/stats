@@ -49,6 +49,11 @@ def stats_per_year(year, minimum_games):
         games = all_games()
     else:
         games = year_games(year)
+    
+    # Calculate TrueSkill ratings
+    trueskill_rankings = calculate_trueskill_rankings(year)
+    rating_map = {r['player']: r['rating'] for r in trueskill_rankings}
+    
     players = all_players(games)
     stats = []
     no_wins = []
@@ -63,14 +68,15 @@ def stats_per_year(year, minimum_games):
             elif player == game[5] or player == game[6]:
                 losses += 1
         win_percentage = wins / (wins + losses)
+        rating = rating_map.get(player, 0)  # Get TrueSkill rating, default to 0
         if wins + losses >= minimum_games:
             if wins == 0:
-                no_wins.append([player, wins, losses, win_percentage])
+                no_wins.append([player, wins, losses, win_percentage, rating])
             else:
-                stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[1], reverse=True)
-    stats.sort(key=lambda x: x[3], reverse=True)
-    no_wins.sort(key=lambda x: x[2])
+                stats.append([player, wins, losses, win_percentage, rating])
+    # Sort by rating instead of win percentage
+    stats.sort(key=lambda x: x[4], reverse=True)
+    no_wins.sort(key=lambda x: x[4], reverse=True)
     for stat in no_wins:
         stats.append(stat)
     return stats
@@ -279,6 +285,11 @@ def rare_stats_per_year(year, minimum_games):
         games = all_games()
     else:
         games = year_games(year)
+    
+    # Calculate TrueSkill ratings
+    trueskill_rankings = calculate_trueskill_rankings(year)
+    rating_map = {r['player']: r['rating'] for r in trueskill_rankings}
+    
     players = all_players(games)
     stats = []
     no_wins = []
@@ -293,14 +304,15 @@ def rare_stats_per_year(year, minimum_games):
             elif player == game[5] or player == game[6]:
                 losses += 1
         win_percentage = wins / (wins + losses)
+        rating = rating_map.get(player, 0)  # Get TrueSkill rating, default to 0
         if wins + losses < minimum_games:
             if wins == 0:
-                no_wins.append([player, wins, losses, win_percentage])
+                no_wins.append([player, wins, losses, win_percentage, rating])
             else:
-                stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[1], reverse=True)
-    stats.sort(key=lambda x: x[3], reverse=True)
-    no_wins.sort(key=lambda x: x[2])
+                stats.append([player, wins, losses, win_percentage, rating])
+    # Sort by rating instead of win percentage
+    stats.sort(key=lambda x: x[4], reverse=True)
+    no_wins.sort(key=lambda x: x[4], reverse=True)
     for stat in no_wins:
         stats.append(stat)
     return stats

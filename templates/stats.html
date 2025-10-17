@@ -117,6 +117,7 @@
     				<tr>
                         <th class="rank" scope="col" colspan="1">#</th>
       					<th class="player_name" scope="col" colspan="1">Player</th>
+      					<th class="numbered_stats" scope="col" colspan="1">Rating</th>
       					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
       					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
       					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
@@ -128,6 +129,7 @@
         			<tr>
                         <td class="rank">{{ loop.index }}</td>
             			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
+            			<td>{{ player[4] }}</td>
             			<td>{{ player[1] }}</td>
             			<td>{{ player[2] }}</td>
             			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
@@ -143,6 +145,7 @@
                     <tr>
                         <th class="rank" scope="col" colspan="1">#</th>
                         <th class="player_name" scope="col" colspan="1">Player</th>
+                        <th class="numbered_stats" scope="col" colspan="1">Rating</th>
                         <th class="numbered_stats" scope="col" colspan="1">Wins</th>
                         <th class="numbered_stats" scope="col" colspan="1">Losses</th>
                         <th class="numbered_stats" scope="col" colspan="1">Win %</th>
@@ -154,6 +157,7 @@
                     <tr>
                         <td class="rank">{{ loop.index }}</td>
                         <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
+                        <td>{{ player[4] }}</td>
                         <td>{{ player[1] }}</td>
                         <td>{{ player[2] }}</td>
                         <td>{{ "{:.2f}".format(player[3]*100) }}</td>
