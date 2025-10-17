@@ -13,7 +13,7 @@
             </div>
         </div>       
     </nav>
-    <h1>{% block title %} {{ games[1][1][0:4] }} 1v1 Games {% endblock %}</h1>
+    <h1>{% block title %} {{ year }} 1v1 Games {% endblock %}</h1>
         <div>
         	<table>
         		<thead>
@@ -31,9 +31,9 @@
         		<tbody>
                 {% for game in games %}
         			<tr style="height: 60px;">
-                    	<td style="padding: 12px 8px; vertical-align: middle;">{{ game[1][0:10] }}<br>
-                            {% if game[1]|length > 14 %}
-                                {{ game[1][11:19] }}
+                    	<td style="padding: 12px 8px; vertical-align: middle;">{{ game[1][0:8] }}<br>
+                            {% if game[1]|length > 9 %}
+                                {{ game[1][9:] }}
                             {% endif %}</td>
                         <td style="padding: 12px 8px; vertical-align: middle;">{{ game[2] }}</td>
                         <td style="padding: 12px 8px; vertical-align: middle;">
