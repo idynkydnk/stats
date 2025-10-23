@@ -42,7 +42,8 @@
                     <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
                     <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
                     <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
-                    {% if session.logged_in %}
+           {% if session.logged_in %}
+               <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
                         <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     {% else %}

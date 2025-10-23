@@ -1461,9 +1461,9 @@ def player_list():
     players = get_all_players()
     return render_template('player_list.html', players=players)
 
-@app.route('/sessions/')
-def sessions():
-    """Sessions page showing all volleyball sessions with their games"""
+@app.route('/kobs/')
+def kobs():
+    """KOBs page showing all volleyball KOBs with their games"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -1472,21 +1472,21 @@ def sessions():
     
     cur = conn.cursor()
     
-    # Get sessions
+    # Get KOBs
     cur.execute("""
         SELECT session_number, start_time, end_time, total_games, 
                doubles_games, vollis_games, one_v_one_games, other_games
         FROM sessions 
         ORDER BY start_time DESC
     """)
-    sessions = cur.fetchall()
+    kobs = cur.fetchall()
     
-    # Get games for each session
-    sessions_with_games = []
-    for session in sessions:
-        session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = session
+    # Get games for each KOB
+    kobs_with_games = []
+    for kob in kobs:
+        session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = kob
         
-        # Get all games for this session
+        # Get all games for this KOB (only from games table since KOBs are created from doubles games)
         all_games = []
         
         # Get doubles games
@@ -1502,56 +1502,116 @@ def sessions():
         except:
             pass
         
-        # Get vollis games
-        try:
-            cur.execute("""
-                SELECT id, game_date, 'vollis' as game_type, winner, NULL, loser, NULL, winner_score, loser_score 
-                FROM vollis_games 
-                WHERE game_date BETWEEN ? AND ? 
-                ORDER BY game_date
-            """, (start_time, end_time))
-            vollis_games = cur.fetchall()
-            all_games.extend(vollis_games)
-        except:
-            pass
-        
-        # Get 1v1 games
-        try:
-            cur.execute("""
-                SELECT id, game_date, 'one_v_one' as game_type, winner, NULL, loser, NULL, winner_score, loser_score 
-                FROM one_v_one_games 
-                WHERE game_date BETWEEN ? AND ? 
-                ORDER BY game_date
-            """, (start_time, end_time))
-            one_v_one_games = cur.fetchall()
-            all_games.extend(one_v_one_games)
-        except:
-            pass
-        
-        # Get other games
-        try:
-            cur.execute("""
-                SELECT id, game_date, 'other' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
-                FROM other_games 
-                WHERE game_date BETWEEN ? AND ? 
-                ORDER BY game_date
-            """, (start_time, end_time))
-            other_games = cur.fetchall()
-            all_games.extend(other_games)
-        except:
-            pass
-        
         # Sort games by date
         all_games.sort(key=lambda x: x[1])
         
-        sessions_with_games.append({
-            'session': session,
-            'games': all_games
+        # Get unique players from the games
+        players = set()
+        for game in all_games:
+            players.add(game[3])  # winner1
+            players.add(game[4])  # winner2
+            players.add(game[5])  # loser1
+            players.add(game[6])  # loser2
+        
+        kobs_with_games.append({
+            'kob': kob,
+            'games': all_games,
+            'players': sorted(list(players))
         })
     
     conn.close()
     
-    return render_template('sessions.html', sessions_with_games=sessions_with_games)
+    return render_template('kobs.html', kobs_with_games=kobs_with_games)
+
+@app.route('/kob/<int:session_number>/')
+def kob_detail(session_number):
+    """Individual KOB detail page with player stats and games"""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    
+    cur = conn.cursor()
+    
+    # Get KOB details
+    cur.execute("""
+        SELECT session_number, start_time, end_time, total_games, 
+               doubles_games, vollis_games, one_v_one_games, other_games
+        FROM sessions 
+        WHERE session_number = ?
+    """, (session_number,))
+    kob = cur.fetchone()
+    
+    if not kob:
+        conn.close()
+        return "KOB not found", 404
+    
+    session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = kob
+    
+    # Get all games for this KOB
+    all_games = []
+    
+    # Get doubles games
+    try:
+        cur.execute("""
+            SELECT id, game_date, 'doubles' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
+            FROM games 
+            WHERE game_date BETWEEN ? AND ? 
+            ORDER BY game_date
+        """, (start_time, end_time))
+        doubles_games = cur.fetchall()
+        all_games.extend(doubles_games)
+    except:
+        pass
+    
+    # Sort games by date
+    all_games.sort(key=lambda x: x[1])
+    
+    # Get unique players from the games
+    players = set()
+    for game in all_games:
+        players.add(game[3])  # winner1
+        players.add(game[4])  # winner2
+        players.add(game[5])  # loser1
+        players.add(game[6])  # loser2
+    
+    # Calculate player stats for this session
+    player_stats = []
+    for player in sorted(players):
+        wins = 0
+        losses = 0
+        plus_minus = 0
+        
+        for game in all_games:
+            if player in [game[3], game[4]]:  # winner
+                wins += 1
+                plus_minus += game[7] - game[8]  # winner_score - loser_score
+            elif player in [game[5], game[6]]:  # loser
+                losses += 1
+                plus_minus += game[8] - game[7]  # loser_score - winner_score
+        
+        total_games = wins + losses
+        win_percentage = (wins / total_games * 100) if total_games > 0 else 0
+        
+        player_stats.append({
+            'player': player,
+            'wins': wins,
+            'losses': losses,
+            'win_percentage': win_percentage,
+            'plus_minus': plus_minus
+        })
+    
+    # Sort by win percentage, then by plus/minus
+    player_stats.sort(key=lambda x: (-x['win_percentage'], -x['plus_minus']))
+    
+    conn.close()
+    
+    return render_template('kob_detail.html', 
+                         kob=kob,
+                         games=all_games,
+                         players=sorted(players),
+                         player_stats=player_stats)
 
 @app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
 def edit_player(player_id):

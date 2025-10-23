@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}KOB {{ kob[0] }}{% endblock %}
+
+{% block content %}
+    <!-- KOB Header -->
+    <div class="date-navigation">
+        <div class="date-header">
+            <h1 class="date-title">KOB {{ kob[0] }}</h1>
+        </div>
+    </div>
+
+    <!-- Player Stats Table (matching doubles stats style) -->
+    <table>
+        <thead>
+            <tr>
+                <th class="rank" scope="col" colspan="1">#</th>
+                <th class="player_name" scope="col" colspan="1">Player</th>
+                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                <th class="numbered_stats" scope="col" colspan="1">Win%</th>
+                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in player_stats %}
+            <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="player_name">{{ stat.player }}</td>
+                <td>{{ stat.wins }}</td>
+                <td>{{ stat.losses }}</td>
+                <td>{{ "{:.1f}".format(stat.win_percentage) }}</td>
+                {% if stat.plus_minus > 0 %}
+                    <td>+{{ stat.plus_minus }}</td>
+                {% else %}
+                    <td>{{ stat.plus_minus }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Games Table (matching doubles stats style) -->
+    <h1>KOB {{ kob[0] }} Games</h1>
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Date/Time</th>
+                <th scope="col">Winners</th>
+                <th scope="col">Score</th>
+                <th scope="col">Losers</th>
+                <th scope="col">Score</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for game in games %}
+            <tr>
+                <td>{{ game[1][0:10] }}<br>
+                    {% if game[1]|length > 14 %}
+                        {{ game[1][11:19] }}
+                    {% endif %}</td>
+                <td>{{ game[3] }}<br>{{ game[4] }}</td>
+                <td class="score winner-score">{{ game[7] }}</td>
+                <td>{{ game[5] }}<br>{{ game[6] }}</td>
+                <td class="score loser-score">{{ game[8] }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}
