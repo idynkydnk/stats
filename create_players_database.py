@@ -29,7 +29,7 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_player(conn, player):
-    sql = ''' INSERT INTO players(full_name, email, age, height, phone, notes, created_at, updated_at)
+    sql = ''' INSERT INTO players(full_name, email, date_of_birth, height, phone, notes, created_at, updated_at)
               VALUES(?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, player)
@@ -40,7 +40,7 @@ def update_player(conn, player):
     sql = ''' UPDATE players
               SET full_name = ?,
                   email = ?,
-                  age = ?,
+                  date_of_birth = ?,
                   height = ?,
                   phone = ?,
                   notes = ?,
@@ -63,7 +63,7 @@ def main():
                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     full_name TEXT NOT NULL,
                                     email TEXT,
-                                    age INTEGER,
+                                    date_of_birth TEXT,
                                     height TEXT,
                                     phone TEXT,
                                     notes TEXT,

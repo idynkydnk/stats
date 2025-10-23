@@ -76,7 +76,7 @@ def get_player_by_name(full_name):
     player = cur.fetchone()
     return player
 
-def add_new_player(full_name, email=None, age=None, height=None, phone=None, notes=None):
+def add_new_player(full_name, email=None, date_of_birth=None, height=None, phone=None, notes=None):
     """Add a new player to the database"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -86,11 +86,11 @@ def add_new_player(full_name, email=None, age=None, height=None, phone=None, not
     
     now = datetime.now()
     with conn:
-        player = (full_name, email, age, height, phone, notes, now, now)
+        player = (full_name, email, date_of_birth, height, phone, notes, now, now)
         player_id = create_player(conn, player)
         return player_id
 
-def update_player_info(player_id, full_name, email=None, age=None, height=None, phone=None, notes=None):
+def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, phone=None, notes=None):
     """Update a player's information and update their name across all game tables"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -140,7 +140,7 @@ def update_player_info(player_id, full_name, email=None, age=None, height=None, 
     
     # Update the player record
     with conn:
-        player = (full_name, email, age, height, phone, notes, now, player_id)
+        player = (full_name, email, date_of_birth, height, phone, notes, now, player_id)
         update_player(conn, player)
 
 def remove_player(player_id):
@@ -154,10 +154,10 @@ def remove_player(player_id):
         delete_player(conn, player_id)
 
 def search_players(search_term):
-    """Search for players by name"""
+    """Search for players by name or email"""
     cur = set_cur()
-    cur.execute("SELECT * FROM players WHERE full_name LIKE ? ORDER BY full_name ASC", 
-                (f'%{search_term}%',))
+    cur.execute("SELECT * FROM players WHERE full_name LIKE ? OR email LIKE ? ORDER BY full_name ASC", 
+                (f'%{search_term}%', f'%{search_term}%'))
     players = cur.fetchall()
     return players
 

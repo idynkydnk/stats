@@ -30,7 +30,20 @@
                 <td>{{ player[0] }}</td>
                 <td class="player_name"><a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a></td>
                 <td>{{ player[2] if player[2] else '-' }}</td>
-                <td>{{ player[3] if player[3] else '-' }}</td>
+                <td>{% if player[3] %}
+                    {% set birth_year = player[3][:4]|int %}
+                    {% set birth_month = player[3][5:7]|int %}
+                    {% set birth_day = player[3][8:10]|int %}
+                    {% set current_year = 2025 %}
+                    {% set current_month = 10 %}
+                    {% set current_day = 23 %}
+                    {% set age = current_year - birth_year %}
+                    {% if current_month < birth_month or (current_month == birth_month and current_day < birth_day) %}
+                        {{ age - 1 }}
+                    {% else %}
+                        {{ age }}
+                    {% endif %}
+                {% else %}-{% endif %}</td>
                 <td>{{ player[4] if player[4] else '-' }}</td>
                 <td>{{ player[5] if player[5] else '-' }}</td>
                 <td>{% if player[9] %}{{ player[9][5:7] }}/{{ player[9][8:10] }}/{{ player[9][2:4] }}{% else %}-{% endif %}</td>
@@ -126,10 +139,12 @@ function searchPlayers() {
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const nameCell = row.getElementsByTagName('td')[1]; // Full Name is in second column
+        const emailCell = row.getElementsByTagName('td')[2]; // Email is in third column
         
-        if (nameCell) {
+        if (nameCell && emailCell) {
             const name = nameCell.textContent || nameCell.innerText;
-            if (name.toLowerCase().indexOf(filter) > -1) {
+            const email = emailCell.textContent || emailCell.innerText;
+            if (name.toLowerCase().indexOf(filter) > -1 || email.toLowerCase().indexOf(filter) > -1) {
                 row.style.display = '';
                 visibleCount++;
             } else {
