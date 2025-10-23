@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block title %}Player List{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Player List</h1>
+    
+    {% if players %}
+    <div class="search-container">
+        <input type="text" id="playerSearch" placeholder="Search players..." onkeyup="searchPlayers()">
+    </div>
+    <p id="resultCount">Showing {{ players|length }} players</p>
+    
+    <table id="playerTable">
+        <thead>
+            <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Full Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Age</th>
+                <th scope="col">Height</th>
+                <th scope="col">Phone</th>
+                <th scope="col">First Game</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+            <tr>
+                <td>{{ player[0] }}</td>
+                <td class="player_name"><a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a></td>
+                <td>{{ player[2] if player[2] else '-' }}</td>
+                <td>{{ player[3] if player[3] else '-' }}</td>
+                <td>{{ player[4] if player[4] else '-' }}</td>
+                <td>{{ player[5] if player[5] else '-' }}</td>
+                <td>{% if player[9] %}{{ player[9][5:7] }}/{{ player[9][8:10] }}/{{ player[9][2:4] }}{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No players in the database yet.</p>
+    <p>Players will be added here as you migrate your existing player data or add new players.</p>
+    {% endif %}
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.search-container {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#playerSearch {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+}
+
+#resultCount {
+    text-align: center;
+    color: var(--caption);
+    font-size: 14px;
+    margin: 10px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    background-color: var(--table-header-bg);
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+tbody tr:hover {
+    background-color: var(--table-hover-bg);
+}
+
+.player_name {
+    font-weight: bold;
+}
+
+.player_name a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.player_name a:hover {
+    color: var(--button-bg-1);
+    text-decoration: underline;
+}
+
+p {
+    margin: 10px 0;
+    color: var(--caption);
+}
+</style>
+
+<script>
+function searchPlayers() {
+    const input = document.getElementById('playerSearch');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('playerTable');
+    const tbody = table.getElementsByTagName('tbody')[0];
+    const rows = tbody.getElementsByTagName('tr');
+    const resultCount = document.getElementById('resultCount');
+    
+    let visibleCount = 0;
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const nameCell = row.getElementsByTagName('td')[1]; // Full Name is in second column
+        
+        if (nameCell) {
+            const name = nameCell.textContent || nameCell.innerText;
+            if (name.toLowerCase().indexOf(filter) > -1) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
+    resultCount.textContent = `Showing ${visibleCount} of {{ players|length }} players`;
+}
+</script>
+{% endblock %}
+

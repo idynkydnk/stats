@@ -1439,6 +1439,46 @@ def trueskill_rankings():
     
     return render_template('trueskill_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
 
+@app.route('/player_list/')
+def player_list():
+    """Player list page showing all players in the database"""
+    from player_functions import get_all_players
+    
+    players = get_all_players()
+    return render_template('player_list.html', players=players)
+
+@app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
+def edit_player(player_id):
+    """Edit player information page"""
+    from player_functions import get_player_by_id, update_player_info
+    
+    player = get_player_by_id(player_id)
+    
+    if not player:
+        flash('Player not found')
+        return redirect(url_for('player_list'))
+    
+    if request.method == 'POST':
+        full_name = request.form['full_name']
+        email = request.form['email'] if request.form['email'] else None
+        age = request.form['age'] if request.form['age'] else None
+        height = request.form['height'] if request.form['height'] else None
+        phone = request.form['phone'] if request.form['phone'] else None
+        notes = request.form['notes'] if request.form['notes'] else None
+        
+        if not full_name:
+            flash('Full name is required!')
+        else:
+            old_name = player[1]
+            update_player_info(player_id, full_name, email, age, height, phone, notes)
+            if old_name != full_name:
+                flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.')
+            else:
+                flash('Player updated successfully!')
+            return redirect(url_for('player_list'))
+    
+    return render_template('edit_player.html', player=player)
+
 @app.route('/game_hub')
 def game_hub():
     """Game Hub dashboard showing vollis, 1v1, and other game statistics"""

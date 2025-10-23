@@ -1,0 +1,134 @@
+{% extends 'base_admin.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>{% block title %} Edit Player {% endblock %}</h1>
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="full_name">Full Name *</label>
+            <input type="text" name="full_name" id="full_name"
+                   placeholder="Full Name"
+                   value="{{ player[1] }}"
+                   required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email"
+                   placeholder="Email"
+                   value="{{ player[2] if player[2] else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="age">Age</label>
+            <input type="number" name="age" id="age"
+                   placeholder="Age"
+                   value="{{ player[3] if player[3] else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="height">Height</label>
+            <input type="text" name="height" id="height"
+                   placeholder="Height (e.g., 6'2\")"
+                   value="{{ player[4] if player[4] else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" name="phone" id="phone"
+                   placeholder="Phone"
+                   value="{{ player[5] if player[5] else '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea name="notes" id="notes" 
+                      placeholder="Additional notes about this player"
+                      rows="4">{{ player[6] if player[6] else '' }}</textarea>
+        </div>
+        
+        <div class="button-group">
+            <input type="submit" value="Save Changes">
+            <a href="{{ url_for('player_list') }}" class="cancel-button">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text);
+}
+
+.form-group input,
+.form-group textarea {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.button-group {
+    text-align: center;
+    margin-top: 30px;
+}
+
+input[type="submit"] {
+    padding: 10px 30px;
+    background: var(--button-bg-1);
+    color: var(--button-text-1);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+input[type="submit"]:hover {
+    opacity: 0.9;
+}
+
+.cancel-button {
+    display: inline-block;
+    margin-left: 15px;
+    padding: 10px 30px;
+    background: var(--caption);
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.cancel-button:hover {
+    opacity: 0.9;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+</style>
+{% endblock %}
+

@@ -48,6 +48,7 @@
         <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
         <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
         <li><a href="{{ url_for('trueskill_rankings') }}"><i class="fas fa-star"></i> TrueSkill Rankings</a></li>
+        <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Player List</a></li>
                     {% if session.logged_in %}
                         {% if session.username == 'kyle' %}
                             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
