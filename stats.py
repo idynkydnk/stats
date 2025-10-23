@@ -1307,8 +1307,21 @@ def dashboard():
     except:
         display_date = target_date
     
-    # Get glicko rankings for the selected year
-    glicko_rankings = calculate_glicko_rankings(selected_year)
+    # Get trueskill rankings for the selected year
+    from stat_functions import calculate_trueskill_rankings
+    trueskill_rankings = calculate_trueskill_rankings(selected_year)
+    
+    # Get top teams data for the selected year
+    from stat_functions import team_stats_per_year, year_games
+    games = year_games(selected_year)
+    if games:
+        if len(games) < 70:
+            minimum_games_teams = 1
+        else:
+            minimum_games_teams = len(games) // 70
+    else:
+        minimum_games_teams = 1
+    top_teams = team_stats_per_year(selected_year, minimum_games_teams, games)
     
     # Add date navigation data
     dashboard_data['today_stats'] = date_stats
@@ -1318,8 +1331,9 @@ def dashboard():
     dashboard_data['next_date'] = next_date
     dashboard_data['has_previous'] = has_previous
     dashboard_data['has_next'] = has_next
-    dashboard_data['glicko_rankings'] = glicko_rankings
+    dashboard_data['trueskill_rankings'] = trueskill_rankings
     dashboard_data['current_month'] = datetime.now().month
+    dashboard_data['top_teams'] = top_teams
     
     return render_template('dashboard.html', **dashboard_data)
 
@@ -1446,6 +1460,98 @@ def player_list():
     
     players = get_all_players()
     return render_template('player_list.html', players=players)
+
+@app.route('/sessions/')
+def sessions():
+    """Sessions page showing all volleyball sessions with their games"""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    
+    cur = conn.cursor()
+    
+    # Get sessions
+    cur.execute("""
+        SELECT session_number, start_time, end_time, total_games, 
+               doubles_games, vollis_games, one_v_one_games, other_games
+        FROM sessions 
+        ORDER BY start_time DESC
+    """)
+    sessions = cur.fetchall()
+    
+    # Get games for each session
+    sessions_with_games = []
+    for session in sessions:
+        session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = session
+        
+        # Get all games for this session
+        all_games = []
+        
+        # Get doubles games
+        try:
+            cur.execute("""
+                SELECT id, game_date, 'doubles' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
+                FROM games 
+                WHERE game_date BETWEEN ? AND ? 
+                ORDER BY game_date
+            """, (start_time, end_time))
+            doubles_games = cur.fetchall()
+            all_games.extend(doubles_games)
+        except:
+            pass
+        
+        # Get vollis games
+        try:
+            cur.execute("""
+                SELECT id, game_date, 'vollis' as game_type, winner, NULL, loser, NULL, winner_score, loser_score 
+                FROM vollis_games 
+                WHERE game_date BETWEEN ? AND ? 
+                ORDER BY game_date
+            """, (start_time, end_time))
+            vollis_games = cur.fetchall()
+            all_games.extend(vollis_games)
+        except:
+            pass
+        
+        # Get 1v1 games
+        try:
+            cur.execute("""
+                SELECT id, game_date, 'one_v_one' as game_type, winner, NULL, loser, NULL, winner_score, loser_score 
+                FROM one_v_one_games 
+                WHERE game_date BETWEEN ? AND ? 
+                ORDER BY game_date
+            """, (start_time, end_time))
+            one_v_one_games = cur.fetchall()
+            all_games.extend(one_v_one_games)
+        except:
+            pass
+        
+        # Get other games
+        try:
+            cur.execute("""
+                SELECT id, game_date, 'other' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
+                FROM other_games 
+                WHERE game_date BETWEEN ? AND ? 
+                ORDER BY game_date
+            """, (start_time, end_time))
+            other_games = cur.fetchall()
+            all_games.extend(other_games)
+        except:
+            pass
+        
+        # Sort games by date
+        all_games.sort(key=lambda x: x[1])
+        
+        sessions_with_games.append({
+            'session': session,
+            'games': all_games
+        })
+    
+    conn.close()
+    
+    return render_template('sessions.html', sessions_with_games=sessions_with_games)
 
 @app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
 def edit_player(player_id):

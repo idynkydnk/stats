@@ -109,37 +109,37 @@
         </div>
     </div>
 
-    <!-- Glicko Rankings -->
+    <!-- TrueSkill Rankings -->
     <div class="dashboard-card">
         <div class="card-navigation">
-            <h2>Glicko-2 Rankings</h2>
+            <h2>TrueSkill Rankings</h2>
         </div>
-        {% if glicko_rankings %}
+        {% if trueskill_rankings %}
         <div class="streaks-list">
-            {% for ranking in glicko_rankings[:5] %}
+            {% for ranking in trueskill_rankings[:5] %}
             <div class="streak-item">
                 <span class="player-name">
                     <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
                 </span>
                 <span class="streak-info">
-                    <span class="glicko-rating">{{ ranking.rating }}</span>
-                    <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                    <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
+                    <small class="trueskill-games">{{ ranking.games_played }} games</small>
                 </span>
             </div>
             {% endfor %}
-            {% if glicko_rankings|length > 5 %}
+            {% if trueskill_rankings|length > 5 %}
             <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'glicko-rankings-more')">Show More</button>
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'trueskill-rankings-more')">Show More</button>
             </div>
-            <div class="streaks-list hidden" id="glicko-rankings-more">
-                {% for ranking in glicko_rankings[5:20] %}
+            <div class="streaks-list hidden" id="trueskill-rankings-more">
+                {% for ranking in trueskill_rankings[5:20] %}
                 <div class="streak-item">
                     <span class="player-name">
                         <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
                     </span>
                     <span class="streak-info">
-                        <span class="glicko-rating">{{ ranking.rating }}</span>
-                        <small class="glicko-rd">RD: {{ ranking.rd }}</small>
+                        <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
+                        <small class="trueskill-games">{{ ranking.games_played }} games</small>
                     </span>
                 </div>
                 {% endfor %}
@@ -150,6 +150,47 @@
         <div class="streaks-list">
             <div class="streak-item">
                 <span class="player-name">No rankings available</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Top Teams -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Top Teams</h2>
+        </div>
+        {% if top_teams %}
+        <div class="streaks-list">
+            {% for team in top_teams[:5] %}
+            <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">
+                    {{ team.team.player1 }} & {{ team.team.player2 }}
+                </span>
+                <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if top_teams|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'top-teams-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="top-teams-more">
+                {% for team in top_teams[5:20] %}
+                <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">
+                        {{ team.team.player1 }} & {{ team.team.player2 }}
+                    </span>
+                    <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No teams available</span>
                 <span class="streak-info">Check back later</span>
             </div>
         </div>
@@ -1054,18 +1095,19 @@
 #best-win-streaks-more .streak-item:first-child,
 #best-loss-streaks-more .streak-item:first-child,
 #monthly-activity-more .streak-item:first-child,
-#recent-games-more .streak-item:first-child {
+#recent-games-more .streak-item:first-child,
+#top-teams-more .streak-item:first-child {
     margin-top: 0;
 }
 
-/* Glicko rankings styling */
-.glicko-rating {
+/* TrueSkill rankings styling */
+.trueskill-rating {
     font-weight: bold;
     font-size: 16px;
     color: var(--button-bg-1);
 }
 
-.glicko-rd {
+.trueskill-games {
     font-size: 12px;
     color: var(--caption);
     margin-left: 8px;
