@@ -183,29 +183,27 @@
         <tbody>
         {% for game in games %}
             <tr>
-                <td>{{ game[1][0:10] }}<br>
-                    {% if game[1]|length > 10 %}
-                        {{ game[1][11:] }}
+                <td>{{ game[1][:8] }}<br>
+                    {% if game[1]|length > 9 %}
+                        {{ game[1][9:] }}
                     {% endif %}</td>
                 <td><a href="{{ url_for('game_name_stats', game_name=game[3]) }}">{{ game[3] }}</a></td>
                 <td>
-                    {% if game[4] %}<a href="{{ url_for('other_player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a>{% endif %}
-                    {% if game[5] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[5] ) }}">{{ game[5] }}</a>{% endif %}
-                    {% if game[6] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a>{% endif %}
-                    {% if game[7] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[7] ) }}">{{ game[7] }}</a>{% endif %}
-                    {% if game[8] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[8] ) }}">{{ game[8] }}</a>{% endif %}
-                    {% if game[9] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[9] ) }}">{{ game[9] }}</a>{% endif %}
+                    {% for i in range(4, 19) %}
+                        {% if game[i] %}
+                            <a href="{{ url_for('other_player_stats', year=year, name=game[i]) }}">{{ game[i] }}</a><br>
+                        {% endif %}
+                    {% endfor %}
                 </td>
-                <td class="score winner-score">{{ game[10] }}</td>
+                <td class="score winner-score">{{ game[19] }}</td>
                 <td>
-                    {% if game[11] %}<a href="{{ url_for('other_player_stats', year=year, name=game[11] ) }}">{{ game[11] }}</a>{% endif %}
-                    {% if game[12] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[12] ) }}">{{ game[12] }}</a>{% endif %}
-                    {% if game[13] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[13] ) }}">{{ game[13] }}</a>{% endif %}
-                    {% if game[14] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[14] ) }}">{{ game[14] }}</a>{% endif %}
-                    {% if game[15] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[15] ) }}">{{ game[15] }}</a>{% endif %}
-                    {% if game[16] %}<br><a href="{{ url_for('other_player_stats', year=year, name=game[16] ) }}">{{ game[16] }}</a>{% endif %}
+                    {% for i in range(20, 35) %}
+                        {% if game[i] %}
+                            <a href="{{ url_for('other_player_stats', year=year, name=game[i]) }}">{{ game[i] }}</a><br>
+                        {% endif %}
+                    {% endfor %}
                 </td>
-                <td class="score loser-score">{{ game[17] }}</td>
+                <td class="score loser-score">{{ game[35] }}</td>
                 <td>
                     <a href="{{ url_for('update_other_game', id=game[0]) }}" style="display: block; margin-bottom: 5px;">
                         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
@@ -254,6 +252,10 @@ function autoFillGameType(gameType) {
 }
 
 function addWinner() {
+    if (winnerCount >= 15) {
+        alert('Maximum of 15 winners allowed');
+        return;
+    }
     winnerCount++;
     const container = document.getElementById('winners-container');
     const newDiv = document.createElement('div');
@@ -274,6 +276,10 @@ function addWinner() {
 }
 
 function addLoser() {
+    if (loserCount >= 15) {
+        alert('Maximum of 15 losers allowed');
+        return;
+    }
     loserCount++;
     const container = document.getElementById('losers-container');
     const newDiv = document.createElement('div');

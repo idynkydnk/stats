@@ -23,18 +23,8 @@
                         <th scope="col" colspan="1">Game name</th>
                         <th scope="col" colspan="1">Game date</th>
                         <th scope="col" colspan="1">Updated at</th>
-                        <th scope="col" colspan="1">Winner1</th>
-                        <th scope="col" colspan="1">Winner2</th>
-                        <th scope="col" colspan="1">Winner3</th>
-                        <th scope="col" colspan="1">Winner4</th>
-                        <th scope="col" colspan="1">Winner5</th>
-                        <th scope="col" colspan="1">Winner6</th>
-                        <th scope="col" colspan="1">Loser1</th>
-                        <th scope="col" colspan="1">Loser2</th>
-                        <th scope="col" colspan="1">Loser3</th>
-                        <th scope="col" colspan="1">Loser4</th>
-                        <th scope="col" colspan="1">Loser5</th>
-                        <th scope="col" colspan="1">Loser6</th>
+                        <th scope="col" colspan="1">Winners</th>
+                        <th scope="col" colspan="1">Losers</th>
                         <th scope="col" colspan="1">Winner score</th>
                         <th scope="col" colspan="1">Loser score</th>
                         <th scope="col" colspan="1">Comment</th>
@@ -51,18 +41,20 @@
                                 {{ game["game_date"][11:19] }}
                             {% endif %}</td>
                         <td>{{ game["updated_at"] }}</td>
-                        <td>{{ game["winner1"] }}</td>
-                        <td>{{ game["winner2"] }}</td>
-                        <td>{{ game["winner3"] }}</td>
-                        <td>{{ game["winner4"] }}</td>
-                        <td>{{ game["winner5"] }}</td>
-                        <td>{{ game["winner6"] }}</td>
-                        <td>{{ game["loser1"] }}</td>
-                        <td>{{ game["loser2"] }}</td>
-                        <td>{{ game["loser3"] }}</td>
-                        <td>{{ game["loser4"] }}</td>
-                        <td>{{ game["loser5"] }}</td>
-                        <td>{{ game["loser6"] }}</td>
+                        <td>
+                            {% for i in range(1, 16) %}
+                                {% if game["winner" + i|string] %}
+                                    {{ game["winner" + i|string] }}<br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for i in range(1, 16) %}
+                                {% if game["loser" + i|string] %}
+                                    {{ game["loser" + i|string] }}<br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
                         <td>{{ game["winner_score"] }}</td>
                         <td>{{ game["loser_score"] }}</td>
                         <td>{{ game["comment"] }}</td>

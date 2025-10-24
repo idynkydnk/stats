@@ -884,12 +884,30 @@ def add_other_game():
         winner4 = request.form.get('winner4', '')
         winner5 = request.form.get('winner5', '')
         winner6 = request.form.get('winner6', '')
+        winner7 = request.form.get('winner7', '')
+        winner8 = request.form.get('winner8', '')
+        winner9 = request.form.get('winner9', '')
+        winner10 = request.form.get('winner10', '')
+        winner11 = request.form.get('winner11', '')
+        winner12 = request.form.get('winner12', '')
+        winner13 = request.form.get('winner13', '')
+        winner14 = request.form.get('winner14', '')
+        winner15 = request.form.get('winner15', '')
         loser1 = request.form.get('loser1', '')
         loser2 = request.form.get('loser2', '')
         loser3 = request.form.get('loser3', '')
         loser4 = request.form.get('loser4', '')
         loser5 = request.form.get('loser5', '')
         loser6 = request.form.get('loser6', '')
+        loser7 = request.form.get('loser7', '')
+        loser8 = request.form.get('loser8', '')
+        loser9 = request.form.get('loser9', '')
+        loser10 = request.form.get('loser10', '')
+        loser11 = request.form.get('loser11', '')
+        loser12 = request.form.get('loser12', '')
+        loser13 = request.form.get('loser13', '')
+        loser14 = request.form.get('loser14', '')
+        loser15 = request.form.get('loser15', '')
         winner_score = request.form.get('winner_score', '')
         loser_score = request.form.get('loser_score', '')
         comment = request.form.get('comment', '')
@@ -897,13 +915,17 @@ def add_other_game():
         if not game_type or not game_name or not winner1 or not loser1:
             flash('Some fields missing!')
         else:
-            add_other_stats(datetime.now(), game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
-                            winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, datetime.now())
+            add_other_stats(datetime.now(), game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
+                            winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
+                            winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
+                            loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, datetime.now())
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
-            winners = [winner1, winner2, winner3, winner4, winner5, winner6]
-            losers = [loser1, loser2, loser3, loser4, loser5, loser6]
+            winners = [winner1, winner2, winner3, winner4, winner5, winner6, winner7, winner8, winner9,
+                      winner10, winner11, winner12, winner13, winner14, winner15]
+            losers = [loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
+                     loser10, loser11, loser12, loser13, loser14, loser15]
             winners_str = ', '.join([w for w in winners if w])
             losers_str = ', '.join([l for l in losers if l])
             details = f"Game: {game_type} - {game_name}; Winners: {winners_str}; Losers: {losers_str}; Score: {winner_score}-{loser_score}"
@@ -962,12 +984,30 @@ def update_other_game(id):
         winner4 = request.form.get('winner4', '')
         winner5 = request.form.get('winner5', '')
         winner6 = request.form.get('winner6', '')
+        winner7 = request.form.get('winner7', '')
+        winner8 = request.form.get('winner8', '')
+        winner9 = request.form.get('winner9', '')
+        winner10 = request.form.get('winner10', '')
+        winner11 = request.form.get('winner11', '')
+        winner12 = request.form.get('winner12', '')
+        winner13 = request.form.get('winner13', '')
+        winner14 = request.form.get('winner14', '')
+        winner15 = request.form.get('winner15', '')
         loser1 = request.form.get('loser1', '')
         loser2 = request.form.get('loser2', '')
         loser3 = request.form.get('loser3', '')
         loser4 = request.form.get('loser4', '')
         loser5 = request.form.get('loser5', '')
         loser6 = request.form.get('loser6', '')
+        loser7 = request.form.get('loser7', '')
+        loser8 = request.form.get('loser8', '')
+        loser9 = request.form.get('loser9', '')
+        loser10 = request.form.get('loser10', '')
+        loser11 = request.form.get('loser11', '')
+        loser12 = request.form.get('loser12', '')
+        loser13 = request.form.get('loser13', '')
+        loser14 = request.form.get('loser14', '')
+        loser15 = request.form.get('loser15', '')
         winner_score = request.form.get('winner_score', '')
         loser_score = request.form.get('loser_score', '')
         comment = request.form.get('comment', '')
@@ -987,7 +1027,9 @@ def update_other_game(id):
             
             with conn:
                 game_data = (game_id, game[1], game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
-                           winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, datetime.now(), game_id)
+                           winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
+                           winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
+                           loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, datetime.now(), game_id)
                 database_update_other_game(conn, game_data)
             
             # Log the action for notifications

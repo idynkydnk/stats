@@ -69,16 +69,20 @@ def get_other_dashboard_data(year):
         'game_specific': game_specific_data
     }
 
-def add_other_stats(game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
-                    winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, updated_at):
+def add_other_stats(game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
+                    winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
+                    winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
+                    loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, updated_at):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
     with conn: 
-        game = (game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6, 
-                winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser_score, comment, updated_at);
+        game = (game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
+                winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
+                winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
+                loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, updated_at);
         create_other_game(conn, game)
 
 def todays_other_games():
@@ -107,24 +111,36 @@ def readable_games_data(games):
         except:
             game_date = game[1]
         
-        # Convert updated_at format
+        # Convert updated_at format (now at index 37)
         try:
-            if len(game[19]) > 19:
-                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
+            if len(game[37]) > 19:
+                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S.%f")
                 updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-            elif len(game[19]) > 10:
-                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
+            elif len(game[37]) > 10:
+                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S")
                 updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
             else:
-                updated_datetime = datetime.strptime(game[19], "%Y-%m-%d")
+                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d")
                 updated_date = updated_datetime.strftime("%m/%d/%y")
         except:
-            updated_date = game[19]
+            updated_date = game[37] if len(game) > 37 else ''
         
-        data = {'game_id':game[0], 'game_date':game_date, 'game_type':game[2], 'game_name':game[3], 'winner1':game[4], 'winner2':game[5], 
-                'winner3':game[6], 'winner4':game[7], 'winner5':game[8], 'winner6':game[9], 'winner_score':game[10], 'loser1':game[11], 
-                'loser2':game[12], 'loser3':game[13], 'loser4':game[14], 'loser5':game[15], 'loser6':game[16], 'loser_score':game[17], 
-                'comment':game[18], 'updated_at':updated_date}
+        data = {
+            'game_id': game[0], 
+            'game_date': game_date, 
+            'game_type': game[2], 
+            'game_name': game[3],
+            'winner1': game[4], 'winner2': game[5], 'winner3': game[6], 'winner4': game[7], 'winner5': game[8], 
+            'winner6': game[9], 'winner7': game[10], 'winner8': game[11], 'winner9': game[12], 'winner10': game[13],
+            'winner11': game[14], 'winner12': game[15], 'winner13': game[16], 'winner14': game[17], 'winner15': game[18],
+            'winner_score': game[19],
+            'loser1': game[20], 'loser2': game[21], 'loser3': game[22], 'loser4': game[23], 'loser5': game[24],
+            'loser6': game[25], 'loser7': game[26], 'loser8': game[27], 'loser9': game[28], 'loser10': game[29],
+            'loser11': game[30], 'loser12': game[31], 'loser13': game[32], 'loser14': game[33], 'loser15': game[34],
+            'loser_score': game[35],
+            'comment': game[36],
+            'updated_at': updated_date
+        }
         readable_games.append(data)
     return readable_games
 
@@ -136,9 +152,13 @@ def other_stats_per_year(year, minimum_games):
         wins, losses = 0, 0
         for game in games:
             x = 1 + 1
-            if player in ( game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"] ):
+            if player in ( game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"],
+                          game["winner7"], game["winner8"], game["winner9"], game["winner10"], game["winner11"], game["winner12"],
+                          game["winner13"], game["winner14"], game["winner15"] ):
                 wins += 1
-            elif player in ( game["loser1"], game["loser2"], game["loser3"], game["loser4"], game["loser5"], game["loser6"] ):
+            elif player in ( game["loser1"], game["loser2"], game["loser3"], game["loser4"], game["loser5"], game["loser6"],
+                            game["loser7"], game["loser8"], game["loser9"], game["loser10"], game["loser11"], game["loser12"],
+                            game["loser13"], game["loser14"], game["loser15"] ):
                 losses += 1
         win_percentage = wins / (wins + losses)
         if wins + losses >= minimum_games:
@@ -149,30 +169,16 @@ def other_stats_per_year(year, minimum_games):
 def all_other_players(games):
     players = []
     for game in games:
-        if game['winner1'] not in players:
-            players.append(game['winner1'])
-        if game["winner2"] not in players:
-            players.append(game["winner2"])
-        if game["winner3"] not in players:
-            players.append(game["winner3"])
-        if game["winner4"] not in players:
-            players.append(game["winner4"])
-        if game["winner5"] not in players:
-            players.append(game["winner5"])
-        if game["winner6"] not in players:
-            players.append(game["winner6"])
-        if game['loser1'] not in players:
-            players.append(game['loser1'])
-        if game['loser2'] not in players:
-            players.append(game['loser2'])
-        if game['loser3'] not in players:
-            players.append(game['loser3'])
-        if game['loser4'] not in players:
-            players.append(game['loser4'])
-        if game['loser5'] not in players:
-            players.append(game['loser5'])
-        if game['loser6'] not in players:
-            players.append(game['loser6'])
+        # Check all 15 winner slots
+        for i in range(1, 16):
+            winner_key = f'winner{i}'
+            if winner_key in game and game[winner_key] and game[winner_key] not in players:
+                players.append(game[winner_key])
+        # Check all 15 loser slots
+        for i in range(1, 16):
+            loser_key = f'loser{i}'
+            if loser_key in game and game[loser_key] and game[loser_key] not in players:
+                players.append(game[loser_key])
     if "" in players: players.remove("")
     return players
 
@@ -261,17 +267,26 @@ def convert_other_ampm(games):
     for game in games:
         if len(game[1]) > 19:
             game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
+            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
         else:
             game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
-        if len(game[19]) > 19:
-            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S.%f")
-            updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
+        if len(game[37]) > 19:
+            updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S.%f")
+            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
         else:
-            updated_datetime = datetime.strptime(game[19], "%Y-%m-%d %H:%M:%S")
-            updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
-        converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15], game[16], game[17], game[18], updated_date])
+            updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S")
+            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
+        # Include all columns: id, date, type, name, winner1-15, winner_score, loser1-15, loser_score, comment, updated_at
+        converted_games.append([
+            game[0], game_date, game[2], game[3],  # id, date, type, name
+            game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15], game[16], game[17], game[18],  # winner1-15
+            game[19],  # winner_score
+            game[20], game[21], game[22], game[23], game[24], game[25], game[26], game[27], game[28], game[29], game[30], game[31], game[32], game[33], game[34],  # loser1-15
+            game[35],  # loser_score
+            game[36],  # comment
+            updated_date  # updated_at
+        ])
     return converted_games
 
 def set_cur():

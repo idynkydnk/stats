@@ -30,9 +30,11 @@ def create_table(conn, create_table_sql):
 
 def create_other_game(conn, game):
     sql = ''' INSERT INTO other_games(game_date, game_type, game_name, winner1, winner2, winner3, winner4, 
-                                        winner5, winner6, winner_score, loser1, loser2, loser3, loser4, loser5, loser6, 
-                                        loser_score, comment, updated_at)
-              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+                                        winner5, winner6, winner7, winner8, winner9, winner10, winner11, winner12,
+                                        winner13, winner14, winner15, winner_score, loser1, loser2, loser3, loser4, 
+                                        loser5, loser6, loser7, loser8, loser9, loser10, loser11, loser12,
+                                        loser13, loser14, loser15, loser_score, comment, updated_at)
+              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()
@@ -49,6 +51,15 @@ def database_update_other_game(conn, game):
                     winner4 = ?,
                     winner5 = ?,
                     winner6 = ?,
+                    winner7 = ?,
+                    winner8 = ?,
+                    winner9 = ?,
+                    winner10 = ?,
+                    winner11 = ?,
+                    winner12 = ?,
+                    winner13 = ?,
+                    winner14 = ?,
+                    winner15 = ?,
                     winner_score = ?,
                     loser1 = ?,
                     loser2 = ?,
@@ -56,6 +67,15 @@ def database_update_other_game(conn, game):
                     loser4 = ?,
                     loser5 = ?,
                     loser6 = ?,
+                    loser7 = ?,
+                    loser8 = ?,
+                    loser9 = ?,
+                    loser10 = ?,
+                    loser11 = ?,
+                    loser12 = ?,
+                    loser13 = ?,
+                    loser14 = ?,
+                    loser15 = ?,
                     loser_score = ?,
                     comment = ?,
                     updated_at = ? 
