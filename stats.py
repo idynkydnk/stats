@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 from vollis_functions import *
 from one_v_one_functions import *
 from other_functions import *
+from kob_functions import update_kobs
 import os
 import subprocess
 import sqlite3
@@ -403,6 +404,9 @@ def add_game():
             details = f"Winners: {winner1.strip()}, {winner2.strip()}; Losers: {loser1.strip()}, {loser2.strip()}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
             
+            # Update KOBs after adding game
+            update_kobs()
+            
             return redirect(url_for('add_game'))
 
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
@@ -454,6 +458,9 @@ def update(id):
             details = f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited doubles game', details)
             
+            # Update KOBs after editing game
+            update_kobs()
+            
             # Check if user came from add game page
             from_add_game = request.form.get('from_add_game')
             if from_add_game == 'true':
@@ -497,6 +504,10 @@ def delete_game(id):
             log_user_action(user, 'Deleted doubles game', details)
         
         remove_game(game_id)
+        
+        # Update KOBs after deleting game
+        update_kobs()
+        
         return redirect(url_for('edit_games'))
  
     return render_template('delete_game.html', game=game)
