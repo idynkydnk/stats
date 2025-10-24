@@ -28,13 +28,25 @@ def validate_kob(games):
     if len(all_players) != 4:
         return False
     
-    # Count how many times each pair played together
+    # Count how many times each pair played together AND track their wins/losses
     pair_counts = Counter()
+    pair_records = {}  # Track wins and losses for each pair
+    
     for game in games:
         winning_pair = tuple(sorted([game['winner1'], game['winner2']]))
         losing_pair = tuple(sorted([game['loser1'], game['loser2']]))
+        
         pair_counts[winning_pair] += 1
         pair_counts[losing_pair] += 1
+        
+        # Track wins/losses
+        if winning_pair not in pair_records:
+            pair_records[winning_pair] = {'wins': 0, 'losses': 0}
+        if losing_pair not in pair_records:
+            pair_records[losing_pair] = {'wins': 0, 'losses': 0}
+        
+        pair_records[winning_pair]['wins'] += 1
+        pair_records[losing_pair]['losses'] += 1
     
     # Get all possible pairs (should be 6 for 4 players)
     players_list = sorted(list(all_players))
@@ -67,6 +79,7 @@ def validate_kob(games):
     
     # Pattern 2: t % 3 == 1 (7, 13, 19...)
     # Must have exactly ONE tiebreaker: 2 pairs with odd counts, 4 pairs with even counts
+    # AND those pairs with odd counts must have SPLIT their games (not 3-0 or 0-3)
     if remainder == 1:
         # Check if there's actually a tiebreaker
         # A tiebreaker means some pairs have ODD counts (they played an extra game to break a tie)
@@ -80,12 +93,22 @@ def validate_kob(games):
         if max_count - min_count == 1 and count_freq[max_count] == 2:
             # min_count must be even for this to be a valid tiebreaker
             if min_count % 2 == 0:
+                # Verify that pairs with odd counts actually SPLIT (have both wins and losses)
+                for pair, count in pair_counts.items():
+                    if count % 2 == 1:  # Pair with odd count
+                        wins = pair_records[pair]['wins']
+                        losses = pair_records[pair]['losses']
+                        # They must have both won AND lost (not all wins or all losses)
+                        if wins == 0 or losses == 0:
+                            return False
+                
                 expected_games = (4 * min_count + 2 * max_count) // 2
                 return num_games == expected_games
         return False
     
     # Pattern 3: t % 3 == 2 (8, 14, 20...)
     # Must have exactly TWO tiebreakers: 4 pairs with odd counts, 2 pairs with even counts
+    # AND those pairs with odd counts must have SPLIT their games
     if remainder == 2:
         # Check if there are actually two tiebreakers
         odd_count_pairs = sum(1 for count in counts if count % 2 == 1)
@@ -98,6 +121,15 @@ def validate_kob(games):
         if max_count - min_count == 1 and count_freq[max_count] == 4:
             # min_count must be even for this to be a valid tiebreaker
             if min_count % 2 == 0:
+                # Verify that pairs with odd counts actually SPLIT (have both wins and losses)
+                for pair, count in pair_counts.items():
+                    if count % 2 == 1:  # Pair with odd count
+                        wins = pair_records[pair]['wins']
+                        losses = pair_records[pair]['losses']
+                        # They must have both won AND lost (not all wins or all losses)
+                        if wins == 0 or losses == 0:
+                            return False
+                
                 expected_games = (2 * min_count + 4 * max_count) // 2
                 return num_games == expected_games
         return False
