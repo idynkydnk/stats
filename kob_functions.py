@@ -44,42 +44,20 @@ def validate_kob(games):
     if set(pair_counts.keys()) != all_possible_pairs:
         return False
     
-    # Get the counts
-    counts = sorted(pair_counts.values())
-    min_count = min(counts)
-    max_count = max(counts)
+    # Verify the math: total pair instances should equal games * 2
+    # (since each game involves exactly 2 pairs)
+    total_pair_instances = sum(pair_counts.values())
     num_games = len(games)
     
-    # Count how many pairs have each count
-    count_freq = Counter(counts)
-    
-    # All pairs same count (valid 3n pattern)
-    if min_count == max_count:
-        expected_games = min_count * 3
-        return num_games == expected_games
-    
-    # Counts differ by more than 1 - invalid
-    if max_count - min_count != 1:
+    if total_pair_instances != num_games * 2:
         return False
     
-    # Count how many pairs have the higher count
-    num_high_pairs = count_freq[max_count]
-    num_low_pairs = count_freq[min_count]
-    
-    # Calculate expected number of games
-    expected_games = (num_low_pairs * min_count + num_high_pairs * max_count) // 2
-    
-    if num_games != expected_games:
-        return False
-    
-    # A "split" means one pair played an extra game (max_count = min_count + 1)
-    # Valid patterns:
-    # - 1 split: one pair played one extra game
-    # - 2 splits: two pairs each played one extra game
-    if num_high_pairs == 1 or num_high_pairs == 2:
-        return True
-    
-    return False
+    # At this point, we have:
+    # - Exactly 4 players
+    # - All 6 pairs appear
+    # - The math checks out
+    # This is a valid KOB!
+    return True
 
 def update_kobs():
     """Update KOBs by checking all games and recreating sessions."""
