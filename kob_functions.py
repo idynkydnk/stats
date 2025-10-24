@@ -44,20 +44,50 @@ def validate_kob(games):
     if set(pair_counts.keys()) != all_possible_pairs:
         return False
     
-    # Verify the math: total pair instances should equal games * 2
-    # (since each game involves exactly 2 pairs)
-    total_pair_instances = sum(pair_counts.values())
+    # Get counts and stats
+    counts = sorted(pair_counts.values())
+    min_count = min(counts)
+    max_count = max(counts)
     num_games = len(games)
+    count_freq = Counter(counts)
     
-    if total_pair_instances != num_games * 2:
-        return False
+    # Pattern 1: 3n games (all pairs play exactly n times)
+    # Valid: 3, 6, 9, 12, 15...
+    if min_count == max_count:
+        # All pairs must play the same number of times
+        # And total games = (6 pairs × n games per pair) / 2
+        expected_games = min_count * 3
+        return num_games == expected_games
     
-    # At this point, we have:
-    # - Exactly 4 players
-    # - All 6 pairs appear
-    # - The math checks out
-    # This is a valid KOB!
-    return True
+    # Pattern 2: 3n+1 games (one GAME is a tiebreaker)
+    # Valid: 7, 10, 13, 16...
+    # One extra game means 2 pairs play n+1 times (the pairs in that game), others play n times
+    if max_count - min_count == 1:
+        num_high_pairs = count_freq[max_count]
+        
+        # Exactly 2 pairs at higher count (one game involves 2 pairs)
+        if num_high_pairs == 2:
+            # max_count must be odd (indicates tiebreaker)
+            if max_count % 2 == 1:
+                # min_count must be even
+                if min_count % 2 == 0:
+                    expected_games = (4 * min_count + 2 * max_count) // 2
+                    if num_games == expected_games and num_games >= 7:
+                        return True
+        
+        # Pattern 3: 3n+2 games (two GAMES are tiebreakers)
+        # Valid: 8, 11, 14, 17...
+        # Two extra games means 4 pairs play n+1 times, others play n times
+        if num_high_pairs == 4:
+            # max_count must be odd (indicates tiebreaker)
+            if max_count % 2 == 1:
+                # min_count must be even
+                if min_count % 2 == 0:
+                    expected_games = (2 * min_count + 4 * max_count) // 2
+                    if num_games == expected_games and num_games >= 8:
+                        return True
+    
+    return False
 
 def update_kobs():
     """Update KOBs by checking all games and recreating sessions."""
