@@ -1,207 +1,35 @@
 {% extends 'base.html' %}
 
-{% block title %}KOBs{% endblock %}
-
 {% block content %}
-<div class="container">
-    <h1>Volleyball KOBs</h1>
+    <h1>{% block title %} Volleyball KOBs {% endblock %}</h1>
     
     {% if kobs_with_games %}
-    <div class="search-container">
-        <input type="text" id="kobSearch" placeholder="Search KOBs..." onkeyup="searchKOBs()">
-    </div>
-    <p id="resultCount">Showing {{ kobs_with_games|length }} KOBs</p>
-    
-    {% for kob_data in kobs_with_games %}
-    {% set kob = kob_data.kob %}
-    {% set games = kob_data.games %}
-    {% set players = kob_data.players %}
-    <a href="{{ url_for('kob_detail', session_number=kob[0]) }}" class="kob-card" data-kob="{{ kob[0] }}">
-        <div class="kob-header">
-            <h3>KOB {% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown Date{% endif %}</h3>
-            <div class="kob-info">
-                <span class="kob-games">{{ kob[3] }} games</span>
-            </div>
+        <div>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Players</th>
+                        <th scope="col">Games</th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for kob_data in kobs_with_games %}
+                {% set kob = kob_data.kob %}
+                {% set games = kob_data.games %}
+                {% set players = kob_data.players %}
+                    <tr>
+                        <td>{% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown{% endif %}</td>
+                        <td>{{ players|join(', ') }}</td>
+                        <td>{{ kob[3] }}</td>
+                        <td><a href="{{ url_for('kob_detail', session_number=kob[0]) }}">View Details</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <div class="kob-players">
-            <strong>Players:</strong> {{ players|join(', ') }}
-        </div>
-        <div class="kob-link">
-            <i class="fas fa-arrow-right"></i> View Details
-        </div>
-    </a>
-    {% endfor %}
-    
     {% else %}
-    <p>No KOBs found in the database.</p>
+        <p>No KOBs found in the database.</p>
     {% endif %}
-</div>
-
-<style>
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.search-container {
-    text-align: center;
-    margin: 20px 0;
-}
-
-#kobSearch {
-    width: 300px;
-    padding: 8px;
-    text-align: center;
-    border: 2px solid var(--button-bg-1);
-    border-radius: 8px;
-    background-color: var(--bg);
-    color: var(--text);
-}
-
-#resultCount {
-    text-align: center;
-    color: var(--caption);
-    font-size: 14px;
-    margin: 10px 0;
-}
-
-.kob-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin: 20px 0;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
-.kob-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-    text-decoration: none;
-    color: inherit;
-}
-
-.kob-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-}
-
-.kob-header h3 {
-    margin: 0;
-    color: var(--text);
-}
-
-.kob-info {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    color: var(--caption);
-}
-
-.kob-date {
-    font-weight: bold;
-}
-
-.kob-games {
-    background-color: var(--button-bg-1);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.kob-players {
-    color: var(--text);
-    font-size: 14px;
-    margin-bottom: 15px;
-}
-
-.kob-link {
-    color: var(--button-bg-1);
-    font-weight: bold;
-    text-align: right;
-    margin-top: 10px;
-    font-size: 14px;
-}
-
-.kob-link i {
-    margin-left: 5px;
-    transition: transform 0.2s ease;
-}
-
-.kob-card:hover .kob-link i {
-    transform: translateX(3px);
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-    }
-    
-    .session-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .session-info {
-        gap: 10px;
-    }
-    
-    .game-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    
-    .game-time {
-        min-width: auto;
-    }
-    
-    #sessionSearch {
-        width: 250px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
-
-<script>
-function searchKOBs() {
-    const input = document.getElementById('kobSearch');
-    const filter = input.value.toLowerCase();
-    const cards = document.querySelectorAll('.kob-card');
-    const resultCount = document.getElementById('resultCount');
-    
-    let visibleCount = 0;
-    
-    for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
-        const cardText = card.textContent || card.innerText;
-        
-        if (cardText.toLowerCase().indexOf(filter) > -1) {
-            card.style.display = '';
-            visibleCount++;
-        } else {
-            card.style.display = 'none';
-        }
-    }
-    
-    resultCount.textContent = `Showing ${visibleCount} of {{ kobs_with_games|length }} KOBs`;
-}
-
-</script>
 {% endblock %}
