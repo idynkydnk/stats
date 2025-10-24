@@ -4,6 +4,11 @@
     <h1>{% block title %} Volleyball KOBs {% endblock %}</h1>
     
     {% if kobs_with_games %}
+        <div class="search-container">
+            <input type="text" id="kobSearch" placeholder="Search by player names (e.g., kyle chow goshow)..." onkeyup="searchKOBs()">
+            <p id="resultCount">Showing {{ kobs_with_games|length }} KOBs</p>
+        </div>
+        
         <div>
             <table class="kobs-table">
                 <thead>
@@ -37,6 +42,40 @@
     {% endif %}
     
 <style>
+.search-container {
+    text-align: center;
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+#kobSearch {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    border: 2px solid var(--button-bg-1);
+    border-radius: 8px;
+    background-color: var(--bg);
+    color: var(--text);
+    transition: border-color 0.2s ease;
+}
+
+#kobSearch:focus {
+    outline: none;
+    border-color: var(--button-bg-1);
+    box-shadow: 0 0 0 3px rgba(174, 238, 152, 0.1);
+}
+
+#kobSearch::placeholder {
+    color: var(--caption);
+}
+
+#resultCount {
+    text-align: center;
+    color: var(--caption);
+    font-size: 14px;
+    margin: 10px 0 20px 0;
+}
+
 .kobs-table tbody tr {
     height: auto;
 }
@@ -79,4 +118,40 @@
     text-decoration: none;
 }
 </style>
+
+<script>
+function searchKOBs() {
+    const input = document.getElementById('kobSearch');
+    const filter = input.value.toLowerCase().trim();
+    const table = document.querySelector('.kobs-table tbody');
+    const rows = table.getElementsByTagName('tr');
+    const resultCount = document.getElementById('resultCount');
+    
+    let visibleCount = 0;
+    
+    // Split the search terms by spaces
+    const searchTerms = filter.split(/\s+/).filter(term => term.length > 0);
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const playersCell = row.querySelector('.kob-players');
+        
+        if (playersCell) {
+            const playersText = playersCell.textContent.toLowerCase();
+            
+            // Check if ALL search terms are present in the players text
+            const allTermsMatch = searchTerms.every(term => playersText.includes(term));
+            
+            if (searchTerms.length === 0 || allTermsMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
+    resultCount.textContent = `Showing ${visibleCount} of {{ kobs_with_games|length }} KOBs`;
+}
+</script>
 {% endblock %}
