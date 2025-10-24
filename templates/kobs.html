@@ -27,8 +27,10 @@
                     <tr>
                         <td class="kob-date">{% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown{% endif %}</td>
                         <td class="kob-players">
-                            {{ players[0] }}, {{ players[1] }}<br>
-                            {{ players[2] }}, {{ players[3] }}
+                            <div class="player-name-line">{{ players[0] }}</div>
+                            <div class="player-name-line">{{ players[1] }}</div>
+                            <div class="player-name-line">{{ players[2] }}</div>
+                            <div class="player-name-line">{{ players[3] }}</div>
                         </td>
                         <td class="kob-games">{{ kob[3] }}</td>
                         <td class="kob-link"><a href="{{ url_for('kob_detail', session_number=kob[0]) }}">View Details</a></td>
@@ -88,7 +90,11 @@
 
 .kobs-table .kob-players {
     padding: 15px 10px !important;
-    line-height: 1.8;
+    line-height: 1.6;
+}
+
+.player-name-line {
+    white-space: nowrap;
 }
 
 .kobs-table .kob-games {

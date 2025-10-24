@@ -848,8 +848,8 @@ def get_dashboard_data(selected_year=None):
 	# Get all-time stats
 	all_time_stats = stats_per_year('All years', 0)  # 0 minimum games for dashboard
 	
-	# Get recent games (last 10) for selected year
-	recent_games = year_games(selected_year)[:10]
+	# Get recent games (last 20) for selected year
+	recent_games = year_games(selected_year)[:20]
 	
 	# Get monthly game counts for selected year
 	monthly_data = get_monthly_game_counts(selected_year)
