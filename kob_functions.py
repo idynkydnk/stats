@@ -62,10 +62,6 @@ def validate_kob(games):
     if max_count - min_count != 1:
         return False
     
-    # max_count must be ODD for a true split
-    if max_count % 2 == 0:
-        return False
-    
     # Count how many pairs have the higher count
     num_high_pairs = count_freq[max_count]
     num_low_pairs = count_freq[min_count]
@@ -76,11 +72,12 @@ def validate_kob(games):
     if num_games != expected_games:
         return False
     
-    # Valid split patterns
-    if num_high_pairs == 1:
-        return (num_games - 1) % 3 == 0 and num_games >= 7
-    elif num_high_pairs == 2:
-        return (num_games - 2) % 3 == 0 and num_games >= 8
+    # A "split" means one pair played an extra game (max_count = min_count + 1)
+    # Valid patterns:
+    # - 1 split: one pair played one extra game
+    # - 2 splits: two pairs each played one extra game
+    if num_high_pairs == 1 or num_high_pairs == 2:
+        return True
     
     return False
 
