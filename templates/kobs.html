@@ -5,7 +5,7 @@
     
     {% if kobs_with_games %}
         <div>
-            <table>
+            <table class="kobs-table">
                 <thead>
                     <tr>
                         <th scope="col">Date</th>
@@ -20,13 +20,13 @@
                 {% set games = kob_data.games %}
                 {% set players = kob_data.players %}
                     <tr>
-                        <td>{% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown{% endif %}</td>
-                        <td>
+                        <td class="kob-date">{% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown{% endif %}</td>
+                        <td class="kob-players">
                             {{ players[0] }}, {{ players[1] }}<br>
                             {{ players[2] }}, {{ players[3] }}
                         </td>
-                        <td>{{ kob[3] }}</td>
-                        <td><a href="{{ url_for('kob_detail', session_number=kob[0]) }}">View Details</a></td>
+                        <td class="kob-games">{{ kob[3] }}</td>
+                        <td class="kob-link"><a href="{{ url_for('kob_detail', session_number=kob[0]) }}">View Details</a></td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -35,4 +35,48 @@
     {% else %}
         <p>No KOBs found in the database.</p>
     {% endif %}
+    
+<style>
+.kobs-table tbody tr {
+    height: auto;
+}
+
+.kobs-table .kob-date {
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--button-bg-1);
+}
+
+.kobs-table .kob-players {
+    padding: 15px 10px !important;
+    line-height: 1.8;
+}
+
+.kobs-table .kob-games {
+    text-align: center;
+    font-weight: 600;
+    color: var(--button-bg-1);
+    font-size: 16px;
+}
+
+.kobs-table .kob-link {
+    text-align: right;
+    padding-right: 15px !important;
+}
+
+.kobs-table .kob-link a {
+    color: var(--button-bg-1);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    display: inline-block;
+}
+
+.kobs-table .kob-link a:hover {
+    background-color: rgba(174, 238, 152, 0.1);
+    text-decoration: none;
+}
+</style>
 {% endblock %}
