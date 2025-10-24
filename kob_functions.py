@@ -51,41 +51,56 @@ def validate_kob(games):
     num_games = len(games)
     count_freq = Counter(counts)
     
-    # Formula: Valid counts are 3t, 3t+1, or 3t+2 only if t is even
-    # where t = base number of times each pair plays
+    # Formula: Valid counts are 3t where t = total games
+    # Also valid: t+1 or t+2 ONLY if there are actual tiebreakers (pairs with odd counts)
+    # Tiebreakers only exist when the base is even (so adding 1 makes it odd)
     
-    # Pattern 1: 3t games (all pairs play exactly t times)
-    # Valid for any t: 3 (t=1), 6 (t=2), 9 (t=3), 12 (t=4)...
-    if min_count == max_count:
-        expected_games = min_count * 3
-        return num_games == expected_games
+    remainder = num_games % 3
     
-    # For splits (3t+1 or 3t+2), t must be EVEN
-    # This means min_count (which equals t) must be even
-    if min_count % 2 != 0:
+    # Pattern 1: t % 3 == 0 (3, 6, 9, 12...)
+    # All pairs must play the same number of times
+    if remainder == 0:
+        if min_count == max_count:
+            expected_games = min_count * 3
+            return num_games == expected_games
         return False
     
-    # Pattern 2: 3t+1 games (one tiebreaker game)
-    # Valid only if t is even: 7 (t=2), 13 (t=4), 19 (t=6)...
-    # Two pairs play t+1 times (odd for tiebreaker), others play t times (even)
-    if max_count - min_count == 1:
-        num_high_pairs = count_freq[max_count]
+    # Pattern 2: t % 3 == 1 (7, 13, 19...)
+    # Must have exactly ONE tiebreaker: 2 pairs with odd counts, 4 pairs with even counts
+    if remainder == 1:
+        # Check if there's actually a tiebreaker
+        # A tiebreaker means some pairs have ODD counts (they played an extra game to break a tie)
+        odd_count_pairs = sum(1 for count in counts if count % 2 == 1)
         
-        if num_high_pairs == 2:
-            expected_games = (4 * min_count + 2 * max_count) // 2
-            if num_games == expected_games:
-                return True
+        # Must have exactly 2 pairs with odd counts (one tiebreaker game involves 2 pairs)
+        if odd_count_pairs != 2:
+            return False
+        
+        # Check if the structure is correct
+        if max_count - min_count == 1 and count_freq[max_count] == 2:
+            # min_count must be even for this to be a valid tiebreaker
+            if min_count % 2 == 0:
+                expected_games = (4 * min_count + 2 * max_count) // 2
+                return num_games == expected_games
+        return False
     
-    # Pattern 3: 3t+2 games (two tiebreaker games)
-    # Valid only if t is even: 8 (t=2), 14 (t=4), 20 (t=6)...
-    # Four pairs play t+1 times (odd for tiebreaker), others play t times (even)
-    if max_count - min_count == 1:
-        num_high_pairs = count_freq[max_count]
+    # Pattern 3: t % 3 == 2 (8, 14, 20...)
+    # Must have exactly TWO tiebreakers: 4 pairs with odd counts, 2 pairs with even counts
+    if remainder == 2:
+        # Check if there are actually two tiebreakers
+        odd_count_pairs = sum(1 for count in counts if count % 2 == 1)
         
-        if num_high_pairs == 4:
-            expected_games = (2 * min_count + 4 * max_count) // 2
-            if num_games == expected_games:
-                return True
+        # Must have exactly 4 pairs with odd counts (two tiebreaker games involve 4 pairs)
+        if odd_count_pairs != 4:
+            return False
+        
+        # Check if the structure is correct
+        if max_count - min_count == 1 and count_freq[max_count] == 4:
+            # min_count must be even for this to be a valid tiebreaker
+            if min_count % 2 == 0:
+                expected_games = (2 * min_count + 4 * max_count) // 2
+                return num_games == expected_games
+        return False
     
     return False
 
