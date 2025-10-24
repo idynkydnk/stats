@@ -6,9 +6,35 @@
     <!-- KOB Header -->
     <div class="date-navigation">
         <div class="date-header">
-            <h1 class="date-title">KOB {{ kob[0] }}</h1>
+            <h1 class="date-title">KOB {% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown Date{% endif %}</h1>
         </div>
     </div>
+
+    <!-- KOB Winner Banner -->
+    {% if kob_winner %}
+    <div class="kob-winner-banner">
+        <div class="winner-trophy">🏆</div>
+        <div class="winner-content">
+            <div class="winner-label">KOB WINNER</div>
+            <div class="winner-name">{{ kob_winner.player }}</div>
+            <div class="winner-stats">
+                {{ kob_winner.wins }} {% if kob_winner.wins == 1 %}Win{% else %}Wins{% endif %} - {{ kob_winner.losses }} {% if kob_winner.losses == 1 %}Loss{% else %}Losses{% endif %}
+                <br>
+                {{ "%.1f"|format(kob_winner.win_percentage) }}% Win Percentage
+                <br>
+                {% if kob_winner.plus_minus >= 0 %}+{% endif %}{{ kob_winner.plus_minus }} Plus/Minus
+            </div>
+        </div>
+        <div class="winner-confetti">
+            <span class="confetti">🎉</span>
+            <span class="confetti">✨</span>
+            <span class="confetti">🎊</span>
+            <span class="confetti">⭐</span>
+            <span class="confetti">🎉</span>
+            <span class="confetti">✨</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Player Stats Table (matching doubles stats style) -->
     <table>
@@ -41,7 +67,7 @@
     </table>
 
     <!-- Games Table (matching doubles stats style) -->
-    <h1>KOB {{ kob[0] }} Games</h1>
+    <h1>KOB {% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown Date{% endif %} Games</h1>
     <table>
         <thead>
             <tr>
@@ -55,9 +81,9 @@
         <tbody>
         {% for game in games %}
             <tr>
-                <td>{{ game[1][0:10] }}<br>
-                    {% if game[1]|length > 14 %}
-                        {{ game[1][11:19] }}
+                <td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][2:4] }}<br>
+                    {% if game[9] %}
+                        {{ game[9] }}
                     {% endif %}</td>
                 <td>{{ game[3] }}<br>{{ game[4] }}</td>
                 <td class="score winner-score">{{ game[7] }}</td>
@@ -67,5 +93,162 @@
         {% endfor %}
         </tbody>
     </table>
+
+<style>
+.kob-winner-banner {
+    max-width: 500px;
+    margin: 30px auto;
+    padding: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(174, 238, 152, 0.3);
+    }
+    to {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 40px rgba(174, 238, 152, 0.6);
+    }
+}
+
+.winner-trophy {
+    font-size: 60px;
+    margin-bottom: 10px;
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.winner-content {
+    position: relative;
+    z-index: 2;
+}
+
+.winner-label {
+    font-size: 16px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.winner-name {
+    font-size: 36px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 10px;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.winner-stats {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    line-height: 1.8;
+}
+
+.winner-confetti {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.confetti {
+    position: absolute;
+    font-size: 24px;
+    animation: fall 3s linear infinite;
+}
+
+.confetti:nth-child(1) {
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.confetti:nth-child(2) {
+    left: 25%;
+    animation-delay: 0.5s;
+}
+
+.confetti:nth-child(3) {
+    left: 40%;
+    animation-delay: 1s;
+}
+
+.confetti:nth-child(4) {
+    left: 60%;
+    animation-delay: 1.5s;
+}
+
+.confetti:nth-child(5) {
+    left: 75%;
+    animation-delay: 2s;
+}
+
+.confetti:nth-child(6) {
+    left: 90%;
+    animation-delay: 2.5s;
+}
+
+@keyframes fall {
+    0% {
+        top: -10%;
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+    100% {
+        top: 110%;
+        opacity: 0.5;
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .kob-winner-banner {
+        padding: 20px;
+    }
+    
+    .winner-trophy {
+        font-size: 48px;
+    }
+    
+    .winner-name {
+        font-size: 28px;
+    }
+    
+    .winner-stats {
+        font-size: 16px;
+    }
+}
+</style>
 
 {% endblock %}

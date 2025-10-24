@@ -18,15 +18,8 @@
     {% set players = kob_data.players %}
     <a href="{{ url_for('kob_detail', session_number=kob[0]) }}" class="kob-card" data-kob="{{ kob[0] }}">
         <div class="kob-header">
-            <h3>KOB {{ kob[0] }}</h3>
+            <h3>KOB {% if kob[1] %}{{ kob[1][5:7] }}/{{ kob[1][8:10] }}/{{ kob[1][2:4] }}{% else %}Unknown Date{% endif %}</h3>
             <div class="kob-info">
-                <span class="kob-date">
-                    {% if kob[1] %}
-                        {{ kob[1][:10] }}
-                    {% else %}
-                        Unknown Date
-                    {% endif %}
-                </span>
                 <span class="kob-games">{{ kob[3] }} games</span>
             </div>
         </div>

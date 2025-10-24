@@ -1568,6 +1568,25 @@ def kob_detail(session_number):
     # Sort games by date
     all_games.sort(key=lambda x: x[1])
     
+    # Format games with proper time display
+    from datetime import datetime
+    formatted_games = []
+    for game in all_games:
+        game_list = list(game)
+        # Convert time to 12-hour format with AM/PM
+        if game[1] and len(game[1]) > 10:
+            try:
+                dt = datetime.fromisoformat(game[1])
+                # Format as HH:MMAM/PM
+                time_12hr = dt.strftime('%I:%M%p').lstrip('0')
+                game_list.append(time_12hr)
+            except:
+                game_list.append('')
+        else:
+            game_list.append('')
+        formatted_games.append(game_list)
+    all_games = formatted_games
+    
     # Get unique players from the games
     players = set()
     for game in all_games:
@@ -1605,13 +1624,17 @@ def kob_detail(session_number):
     # Sort by win percentage, then by plus/minus
     player_stats.sort(key=lambda x: (-x['win_percentage'], -x['plus_minus']))
     
+    # Determine KOB winner (highest win percentage, then highest plus/minus)
+    kob_winner = player_stats[0] if player_stats else None
+    
     conn.close()
     
     return render_template('kob_detail.html', 
                          kob=kob,
                          games=all_games,
                          players=sorted(players),
-                         player_stats=player_stats)
+                         player_stats=player_stats,
+                         kob_winner=kob_winner)
 
 @app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
 def edit_player(player_id):
