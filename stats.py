@@ -1705,14 +1705,13 @@ def edit_player(player_id):
         email = request.form['email'] if request.form['email'] else None
         date_of_birth = request.form['date_of_birth'] if request.form['date_of_birth'] else None
         height = request.form['height'] if request.form['height'] else None
-        phone = request.form['phone'] if request.form['phone'] else None
         notes = request.form['notes'] if request.form['notes'] else None
         
         if not full_name:
             flash('Full name is required!')
         else:
             old_name = player[1]
-            update_player_info(player_id, full_name, email, date_of_birth, height, phone, notes)
+            update_player_info(player_id, full_name, email, date_of_birth, height, notes)
             if old_name != full_name:
                 flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.')
             else:

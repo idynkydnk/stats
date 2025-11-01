@@ -29,8 +29,8 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_player(conn, player):
-    sql = ''' INSERT INTO players(full_name, email, date_of_birth, height, phone, notes, created_at, updated_at)
-              VALUES(?,?,?,?,?,?,?,?) '''
+    sql = ''' INSERT INTO players(full_name, email, date_of_birth, height, notes, created_at, updated_at)
+              VALUES(?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, player)
     conn.commit()
@@ -42,7 +42,6 @@ def update_player(conn, player):
                   email = ?,
                   date_of_birth = ?,
                   height = ?,
-                  phone = ?,
                   notes = ?,
                   updated_at = ?
               WHERE id = ?'''
@@ -65,7 +64,6 @@ def main():
                                     email TEXT,
                                     date_of_birth TEXT,
                                     height TEXT,
-                                    phone TEXT,
                                     notes TEXT,
                                     created_at DATETIME NOT NULL,
                                     updated_at DATETIME NOT NULL
