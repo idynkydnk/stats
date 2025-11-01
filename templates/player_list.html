@@ -20,6 +20,7 @@
                 <th scope="col">Email</th>
                 <th scope="col">Age</th>
                 <th scope="col">Height</th>
+                <th scope="col">Games</th>
                 <th scope="col">First Game</th>
             </tr>
         </thead>
@@ -44,6 +45,7 @@
                     {% endif %}
                 {% else %}-{% endif %}</td>
                 <td>{{ player[4] if player[4] else '-' }}</td>
+                <td>{{ player[9] if player[9] else 0 }}</td>
                 <td>{% if player[8] %}{{ player[8][5:7] }}/{{ player[8][8:10] }}/{{ player[8][2:4] }}{% else %}-{% endif %}</td>
             </tr>
             {% endfor %}

@@ -11,7 +11,7 @@ def set_cur():
     return cur
 
 def get_all_players():
-    """Get all players from the database with their first game date"""
+    """Get all players from the database with their first game date and game count"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -19,48 +19,58 @@ def get_all_players():
         conn = create_connection(database)
     cur = conn.cursor()
     
-    # Get all players with their first game date
-    # We'll check all game tables and find the earliest date for each player
-    cur.execute("SELECT * FROM players ORDER BY full_name ASC")
+    # Get all players
+    cur.execute("SELECT * FROM players")
     players = cur.fetchall()
     
-    # For each player, find their first game
-    players_with_first_game = []
+    # For each player, find their first game and total game count
+    players_with_stats = []
     for player in players:
         player_name = player[1]  # full_name is at index 1
         
-        # Check doubles games
+        # Count doubles games
         cur.execute("""
-            SELECT MIN(game_date) FROM games 
+            SELECT COUNT(*), MIN(game_date) FROM games 
             WHERE winner1 = ? OR winner2 = ? OR loser1 = ? OR loser2 = ?
         """, (player_name, player_name, player_name, player_name))
-        doubles_date = cur.fetchone()[0]
+        doubles_result = cur.fetchone()
+        doubles_count = doubles_result[0] if doubles_result else 0
+        doubles_date = doubles_result[1] if doubles_result else None
         
-        # Check vollis games
+        # Count vollis games
         cur.execute("""
-            SELECT MIN(game_date) FROM vollis_games 
+            SELECT COUNT(*), MIN(game_date) FROM vollis_games 
             WHERE winner = ? OR loser = ?
         """, (player_name, player_name))
-        vollis_date = cur.fetchone()[0]
+        vollis_result = cur.fetchone()
+        vollis_count = vollis_result[0] if vollis_result else 0
+        vollis_date = vollis_result[1] if vollis_result else None
         
-        # Check 1v1 games
+        # Count 1v1 games
         cur.execute("""
-            SELECT MIN(game_date) FROM one_v_one_games 
+            SELECT COUNT(*), MIN(game_date) FROM one_v_one_games 
             WHERE winner = ? OR loser = ?
         """, (player_name, player_name))
-        one_v_one_date = cur.fetchone()[0]
+        one_v_one_result = cur.fetchone()
+        one_v_one_count = one_v_one_result[0] if one_v_one_result else 0
+        one_v_one_date = one_v_one_result[1] if one_v_one_result else None
         
-        # Find the earliest date across all game types
+        # Calculate total games and earliest date
+        total_games = doubles_count + vollis_count + one_v_one_count
         dates = [d for d in [doubles_date, vollis_date, one_v_one_date] if d is not None]
         first_game_date = min(dates) if dates else None
         
-        # Convert player tuple to list and append first game date
+        # Convert player tuple to list and append first game date and total games
         player_list = list(player)
-        player_list.append(first_game_date)
-        players_with_first_game.append(tuple(player_list))
+        player_list.append(first_game_date)  # index 8
+        player_list.append(total_games)      # index 9
+        players_with_stats.append(tuple(player_list))
+    
+    # Sort by total games (descending)
+    players_with_stats.sort(key=lambda x: x[9], reverse=True)
     
     conn.close()
-    return players_with_first_game
+    return players_with_stats
 
 def get_player_by_id(player_id):
     """Get a specific player by ID"""
