@@ -1847,18 +1847,18 @@ def test_email():
         # Create test email
         msg = Message(
             subject="Test Email from Stats Site",
-            recipients=["kt@omg.lol"]
+            recipients=["acwodzinski@gmail.com"]
         )
         
-        msg.body = "Hello World!\n\nThis is a test email from your stats site.\n\nIf you're seeing this, email is working! 🎉"
+        msg.body = "I love you"
         
         # Send the email
         mail.send(msg)
         
-        flash('Test email sent successfully to kt@omg.lol!', 'success')
+        flash('Test email sent successfully to acwodzinski@gmail.com!', 'success')
         return jsonify({
             'success': True,
-            'message': 'Test email sent to kt@omg.lol'
+            'message': 'Test email sent to acwodzinski@gmail.com'
         })
         
     except Exception as e:

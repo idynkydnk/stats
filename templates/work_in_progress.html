@@ -66,7 +66,7 @@
        <div class="feature-card">
            <h3><i class="fas fa-envelope"></i> Email Testing</h3>
            <p>Test email functionality and send stats to players</p>
-           <button id="test-email-btn" class="feature-link email-button" onclick="sendTestEmail()">Test Email (kt@omg.lol)</button>
+           <button id="test-email-btn" class="feature-link email-button" onclick="sendTestEmail()">Test Email (acwodzinski@gmail.com)</button>
            <br><br>
            <button id="send-emails-btn" class="feature-link email-button" onclick="sendDailyEmails()">Send Yesterday's Stats</button>
        </div>
@@ -163,7 +163,7 @@ function sendTestEmail() {
     const originalText = button.innerHTML;
     
     // Confirm action
-    if (!confirm('Send a test "Hello World" email to kt@omg.lol?')) {
+    if (!confirm('Send a test email to acwodzinski@gmail.com?')) {
         return;
     }
     
@@ -185,7 +185,7 @@ function sendTestEmail() {
         button.innerHTML = originalText;
         
         if (data.success) {
-            alert('Success! Test email sent to kt@omg.lol');
+            alert('Success! Test email sent to acwodzinski@gmail.com');
             window.location.reload();
         } else {
             alert('Error: ' + (data.error || 'Unknown error occurred'));
