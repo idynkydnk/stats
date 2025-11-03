@@ -27,6 +27,21 @@
                 <div id="summary-content" class="summary-content"></div>
                 <div id="summary-meta" class="summary-meta"></div>
             </div>
+            
+            {% if available_models %}
+            <div class="debug-box">
+                <h4>🔍 Available Models:</h4>
+                {% if available_models is string %}
+                    <p class="debug-text">{{ available_models }}</p>
+                {% else %}
+                    <ul class="model-list">
+                        {% for model in available_models %}
+                        <li>{{ model }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
         
         <!-- Email Testing -->
@@ -191,6 +206,38 @@
 
 .hidden {
     display: none;
+}
+
+.debug-box {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid #ffc107;
+    border-radius: 8px;
+}
+
+.debug-box h4 {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.debug-text {
+    color: var(--caption);
+    font-size: 13px;
+    margin: 0;
+}
+
+.model-list {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--caption);
+    font-size: 13px;
+}
+
+.model-list li {
+    margin: 5px 0;
+    font-family: monospace;
 }
 
 @media (max-width: 768px) {

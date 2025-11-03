@@ -1771,7 +1771,21 @@ def testing_lab():
     if 'username' not in session:
         flash('Please login to access the testing lab', 'error')
         return redirect(url_for('login'))
-    return render_template('testing_lab.html')
+    
+    # Try to list available models for debugging
+    available_models = None
+    try:
+        import google.generativeai as genai
+        import os
+        api_key = os.environ.get('GEMINI_API_KEY')
+        if api_key:
+            genai.configure(api_key=api_key)
+            models = genai.list_models()
+            available_models = [model.name for model in models if 'generateContent' in model.supported_generation_methods]
+    except Exception as e:
+        available_models = f"Error listing models: {str(e)}"
+    
+    return render_template('testing_lab.html', available_models=available_models)
 
 @app.route('/generate_ai_summary', methods=['POST'])
 def generate_ai_summary():
