@@ -53,27 +53,26 @@
 }
 
 .summary-email-btn {
-    /* Match submit button style with green color */
-    max-width: 260px !important;
-    width: 100% !important;
-    text-align: center !important;
-    padding: 8px 12px !important;
-    margin: 8px !important;
-    margin-top: 40px !important; /* Extra space to prevent accidental taps */
-    display: inline-block !important;
-    box-sizing: border-box !important;
-    font-size: 16px !important;
-    border-radius: 12px !important;
-    border: 2px solid #2d5016 !important;
-    background-color: #4CAF50 !important;
-    color: white !important;
-    cursor: pointer !important;
+    /* Match submit button exactly */
+    max-width: 260px;
+    width: 100%;
+    text-align: center;
+    padding: 8px 12px;
+    margin: 8px;
+    margin-top: 40px; /* Extra space to prevent accidental taps */
+    display: inline-block;
+    box-sizing: border-box;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 2px solid var(--button-border-1);
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
 }
 
 .summary-email-btn:hover {
-    border: 2px solid #4CAF50 !important;
-    background-color: #2d5016 !important;
-    color: #4CAF50 !important;
+    border: 2px solid var(--button-bg-1);
+    background-color: var(--button-border-1);
+    color: var(--button-bg-1);
 }
 
 .summary-email-btn:disabled {
@@ -149,9 +148,7 @@
 		<input type="submit" value="Submit">
 	</form>
 	
-	<button id="generate-and-email-btn" class="summary-email-btn" onclick="generateAndEmailSummary()">
-		<i class="fas fa-magic"></i> Generate ai summary and e-mail
-	</button>
+	<input type="button" id="generate-and-email-btn" class="summary-email-btn" onclick="generateAndEmailSummary()" value="Generate AI Summary & Email">
 	</div>
 	<div>
 	{% if todays_stats %}
