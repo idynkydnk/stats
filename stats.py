@@ -1907,13 +1907,18 @@ def generate_and_email_today():
                 'error': f'No games found for today ({today})'
             }), 404
         
-        # Build context for AI with player details
+        # Build context for AI with player details and historical context
         from player_functions import get_player_by_name
+        from stat_functions import get_current_streaks_last_365_days
         from datetime import datetime
+        
+        # Get current streaks for all players
+        all_streaks = get_current_streaks_last_365_days()
+        streaks_dict = {streak[0]: {'length': streak[1], 'type': streak[2], 'max': streak[3]} for streak in all_streaks}
         
         context = f"Date: {today}\n"
         context += f"Total Games: {len(games)}\n\n"
-        context += "Player Stats (with details):\n"
+        context += "Player Stats (with details & streaks):\n"
         for stat in stats[:10]:
             player_name = stat[0]
             wins = stat[1]
@@ -1938,9 +1943,46 @@ def generate_and_email_today():
                 if player_info[4]:  # height at index 4
                     height_str = f", Height: {player_info[4]}"
             
-            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
+            # Get current streak
+            streak_str = ""
+            if player_name in streaks_dict:
+                streak_info = streaks_dict[player_name]
+                streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
+            
+            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
         
-        context += f"\nGames Played:\n"
+        # Add head-to-head and partnership context
+        context += f"\nHistorical Context:\n"
+        
+        # Get head-to-head records for today's matchups
+        cur = set_cur()
+        for game in games[:5]:
+            team1 = (game[2], game[3])
+            team2 = (game[5], game[6])
+            
+            # Get historical record between these two teams
+            cur.execute("""
+                SELECT COUNT(*) FROM games 
+                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
+                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
+                  AND game_date < ?
+            """, (team1[0], team1[1], team1[1], team1[0], 
+                  team2[0], team2[1], team2[1], team2[0], today))
+            team1_wins = cur.fetchone()[0]
+            
+            cur.execute("""
+                SELECT COUNT(*) FROM games 
+                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
+                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
+                  AND game_date < ?
+            """, (team2[0], team2[1], team2[1], team2[0],
+                  team1[0], team1[1], team1[1], team1[0], today))
+            team2_wins = cur.fetchone()[0]
+            
+            if team1_wins > 0 or team2_wins > 0:
+                context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
+        
+        context += f"\nGames Played Today:\n"
         for game in games[:10]:
             winners = f"{game[2]} & {game[3]}"
             losers = f"{game[5]} & {game[6]}"
@@ -1969,41 +2011,43 @@ def generate_and_email_today():
         prompts = [
             f"""Write a fun, engaging summary of these volleyball games in {length_guide}. 
             Highlight the top performers, most exciting matches, and any notable achievements. 
-            Make it conversational and entertaining, like a sports announcer recapping the day.
-            Use the player details (age, height) to add personality to your commentary.
+            IMPORTANT: Reference current streaks, historical records, and any upsets or revenge wins.
+            Use player details (age, height) to add personality. Make it conversational like a sports announcer.
 
 {context}
 
 Write the summary:""",
             
-            f"""You're a witty sports journalist writing a daily volleyball recap in {length_guide}. 
-            Create a story about today's action, weaving in player ages and heights when relevant. 
-            Focus on rivalries, upsets, and standout performances. Make it fun and slightly dramatic!
+            f"""You're a witty sports journalist writing a volleyball recap in {length_guide}. 
+            Create a story about today's action. MUST mention: ongoing streaks, any streak-breaking performances, 
+            historical rivalries, and revenge matchups. Weave in player ages and heights when relevant. 
+            Make it fun and slightly dramatic!
 
 {context}
 
 Write the recap:""",
             
-            f"""Channel your inner sports radio host and give us an energetic {length_guide} breakdown 
-            of today's volleyball battles! Call out the veterans vs the youngsters, comment on size 
-            matchups, and highlight the most thrilling moments. Keep it lively and entertaining!
+            f"""Channel your inner sports radio host for an energetic {length_guide} breakdown! 
+            CALL OUT: players on hot streaks, cold streaks that ended, veterans vs youngsters, size matchups, 
+            and any upsets based on historical records. Reference the head-to-head history when teams faced off. 
+            Keep it lively!
 
 {context}
 
 Give us the play-by-play:""",
             
-            f"""Write a {length_guide} volleyball recap as if you're texting a friend who missed the games. 
-            Be casual, funny, and highlight the wild moments. Throw in observations about age/height 
-            matchups when they're interesting. Make them wish they were there!
+            f"""Write a {length_guide} volleyball recap like texting a friend who missed the games. 
+            Be casual and funny. MUST include: who's on fire with their streak, who broke their slump, 
+            any revenge wins based on historical records, wild age/height matchups. Make them wish they were there!
 
 {context}
 
 Tell the story:""",
             
-            f"""You're the world's most enthusiastic volleyball commentator. Write a {length_guide} 
-            summary that celebrates today's action! Mix stats with storytelling, reference player 
-            characteristics (age, height) when it adds flavor, and make everyone sound like legends. 
-            Hype it up!
+            f"""You're an enthusiastic volleyball commentator writing in {length_guide}. 
+            Celebrate today's action! HIGHLIGHT: active winning/losing streaks, streak-breaking performances, 
+            historical rivalries that continued, upsets based on past records. Reference player characteristics 
+            (age, height, current form) to build hype!
 
 {context}
 
@@ -2038,9 +2082,7 @@ Bring the energy:"""
                 recipients=all_emails
             )
             
-            email_body = "Hi everyone,\n\n"
-            email_body += "=" * 50 + "\n\n"
-            email_body += summary
+            email_body = summary
             email_body += "\n\n" + "=" * 50 + "\n\n"
             
             # Add individual player stats
