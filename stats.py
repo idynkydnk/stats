@@ -1907,17 +1907,38 @@ def generate_and_email_today():
                 'error': f'No games found for today ({today})'
             }), 404
         
-        # Build context for AI
+        # Build context for AI with player details
+        from player_functions import get_player_by_name
+        from datetime import datetime
+        
         context = f"Date: {today}\n"
         context += f"Total Games: {len(games)}\n\n"
-        context += "Player Stats:\n"
+        context += "Player Stats (with details):\n"
         for stat in stats[:10]:
             player_name = stat[0]
             wins = stat[1]
             losses = stat[2]
             win_pct = stat[3] * 100
             differential = stat[4]
-            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}\n"
+            
+            # Get player details
+            player_info = get_player_by_name(player_name)
+            age_str = ""
+            height_str = ""
+            if player_info:
+                # Calculate age if birth date exists
+                if player_info[3]:  # date_of_birth at index 3
+                    try:
+                        birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
+                        age = datetime.now().year - birth_date.year
+                        age_str = f", Age: {age}"
+                    except:
+                        pass
+                # Get height
+                if player_info[4]:  # height at index 4
+                    height_str = f", Height: {player_info[4]}"
+            
+            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
         
         context += f"\nGames Played:\n"
         for game in games[:10]:
@@ -1926,17 +1947,58 @@ def generate_and_email_today():
             score = f"{game[4]}-{game[7]}"
             context += f"- {winners} def. {losers} ({score})\n"
         
-        # Generate AI summary
+        # Generate AI summary with rotating prompts
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-flash-latest')
         
-        prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
-        Highlight the top performers, most exciting matches, and any notable achievements. 
-        Make it conversational and entertaining, like a sports announcer recapping the day.
+        # Multiple prompts that rotate
+        import random
+        prompts = [
+            f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
+            Highlight the top performers, most exciting matches, and any notable achievements. 
+            Make it conversational and entertaining, like a sports announcer recapping the day.
+            Use the player details (age, height) to add personality to your commentary.
 
 {context}
 
-Write the summary:"""
+Write the summary:""",
+            
+            f"""You're a witty sports journalist writing a daily volleyball recap. 
+            Create a 2-3 paragraph story about today's action, weaving in player ages and heights 
+            when relevant. Focus on rivalries, upsets, and standout performances. 
+            Make it fun and slightly dramatic!
+
+{context}
+
+Write the recap:""",
+            
+            f"""Channel your inner sports radio host and give us an energetic 2-3 paragraph breakdown 
+            of today's volleyball battles! Call out the veterans vs the youngsters, comment on size 
+            matchups, and highlight the most thrilling moments. Keep it lively and entertaining!
+
+{context}
+
+Give us the play-by-play:""",
+            
+            f"""Write a 2-3 paragraph volleyball recap as if you're texting a friend who missed the games. 
+            Be casual, funny, and highlight the wild moments. Throw in observations about age/height 
+            matchups when they're interesting. Make them wish they were there!
+
+{context}
+
+Tell the story:""",
+            
+            f"""You're the world's most enthusiastic volleyball commentator. Write a 2-3 paragraph 
+            summary that celebrates today's action! Mix stats with storytelling, reference player 
+            characteristics (age, height) when it adds flavor, and make everyone sound like legends. 
+            Hype it up!
+
+{context}
+
+Bring the energy:"""
+        ]
+        
+        prompt = random.choice(prompts)
         
         response = model.generate_content(prompt)
         summary = response.text
