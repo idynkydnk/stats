@@ -1825,29 +1825,11 @@ def generate_ai_summary():
             score = f"{game[4]}-{game[7]}"
             context += f"- {winners} def. {losers} ({score})\n"
         
-        # Configure Gemini - try different model names
+        # Configure Gemini with stable model
         genai.configure(api_key=api_key)
         
-        # Try multiple model names in order of preference
-        model_names = [
-            'gemini-1.5-flash',
-            'gemini-1.0-pro',
-            'gemini-pro'
-        ]
-        
-        model = None
-        for model_name in model_names:
-            try:
-                model = genai.GenerativeModel(model_name)
-                break
-            except:
-                continue
-        
-        if not model:
-            return jsonify({
-                'success': False,
-                'error': 'Could not load any Gemini model. Please check your API key and try again.'
-            }), 500
+        # Use the most stable model name that works with older SDK versions
+        model = genai.GenerativeModel('models/gemini-pro')
         
         # Generate summary
         prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
