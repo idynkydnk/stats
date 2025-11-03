@@ -1951,10 +1951,23 @@ def generate_and_email_today():
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-flash-latest')
         
+        # Determine summary length based on games and players
+        num_games = len(games)
+        num_players = len(stats)
+        
+        if num_games <= 2:
+            length_guide = "1-2 sentences"
+        elif num_games <= 5:
+            length_guide = "1 short paragraph (3-4 sentences)"
+        elif num_games <= 10:
+            length_guide = "2 paragraphs"
+        else:
+            length_guide = "3 paragraphs"
+        
         # Multiple prompts that rotate
         import random
         prompts = [
-            f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
+            f"""Write a fun, engaging summary of these volleyball games in {length_guide}. 
             Highlight the top performers, most exciting matches, and any notable achievements. 
             Make it conversational and entertaining, like a sports announcer recapping the day.
             Use the player details (age, height) to add personality to your commentary.
@@ -1963,16 +1976,15 @@ def generate_and_email_today():
 
 Write the summary:""",
             
-            f"""You're a witty sports journalist writing a daily volleyball recap. 
-            Create a 2-3 paragraph story about today's action, weaving in player ages and heights 
-            when relevant. Focus on rivalries, upsets, and standout performances. 
-            Make it fun and slightly dramatic!
+            f"""You're a witty sports journalist writing a daily volleyball recap in {length_guide}. 
+            Create a story about today's action, weaving in player ages and heights when relevant. 
+            Focus on rivalries, upsets, and standout performances. Make it fun and slightly dramatic!
 
 {context}
 
 Write the recap:""",
             
-            f"""Channel your inner sports radio host and give us an energetic 2-3 paragraph breakdown 
+            f"""Channel your inner sports radio host and give us an energetic {length_guide} breakdown 
             of today's volleyball battles! Call out the veterans vs the youngsters, comment on size 
             matchups, and highlight the most thrilling moments. Keep it lively and entertaining!
 
@@ -1980,7 +1992,7 @@ Write the recap:""",
 
 Give us the play-by-play:""",
             
-            f"""Write a 2-3 paragraph volleyball recap as if you're texting a friend who missed the games. 
+            f"""Write a {length_guide} volleyball recap as if you're texting a friend who missed the games. 
             Be casual, funny, and highlight the wild moments. Throw in observations about age/height 
             matchups when they're interesting. Make them wish they were there!
 
@@ -1988,7 +2000,7 @@ Give us the play-by-play:""",
 
 Tell the story:""",
             
-            f"""You're the world's most enthusiastic volleyball commentator. Write a 2-3 paragraph 
+            f"""You're the world's most enthusiastic volleyball commentator. Write a {length_guide} 
             summary that celebrates today's action! Mix stats with storytelling, reference player 
             characteristics (age, height) when it adds flavor, and make everyone sound like legends. 
             Hype it up!
