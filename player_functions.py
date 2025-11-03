@@ -67,14 +67,14 @@ def get_all_players():
         other_date = other_result[1] if other_result else None
         
         # Calculate total games and earliest date
-        total_games = doubles_count + vollis_count + one_v_one_count + other_count
+        total_games = int(doubles_count + vollis_count + one_v_one_count + other_count)
         dates = [d for d in [doubles_date, vollis_date, one_v_one_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
         
         # Convert player tuple to list and append first game date and total games
         player_list = list(player)
         player_list.append(first_game_date)  # index 8
-        player_list.append(total_games)      # index 9
+        player_list.append(total_games)      # index 9 - MUST be an integer
         players_with_stats.append(tuple(player_list))
     
     # Sort by total games (descending)
