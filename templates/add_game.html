@@ -50,14 +50,13 @@
 }
 
 .summary-email-btn {
+    /* Match submit button exactly */
     max-width: 260px;
     width: 100%;
     text-align: center;
     padding: 8px 12px;
-    margin-top: 40px;
-    margin-bottom: 8px;
-    margin-left: 8px;
-    margin-right: 8px;
+    margin: 8px;
+    margin-top: 40px; /* Extra space to prevent accidental taps */
     display: inline-block;
     box-sizing: border-box;
     font-size: 16px;
@@ -77,10 +76,6 @@
 .summary-email-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-
-.summary-email-btn i {
-    margin-right: 8px;
 }
 
 .autocomplete-list div:last-child {
