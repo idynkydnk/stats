@@ -1842,8 +1842,8 @@ def generate_ai_summary():
         # Configure Gemini with stable model
         genai.configure(api_key=api_key)
         
-        # Use gemini-pro - the only model available in SDK 0.8.x
-        model = genai.GenerativeModel('gemini-pro')
+        # Use the stable fast model from your available models list
+        model = genai.GenerativeModel('models/gemini-flash-latest')
         
         # Generate summary
         prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
