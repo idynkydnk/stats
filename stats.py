@@ -2017,13 +2017,16 @@ Bring the energy:"""
             # Collect all email addresses
             all_emails = [player['email'] for player in players]
             
+            # Format date as MM/DD/YY for subject
+            date_obj = datetime.strptime(today, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%m/%d/%y')
+            
             msg = Message(
-                subject=f"🏐 Today's Volleyball Recap - {today}",
+                subject=f"🏐 Today's Volleyball Recap - {formatted_date}",
                 recipients=all_emails
             )
             
             email_body = "Hi everyone,\n\n"
-            email_body += "Here's today's AI-generated game recap:\n\n"
             email_body += "=" * 50 + "\n\n"
             email_body += summary
             email_body += "\n\n" + "=" * 50 + "\n\n"
@@ -2040,8 +2043,7 @@ Bring the energy:"""
                 email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
             
             email_body += f"\nTotal games today: {len(games)}\n\n"
-            email_body += "Great playing everyone!\n\n"
-            email_body += "— Your Stats Team"
+            email_body += "Great playing everyone!"
             
             msg.body = email_body
             mail.send(msg)
