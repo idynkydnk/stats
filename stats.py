@@ -1870,6 +1870,147 @@ Write the summary:"""
             'error': f'Failed to generate summary: {str(e)}'
         }), 500
 
+@app.route('/generate_and_email_today', methods=['POST'])
+def generate_and_email_today():
+    """Generate AI summary for today's games and email to all players who played"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    import google.generativeai as genai
+    import os
+    from datetime import date
+    
+    # Check configurations
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({
+            'success': False,
+            'error': 'Gemini API key not configured.'
+        }), 400
+    
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        return jsonify({
+            'success': False,
+            'error': 'Email not configured.'
+        }), 400
+    
+    try:
+        # Get today's date
+        today = date.today().strftime('%Y-%m-%d')
+        
+        # Get stats for today
+        stats, games = specific_date_stats(today)
+        
+        if not games:
+            return jsonify({
+                'success': False,
+                'error': f'No games found for today ({today})'
+            }), 404
+        
+        # Build context for AI
+        context = f"Date: {today}\n"
+        context += f"Total Games: {len(games)}\n\n"
+        context += "Player Stats:\n"
+        for stat in stats[:10]:
+            player_name = stat[0]
+            wins = stat[1]
+            losses = stat[2]
+            win_pct = stat[3] * 100
+            differential = stat[4]
+            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}\n"
+        
+        context += f"\nGames Played:\n"
+        for game in games[:10]:
+            winners = f"{game[2]} & {game[3]}"
+            losers = f"{game[5]} & {game[6]}"
+            score = f"{game[4]}-{game[7]}"
+            context += f"- {winners} def. {losers} ({score})\n"
+        
+        # Generate AI summary
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('models/gemini-flash-latest')
+        
+        prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
+        Highlight the top performers, most exciting matches, and any notable achievements. 
+        Make it conversational and entertaining, like a sports announcer recapping the day.
+
+{context}
+
+Write the summary:"""
+        
+        response = model.generate_content(prompt)
+        summary = response.text
+        
+        # Get players who played today
+        players = get_players_who_played_on_date(today)
+        
+        if not players:
+            return jsonify({
+                'success': False,
+                'error': 'No players with email addresses found for today'
+            }), 404
+        
+        # Send emails
+        emails_sent = 0
+        errors = []
+        
+        for player in players:
+            try:
+                msg = Message(
+                    subject=f"🏐 Today's Volleyball Recap - {today}",
+                    recipients=[player['email']]
+                )
+                
+                email_body = f"Hi {player['name']},\n\n"
+                email_body += "Here's today's AI-generated game recap:\n\n"
+                email_body += "=" * 50 + "\n\n"
+                email_body += summary
+                email_body += "\n\n" + "=" * 50 + "\n\n"
+                
+                # Add player's personal stats
+                player_stats = None
+                for stat in stats:
+                    if stat[0] == player['name']:
+                        player_stats = stat
+                        break
+                
+                if player_stats:
+                    wins = player_stats[1]
+                    losses = player_stats[2]
+                    win_pct = player_stats[3] * 100
+                    differential = player_stats[4]
+                    
+                    email_body += f"Your Stats Today:\n"
+                    email_body += f"Record: {wins}-{losses} ({win_pct:.1f}%)\n"
+                    email_body += f"Point Differential: {differential:+d}\n\n"
+                
+                email_body += f"Total games today: {len(games)}\n\n"
+                email_body += "Great playing!\n\n"
+                email_body += "— Your Stats Team"
+                
+                msg.body = email_body
+                mail.send(msg)
+                emails_sent += 1
+                
+            except Exception as e:
+                errors.append(f"Failed to send to {player['name']}: {str(e)}")
+        
+        # Create summary preview (first 150 chars)
+        summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+        
+        return jsonify({
+            'success': True,
+            'emails_sent': emails_sent,
+            'summary_preview': summary_preview,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate and send: {str(e)}'
+        }), 500
+
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
     """Clean up expired authentication tokens (can be called periodically)"""

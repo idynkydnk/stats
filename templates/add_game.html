@@ -49,6 +49,39 @@
     background: #f5f5f5;
 }
 
+.summary-email-btn {
+    width: 100%;
+    max-width: 400px;
+    padding: 15px 20px;
+    margin: 20px auto;
+    display: block;
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.summary-email-btn:hover {
+    background-color: var(--text);
+    color: var(--bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.summary-email-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.summary-email-btn i {
+    margin-right: 8px;
+}
+
 .autocomplete-list div:last-child {
     border-bottom: none;
 }
@@ -118,6 +151,10 @@
 		</div>    
 		<input type="submit" value="Submit">
 	</form>
+	
+	<button id="generate-and-email-btn" class="summary-email-btn" onclick="generateAndEmailSummary()">
+		<i class="fas fa-magic"></i> Generate Today's Summary & Email Players
+	</button>
 	</div>
 	<div>
 	{% if todays_stats %}
@@ -638,6 +675,43 @@ function filterScoreList(field, list, scores) {
     });
     
     list.style.display = filteredScores.length > 0 ? 'block' : 'none';
+}
+
+// Generate AI summary and email to today's players
+function generateAndEmailSummary() {
+    const button = document.getElementById('generate-and-email-btn');
+    const originalText = button.innerHTML;
+    
+    if (!confirm('Generate an AI summary of today\'s games and email it to everyone who played today?')) {
+        return;
+    }
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating summary and sending emails...';
+    
+    fetch('/generate_and_email_today', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: ''
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            alert(`Success! Generated AI summary and sent to ${data.emails_sent} player(s).\n\nPreview:\n${data.summary_preview}`);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        alert('Error: ' + error.message);
+    });
 }
 </script>
 {% endblock %}
