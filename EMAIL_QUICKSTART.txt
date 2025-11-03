@@ -1,0 +1,43 @@
+EMAIL FUNCTIONALITY - QUICK START GUIDE
+========================================
+
+What was added:
+1. Email sending functionality to your Flask app
+2. A button on the Dashboard to send emails
+3. Automatic email generation with player stats
+
+QUICK SETUP (5 minutes):
+
+1. Install Flask-Mail:
+   pip install Flask-Mail==0.9.1
+
+2. Set these environment variables (use Gmail App Password):
+   export MAIL_USERNAME=your_email@gmail.com
+   export MAIL_PASSWORD=your_16_char_app_password
+   
+   Get Gmail App Password:
+   - Go to myaccount.google.com
+   - Security → 2-Step Verification → App passwords
+   - Generate password for "Mail"
+
+3. Make sure players have emails in the database:
+   - Go to Player List
+   - Edit each player
+   - Add their email address
+
+4. Use the feature:
+   - Go to Dashboard
+   - Click "Send Yesterday's Stats to Players"
+   - Confirm and emails will be sent!
+
+That's it! See EMAIL_SETUP.md for full documentation.
+
+FILES MODIFIED:
+- requirements.txt (added Flask-Mail)
+- stats.py (added email configuration and routes)
+- templates/dashboard.html (added button and JavaScript)
+
+NEW FILES:
+- EMAIL_SETUP.md (full documentation)
+- EMAIL_QUICKSTART.txt (this file)
+

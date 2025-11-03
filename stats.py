@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response
+from flask_mail import Mail, Message
 from database_functions import *
 from stat_functions import *
 from datetime import datetime, date, timedelta
@@ -14,6 +15,16 @@ import hashlib
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
+
+# Email configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@stats.com')
+
+mail = Mail(app)
 
 # User authentication - you can add more users here
 USERS = {
@@ -1760,5 +1771,197 @@ def cleanup_tokens():
     cleanup_expired_tokens()
     return 'Expired tokens cleaned up successfully', 200
 
+def get_players_who_played_on_date(target_date):
+    """Get all players who played on a specific date with their email addresses"""
+    from player_functions import get_player_by_name
+    
+    # Get database connection
+    cur = set_cur()
+    
+    # Get all games from that date across all game types
+    players_set = set()
+    
+    # Doubles games
+    cur.execute("SELECT winner1, winner2, loser1, loser2 FROM games WHERE date(game_date) = ?", (target_date,))
+    doubles_games = cur.fetchall()
+    for game in doubles_games:
+        for player in game:
+            if player and player.strip():
+                players_set.add(player)
+    
+    # Vollis games
+    cur.execute("SELECT winner, loser FROM vollis_games WHERE date(game_date) = ?", (target_date,))
+    vollis_games = cur.fetchall()
+    for game in vollis_games:
+        for player in game:
+            if player and player.strip():
+                players_set.add(player)
+    
+    # One v One games
+    cur.execute("SELECT winner, loser FROM one_v_one_games WHERE date(game_date) = ?", (target_date,))
+    one_v_one_games = cur.fetchall()
+    for game in one_v_one_games:
+        for player in game:
+            if player and player.strip():
+                players_set.add(player)
+    
+    # Other games - get all player columns
+    cur.execute("""SELECT winner1, winner2, winner3, winner4, winner5, winner6, 
+                   loser1, loser2, loser3, loser4, loser5, loser6 
+                   FROM other_games WHERE date(game_date) = ?""", (target_date,))
+    other_games = cur.fetchall()
+    for game in other_games:
+        for player in game:
+            if player and player.strip():
+                players_set.add(player)
+    
+    # Get player emails
+    players_with_emails = []
+    for player_name in players_set:
+        player_info = get_player_by_name(player_name)
+        if player_info:
+            # player_info format: (id, full_name, email, date_of_birth, height, notes, created_at, updated_at)
+            email = player_info[2] if len(player_info) > 2 else None
+            if email and email.strip():
+                players_with_emails.append({
+                    'name': player_name,
+                    'email': email
+                })
+    
+    return players_with_emails
+
+@app.route('/test_email', methods=['POST'])
+def test_email():
+    """Send a test email to verify email configuration"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    # Check if email is configured
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        return jsonify({
+            'success': False, 
+            'error': 'Email not configured. Please set MAIL_USERNAME and MAIL_PASSWORD environment variables.'
+        }), 400
+    
+    try:
+        # Create test email
+        msg = Message(
+            subject="Test Email from Stats Site",
+            recipients=["kt@omg.lol"]
+        )
+        
+        msg.body = "Hello World!\n\nThis is a test email from your stats site.\n\nIf you're seeing this, email is working! 🎉"
+        
+        # Send the email
+        mail.send(msg)
+        
+        flash('Test email sent successfully to kt@omg.lol!', 'success')
+        return jsonify({
+            'success': True,
+            'message': 'Test email sent to kt@omg.lol'
+        })
+        
+    except Exception as e:
+        error_msg = f"Failed to send test email: {str(e)}"
+        flash(error_msg, 'error')
+        return jsonify({
+            'success': False,
+            'error': error_msg
+        }), 500
+
+@app.route('/send_daily_emails', methods=['POST'])
+def send_daily_emails():
+    """Send emails to all players who played on a specific date"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    # Get the date to send emails for (default to yesterday)
+    target_date = request.form.get('date', None)
+    if not target_date:
+        yesterday = datetime.now().date() - timedelta(days=1)
+        target_date = yesterday.strftime('%Y-%m-%d')
+    
+    # Check if email is configured
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        flash('Email not configured. Please set MAIL_USERNAME and MAIL_PASSWORD environment variables.', 'error')
+        return jsonify({
+            'success': False, 
+            'error': 'Email not configured. Please contact administrator.'
+        }), 400
+    
+    # Get players who played on that date
+    players = get_players_who_played_on_date(target_date)
+    
+    if not players:
+        flash(f'No players with email addresses found for {target_date}', 'warning')
+        return jsonify({
+            'success': False, 
+            'error': f'No players with email addresses found for {target_date}'
+        }), 404
+    
+    # Get stats for that date
+    stats, games = specific_date_stats(target_date)
+    
+    # Send emails to each player
+    emails_sent = 0
+    errors = []
+    
+    for player in players:
+        try:
+            # Find player's stats for that day
+            player_stats = None
+            for stat in stats:
+                if stat[0] == player['name']:
+                    player_stats = stat
+                    break
+            
+            # Create email message
+            msg = Message(
+                subject=f"Your Stats for {target_date}",
+                recipients=[player['email']]
+            )
+            
+            # Build email body
+            email_body = f"Hi {player['name']},\n\n"
+            email_body += f"Here are your stats for {target_date}:\n\n"
+            
+            if player_stats:
+                wins = player_stats[1]
+                losses = player_stats[2]
+                win_pct = player_stats[3] * 100
+                differential = player_stats[4]
+                
+                email_body += f"Record: {wins}-{losses} ({win_pct:.1f}%)\n"
+                email_body += f"Point Differential: {differential:+d}\n\n"
+            else:
+                email_body += "You played on this date!\n\n"
+            
+            email_body += f"Total games played on {target_date}: {len(games)}\n\n"
+            email_body += "Thanks for playing!\n\n"
+            email_body += "— Your Stats Team"
+            
+            msg.body = email_body
+            
+            # Send the email
+            mail.send(msg)
+            emails_sent += 1
+            
+        except Exception as e:
+            errors.append(f"Failed to send to {player['name']} ({player['email']}): {str(e)}")
+    
+    # Flash success/error messages
+    if emails_sent > 0:
+        flash(f'Successfully sent {emails_sent} email(s) for {target_date}!', 'success')
+    
+    if errors:
+        for error in errors:
+            flash(error, 'error')
+    
+    return jsonify({
+        'success': True,
+        'emails_sent': emails_sent,
+        'errors': errors
+    })
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5000)
