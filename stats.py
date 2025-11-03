@@ -2096,8 +2096,18 @@ Bring the energy:"""
                 
                 email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
             
-            email_body += f"\nTotal games today: {len(games)}\n\n"
-            email_body += "Great playing everyone!"
+            # Add all games with scores
+            email_body += f"\n" + "=" * 50 + "\n\n"
+            email_body += f"Today's Games ({len(games)}):\n\n"
+            
+            for idx, game in enumerate(games, 1):
+                winners = f"{game[2]} & {game[3]}"
+                losers = f"{game[5]} & {game[6]}"
+                score = f"{game[4]}-{game[7]}"
+                
+                email_body += f"  {idx}. {winners} def. {losers} ({score})\n"
+            
+            email_body += "\nGreat playing everyone!"
             
             msg.body = email_body
             mail.send(msg)
