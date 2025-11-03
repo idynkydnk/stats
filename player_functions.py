@@ -19,14 +19,43 @@ def get_all_players():
         conn = create_connection(database)
     cur = conn.cursor()
     
-    # Get all players
-    cur.execute("SELECT * FROM players")
-    players = cur.fetchall()
+    # Get all unique player names from all game tables
+    all_player_names = set()
     
-    # For each player, find their first game and total game count
+    # From doubles games
+    cur.execute("SELECT DISTINCT winner1 FROM games WHERE winner1 IS NOT NULL AND winner1 != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    cur.execute("SELECT DISTINCT winner2 FROM games WHERE winner2 IS NOT NULL AND winner2 != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    cur.execute("SELECT DISTINCT loser1 FROM games WHERE loser1 IS NOT NULL AND loser1 != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    cur.execute("SELECT DISTINCT loser2 FROM games WHERE loser2 IS NOT NULL AND loser2 != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    
+    # From vollis games
+    cur.execute("SELECT DISTINCT winner FROM vollis_games WHERE winner IS NOT NULL AND winner != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    cur.execute("SELECT DISTINCT loser FROM vollis_games WHERE loser IS NOT NULL AND loser != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    
+    # From 1v1 games
+    cur.execute("SELECT DISTINCT winner FROM one_v_one_games WHERE winner IS NOT NULL AND winner != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    cur.execute("SELECT DISTINCT loser FROM one_v_one_games WHERE loser IS NOT NULL AND loser != ''")
+    all_player_names.update([row[0] for row in cur.fetchall()])
+    
+    # From other games
+    for position in ['winner1', 'winner2', 'winner3', 'winner4', 'winner5', 'winner6', 
+                     'loser1', 'loser2', 'loser3', 'loser4', 'loser5', 'loser6']:
+        cur.execute(f"SELECT DISTINCT {position} FROM other_games WHERE {position} IS NOT NULL AND {position} != ''")
+        all_player_names.update([row[0] for row in cur.fetchall()])
+    
+    # For each player name, build their stats
     players_with_stats = []
-    for player in players:
-        player_name = player[1]  # full_name is at index 1
+    for player_name in all_player_names:
+        # Check if player exists in players table
+        cur.execute("SELECT * FROM players WHERE full_name = ?", (player_name,))
+        player_record = cur.fetchone()
         
         # Count doubles games
         cur.execute("""
@@ -34,7 +63,7 @@ def get_all_players():
             WHERE winner1 = ? OR winner2 = ? OR loser1 = ? OR loser2 = ?
         """, (player_name, player_name, player_name, player_name))
         doubles_result = cur.fetchone()
-        doubles_count = doubles_result[0] if doubles_result else 0
+        doubles_count = doubles_result[0] if doubles_result and doubles_result[0] else 0
         doubles_date = doubles_result[1] if doubles_result else None
         
         # Count vollis games
@@ -43,7 +72,7 @@ def get_all_players():
             WHERE winner = ? OR loser = ?
         """, (player_name, player_name))
         vollis_result = cur.fetchone()
-        vollis_count = vollis_result[0] if vollis_result else 0
+        vollis_count = vollis_result[0] if vollis_result and vollis_result[0] else 0
         vollis_date = vollis_result[1] if vollis_result else None
         
         # Count 1v1 games
@@ -52,7 +81,7 @@ def get_all_players():
             WHERE winner = ? OR loser = ?
         """, (player_name, player_name))
         one_v_one_result = cur.fetchone()
-        one_v_one_count = one_v_one_result[0] if one_v_one_result else 0
+        one_v_one_count = one_v_one_result[0] if one_v_one_result and one_v_one_result[0] else 0
         one_v_one_date = one_v_one_result[1] if one_v_one_result else None
         
         # Count other games
@@ -63,7 +92,7 @@ def get_all_players():
         """, (player_name, player_name, player_name, player_name, player_name, player_name,
               player_name, player_name, player_name, player_name, player_name, player_name))
         other_result = cur.fetchone()
-        other_count = other_result[0] if other_result else 0
+        other_count = other_result[0] if other_result and other_result[0] else 0
         other_date = other_result[1] if other_result else None
         
         # Calculate total games and earliest date
@@ -71,10 +100,19 @@ def get_all_players():
         dates = [d for d in [doubles_date, vollis_date, one_v_one_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
         
-        # Convert player tuple to list and append first game date and total games
-        player_list = list(player)
+        # Build player record
+        if player_record:
+            # Player exists in database with their info
+            player_list = list(player_record)
+        else:
+            # Player doesn't exist in database, create minimal record
+            # Format: id, full_name, email, date_of_birth, height, notes, created_at, updated_at
+            from datetime import datetime
+            now = datetime.now()
+            player_list = [None, player_name, None, None, None, None, now, now]
+        
         player_list.append(first_game_date)  # index 8
-        player_list.append(total_games)      # index 9 - MUST be an integer
+        player_list.append(total_games)      # index 9
         players_with_stats.append(tuple(player_list))
     
     # Sort by total games (descending)
