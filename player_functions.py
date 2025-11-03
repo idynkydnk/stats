@@ -115,8 +115,8 @@ def get_all_players():
         player_list.append(total_games)      # index 9
         players_with_stats.append(tuple(player_list))
     
-    # Sort by total games (descending)
-    players_with_stats.sort(key=lambda x: x[9], reverse=True)
+    # Sort by total games (descending) - convert to int for sorting to handle any type issues
+    players_with_stats.sort(key=lambda x: int(x[9]) if x[9] is not None else 0, reverse=True)
     
     conn.close()
     return players_with_stats
