@@ -1765,6 +1765,95 @@ def work_in_progress():
     """Work in Progress page with links to various features"""
     return render_template('work_in_progress.html')
 
+@app.route('/testing_lab')
+def testing_lab():
+    """Testing lab for email and AI features"""
+    if 'username' not in session:
+        flash('Please login to access the testing lab', 'error')
+        return redirect(url_for('login'))
+    return render_template('testing_lab.html')
+
+@app.route('/generate_ai_summary', methods=['POST'])
+def generate_ai_summary():
+    """Generate AI summary for a specific date"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    import google.generativeai as genai
+    import os
+    
+    # Check if Gemini API key is configured
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({
+            'success': False,
+            'error': 'Gemini API key not configured. Please set GEMINI_API_KEY environment variable.'
+        }), 400
+    
+    # Get the date from the request
+    target_date = request.form.get('date', None)
+    if not target_date:
+        yesterday = datetime.now().date() - timedelta(days=1)
+        target_date = yesterday.strftime('%Y-%m-%d')
+    
+    try:
+        # Get stats for the date
+        stats, games = specific_date_stats(target_date)
+        
+        if not games:
+            return jsonify({
+                'success': False,
+                'error': f'No games found for {target_date}'
+            }), 404
+        
+        # Build context for AI
+        context = f"Date: {target_date}\n"
+        context += f"Total Games: {len(games)}\n\n"
+        context += "Player Stats:\n"
+        for stat in stats[:10]:
+            player_name = stat[0]
+            wins = stat[1]
+            losses = stat[2]
+            win_pct = stat[3] * 100
+            differential = stat[4]
+            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}\n"
+        
+        context += f"\nGames Played:\n"
+        for game in games[:5]:
+            winners = f"{game[2]} & {game[3]}"
+            losers = f"{game[5]} & {game[6]}"
+            score = f"{game[4]}-{game[7]}"
+            context += f"- {winners} def. {losers} ({score})\n"
+        
+        # Configure Gemini
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Generate summary
+        prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
+        Highlight the top performers, most exciting matches, and any notable achievements. 
+        Make it conversational and entertaining, like a sports announcer recapping the day.
+
+{context}
+
+Write the summary:"""
+        
+        response = model.generate_content(prompt)
+        summary = response.text
+        
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'date': target_date,
+            'games_count': len(games)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate summary: {str(e)}'
+        }), 500
+
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
     """Clean up expired authentication tokens (can be called periodically)"""

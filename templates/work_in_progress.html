@@ -64,11 +64,9 @@
        </div>
        
        <div class="feature-card">
-           <h3><i class="fas fa-envelope"></i> Email Testing</h3>
-           <p>Test email functionality and send stats to players</p>
-           <button id="test-email-btn" class="feature-link email-button" onclick="sendTestEmail()">Test Email (acwodzinski@gmail.com)</button>
-           <br><br>
-           <button id="send-emails-btn" class="feature-link email-button" onclick="sendDailyEmails()">Send Yesterday's Stats</button>
+           <h3><i class="fas fa-flask"></i> Testing Lab</h3>
+           <p>Test email functionality and AI summaries</p>
+           <a href="{{ url_for('testing_lab') }}" class="feature-link">Open Testing Lab</a>
        </div>
     </div>
 </div>
@@ -156,88 +154,4 @@
 }
 </style>
 
-<script>
-// Function to send test email
-function sendTestEmail() {
-    const button = document.getElementById('test-email-btn');
-    const originalText = button.innerHTML;
-    
-    // Confirm action
-    if (!confirm('Send a test email to acwodzinski@gmail.com?')) {
-        return;
-    }
-    
-    // Disable button and show loading state
-    button.disabled = true;
-    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
-    
-    // Send POST request
-    fetch('/test_email', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: ''
-    })
-    .then(response => response.json())
-    .then(data => {
-        button.disabled = false;
-        button.innerHTML = originalText;
-        
-        if (data.success) {
-            alert('Success! Test email sent to acwodzinski@gmail.com');
-            window.location.reload();
-        } else {
-            alert('Error: ' + (data.error || 'Unknown error occurred'));
-        }
-    })
-    .catch(error => {
-        button.disabled = false;
-        button.innerHTML = originalText;
-        alert('Error sending test email: ' + error.message);
-    });
-}
-
-// Function to send daily emails
-function sendDailyEmails() {
-    const button = document.getElementById('send-emails-btn');
-    const originalText = button.innerHTML;
-    
-    // Confirm action
-    if (!confirm('Send yesterday\'s stats to all players who played? This will send emails to all players with email addresses on file.')) {
-        return;
-    }
-    
-    // Disable button and show loading state
-    button.disabled = true;
-    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
-    
-    // Send POST request
-    fetch('/send_daily_emails', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: ''
-    })
-    .then(response => response.json())
-    .then(data => {
-        button.disabled = false;
-        button.innerHTML = originalText;
-        
-        if (data.success) {
-            alert(`Success! Sent ${data.emails_sent} email(s).${data.errors.length > 0 ? '\n\nSome errors occurred - check the page for details.' : ''}`);
-            // Reload page to show flash messages
-            window.location.reload();
-        } else {
-            alert('Error: ' + (data.error || 'Unknown error occurred'));
-        }
-    })
-    .catch(error => {
-        button.disabled = false;
-        button.innerHTML = originalText;
-        alert('Error sending emails: ' + error.message);
-    });
-}
-</script>
 {% endblock %}

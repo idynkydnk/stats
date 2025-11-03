@@ -1,0 +1,332 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Testing Lab{% endblock %}
+
+{% block content %}
+<div class="testing-container">
+    <h1>🧪 Testing Lab</h1>
+    <p class="subtitle">Test email functionality and AI-generated summaries</p>
+    
+    <div class="testing-grid">
+        <!-- AI Summary Testing -->
+        <div class="test-card">
+            <h2><i class="fas fa-brain"></i> AI Game Summary Generator</h2>
+            <p>Generate an AI-powered summary of games from any date using Google Gemini</p>
+            
+            <div class="test-form">
+                <label for="summary-date">Select Date:</label>
+                <input type="date" id="summary-date" name="date">
+                
+                <button id="generate-summary-btn" class="test-button" onclick="generateAISummary()">
+                    <i class="fas fa-magic"></i> Generate AI Summary
+                </button>
+            </div>
+            
+            <div id="summary-result" class="result-box hidden">
+                <h3>Summary Result:</h3>
+                <div id="summary-content" class="summary-content"></div>
+                <div id="summary-meta" class="summary-meta"></div>
+            </div>
+        </div>
+        
+        <!-- Email Testing -->
+        <div class="test-card">
+            <h2><i class="fas fa-envelope"></i> Email Testing</h2>
+            <p>Test email functionality by sending test messages</p>
+            
+            <div class="test-form">
+                <button id="test-email-btn" class="test-button" onclick="sendTestEmail()">
+                    <i class="fas fa-paper-plane"></i> Send Test Email
+                </button>
+                
+                <p class="test-info">Sends to: acwodzinski@gmail.com</p>
+            </div>
+            
+            <div class="test-form" style="margin-top: 20px;">
+                <label for="daily-email-date">Date for Daily Emails:</label>
+                <input type="date" id="daily-email-date" name="date">
+                
+                <button id="send-daily-btn" class="test-button" onclick="sendDailyEmails()">
+                    <i class="fas fa-users"></i> Send Daily Stats to Players
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.testing-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.subtitle {
+    text-align: center;
+    color: var(--caption);
+    margin-bottom: 30px;
+    font-size: 16px;
+}
+
+.testing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.test-card {
+    background: var(--table-bg);
+    border-radius: 20px;
+    padding: 30px;
+    border: 2px solid var(--button-bg-1);
+}
+
+.test-card h2 {
+    color: var(--text);
+    margin-bottom: 15px;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.test-card h2 i {
+    color: var(--button-bg-1);
+}
+
+.test-card p {
+    color: var(--caption);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.test-form {
+    margin: 20px 0;
+}
+
+.test-form label {
+    display: block;
+    color: var(--text);
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.test-form input[type="date"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--button-bg-1);
+    border-radius: 12px;
+    background-color: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.test-button {
+    width: 100%;
+    padding: 15px 20px;
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.test-button:hover {
+    background-color: var(--text);
+    color: var(--bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.test-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.test-info {
+    text-align: center;
+    color: var(--caption);
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.result-box {
+    margin-top: 25px;
+    padding: 20px;
+    background-color: rgba(174, 238, 152, 0.1);
+    border-left: 4px solid var(--button-bg-1);
+    border-radius: 8px;
+}
+
+.result-box h3 {
+    color: var(--text);
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.summary-content {
+    color: var(--text);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    font-size: 15px;
+    margin-bottom: 15px;
+}
+
+.summary-meta {
+    color: var(--caption);
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .testing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// Set yesterday's date as default
+document.addEventListener('DOMContentLoaded', function() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    document.getElementById('summary-date').value = yesterdayStr;
+    document.getElementById('daily-email-date').value = yesterdayStr;
+});
+
+// Generate AI Summary
+function generateAISummary() {
+    const button = document.getElementById('generate-summary-btn');
+    const originalText = button.innerHTML;
+    const dateInput = document.getElementById('summary-date');
+    const resultBox = document.getElementById('summary-result');
+    const summaryContent = document.getElementById('summary-content');
+    const summaryMeta = document.getElementById('summary-meta');
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating...';
+    resultBox.classList.add('hidden');
+    
+    // Send POST request
+    fetch('/generate_ai_summary', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `date=${dateInput.value}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            summaryContent.textContent = data.summary;
+            summaryMeta.innerHTML = `<strong>Date:</strong> ${data.date} | <strong>Games:</strong> ${data.games_count}`;
+            resultBox.classList.remove('hidden');
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        alert('Error generating summary: ' + error.message);
+    });
+}
+
+// Send Test Email
+function sendTestEmail() {
+    const button = document.getElementById('test-email-btn');
+    const originalText = button.innerHTML;
+    
+    if (!confirm('Send a test email to acwodzinski@gmail.com?')) {
+        return;
+    }
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
+    
+    fetch('/test_email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: ''
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            alert('Success! Test email sent to acwodzinski@gmail.com');
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        alert('Error sending test email: ' + error.message);
+    });
+}
+
+// Send Daily Emails
+function sendDailyEmails() {
+    const button = document.getElementById('send-daily-btn');
+    const originalText = button.innerHTML;
+    const dateInput = document.getElementById('daily-email-date');
+    
+    if (!confirm(`Send stats for ${dateInput.value} to all players who played?`)) {
+        return;
+    }
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
+    
+    fetch('/send_daily_emails', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `date=${dateInput.value}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            alert(`Success! Sent ${data.emails_sent} email(s).`);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        alert('Error sending emails: ' + error.message);
+    });
+}
+</script>
+{% endblock %}
+
