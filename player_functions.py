@@ -103,7 +103,8 @@ def get_all_players():
         # Build player record
         if player_record:
             # Player exists in database with their info
-            player_list = list(player_record)
+            # Only take the first 8 fields to ensure consistent structure
+            player_list = list(player_record[:8])
         else:
             # Player doesn't exist in database, create minimal record
             # Format: id, full_name, email, date_of_birth, height, notes, created_at, updated_at
@@ -111,12 +112,23 @@ def get_all_players():
             now = datetime.now()
             player_list = [None, player_name, None, None, None, None, now, now]
         
+        # Ensure we have exactly 8 fields before appending
+        while len(player_list) < 8:
+            player_list.append(None)
+        player_list = player_list[:8]
+        
         player_list.append(first_game_date)  # index 8
-        player_list.append(total_games)      # index 9
+        player_list.append(int(total_games))  # index 9 - ensure it's an integer
         players_with_stats.append(tuple(player_list))
     
-    # Sort by total games (descending) - convert to int for sorting to handle any type issues
-    players_with_stats.sort(key=lambda x: int(x[9]) if x[9] is not None else 0, reverse=True)
+    # Sort by total games (descending) - safely handle any type issues
+    def safe_game_count(player):
+        try:
+            return int(player[9]) if player[9] is not None else 0
+        except (ValueError, TypeError):
+            return 0
+    
+    players_with_stats.sort(key=safe_game_count, reverse=True)
     
     conn.close()
     return players_with_stats

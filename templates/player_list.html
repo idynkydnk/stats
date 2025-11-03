@@ -27,8 +27,14 @@
         <tbody>
             {% for player in players %}
             <tr>
-                <td>{{ player[0] }}</td>
-                <td class="player_name"><a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a></td>
+                <td>{{ player[0] if player[0] else '-' }}</td>
+                <td class="player_name">
+                    {% if player[0] %}
+                        <a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a>
+                    {% else %}
+                        {{ player[1] }}
+                    {% endif %}
+                </td>
                 <td>{{ player[2] if player[2] else '-' }}</td>
                 <td>{% if player[3] %}
                     {% set birth_year = player[3][:4]|int %}
