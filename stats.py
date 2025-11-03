@@ -1827,7 +1827,7 @@ def generate_ai_summary():
         
         # Configure Gemini
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Generate summary
         prompt = f"""Write a fun, engaging 2-3 paragraph summary of these volleyball games. 
