@@ -35,8 +35,8 @@
                     {% set birth_month = player[3][5:7]|int %}
                     {% set birth_day = player[3][8:10]|int %}
                     {% set current_year = 2025 %}
-                    {% set current_month = 10 %}
-                    {% set current_day = 23 %}
+                    {% set current_month = 11 %}
+                    {% set current_day = 3 %}
                     {% set age = current_year - birth_year %}
                     {% if current_month < birth_month or (current_month == birth_month and current_day < birth_day) %}
                         {{ age - 1 }}
@@ -45,8 +45,8 @@
                     {% endif %}
                 {% else %}-{% endif %}</td>
                 <td>{{ player[4] if player[4] else '-' }}</td>
-                <td>{{ player[9] if player[9] else 0 }}</td>
-                <td>{% if player[8] %}{{ player[8][5:7] }}/{{ player[8][8:10] }}/{{ player[8][2:4] }}{% else %}-{% endif %}</td>
+                <td>{{ player[9] if player[9] is defined else 0 }}</td>
+                <td>{% if player[8] and player[8] != None %}{{ player[8][5:7] }}/{{ player[8][8:10] }}/{{ player[8][2:4] }}{% else %}-{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>

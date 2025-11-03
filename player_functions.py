@@ -55,9 +55,20 @@ def get_all_players():
         one_v_one_count = one_v_one_result[0] if one_v_one_result else 0
         one_v_one_date = one_v_one_result[1] if one_v_one_result else None
         
+        # Count other games
+        cur.execute("""
+            SELECT COUNT(*), MIN(game_date) FROM other_games 
+            WHERE winner1 = ? OR winner2 = ? OR winner3 = ? OR winner4 = ? OR winner5 = ? OR winner6 = ?
+               OR loser1 = ? OR loser2 = ? OR loser3 = ? OR loser4 = ? OR loser5 = ? OR loser6 = ?
+        """, (player_name, player_name, player_name, player_name, player_name, player_name,
+              player_name, player_name, player_name, player_name, player_name, player_name))
+        other_result = cur.fetchone()
+        other_count = other_result[0] if other_result else 0
+        other_date = other_result[1] if other_result else None
+        
         # Calculate total games and earliest date
-        total_games = doubles_count + vollis_count + one_v_one_count
-        dates = [d for d in [doubles_date, vollis_date, one_v_one_date] if d is not None]
+        total_games = doubles_count + vollis_count + one_v_one_count + other_count
+        dates = [d for d in [doubles_date, vollis_date, one_v_one_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
         
         # Convert player tuple to list and append first game date and total games
