@@ -1950,50 +1950,47 @@ Write the summary:"""
                 'error': 'No players with email addresses found for today'
             }), 404
         
-        # Send emails
-        emails_sent = 0
-        errors = []
-        
-        for player in players:
-            try:
-                msg = Message(
-                    subject=f"🏐 Today's Volleyball Recap - {today}",
-                    recipients=[player['email']]
-                )
+        # Send one email to all players
+        try:
+            # Collect all email addresses
+            all_emails = [player['email'] for player in players]
+            
+            msg = Message(
+                subject=f"🏐 Today's Volleyball Recap - {today}",
+                recipients=all_emails
+            )
+            
+            email_body = "Hi everyone,\n\n"
+            email_body += "Here's today's AI-generated game recap:\n\n"
+            email_body += "=" * 50 + "\n\n"
+            email_body += summary
+            email_body += "\n\n" + "=" * 50 + "\n\n"
+            
+            # Add individual player stats
+            email_body += "Today's Player Stats:\n\n"
+            for stat in stats:
+                player_name = stat[0]
+                wins = stat[1]
+                losses = stat[2]
+                win_pct = stat[3] * 100
+                differential = stat[4]
                 
-                email_body = f"Hi {player['name']},\n\n"
-                email_body += "Here's today's AI-generated game recap:\n\n"
-                email_body += "=" * 50 + "\n\n"
-                email_body += summary
-                email_body += "\n\n" + "=" * 50 + "\n\n"
-                
-                # Add player's personal stats
-                player_stats = None
-                for stat in stats:
-                    if stat[0] == player['name']:
-                        player_stats = stat
-                        break
-                
-                if player_stats:
-                    wins = player_stats[1]
-                    losses = player_stats[2]
-                    win_pct = player_stats[3] * 100
-                    differential = player_stats[4]
-                    
-                    email_body += f"Your Stats Today:\n"
-                    email_body += f"Record: {wins}-{losses} ({win_pct:.1f}%)\n"
-                    email_body += f"Point Differential: {differential:+d}\n\n"
-                
-                email_body += f"Total games today: {len(games)}\n\n"
-                email_body += "Great playing!\n\n"
-                email_body += "— Your Stats Team"
-                
-                msg.body = email_body
-                mail.send(msg)
-                emails_sent += 1
-                
-            except Exception as e:
-                errors.append(f"Failed to send to {player['name']}: {str(e)}")
+                email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
+            
+            email_body += f"\nTotal games today: {len(games)}\n\n"
+            email_body += "Great playing everyone!\n\n"
+            email_body += "— Your Stats Team"
+            
+            msg.body = email_body
+            mail.send(msg)
+            emails_sent = len(all_emails)
+            errors = []
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to send email: {str(e)}'
+            }), 500
         
         # Create summary preview (first 150 chars)
         summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
