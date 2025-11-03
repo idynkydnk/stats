@@ -50,32 +50,33 @@
 }
 
 .summary-email-btn {
+    max-width: 260px;
     width: 100%;
-    max-width: 400px;
-    padding: 15px 20px;
-    margin: 20px auto;
-    display: block;
+    text-align: center;
+    padding: 8px 12px;
+    margin-top: 40px;
+    margin-bottom: 8px;
+    margin-left: 8px;
+    margin-right: 8px;
+    display: inline-block;
+    box-sizing: border-box;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 2px solid var(--button-border-1);
     background-color: var(--button-bg-1);
     color: var(--button-text-1);
-    border: none;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
 
 .summary-email-btn:hover {
-    background-color: var(--text);
-    color: var(--bg);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--button-bg-1);
+    background-color: var(--button-border-1);
+    color: var(--button-bg-1);
 }
 
 .summary-email-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
 }
 
 .summary-email-btn i {
