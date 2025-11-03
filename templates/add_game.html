@@ -1,5 +1,8 @@
 {% extends 'base_admin.html' %}
 
+{% block content %}
+	<h1>{% block title %} Add Doubles Game {% endblock %}</h1>
+
 <style>
 .autocomplete {
     position: relative;
@@ -83,8 +86,6 @@
 }
 </style>
 
-{% block content %}
-	<h1>{% block title %} Add Doubles Game {% endblock %}</h1>
 	<div class="container">
 	<form method="post">
 		<datalist id="players">
