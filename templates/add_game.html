@@ -674,14 +674,14 @@ function filterScoreList(field, list, scores) {
 // Generate AI summary and email to today's players
 function generateAndEmailSummary() {
     const button = document.getElementById('generate-and-email-btn');
-    const originalText = button.innerHTML;
+    const originalValue = button.value;
     
     if (!confirm('Generate an AI summary of today\'s games and email it to everyone who played today?')) {
         return;
     }
     
     button.disabled = true;
-    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating summary and sending emails...';
+    button.value = 'Generating and sending...';
     
     fetch('/generate_and_email_today', {
         method: 'POST',
@@ -693,7 +693,7 @@ function generateAndEmailSummary() {
     .then(response => response.json())
     .then(data => {
         button.disabled = false;
-        button.innerHTML = originalText;
+        button.value = originalValue;
         
         if (data.success) {
             alert(`Success! Generated AI summary and sent to ${data.emails_sent} player(s).\n\nPreview:\n${data.summary_preview}`);
@@ -703,7 +703,7 @@ function generateAndEmailSummary() {
     })
     .catch(error => {
         button.disabled = false;
-        button.innerHTML = originalText;
+        button.value = originalValue;
         alert('Error: ' + error.message);
     });
 }
