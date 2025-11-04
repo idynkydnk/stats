@@ -2090,7 +2090,7 @@ Bring the energy:"""
                     body {{ 
                         font-family: 'Open Sans', Arial, Helvetica, sans-serif;
                         background-color: #1d2025;
-                        color: #dbe2ea;
+                        color: #ffffff;
                         padding: 20px;
                         line-height: 1.6;
                     }}
@@ -2103,11 +2103,12 @@ Bring the energy:"""
                         border: 2px solid #aeee98;
                     }}
                     .summary {{
-                        background-color: rgba(174, 238, 152, 0.1);
+                        background-color: rgba(174, 238, 152, 0.15);
                         padding: 20px;
                         border-radius: 12px;
                         border-left: 4px solid #aeee98;
                         margin-bottom: 20px;
+                        color: #ffffff;
                     }}
                     .divider {{
                         border-top: 2px solid #aeee98;
@@ -2120,7 +2121,7 @@ Bring the energy:"""
                     }}
                     .stats-table th {{
                         background-color: #455a6d;
-                        color: #dbe2ea;
+                        color: #ffffff;
                         padding: 12px;
                         text-align: left;
                         border-bottom: 2px solid #aeee98;
@@ -2128,12 +2129,12 @@ Bring the energy:"""
                     .stats-table td {{
                         padding: 10px 12px;
                         border-bottom: 1px solid #455a6d;
-                        color: #dbe2ea;
+                        color: #ffffff;
                     }}
                     .game-item {{
                         padding: 8px 0;
                         border-bottom: 1px solid #455a6d;
-                        color: #dbe2ea;
+                        color: #ffffff;
                     }}
                     .footer {{
                         text-align: center;
@@ -2151,9 +2152,10 @@ Bring the energy:"""
                         font-weight: bold;
                         margin: 10px;
                     }}
-                    p {{ color: #dbe2ea; }}
+                    p {{ color: #ffffff; }}
                     h2 {{ color: #aeee98; margin-top: 0; }}
                     h3 {{ color: #aeee98; }}
+                    div {{ color: #ffffff; }}
                 </style>
             </head>
             <body>
@@ -2425,7 +2427,7 @@ Tell the story:"""
                     body {{ 
                         font-family: 'Open Sans', Arial, Helvetica, sans-serif;
                         background-color: #1d2025;
-                        color: #dbe2ea;
+                        color: #ffffff;
                         padding: 20px;
                         line-height: 1.6;
                     }}
@@ -2438,11 +2440,12 @@ Tell the story:"""
                         border: 2px solid #aeee98;
                     }}
                     .summary {{
-                        background-color: rgba(174, 238, 152, 0.1);
+                        background-color: rgba(174, 238, 152, 0.15);
                         padding: 20px;
                         border-radius: 12px;
                         border-left: 4px solid #aeee98;
                         margin-bottom: 20px;
+                        color: #ffffff;
                     }}
                     .divider {{
                         border-top: 2px solid #aeee98;
@@ -2455,7 +2458,7 @@ Tell the story:"""
                     }}
                     .stats-table th {{
                         background-color: #455a6d;
-                        color: #dbe2ea;
+                        color: #ffffff;
                         padding: 12px;
                         text-align: left;
                         border-bottom: 2px solid #aeee98;
@@ -2549,13 +2552,10 @@ Tell the story:"""
                     <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
                 """
             
-            # Get current year for link
-            current_year = datetime.now().year
-            
             html_body += f"""
                     <div class="footer">
                         <p>Great playing everyone!</p>
-                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one/{current_year}/" class="link-button">View 1v1 Stats</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
                 </div>
