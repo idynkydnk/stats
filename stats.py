@@ -2082,34 +2082,149 @@ Bring the energy:"""
                 recipients=all_emails
             )
             
-            email_body = summary
-            email_body += "\n\n" + "=" * 50 + "\n\n"
+            # Create HTML email body
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ 
+                        font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+                        background-color: #1d2025;
+                        color: #dbe2ea;
+                        padding: 20px;
+                        line-height: 1.6;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #2e445b;
+                        padding: 30px;
+                        border-radius: 20px;
+                        border: 2px solid #aeee98;
+                    }}
+                    .summary {{
+                        background-color: rgba(174, 238, 152, 0.1);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                        margin-bottom: 20px;
+                    }}
+                    .divider {{
+                        border-top: 2px solid #aeee98;
+                        margin: 25px 0;
+                    }}
+                    .stats-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 15px 0;
+                    }}
+                    .stats-table th {{
+                        background-color: #455a6d;
+                        color: #dbe2ea;
+                        padding: 12px;
+                        text-align: left;
+                        border-bottom: 2px solid #aeee98;
+                    }}
+                    .stats-table td {{
+                        padding: 10px 12px;
+                        border-bottom: 1px solid #455a6d;
+                    }}
+                    .game-item {{
+                        padding: 8px 0;
+                        border-bottom: 1px solid #455a6d;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 2px solid #aeee98;
+                    }}
+                    .link-button {{
+                        display: inline-block;
+                        background-color: #aeee98;
+                        color: #3e526a;
+                        padding: 12px 24px;
+                        border-radius: 12px;
+                        text-decoration: none;
+                        font-weight: bold;
+                        margin: 10px;
+                    }}
+                    h2 {{ color: #aeee98; margin-top: 0; }}
+                    h3 {{ color: #aeee98; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>🏐 Today's Volleyball Recap</h2>
+                    
+                    <div class="summary">
+                        {summary.replace(chr(10), '<br>')}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <h3>Today's Player Stats</h3>
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Record</th>
+                                <th>Win %</th>
+                                <th>Diff</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            """
             
-            # Add individual player stats
-            email_body += "Today's Player Stats:\n\n"
             for stat in stats:
                 player_name = stat[0]
                 wins = stat[1]
                 losses = stat[2]
                 win_pct = stat[3] * 100
                 differential = stat[4]
+                diff_sign = '+' if differential >= 0 else ''
                 
-                email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
+                html_body += f"""
+                            <tr>
+                                <td>{player_name}</td>
+                                <td>{wins}-{losses}</td>
+                                <td>{win_pct:.1f}%</td>
+                                <td>{diff_sign}{differential}</td>
+                            </tr>
+                """
             
-            # Add all games with scores
-            email_body += f"\n" + "=" * 50 + "\n\n"
-            email_body += f"Today's Games ({len(games)}):\n\n"
+            html_body += """
+                        </tbody>
+                    </table>
+                    
+                    <div class="divider"></div>
+                    
+            """
+            
+            html_body += f"""
+                    <h3>Today's Games ({len(games)})</h3>
+            """
             
             for idx, game in enumerate(games, 1):
                 winners = f"{game[2]} & {game[3]}"
                 losers = f"{game[5]} & {game[6]}"
                 score = f"{game[4]}-{game[7]}"
-                
-                email_body += f"  {idx}. {winners} def. {losers} ({score})\n"
+                html_body += f"""
+                    <div class="game-item">{idx}. {winners} def. {losers} ({score})</div>
+                """
             
-            email_body += "\nGreat playing everyone!"
+            html_body += f"""
+                    <div class="footer">
+                        <p>Great playing everyone!</p>
+                        <a href="https://idynkydnk.pythonanywhere.com/stats/{formatted_date.replace('/', '-')}/" class="link-button">View Full Stats</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/" class="link-button">Go to Stats Site</a>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
             
-            msg.body = email_body
+            msg.html = html_body
             mail.send(msg)
             emails_sent = len(all_emails)
             errors = []
@@ -2296,33 +2411,150 @@ Tell the story:"""
                 recipients=all_emails
             )
             
-            email_body = summary
-            email_body += "\n\n" + "=" * 50 + "\n\n"
+            # Create HTML email body
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ 
+                        font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+                        background-color: #1d2025;
+                        color: #dbe2ea;
+                        padding: 20px;
+                        line-height: 1.6;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #2e445b;
+                        padding: 30px;
+                        border-radius: 20px;
+                        border: 2px solid #aeee98;
+                    }}
+                    .summary {{
+                        background-color: rgba(174, 238, 152, 0.1);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                        margin-bottom: 20px;
+                    }}
+                    .divider {{
+                        border-top: 2px solid #aeee98;
+                        margin: 25px 0;
+                    }}
+                    .stats-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 15px 0;
+                    }}
+                    .stats-table th {{
+                        background-color: #455a6d;
+                        color: #dbe2ea;
+                        padding: 12px;
+                        text-align: left;
+                        border-bottom: 2px solid #aeee98;
+                    }}
+                    .stats-table td {{
+                        padding: 10px 12px;
+                        border-bottom: 1px solid #455a6d;
+                    }}
+                    .game-item {{
+                        padding: 8px 0;
+                        border-bottom: 1px solid #455a6d;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 2px solid #aeee98;
+                    }}
+                    .link-button {{
+                        display: inline-block;
+                        background-color: #aeee98;
+                        color: #3e526a;
+                        padding: 12px 24px;
+                        border-radius: 12px;
+                        text-decoration: none;
+                        font-weight: bold;
+                        margin: 10px;
+                    }}
+                    h2 {{ color: #aeee98; margin-top: 0; }}
+                    h3 {{ color: #aeee98; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>🎯 Today's 1v1 Recap</h2>
+                    
+                    <div class="summary">
+                        {summary.replace(chr(10), '<br>')}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <h3>Today's Player Stats</h3>
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Record</th>
+                                <th>Win %</th>
+                                <th>Diff</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            """
             
-            # Add player stats
-            email_body += "Today's Player Stats:\n\n"
             for stat in stats:
                 player_name = stat[0]
                 wins = stat[1]
                 losses = stat[2]
                 win_pct = stat[3] * 100
                 differential = stat[4]
-                email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
+                diff_sign = '+' if differential >= 0 else ''
+                
+                html_body += f"""
+                            <tr>
+                                <td>{player_name}</td>
+                                <td>{wins}-{losses}</td>
+                                <td>{win_pct:.1f}%</td>
+                                <td>{diff_sign}{differential}</td>
+                            </tr>
+                """
             
-            # Add all games
-            email_body += f"\n" + "=" * 50 + "\n\n"
-            email_body += f"Today's 1v1 Games ({len(games)}):\n\n"
+            html_body += """
+                        </tbody>
+                    </table>
+                    
+                    <div class="divider"></div>
+                    
+            """
+            
+            html_body += f"""
+                    <h3>Today's 1v1 Games ({len(games)})</h3>
+            """
             
             for idx, game in enumerate(games, 1):
                 winner = game[4]
                 loser = game[6]
                 score = f"{game[5]}-{game[7]}"
                 game_name = game[3] if len(game) > 3 else "1v1"
-                email_body += f"  {idx}. {winner} def. {loser} ({score}) - {game_name}\n"
+                html_body += f"""
+                    <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
+                """
             
-            email_body += "\nGreat playing everyone!"
+            html_body += f"""
+                    <div class="footer">
+                        <p>Great playing everyone!</p>
+                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one/" class="link-button">View 1v1 Stats</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/" class="link-button">Go to Stats Site</a>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
             
-            msg.body = email_body
+            msg.html = html_body
             mail.send(msg)
             emails_sent = len(all_emails)
             
