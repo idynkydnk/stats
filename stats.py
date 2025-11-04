@@ -2128,10 +2128,12 @@ Bring the energy:"""
                     .stats-table td {{
                         padding: 10px 12px;
                         border-bottom: 1px solid #455a6d;
+                        color: #dbe2ea;
                     }}
                     .game-item {{
                         padding: 8px 0;
                         border-bottom: 1px solid #455a6d;
+                        color: #dbe2ea;
                     }}
                     .footer {{
                         text-align: center;
@@ -2149,6 +2151,7 @@ Bring the energy:"""
                         font-weight: bold;
                         margin: 10px;
                     }}
+                    p {{ color: #dbe2ea; }}
                     h2 {{ color: #aeee98; margin-top: 0; }}
                     h3 {{ color: #aeee98; }}
                 </style>
@@ -2213,11 +2216,14 @@ Bring the energy:"""
                     <div class="game-item">{idx}. {winners} def. {losers} ({score})</div>
                 """
             
+            # Format date for URL (YYYY-MM-DD)
+            url_date = date_obj.strftime('%Y-%m-%d')
+            
             html_body += f"""
                     <div class="footer">
                         <p>Great playing everyone!</p>
-                        <a href="https://idynkydnk.pythonanywhere.com/stats/{formatted_date.replace('/', '-')}/" class="link-button">View Full Stats</a>
-                        <a href="https://idynkydnk.pythonanywhere.com/" class="link-button">Go to Stats Site</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/date_range_stats?start_date={url_date}&end_date={url_date}" class="link-button">View Today's Stats</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
                 </div>
             </body>
@@ -2543,11 +2549,14 @@ Tell the story:"""
                     <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
                 """
             
+            # Get current year for link
+            current_year = datetime.now().year
+            
             html_body += f"""
                     <div class="footer">
                         <p>Great playing everyone!</p>
-                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one/" class="link-button">View 1v1 Stats</a>
-                        <a href="https://idynkydnk.pythonanywhere.com/" class="link-button">Go to Stats Site</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one/{current_year}/" class="link-button">View 1v1 Stats</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
                 </div>
             </body>
