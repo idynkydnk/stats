@@ -2114,27 +2114,43 @@ Bring the energy:"""
                         border-top: 2px solid #aeee98;
                         margin: 25px 0;
                     }}
+                    .stats-section {{
+                        background-color: rgba(174, 238, 152, 0.15);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                        margin-bottom: 20px;
+                    }}
+                    .games-section {{
+                        background-color: rgba(174, 238, 152, 0.15);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                    }}
                     .stats-table {{
                         width: 100%;
                         border-collapse: collapse;
                         margin: 15px 0;
                     }}
                     .stats-table th {{
-                        background-color: #455a6d;
-                        color: #ffffff;
+                        background-color: transparent;
+                        color: #aeee98;
                         padding: 12px;
                         text-align: left;
                         border-bottom: 2px solid #aeee98;
                     }}
                     .stats-table td {{
                         padding: 10px 12px;
-                        border-bottom: 1px solid #455a6d;
+                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
                         color: #ffffff;
                     }}
                     .game-item {{
                         padding: 8px 0;
-                        border-bottom: 1px solid #455a6d;
+                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
                         color: #ffffff;
+                    }}
+                    .game-item:last-child {{
+                        border-bottom: none;
                     }}
                     .footer {{
                         text-align: center;
@@ -2168,17 +2184,18 @@ Bring the energy:"""
                     
                     <div class="divider"></div>
                     
-                    <h3>Today's Player Stats</h3>
-                    <table class="stats-table">
-                        <thead>
-                            <tr>
-                                <th>Player</th>
-                                <th>Record</th>
-                                <th>Win %</th>
-                                <th>Diff</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="stats-section">
+                        <h3>Today's Player Stats</h3>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Record</th>
+                                    <th>Win %</th>
+                                    <th>Diff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             """
             
             for stat in stats:
@@ -2190,24 +2207,23 @@ Bring the energy:"""
                 diff_sign = '+' if differential >= 0 else ''
                 
                 html_body += f"""
-                            <tr>
-                                <td>{player_name}</td>
-                                <td>{wins}-{losses}</td>
-                                <td>{win_pct:.1f}%</td>
-                                <td>{diff_sign}{differential}</td>
-                            </tr>
+                                <tr>
+                                    <td>{player_name}</td>
+                                    <td>{wins}-{losses}</td>
+                                    <td>{win_pct:.1f}%</td>
+                                    <td>{diff_sign}{differential}</td>
+                                </tr>
                 """
             
             html_body += """
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                     
                     <div class="divider"></div>
                     
-            """
-            
-            html_body += f"""
-                    <h3>Today's Games ({len(games)})</h3>
+                    <div class="games-section">
+                        <h3>Today's Games ({len(games)})</h3>
             """
             
             for idx, game in enumerate(games, 1):
@@ -2215,7 +2231,11 @@ Bring the energy:"""
                 losers = f"{game[5]} & {game[6]}"
                 score = f"{game[4]}-{game[7]}"
                 html_body += f"""
-                    <div class="game-item">{idx}. {winners} def. {losers} ({score})</div>
+                        <div class="game-item">{idx}. {winners} def. {losers} ({score})</div>
+                """
+            
+            html_body += """
+                    </div>
                 """
             
             # Format date for URL (YYYY-MM-DD)
@@ -2451,25 +2471,43 @@ Tell the story:"""
                         border-top: 2px solid #aeee98;
                         margin: 25px 0;
                     }}
+                    .stats-section {{
+                        background-color: rgba(174, 238, 152, 0.15);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                        margin-bottom: 20px;
+                    }}
+                    .games-section {{
+                        background-color: rgba(174, 238, 152, 0.15);
+                        padding: 20px;
+                        border-radius: 12px;
+                        border-left: 4px solid #aeee98;
+                    }}
                     .stats-table {{
                         width: 100%;
                         border-collapse: collapse;
                         margin: 15px 0;
                     }}
                     .stats-table th {{
-                        background-color: #455a6d;
-                        color: #ffffff;
+                        background-color: transparent;
+                        color: #aeee98;
                         padding: 12px;
                         text-align: left;
                         border-bottom: 2px solid #aeee98;
                     }}
                     .stats-table td {{
                         padding: 10px 12px;
-                        border-bottom: 1px solid #455a6d;
+                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        color: #ffffff;
                     }}
                     .game-item {{
                         padding: 8px 0;
-                        border-bottom: 1px solid #455a6d;
+                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        color: #ffffff;
+                    }}
+                    .game-item:last-child {{
+                        border-bottom: none;
                     }}
                     .footer {{
                         text-align: center;
@@ -2501,17 +2539,18 @@ Tell the story:"""
                     
                     <div class="divider"></div>
                     
-                    <h3>Today's Player Stats</h3>
-                    <table class="stats-table">
-                        <thead>
-                            <tr>
-                                <th>Player</th>
-                                <th>Record</th>
-                                <th>Win %</th>
-                                <th>Diff</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="stats-section">
+                        <h3>Today's Player Stats</h3>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Record</th>
+                                    <th>Win %</th>
+                                    <th>Diff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             """
             
             for stat in stats:
@@ -2523,24 +2562,23 @@ Tell the story:"""
                 diff_sign = '+' if differential >= 0 else ''
                 
                 html_body += f"""
-                            <tr>
-                                <td>{player_name}</td>
-                                <td>{wins}-{losses}</td>
-                                <td>{win_pct:.1f}%</td>
-                                <td>{diff_sign}{differential}</td>
-                            </tr>
+                                <tr>
+                                    <td>{player_name}</td>
+                                    <td>{wins}-{losses}</td>
+                                    <td>{win_pct:.1f}%</td>
+                                    <td>{diff_sign}{differential}</td>
+                                </tr>
                 """
             
             html_body += """
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                     
                     <div class="divider"></div>
                     
-            """
-            
-            html_body += f"""
-                    <h3>Today's 1v1 Games ({len(games)})</h3>
+                    <div class="games-section">
+                        <h3>Today's 1v1 Games ({len(games)})</h3>
             """
             
             for idx, game in enumerate(games, 1):
@@ -2549,7 +2587,11 @@ Tell the story:"""
                 score = f"{game[5]}-{game[7]}"
                 game_name = game[3] if len(game) > 3 else "1v1"
                 html_body += f"""
-                    <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
+                        <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
+                """
+            
+            html_body += """
+                    </div>
                 """
             
             html_body += f"""
