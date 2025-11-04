@@ -2136,6 +2136,218 @@ Bring the energy:"""
             'error': f'Failed to generate and send: {str(e)}'
         }), 500
 
+@app.route('/generate_and_email_today_1v1', methods=['POST'])
+def generate_and_email_today_1v1():
+    """Generate AI summary for today's 1v1 games and email to all players who played"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    import google.generativeai as genai
+    import os
+    from datetime import date
+    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games
+    from player_functions import get_player_by_name
+    
+    # Check configurations
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({
+            'success': False,
+            'error': 'Gemini API key not configured.'
+        }), 400
+    
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        return jsonify({
+            'success': False,
+            'error': 'Email not configured.'
+        }), 400
+    
+    try:
+        # Get today's date
+        today = date.today().strftime('%Y-%m-%d')
+        
+        # Get stats for today's 1v1 games
+        stats = todays_one_v_one_stats()
+        games = todays_one_v_one_games()
+        
+        if not games:
+            return jsonify({
+                'success': False,
+                'error': f'No 1v1 games found for today ({today})'
+            }), 404
+        
+        # Build context for AI
+        context = f"Date: {today}\n"
+        context += f"Total 1v1 Games: {len(games)}\n\n"
+        context += "Player Stats (with details):\n"
+        
+        for stat in stats[:10]:
+            player_name = stat[0]
+            wins = stat[1]
+            losses = stat[2]
+            win_pct = stat[3] * 100
+            differential = stat[4]
+            
+            # Get player details
+            player_info = get_player_by_name(player_name)
+            age_str = ""
+            height_str = ""
+            if player_info:
+                if player_info[3]:  # date_of_birth
+                    try:
+                        birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
+                        age = datetime.now().year - birth_date.year
+                        age_str = f", Age: {age}"
+                    except:
+                        pass
+                if player_info[4]:  # height
+                    height_str = f", Height: {player_info[4]}"
+            
+            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
+        
+        context += f"\n1v1 Games Played Today:\n"
+        for game in games[:10]:
+            winner = game[4]
+            loser = game[6]
+            score = f"{game[5]}-{game[7]}"
+            game_name = game[3] if len(game) > 3 else "1v1"
+            context += f"- {winner} def. {loser} ({score}) - {game_name}\n"
+        
+        # Generate AI summary with rotating prompts
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('models/gemini-flash-latest')
+        
+        # Determine summary length
+        num_games = len(games)
+        if num_games <= 2:
+            length_guide = "1-2 sentences"
+        elif num_games <= 5:
+            length_guide = "1 short paragraph (3-4 sentences)"
+        elif num_games <= 10:
+            length_guide = "2 paragraphs"
+        else:
+            length_guide = "3 paragraphs"
+        
+        # Rotating prompts for 1v1 games
+        import random
+        prompts = [
+            f"""Write a fun, engaging summary of these 1v1 games in {length_guide}. 
+            Highlight the top performers, most exciting matches, and any notable achievements. 
+            Make it conversational and entertaining. Use player details (age, height) to add personality.
+
+{context}
+
+Write the summary:""",
+            
+            f"""You're a witty sports journalist writing a 1v1 games recap in {length_guide}. 
+            Create a story about today's action, weaving in player ages and heights when relevant. 
+            Focus on rivalries, upsets, and standout performances. Make it fun!
+
+{context}
+
+Write the recap:""",
+            
+            f"""Write a {length_guide} 1v1 games recap as if you're texting a friend who missed the action. 
+            Be casual, funny, and highlight the wild moments. Make them wish they were there!
+
+{context}
+
+Tell the story:"""
+        ]
+        
+        prompt = random.choice(prompts)
+        response = model.generate_content(prompt)
+        summary = response.text
+        
+        # Get players who played today
+        players_set = set()
+        for game in games:
+            if game[4]:  # winner
+                players_set.add(game[4])
+            if game[6]:  # loser
+                players_set.add(game[6])
+        
+        # Get email addresses
+        players_with_emails = []
+        for player_name in players_set:
+            player_info = get_player_by_name(player_name)
+            if player_info and player_info[2]:  # has email
+                players_with_emails.append({
+                    'name': player_name,
+                    'email': player_info[2]
+                })
+        
+        if not players_with_emails:
+            return jsonify({
+                'success': False,
+                'error': 'No players with email addresses found for today'
+            }), 404
+        
+        # Send one email to all players
+        try:
+            all_emails = [player['email'] for player in players_with_emails]
+            
+            # Format date as MM/DD/YY
+            date_obj = datetime.strptime(today, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%m/%d/%y')
+            
+            msg = Message(
+                subject=f"🎯 Today's 1v1 Recap - {formatted_date}",
+                recipients=all_emails
+            )
+            
+            email_body = summary
+            email_body += "\n\n" + "=" * 50 + "\n\n"
+            
+            # Add player stats
+            email_body += "Today's Player Stats:\n\n"
+            for stat in stats:
+                player_name = stat[0]
+                wins = stat[1]
+                losses = stat[2]
+                win_pct = stat[3] * 100
+                differential = stat[4]
+                email_body += f"  {player_name}: {wins}-{losses} ({win_pct:.1f}%), Diff: {differential:+d}\n"
+            
+            # Add all games
+            email_body += f"\n" + "=" * 50 + "\n\n"
+            email_body += f"Today's 1v1 Games ({len(games)}):\n\n"
+            
+            for idx, game in enumerate(games, 1):
+                winner = game[4]
+                loser = game[6]
+                score = f"{game[5]}-{game[7]}"
+                game_name = game[3] if len(game) > 3 else "1v1"
+                email_body += f"  {idx}. {winner} def. {loser} ({score}) - {game_name}\n"
+            
+            email_body += "\nGreat playing everyone!"
+            
+            msg.body = email_body
+            mail.send(msg)
+            emails_sent = len(all_emails)
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to send email: {str(e)}'
+            }), 500
+        
+        # Create summary preview
+        summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+        
+        return jsonify({
+            'success': True,
+            'emails_sent': emails_sent,
+            'summary_preview': summary_preview,
+            'errors': []
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate and send: {str(e)}'
+        }), 500
+
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
     """Clean up expired authentication tokens (can be called periodically)"""

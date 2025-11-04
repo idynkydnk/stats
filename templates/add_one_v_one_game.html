@@ -52,6 +52,34 @@
 .autocomplete-list div:last-child {
     border-bottom: none;
 }
+
+.summary-email-btn {
+    /* Match submit button exactly */
+    max-width: 260px;
+    width: 100%;
+    text-align: center;
+    padding: 8px 12px;
+    margin: 8px;
+    margin-top: 40px; /* Extra space to prevent accidental taps */
+    display: inline-block;
+    box-sizing: border-box;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 2px solid var(--button-border-1);
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
+}
+
+.summary-email-btn:hover {
+    border: 2px solid var(--button-bg-1);
+    background-color: var(--button-border-1);
+    color: var(--button-bg-1);
+}
+
+.summary-email-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 </style>
 
 {% block content %}
@@ -124,6 +152,8 @@
         </div>
         <input type="submit" value="Submit">
     </form>
+    
+    <input type="button" id="generate-and-email-btn-1v1" class="summary-email-btn" onclick="generateAndEmailSummary1v1()" value="Generate AI Summary & Email">
     </div>
     <div>
     {% if todays_stats %}
@@ -505,6 +535,43 @@ function filterPlayerList(list, inputValue, fieldId) {
     });
     
     list.style.display = filtered.length > 0 ? 'block' : 'none';
+}
+
+// Generate AI summary and email to today's 1v1 players
+function generateAndEmailSummary1v1() {
+    const button = document.getElementById('generate-and-email-btn-1v1');
+    const originalValue = button.value;
+    
+    if (!confirm('Generate an AI summary of today\'s 1v1 games and email it to everyone who played today?')) {
+        return;
+    }
+    
+    button.disabled = true;
+    button.value = 'Generating and sending...';
+    
+    fetch('/generate_and_email_today_1v1', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: ''
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.value = originalValue;
+        
+        if (data.success) {
+            alert(`Success! Generated AI summary and sent to ${data.emails_sent} player(s).\n\nPreview:\n${data.summary_preview}`);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error occurred'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.value = originalValue;
+        alert('Error: ' + error.message);
+    });
 }
 </script>
 {% endblock %}
