@@ -2222,7 +2222,6 @@ Bring the energy:"""
                     
                     <div class="divider"></div>
                     
-            html_body += f"""
                     <div class="games-section">
                         <h3>Today's Games ({len(games)})</h3>
             """
@@ -2577,7 +2576,6 @@ Tell the story:"""
                     
                     <div class="divider"></div>
                     
-            html_body += f"""
                     <div class="games-section">
                         <h3>Today's 1v1 Games ({len(games)})</h3>
             """
