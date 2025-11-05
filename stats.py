@@ -690,11 +690,12 @@ def one_v_one():
 @app.route('/add_one_v_one_game/', methods=('GET', 'POST'))
 @login_required
 def add_one_v_one_game():
-    games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(games)
-    game_names = one_v_one_game_names(games)
-    players = all_one_v_one_players(games)
+    all_games = one_v_one_year_games('All years')
+    game_types = one_v_one_game_types(all_games)
+    game_names = one_v_one_game_names(all_games)
+    players = all_one_v_one_players(all_games)
     stats = todays_one_v_one_stats()
+    games = todays_one_v_one_games()
     year = str(date.today().year)
     winning_scores = one_v_one_winning_scores()
     losing_scores = one_v_one_losing_scores()
@@ -1895,17 +1896,36 @@ def generate_and_email_today():
         }), 400
     
     try:
+        # Get selected game IDs from request
+        data = request.get_json() or {}
+        selected_game_ids = data.get('game_ids', [])
+        
         # Get today's date
         today = date.today().strftime('%Y-%m-%d')
         
         # Get stats for today
-        stats, games = specific_date_stats(today)
+        stats, all_games = specific_date_stats(today)
         
-        if not games:
+        if not all_games:
             return jsonify({
                 'success': False,
                 'error': f'No games found for today ({today})'
             }), 404
+        
+        # Filter games by selected IDs if provided
+        if selected_game_ids:
+            games = [game for game in all_games if str(game[0]) in selected_game_ids]
+            if not games:
+                return jsonify({
+                    'success': False,
+                    'error': 'None of the selected games were found'
+                }), 404
+            
+            # Recalculate stats for selected games only
+            from stat_functions import calculate_stats_from_games
+            stats = calculate_stats_from_games(games)
+        else:
+            games = all_games
         
         # Build context for AI with player details and historical context
         from player_functions import get_player_by_name
@@ -2059,8 +2079,20 @@ Bring the energy:"""
         response = model.generate_content(prompt)
         summary = response.text
         
-        # Get players who played today
-        players = get_players_who_played_on_date(today)
+        # Get players from the selected games
+        players_set = set()
+        for game in games:
+            for player_name in [game[2], game[3], game[5], game[6]]:
+                if player_name and player_name.strip():
+                    players_set.add(player_name)
+        
+        # Get email addresses for these players
+        from player_functions import get_player_by_name
+        players = []
+        for player_name in players_set:
+            player_info = get_player_by_name(player_name)
+            if player_info and player_info[5]:  # Has email at index 5
+                players.append({'name': player_name, 'email': player_info[5]})
         
         if not players:
             return jsonify({
@@ -2287,7 +2319,7 @@ def generate_and_email_today_1v1():
     import google.generativeai as genai
     import os
     from datetime import date
-    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games
+    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games, calculate_one_v_one_stats_from_games
     from player_functions import get_player_by_name
     
     # Check configurations
@@ -2305,18 +2337,36 @@ def generate_and_email_today_1v1():
         }), 400
     
     try:
+        # Get selected game IDs from request
+        data = request.get_json() or {}
+        selected_game_ids = data.get('game_ids', [])
+        
         # Get today's date
         today = date.today().strftime('%Y-%m-%d')
         
-        # Get stats for today's 1v1 games
-        stats = todays_one_v_one_stats()
-        games = todays_one_v_one_games()
+        # Get all 1v1 games for today
+        all_games = todays_one_v_one_games()
         
-        if not games:
+        if not all_games:
             return jsonify({
                 'success': False,
                 'error': f'No 1v1 games found for today ({today})'
             }), 404
+        
+        # Filter games by selected IDs if provided
+        if selected_game_ids:
+            games = [game for game in all_games if str(game[0]) in selected_game_ids]
+            if not games:
+                return jsonify({
+                    'success': False,
+                    'error': 'None of the selected games were found'
+                }), 404
+            
+            # Recalculate stats for selected games only
+            stats = calculate_one_v_one_stats_from_games(games)
+        else:
+            games = all_games
+            stats = todays_one_v_one_stats()
         
         # Build context for AI
         context = f"Date: {today}\n"

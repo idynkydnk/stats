@@ -164,14 +164,8 @@ def todays_games():
     row = convert_ampm(games)
     return row
 
-def specific_date_stats(target_date):
-    """Get stats for a specific date"""
-    cur = set_cur()
-    cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (target_date,))
-    games = cur.fetchall()
-    games.sort(reverse=True)
-    converted_games = convert_ampm(games)
-    
+def calculate_stats_from_games(games):
+    """Calculate player stats from a list of games"""
     players = all_players(games)
     stats = []
     for player in players:
@@ -187,6 +181,17 @@ def specific_date_stats(target_date):
         stats.append([player, wins, losses, win_percentage, differential])
     stats.sort(key=lambda x: x[4], reverse=True)
     stats.sort(key=lambda x: x[3], reverse=True)
+    return stats
+
+def specific_date_stats(target_date):
+    """Get stats for a specific date"""
+    cur = set_cur()
+    cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (target_date,))
+    games = cur.fetchall()
+    games.sort(reverse=True)
+    converted_games = convert_ampm(games)
+    
+    stats = calculate_stats_from_games(games)
     return stats, converted_games
 
 def get_previous_date(current_date, days_back=1):

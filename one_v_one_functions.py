@@ -292,8 +292,8 @@ def total_one_v_one_stats(name, games):
     return stats
 
 
-def todays_one_v_one_stats():
-    games = todays_one_v_one_games()
+def calculate_one_v_one_stats_from_games(games):
+    """Calculate player stats from a list of 1v1 games"""
     players = all_one_v_one_players(games)
     stats = []
     for player in players:
@@ -309,6 +309,10 @@ def todays_one_v_one_stats():
         stats.append([player, wins, losses, win_percentage, differential])
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
+
+def todays_one_v_one_stats():
+    games = todays_one_v_one_games()
+    return calculate_one_v_one_stats_from_games(games)
 
 def all_one_v_one_players(games):
     players = []

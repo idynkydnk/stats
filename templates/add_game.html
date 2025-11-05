@@ -95,8 +95,6 @@
 		</div>    
 		<input type="submit" value="Submit">
 	</form>
-	
-	<input type="button" id="generate-and-email-btn" class="summary-email-btn" onclick="generateAndEmailSummary()" value="Generate AI Summary & Email">
 	</div>
 	<div>
 	{% if todays_stats %}
@@ -133,6 +131,7 @@
 		<h1>Today's games</h1>
 		<thead>
 			<tr>
+				<th scope="col" colspan="1"><input type="checkbox" id="select-all-games" onclick="toggleAllGames()" checked> Select</th>
 				<th scope="col" colspan="1">Date/Updated</th>
                 <th scope="col" colspan="1">Winner</th>
                 <th scope="col" colspan="1">Loser</th>
@@ -142,6 +141,7 @@
 		<tbody>
         {% for game in games %}
 			<tr class="table-double-row">
+				<td rowspan="2"><input type="checkbox" class="game-checkbox" data-game-id="{{ game[0] }}" checked></td>
             	<td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
@@ -156,59 +156,9 @@
         {% endfor %}
     	</tbody>
     </table>
+	
+	<input type="button" id="generate-and-email-btn" class="summary-email-btn" onclick="generateAndEmailSummary()" value="Generate AI Summary & Email">
 	{% endif %}
-	<h1>{{ year }} Stats</h1>
-	<table>
-		<thead>
-			<tr>
-                <th class="rank" scope="col" colspan="1">#</th>
-					<th class="player_name" scope="col" colspan="1">Player</th>
-					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
-					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
-					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
-					<th class="numbered_stats" scope="col" colspan="1">Games</th>
-			</tr>
-			</thead>
-		<tbody>
-			{% for player in stats %}
-			<tr>
-                <td class="rank">{{ loop.index }}</td>
-    			<td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
-    			<td>{{ player[1] }}</td>
-    			<td>{{ player[2] }}</td>
-    			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
-    			<td>{{ player[1] + player[2] }}</td>
-    		</tr>
-    		{% endfor %}
-    	</tbody>
-    </table>
-    {% if rare_stats %}
-    <table>
-        <h3>Less than {{ minimum_games }} games</h3>
-        <thead>
-            <tr>
-                <th class="rank" scope="col" colspan="1">#</th>
-                <th class="player_name" scope="col" colspan="1">Player</th>
-                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
-                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
-                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
-                <th class="numbered_stats" scope="col" colspan="1">Games</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for player in rare_stats %}
-            <tr>
-                <td class="rank">{{ loop.index }}</td>
-                <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
-                <td>{{ player[1] }}</td>
-                <td>{{ player[2] }}</td>
-                <td>{{ "{:.2f}".format(player[3]*100) }}</td>
-                <td>{{ player[1] + player[2] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
 	</div>
 
 <script>
@@ -620,11 +570,28 @@ function filterScoreList(field, list, scores) {
 }
 
 // Generate AI summary and email to today's players
+function toggleAllGames() {
+    const selectAllCheckbox = document.getElementById('select-all-games');
+    const gameCheckboxes = document.querySelectorAll('.game-checkbox');
+    gameCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
 function generateAndEmailSummary() {
     const button = document.getElementById('generate-and-email-btn');
     const originalValue = button.value;
     
-    if (!confirm('Generate an AI summary of today\'s games and email it to everyone who played today?')) {
+    // Get selected game IDs
+    const selectedCheckboxes = document.querySelectorAll('.game-checkbox:checked');
+    const selectedGameIds = Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-game-id'));
+    
+    if (selectedGameIds.length === 0) {
+        alert('Please select at least one game to include in the summary.');
+        return;
+    }
+    
+    if (!confirm(`Generate an AI summary of ${selectedGameIds.length} selected game(s) and email it to everyone who played?`)) {
         return;
     }
     
@@ -634,9 +601,9 @@ function generateAndEmailSummary() {
     fetch('/generate_and_email_today', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
         },
-        body: ''
+        body: JSON.stringify({ game_ids: selectedGameIds })
     })
     .then(response => response.json())
     .then(data => {
