@@ -2222,6 +2222,7 @@ Bring the energy:"""
                     
                     <div class="divider"></div>
                     
+            html_body += f"""
                     <div class="games-section">
                         <h3>Today's Games ({len(games)})</h3>
             """
@@ -2243,7 +2244,6 @@ Bring the energy:"""
             
             html_body += f"""
                     <div class="footer">
-                        <p>Great playing everyone!</p>
                         <a href="https://idynkydnk.pythonanywhere.com/date_range_stats?start_date={url_date}&end_date={url_date}" class="link-button">View Today's Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
@@ -2577,6 +2577,7 @@ Tell the story:"""
                     
                     <div class="divider"></div>
                     
+            html_body += f"""
                     <div class="games-section">
                         <h3>Today's 1v1 Games ({len(games)})</h3>
             """
@@ -2596,7 +2597,6 @@ Tell the story:"""
             
             html_body += f"""
                     <div class="footer">
-                        <p>Great playing everyone!</p>
                         <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
