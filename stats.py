@@ -2215,7 +2215,7 @@ Bring the energy:"""
                                 </tr>
                 """
             
-            html_body += f"""
+            html_body += """
                             </tbody>
                         </table>
                     </div>
@@ -2223,7 +2223,7 @@ Bring the energy:"""
                     <div class="divider"></div>
                     
                     <div class="games-section">
-                        <h3>Today's Games ({len(games)})</h3>
+                        <h3>Today's Games (""" + str(len(games)) + """)</h3>
             """
             
             for idx, game in enumerate(games, 1):
@@ -2569,7 +2569,7 @@ Tell the story:"""
                                 </tr>
                 """
             
-            html_body += f"""
+            html_body += """
                             </tbody>
                         </table>
                     </div>
@@ -2577,7 +2577,7 @@ Tell the story:"""
                     <div class="divider"></div>
                     
                     <div class="games-section">
-                        <h3>Today's 1v1 Games ({len(games)})</h3>
+                        <h3>Today's 1v1 Games (""" + str(len(games)) + """)</h3>
             """
             
             for idx, game in enumerate(games, 1):
