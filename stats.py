@@ -2215,7 +2215,7 @@ Bring the energy:"""
                                 </tr>
                 """
             
-            html_body += """
+            html_body += f"""
                             </tbody>
                         </table>
                     </div>
@@ -2569,7 +2569,7 @@ Tell the story:"""
                                 </tr>
                 """
             
-            html_body += """
+            html_body += f"""
                             </tbody>
                         </table>
                     </div>
