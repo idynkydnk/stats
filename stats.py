@@ -2089,15 +2089,21 @@ Bring the energy:"""
         # Get email addresses for these players
         from player_functions import get_player_by_name
         players = []
+        players_without_email = []
         for player_name in players_set:
             player_info = get_player_by_name(player_name)
-            if player_info and player_info[5]:  # Has email at index 5
-                players.append({'name': player_name, 'email': player_info[5]})
+            if player_info and player_info[2]:  # Has email at index 2
+                players.append({'name': player_name, 'email': player_info[2]})
+            else:
+                players_without_email.append(player_name)
         
         if not players:
+            error_msg = f'No players with email addresses found in selected games.'
+            if players_without_email:
+                error_msg += f' Players without emails: {", ".join(players_without_email)}'
             return jsonify({
                 'success': False,
-                'error': 'No players with email addresses found for today'
+                'error': error_msg
             }), 404
         
         # Send one email to all players
@@ -2461,6 +2467,7 @@ Tell the story:"""
         
         # Get email addresses
         players_with_emails = []
+        players_without_email = []
         for player_name in players_set:
             player_info = get_player_by_name(player_name)
             if player_info and player_info[2]:  # has email
@@ -2468,11 +2475,16 @@ Tell the story:"""
                     'name': player_name,
                     'email': player_info[2]
                 })
+            else:
+                players_without_email.append(player_name)
         
         if not players_with_emails:
+            error_msg = f'No players with email addresses found in selected games.'
+            if players_without_email:
+                error_msg += f' Players without emails: {", ".join(players_without_email)}'
             return jsonify({
                 'success': False,
-                'error': 'No players with email addresses found for today'
+                'error': error_msg
             }), 404
         
         # Send one email to all players
