@@ -2224,7 +2224,7 @@ Bring the energy:"""
                     
                     <div class="games-section">
                         <h3>Today's Games ({len(games)})</h3>
-            """
+"""
             
             for idx, game in enumerate(games, 1):
                 winners = f"{game[2]} & {game[3]}"
@@ -2578,7 +2578,7 @@ Tell the story:"""
                     
                     <div class="games-section">
                         <h3>Today's 1v1 Games ({len(games)})</h3>
-            """
+"""
             
             for idx, game in enumerate(games, 1):
                 winner = game[4]
