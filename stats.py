@@ -2123,95 +2123,108 @@ Your recap:"""
                     .container {{
                         max-width: 600px;
                         margin: 0 auto;
+                    }}
+                    h1 {{
+                        color: #aeee98;
+                        text-align: center;
+                        margin-bottom: 30px;
+                    }}
+                    .card {{
                         background-color: #2e445b;
-                        padding: 30px;
                         border-radius: 20px;
+                        padding: 20px;
+                        margin-bottom: 20px;
+                    }}
+                    .card h2 {{
+                        margin-top: 0;
+                        padding-bottom: 10px;
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: bold;
+                        margin-bottom: 15px;
+                    }}
+                    .card-green {{
                         border: 2px solid #aeee98;
                     }}
-                    .summary {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
+                    .card-green h2 {{
+                        color: #aeee98;
+                        border-bottom: 2px solid #aeee98;
+                    }}
+                    .card-neutral {{
+                        border: 2px solid #9E9E9E;
+                    }}
+                    .card-neutral h2 {{
+                        color: #9E9E9E;
+                        border-bottom: 2px solid #9E9E9E;
+                    }}
+                    .summary-text {{
+                        background-color: rgba(174, 238, 152, 0.1);
+                        padding: 15px;
                         border-radius: 12px;
                         border-left: 4px solid #aeee98;
-                        margin-bottom: 20px;
                         color: #ffffff;
-                    }}
-                    .divider {{
-                        border-top: 2px solid #aeee98;
-                        margin: 25px 0;
-                    }}
-                    .stats-section {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
-                        border-radius: 12px;
-                        border-left: 4px solid #aeee98;
-                        margin-bottom: 20px;
-                    }}
-                    .games-section {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
-                        border-radius: 12px;
-                        border-left: 4px solid #aeee98;
+                        line-height: 1.8;
                     }}
                     .stats-table {{
                         width: 100%;
                         border-collapse: collapse;
-                        margin: 15px 0;
+                        margin: 10px 0;
                     }}
                     .stats-table th {{
-                        background-color: transparent;
-                        color: #aeee98;
+                        background-color: rgba(158, 158, 158, 0.1);
+                        color: #9E9E9E;
                         padding: 12px;
                         text-align: left;
-                        border-bottom: 2px solid #aeee98;
+                        border-bottom: 2px solid #9E9E9E;
                     }}
                     .stats-table td {{
                         padding: 10px 12px;
-                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        border-bottom: 1px solid rgba(158, 158, 158, 0.2);
                         color: #ffffff;
                     }}
+                    .stats-table tr:last-child td {{
+                        border-bottom: none;
+                    }}
                     .game-item {{
-                        padding: 8px 0;
-                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        padding: 12px;
+                        border-radius: 8px;
+                        border-left: 4px solid #aeee98;
+                        background-color: rgba(174, 238, 152, 0.05);
+                        margin-bottom: 8px;
                         color: #ffffff;
                     }}
                     .game-item:last-child {{
-                        border-bottom: none;
+                        margin-bottom: 0;
                     }}
                     .footer {{
                         text-align: center;
                         margin-top: 30px;
-                        padding-top: 20px;
-                        border-top: 2px solid #aeee98;
                     }}
                     .link-button {{
                         display: inline-block;
                         background-color: #aeee98;
-                        color: #3e526a;
+                        color: #1d2025;
                         padding: 12px 24px;
                         border-radius: 12px;
                         text-decoration: none;
                         font-weight: bold;
-                        margin: 10px;
+                        margin: 5px;
                     }}
-                    p {{ color: #ffffff; }}
-                    h2 {{ color: #aeee98; margin-top: 0; }}
-                    h3 {{ color: #aeee98; }}
-                    div {{ color: #ffffff; }}
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h2>🏐 Today's Volleyball Recap</h2>
+                    <h1>🏐 Today's Volleyball Recap</h1>
                     
-                    <div class="summary">
-                        {summary.replace(chr(10), '<br>')}
+                    <div class="card card-green">
+                        <h2>AI Summary</h2>
+                        <div class="summary-text">
+                            {summary.replace(chr(10), '<br>')}
+                        </div>
                     </div>
                     
-                    <div class="divider"></div>
-                    
-                    <div class="stats-section">
-                        <h3>Today's Player Stats</h3>
+                    <div class="card card-neutral">
+                        <h2>Player Stats</h2>
                         <table class="stats-table">
                             <thead>
                                 <tr>
@@ -2246,10 +2259,8 @@ Your recap:"""
                         </table>
                     </div>
                     
-                    <div class="divider"></div>
-                    
-                    <div class="games-section">
-                        <h3>Today's Games (""" + str(len(games)) + """)</h3>
+                    <div class="card card-green">
+                        <h2>Today's Games (""" + str(len(games)) + """)</h2>
             """
             
             for idx, game in enumerate(games, 1):
@@ -2493,7 +2504,7 @@ Tell the story:"""
                 recipients=all_emails
             )
             
-            # Create HTML email body
+            # Create HTML email body (use same styling as doubles)
             html_body = f"""
             <html>
             <head>
@@ -2508,93 +2519,108 @@ Tell the story:"""
                     .container {{
                         max-width: 600px;
                         margin: 0 auto;
+                    }}
+                    h1 {{
+                        color: #aeee98;
+                        text-align: center;
+                        margin-bottom: 30px;
+                    }}
+                    .card {{
                         background-color: #2e445b;
-                        padding: 30px;
                         border-radius: 20px;
+                        padding: 20px;
+                        margin-bottom: 20px;
+                    }}
+                    .card h2 {{
+                        margin-top: 0;
+                        padding-bottom: 10px;
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: bold;
+                        margin-bottom: 15px;
+                    }}
+                    .card-green {{
                         border: 2px solid #aeee98;
                     }}
-                    .summary {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
+                    .card-green h2 {{
+                        color: #aeee98;
+                        border-bottom: 2px solid #aeee98;
+                    }}
+                    .card-neutral {{
+                        border: 2px solid #9E9E9E;
+                    }}
+                    .card-neutral h2 {{
+                        color: #9E9E9E;
+                        border-bottom: 2px solid #9E9E9E;
+                    }}
+                    .summary-text {{
+                        background-color: rgba(174, 238, 152, 0.1);
+                        padding: 15px;
                         border-radius: 12px;
                         border-left: 4px solid #aeee98;
-                        margin-bottom: 20px;
                         color: #ffffff;
-                    }}
-                    .divider {{
-                        border-top: 2px solid #aeee98;
-                        margin: 25px 0;
-                    }}
-                    .stats-section {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
-                        border-radius: 12px;
-                        border-left: 4px solid #aeee98;
-                        margin-bottom: 20px;
-                    }}
-                    .games-section {{
-                        background-color: rgba(174, 238, 152, 0.15);
-                        padding: 20px;
-                        border-radius: 12px;
-                        border-left: 4px solid #aeee98;
+                        line-height: 1.8;
                     }}
                     .stats-table {{
                         width: 100%;
                         border-collapse: collapse;
-                        margin: 15px 0;
+                        margin: 10px 0;
                     }}
                     .stats-table th {{
-                        background-color: transparent;
-                        color: #aeee98;
+                        background-color: rgba(158, 158, 158, 0.1);
+                        color: #9E9E9E;
                         padding: 12px;
                         text-align: left;
-                        border-bottom: 2px solid #aeee98;
+                        border-bottom: 2px solid #9E9E9E;
                     }}
                     .stats-table td {{
                         padding: 10px 12px;
-                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        border-bottom: 1px solid rgba(158, 158, 158, 0.2);
                         color: #ffffff;
                     }}
+                    .stats-table tr:last-child td {{
+                        border-bottom: none;
+                    }}
                     .game-item {{
-                        padding: 8px 0;
-                        border-bottom: 1px solid rgba(174, 238, 152, 0.3);
+                        padding: 12px;
+                        border-radius: 8px;
+                        border-left: 4px solid #aeee98;
+                        background-color: rgba(174, 238, 152, 0.05);
+                        margin-bottom: 8px;
                         color: #ffffff;
                     }}
                     .game-item:last-child {{
-                        border-bottom: none;
+                        margin-bottom: 0;
                     }}
                     .footer {{
                         text-align: center;
                         margin-top: 30px;
-                        padding-top: 20px;
-                        border-top: 2px solid #aeee98;
                     }}
                     .link-button {{
                         display: inline-block;
                         background-color: #aeee98;
-                        color: #3e526a;
+                        color: #1d2025;
                         padding: 12px 24px;
                         border-radius: 12px;
                         text-decoration: none;
                         font-weight: bold;
-                        margin: 10px;
+                        margin: 5px;
                     }}
-                    h2 {{ color: #aeee98; margin-top: 0; }}
-                    h3 {{ color: #aeee98; }}
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h2>🎯 Today's 1v1 Recap</h2>
+                    <h1>🎯 Today's 1v1 Recap</h1>
                     
-                    <div class="summary">
-                        {summary.replace(chr(10), '<br>')}
+                    <div class="card card-green">
+                        <h2>AI Summary</h2>
+                        <div class="summary-text">
+                            {summary.replace(chr(10), '<br>')}
+                        </div>
                     </div>
                     
-                    <div class="divider"></div>
-                    
-                    <div class="stats-section">
-                        <h3>Today's Player Stats</h3>
+                    <div class="card card-neutral">
+                        <h2>Player Stats</h2>
                         <table class="stats-table">
                             <thead>
                                 <tr>
@@ -2629,10 +2655,8 @@ Tell the story:"""
                         </table>
                     </div>
                     
-                    <div class="divider"></div>
-                    
-                    <div class="games-section">
-                        <h3>Today's 1v1 Games (""" + str(len(games)) + """)</h3>
+                    <div class="card card-green">
+                        <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
             """
             
             for idx, game in enumerate(games, 1):
