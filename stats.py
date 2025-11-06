@@ -2002,12 +2002,17 @@ def generate_and_email_today():
             if team1_wins > 0 or team2_wins > 0:
                 context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
         
-        context += f"\nGames Played Today:\n"
-        for game in games[:10]:
+        context += f"\nGames Played Today (in chronological order):\n"
+        # Reverse to show games in chronological order (earliest first)
+        for game in reversed(games[:10]):
             winners = f"{game[2]} & {game[3]}"
             losers = f"{game[5]} & {game[6]}"
             score = f"{game[4]}-{game[7]}"
-            context += f"- {winners} def. {losers} ({score})\n"
+            # Extract time from game[1] if available
+            time_str = ""
+            if len(game[1]) > 10:
+                time_str = f" ({game[1][11:19]})"
+            context += f"- {winners} def. {losers} ({score}){time_str}\n"
         
         # Generate AI summary with rotating prompts
         genai.configure(api_key=api_key)
@@ -2386,13 +2391,18 @@ def generate_and_email_today_1v1():
             
             context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
         
-        context += f"\n1v1 Games Played Today:\n"
-        for game in games[:10]:
+        context += f"\n1v1 Games Played Today (in chronological order):\n"
+        # Reverse to show games in chronological order (earliest first)
+        for game in reversed(games[:10]):
             winner = game[4]
             loser = game[6]
             score = f"{game[5]}-{game[7]}"
             game_name = game[3] if len(game) > 3 else "1v1"
-            context += f"- {winner} def. {loser} ({score}) - {game_name}\n"
+            # Extract time from game[1] if available
+            time_str = ""
+            if len(game[1]) > 10:
+                time_str = f" ({game[1][9:]})"
+            context += f"- {winner} def. {loser} ({score}) - {game_name}{time_str}\n"
         
         # Generate AI summary with rotating prompts
         genai.configure(api_key=api_key)
