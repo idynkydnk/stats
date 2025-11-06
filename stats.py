@@ -2026,45 +2026,40 @@ def generate_and_email_today():
         # Multiple prompts that rotate
         import random
         prompts = [
-            f"""You're writing a recap of today's volleyball action for players who participated. 
-            Review all the data provided and craft an engaging summary that highlights what made today memorable. 
-            Choose the most interesting storylines from the stats, player details, matchups, and outcomes.
+            f"""Write a brief recap of today's volleyball games for the players. 
+            Focus on key results and notable stats. Keep it direct and factual.
 
 {context}
 
-Write your recap:""",
+Your recap:""",
             
-            f"""Create a narrative about today's volleyball games that captures the drama and excitement. 
-            You have complete player statistics, game results, and historical records at your disposal. 
-            Tell the story of what happened in whatever way best brings today's action to life.
+            f"""Summarize today's volleyball session. 
+            Mention the important performances and outcomes. Be concise.
 
 {context}
 
-Tell the story:""",
+Summary:""",
             
-            f"""Write a summary of today's volleyball session as if you were there watching. 
-            Use the provided data to identify the key moments, standout performances, and interesting dynamics. 
-            Make it engaging and personal for the players who competed.
+            f"""Give a short overview of today's games. 
+            Highlight standout performances and interesting results. Keep it simple and clear.
 
 {context}
 
-Your summary:""",
+Overview:""",
             
-            f"""You're recapping today's volleyball games. 
-            Look through all the stats, player info, and game results to find the most compelling angles. 
-            What made today special? What should players remember? Choose what matters most from the data.
+            f"""Recap today's volleyball action briefly. 
+            Focus on what happened and who performed well. Avoid excessive descriptions.
 
 {context}
 
-Write it up:""",
+Recap:""",
             
-            f"""Summarize today's volleyball action. 
-            All the game data, player stats, and historical context are below. 
-            Pick out the highlights and craft a recap that players will enjoy reading. Be creative with how you use the information.
+            f"""Provide a straightforward summary of today's games. 
+            Note the key performances and results. Be direct and to the point.
 
 {context}
 
-Your recap:"""
+Summary:"""
         ]
         
         prompt = random.choice(prompts)
