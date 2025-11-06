@@ -399,6 +399,7 @@ def add_game():
         loser2 = request.form['loser2']
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
+        comments = request.form.get('comments', '').strip()
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
@@ -408,7 +409,7 @@ def add_game():
             flash('Two names are the same!')
         else:
             add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
-                winner_score, loser_score, datetime.now()])
+                winner_score, loser_score, datetime.now(), comments])
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -2012,7 +2013,11 @@ def generate_and_email_today():
             time_str = ""
             if len(game[1]) > 10:
                 time_str = f" ({game[1][11:19]})"
-            context += f"- {winners} def. {losers} ({score}){time_str}\n"
+            # Add comments if they exist (index 9 after conversion)
+            comment_str = ""
+            if len(game) > 9 and game[9]:
+                comment_str = f" - Comment: {game[9]}"
+            context += f"- {winners} def. {losers} ({score}){time_str}{comment_str}\n"
         
         # Generate AI summary with rotating prompts
         genai.configure(api_key=api_key)
@@ -2165,25 +2170,48 @@ Your recap:"""
                         color: #ffffff;
                         line-height: 1.8;
                     }}
-                    .stats-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin: 10px 0;
-                    }}
-                    .stats-table th {{
-                        background-color: rgba(158, 158, 158, 0.1);
-                        color: #9E9E9E;
+                    .stat-item {{
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
                         padding: 12px;
-                        text-align: left;
-                        border-bottom: 2px solid #9E9E9E;
-                    }}
-                    .stats-table td {{
-                        padding: 10px 12px;
-                        border-bottom: 1px solid rgba(158, 158, 158, 0.2);
+                        border-radius: 8px;
+                        margin-bottom: 8px;
                         color: #ffffff;
                     }}
-                    .stats-table tr:last-child td {{
-                        border-bottom: none;
+                    .stat-item:last-child {{
+                        margin-bottom: 0;
+                    }}
+                    .stat-item.win {{
+                        background-color: rgba(76, 175, 80, 0.1);
+                        border-left: 4px solid #4CAF50;
+                    }}
+                    .stat-item.loss {{
+                        background-color: rgba(244, 67, 54, 0.1);
+                        border-left: 4px solid #f44336;
+                    }}
+                    .stat-item.neutral {{
+                        background-color: rgba(158, 158, 158, 0.1);
+                        border-left: 4px solid #9E9E9E;
+                    }}
+                    .player-name-stat {{
+                        font-size: 14px;
+                        font-weight: normal;
+                        color: #ffffff;
+                    }}
+                    .stat-info {{
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        font-size: 14px;
+                    }}
+                    .record-info {{
+                        min-width: 60px;
+                        text-align: center;
+                    }}
+                    .differential {{
+                        min-width: 40px;
+                        text-align: center;
                     }}
                     .game-item {{
                         padding: 12px;
@@ -2225,16 +2253,6 @@ Your recap:"""
                     
                     <div class="card card-neutral">
                         <h2>Player Stats</h2>
-                        <table class="stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>Record</th>
-                                    <th>Win %</th>
-                                    <th>Diff</th>
-                                </tr>
-                            </thead>
-                            <tbody>
             """
             
             for stat in stats:
@@ -2245,18 +2263,25 @@ Your recap:"""
                 differential = stat[4]
                 diff_sign = '+' if differential >= 0 else ''
                 
+                # Determine color class based on win percentage
+                if win_pct > 50:
+                    color_class = "win"
+                elif win_pct == 50:
+                    color_class = "neutral"
+                else:
+                    color_class = "loss"
+                
                 html_body += f"""
-                                <tr>
-                                    <td>{player_name}</td>
-                                    <td>{wins}-{losses}</td>
-                                    <td>{win_pct:.1f}%</td>
-                                    <td>{diff_sign}{differential}</td>
-                                </tr>
+                        <div class="stat-item {color_class}">
+                            <span class="player-name-stat">{player_name}</span>
+                            <span class="stat-info">
+                                <span class="record-info">{wins}-{losses} ({win_pct:.1f}%)</span>
+                                <span class="differential">{diff_sign}{differential}</span>
+                            </span>
+                        </div>
                 """
             
             html_body += """
-                            </tbody>
-                        </table>
                     </div>
                     
                     <div class="card card-green">
@@ -2561,25 +2586,48 @@ Tell the story:"""
                         color: #ffffff;
                         line-height: 1.8;
                     }}
-                    .stats-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin: 10px 0;
-                    }}
-                    .stats-table th {{
-                        background-color: rgba(158, 158, 158, 0.1);
-                        color: #9E9E9E;
+                    .stat-item {{
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
                         padding: 12px;
-                        text-align: left;
-                        border-bottom: 2px solid #9E9E9E;
-                    }}
-                    .stats-table td {{
-                        padding: 10px 12px;
-                        border-bottom: 1px solid rgba(158, 158, 158, 0.2);
+                        border-radius: 8px;
+                        margin-bottom: 8px;
                         color: #ffffff;
                     }}
-                    .stats-table tr:last-child td {{
-                        border-bottom: none;
+                    .stat-item:last-child {{
+                        margin-bottom: 0;
+                    }}
+                    .stat-item.win {{
+                        background-color: rgba(76, 175, 80, 0.1);
+                        border-left: 4px solid #4CAF50;
+                    }}
+                    .stat-item.loss {{
+                        background-color: rgba(244, 67, 54, 0.1);
+                        border-left: 4px solid #f44336;
+                    }}
+                    .stat-item.neutral {{
+                        background-color: rgba(158, 158, 158, 0.1);
+                        border-left: 4px solid #9E9E9E;
+                    }}
+                    .player-name-stat {{
+                        font-size: 14px;
+                        font-weight: normal;
+                        color: #ffffff;
+                    }}
+                    .stat-info {{
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        font-size: 14px;
+                    }}
+                    .record-info {{
+                        min-width: 60px;
+                        text-align: center;
+                    }}
+                    .differential {{
+                        min-width: 40px;
+                        text-align: center;
                     }}
                     .game-item {{
                         padding: 12px;
@@ -2621,16 +2669,6 @@ Tell the story:"""
                     
                     <div class="card card-neutral">
                         <h2>Player Stats</h2>
-                        <table class="stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>Record</th>
-                                    <th>Win %</th>
-                                    <th>Diff</th>
-                                </tr>
-                            </thead>
-                            <tbody>
             """
             
             for stat in stats:
@@ -2641,18 +2679,25 @@ Tell the story:"""
                 differential = stat[4]
                 diff_sign = '+' if differential >= 0 else ''
                 
+                # Determine color class based on win percentage
+                if win_pct > 50:
+                    color_class = "win"
+                elif win_pct == 50:
+                    color_class = "neutral"
+                else:
+                    color_class = "loss"
+                
                 html_body += f"""
-                                <tr>
-                                    <td>{player_name}</td>
-                                    <td>{wins}-{losses}</td>
-                                    <td>{win_pct:.1f}%</td>
-                                    <td>{diff_sign}{differential}</td>
-                                </tr>
+                        <div class="stat-item {color_class}">
+                            <span class="player-name-stat">{player_name}</span>
+                            <span class="stat-info">
+                                <span class="record-info">{wins}-{losses} ({win_pct:.1f}%)</span>
+                                <span class="differential">{diff_sign}{differential}</span>
+                            </span>
+                        </div>
                 """
             
             html_body += """
-                            </tbody>
-                        </table>
                     </div>
                     
                     <div class="card card-green">

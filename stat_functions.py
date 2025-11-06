@@ -13,6 +13,11 @@ def add_game_stats(game):
     full_game.append(game[5])
     full_game.append(game[6])
     full_game.append(game[7])
+    # Add comments if provided (index 8)
+    if len(game) > 8:
+        full_game.append(game[8])
+    else:
+        full_game.append('')
     all_games.append(full_game)
     enter_data_into_database(all_games)
 

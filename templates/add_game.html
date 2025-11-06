@@ -31,6 +31,19 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+textarea#comments {
+    width: 280px !important;
+    padding: 6px !important;
+    text-align: center !important;
+    border-radius: 12px !important;
+    border: 2px solid #aeee98 !important;
+    background-color: #2e445b !important;
+    color: #dbe2ea !important;
+    font-family: inherit !important;
+    font-size: 16px !important;
+    resize: vertical !important;
+}
 </style>
 
 	<div class="container">
@@ -92,7 +105,12 @@
 				placeholder="Losers' Score"
 					value="{{ request.form['loser_score'] }}">
 			<div class="autocomplete-list" id="loser_scoreList"></div>
-		</div>    
+		</div>
+		<div class="autocomplete">
+		<textarea name="comments" id="comments"
+				placeholder="Comments (optional)"
+				rows="3">{{ request.form['comments'] }}</textarea>
+		</div>
 		<input type="submit" value="Submit">
 	</form>
 	</div>
@@ -135,6 +153,7 @@
 				<th scope="col" colspan="1">Date/Updated</th>
                 <th scope="col" colspan="1">Winner</th>
                 <th scope="col" colspan="1">Loser</th>
+                <th scope="col" colspan="1">Comments</th>
                 <th scope="col" colspan="1">Update</th>
 			</tr>
 			</thead>
@@ -145,6 +164,7 @@
             	<td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
+        		<td rowspan="2" style="font-size: 12px; color: var(--caption);">{{ game[9] if game|length > 9 else '' }}</td>
         		<td><a href="{{ url_for('update', id=game[0], from_add_game='true') }}"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="26"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg></a></td>
     		</tr>
     		<tr class="table-double-row">
@@ -489,7 +509,7 @@ function showPlayerList(field, list, allPlayers, nameFields) {
     
     // Populate list (max 10 entries)
     list.innerHTML = '';
-    availablePlayers.slice(0, 10).forEach(player => {
+    availablePlayers.slice(0, 12).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
         div.style.fontSize = '20px';
@@ -519,9 +539,9 @@ function filterPlayerList(field, list, allPlayers, nameFields) {
         player.toLowerCase().includes(inputValue)
     );
     
-    // Update list (max 10 entries)
+    // Update list (max 12 entries)
     list.innerHTML = '';
-    filteredPlayers.slice(0, 10).forEach(player => {
+    filteredPlayers.slice(0, 12).forEach(player => {
         const div = document.createElement('div');
         div.textContent = player;
         div.style.fontSize = '20px';
@@ -534,9 +554,9 @@ function filterPlayerList(field, list, allPlayers, nameFields) {
 
 // Show score list for a field
 function showScoreList(field, list, scores) {
-    // Populate list with scores (max 10 entries)
+    // Populate list with scores (max 12 entries)
     list.innerHTML = '';
-    scores.slice(0, 10).forEach(score => {
+    scores.slice(0, 12).forEach(score => {
         const div = document.createElement('div');
         div.textContent = score;
         div.style.fontSize = '20px';
@@ -558,7 +578,7 @@ function filterScoreList(field, list, scores) {
     
     // Update list (max 10 entries)
     list.innerHTML = '';
-    filteredScores.slice(0, 10).forEach(score => {
+    filteredScores.slice(0, 12).forEach(score => {
         const div = document.createElement('div');
         div.textContent = score;
         div.style.fontSize = '20px';
