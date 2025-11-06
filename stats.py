@@ -2013,65 +2013,48 @@ def generate_and_email_today():
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-flash-latest')
         
-        # Determine summary length based on games and players
-        num_games = len(games)
-        num_players = len(stats)
-        
-        if num_games <= 2:
-            length_guide = "1-2 sentences"
-        elif num_games <= 5:
-            length_guide = "1 short paragraph (3-4 sentences)"
-        elif num_games <= 10:
-            length_guide = "2 paragraphs"
-        else:
-            length_guide = "3 paragraphs"
-        
         # Multiple prompts that rotate
         import random
         prompts = [
-            f"""Write a fun, engaging summary of these volleyball games in {length_guide}. 
-            Highlight the top performers, most exciting matches, and any notable achievements. 
-            IMPORTANT: Reference current streaks, historical records, and any upsets or revenge wins.
-            Use player details (age, height) to add personality. Make it conversational like a sports announcer.
+            f"""You're writing a recap of today's volleyball action for players who participated. 
+            Review all the data provided and craft an engaging summary that highlights what made today memorable. 
+            Choose the most interesting storylines from the stats, player details, matchups, and outcomes.
 
 {context}
 
-Write the summary:""",
+Write your recap:""",
             
-            f"""You're a witty sports journalist writing a volleyball recap in {length_guide}. 
-            Create a story about today's action. MUST mention: ongoing streaks, any streak-breaking performances, 
-            historical rivalries, and revenge matchups. Weave in player ages and heights when relevant. 
-            Make it fun and slightly dramatic!
-
-{context}
-
-Write the recap:""",
-            
-            f"""Channel your inner sports radio host for an energetic {length_guide} breakdown! 
-            CALL OUT: players on hot streaks, cold streaks that ended, veterans vs youngsters, size matchups, 
-            and any upsets based on historical records. Reference the head-to-head history when teams faced off. 
-            Keep it lively!
-
-{context}
-
-Give us the play-by-play:""",
-            
-            f"""Write a {length_guide} volleyball recap like texting a friend who missed the games. 
-            Be casual and funny. MUST include: who's on fire with their streak, who broke their slump, 
-            any revenge wins based on historical records, wild age/height matchups. Make them wish they were there!
+            f"""Create a narrative about today's volleyball games that captures the drama and excitement. 
+            You have complete player statistics, game results, and historical records at your disposal. 
+            Tell the story of what happened in whatever way best brings today's action to life.
 
 {context}
 
 Tell the story:""",
             
-            f"""You're an enthusiastic volleyball commentator writing in {length_guide}. 
-            Celebrate today's action! HIGHLIGHT: active winning/losing streaks, streak-breaking performances, 
-            historical rivalries that continued, upsets based on past records. Reference player characteristics 
-            (age, height, current form) to build hype!
+            f"""Write a summary of today's volleyball session as if you were there watching. 
+            Use the provided data to identify the key moments, standout performances, and interesting dynamics. 
+            Make it engaging and personal for the players who competed.
 
 {context}
 
-Bring the energy:"""
+Your summary:""",
+            
+            f"""You're recapping today's volleyball games. 
+            Look through all the stats, player info, and game results to find the most compelling angles. 
+            What made today special? What should players remember? Choose what matters most from the data.
+
+{context}
+
+Write it up:""",
+            
+            f"""Summarize today's volleyball action. 
+            All the game data, player stats, and historical context are below. 
+            Pick out the highlights and craft a recap that players will enjoy reading. Be creative with how you use the information.
+
+{context}
+
+Your recap:"""
         ]
         
         prompt = random.choice(prompts)

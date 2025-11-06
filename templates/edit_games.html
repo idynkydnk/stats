@@ -15,9 +15,11 @@
     </nav>
     <h1>{% block title %} {{ year }} Doubles Games {% endblock %}</h1>
         <div>
+        	<button id="delete-selected-btn" onclick="deleteSelectedGames()" style="margin-bottom: 10px; padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete Selected</button>
         	<table>
         		<thead>
     				<tr class="table-double-row">
+    					<th scope="col" colspan="1"><input type="checkbox" id="select-all" onclick="toggleAllGames()"> Select</th>
       					<th scope="col" colspan="1">Date/Updated</th>
                         <th scope="col" colspan="1">Winner</th>
                         <th scope="col" colspan="1">Loser</th>
@@ -27,6 +29,7 @@
         		<tbody>
                 {% for game in games %}
         			<tr class="table-double-row">
+        				<td rowspan="2"><input type="checkbox" class="game-checkbox" data-game-id="{{ game[0] }}"></td>
                     	<td>{{ game[1][0:10] }}<br>
                             {% if game[1]|length > 14 %}
                                 {{ game[1][11:19] }}
@@ -48,4 +51,52 @@
             	</tbody>
             </table>
         </div>
+
+<script>
+function toggleAllGames() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const gameCheckboxes = document.querySelectorAll('.game-checkbox');
+    gameCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+function deleteSelectedGames() {
+    const selectedCheckboxes = document.querySelectorAll('.game-checkbox:checked');
+    const selectedGameIds = Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-game-id'));
+    
+    if (selectedGameIds.length === 0) {
+        alert('Please select at least one game to delete.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedGameIds.length} game(s)? This cannot be undone.`)) {
+        return;
+    }
+    
+    // Delete games one by one
+    let deletedCount = 0;
+    const totalToDelete = selectedGameIds.length;
+    
+    selectedGameIds.forEach((gameId, index) => {
+        fetch(`/delete/${gameId}/`, {
+            method: 'POST',
+        })
+        .then(response => {
+            deletedCount++;
+            if (deletedCount === totalToDelete) {
+                // All games deleted, reload the page
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting game:', error);
+            deletedCount++;
+            if (deletedCount === totalToDelete) {
+                location.reload();
+            }
+        });
+    });
+}
+</script>
 {% endblock %}
