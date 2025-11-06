@@ -131,7 +131,7 @@
 		<h1>Today's games</h1>
 		<thead>
 			<tr>
-				<th scope="col" colspan="1"><input type="checkbox" id="select-all-games" onclick="toggleAllGames()" checked> Select</th>
+				<th scope="col" colspan="1"><input type="checkbox" id="select-all-games" onclick="toggleAllGames()"> Select</th>
 				<th scope="col" colspan="1">Date/Updated</th>
                 <th scope="col" colspan="1">Winner</th>
                 <th scope="col" colspan="1">Loser</th>
@@ -141,7 +141,7 @@
 		<tbody>
         {% for game in games %}
 			<tr class="table-double-row">
-				<td rowspan="2"><input type="checkbox" class="game-checkbox" data-game-id="{{ game[0] }}" checked></td>
+				<td rowspan="2"><input type="checkbox" class="game-checkbox" data-game-id="{{ game[0] }}"></td>
             	<td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3] ) }}">{{ game[3] }}</a></td>
         		<td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6] ) }}">{{ game[6] }}</a></td>
