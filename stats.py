@@ -2000,6 +2000,108 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         font-weight: bold;
                         margin: 5px;
                     }}
+                    .card.today-games-card {{
+                        border: 2px solid rgba(174, 238, 152, 0.4);
+                        background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
+                        padding: 24px 20px;
+                    }}
+                    .today-games-title {{
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #aeee98;
+                        text-align: center;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 18px;
+                        text-transform: uppercase;
+                    }}
+                    .today-games-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        color: #ffffff;
+                        font-size: 14px;
+                        background: rgba(17, 22, 28, 0.6);
+                        border-radius: 18px;
+                        overflow: hidden;
+                    }}
+                    .today-games-table thead {{
+                        background: rgba(36, 56, 76, 0.85);
+                    }}
+                    .today-games-table th {{
+                        padding: 12px 10px;
+                        text-align: center;
+                        font-size: 12px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        color: #dbe2ea;
+                    }}
+                    .today-games-table td {{
+                        padding: 16px 12px;
+                        text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        vertical-align: middle;
+                    }}
+                    .today-games-table tbody tr:last-child td {{
+                        border-bottom: none;
+                    }}
+                    .date-time {{
+                        font-weight: 600;
+                        color: #dbe2ea;
+                        line-height: 1.4;
+                    }}
+                    .date-time .date {{
+                        font-size: 14px;
+                    }}
+                    .date-time .time {{
+                        font-size: 13px;
+                        color: #aeee98;
+                        margin-top: 4px;
+                    }}
+                    .team-cell {{
+                        text-align: left;
+                    }}
+                    .player-line {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        margin: 2px 0;
+                    }}
+                    .score-cell {{
+                        width: 70px;
+                    }}
+                    .score-pill {{
+                        display: inline-block;
+                        min-width: 44px;
+                        padding: 10px 14px;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
+                    }}
+                    .score-pill.winner {{
+                        background: rgba(76, 175, 80, 0.18);
+                        color: #aeee98;
+                        box-shadow: inset 0 0 0 1px rgba(174, 238, 152, 0.45);
+                    }}
+                    .score-pill.loser {{
+                        background: rgba(244, 67, 54, 0.18);
+                        color: #ff8686;
+                        box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
+                    }}
+                    .comment-row td {{
+                        text-align: left;
+                        font-size: 12px;
+                        color: #dbe2ea;
+                        background: rgba(255, 255, 255, 0.05);
+                        padding-top: 10px;
+                        padding-bottom: 14px;
+                        border-bottom: none;
+                    }}
+                    .comment-label {{
+                        font-weight: 600;
+                        color: #aeee98;
+                        margin-right: 6px;
+                    }}
                 </style>
             </head>
             <body>
@@ -2045,22 +2147,69 @@ def create_doubles_email_html(summary, stats, games, date_obj):
     html_body += """
                     </div>
                     
-                    <div class="card card-green">
-                        <h2>Today's Games (""" + str(len(games)) + """)</h2>
+                    <div class="card today-games-card">
+                        <div class="today-games-title">Today's Games (""" + str(len(games)) + """)</div>
+                        <table class="today-games-table">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Winners</th>
+                                    <th>Score</th>
+                                    <th>Losers</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             """
 
-    for idx, game in enumerate(games, 1):
-        winners = f"{game[2]} & {game[3]}"
-        losers = f"{game[5]} & {game[6]}"
-        score = f"{game[4]}-{game[7]}"
-        comment = ""
-        if len(game) > 9 and game[9]:
-            comment = f" - Comment: {game[9]}"
+    for game in games:
+        date_display = ""
+        time_display = ""
+        if len(game) > 1 and game[1]:
+            date_time_str = str(game[1]).strip()
+            parts = date_time_str.split()
+            if parts:
+                date_display = parts[0]
+                if len(parts) > 1:
+                    time_display = " ".join(parts[1:]).strip()
+
+        winner_lines = "".join(
+            f"<div class=\"player-line\">{name}</div>" for name in [game[2], game[3]] if name
+        )
+        loser_lines = "".join(
+            f"<div class=\"player-line\">{name}</div>" for name in [game[5], game[6]] if name
+        )
+
+        winner_score = game[4] if len(game) > 4 and game[4] is not None else ""
+        loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
+
+        time_html = f"<div class=\"time\">{time_display}</div>" if time_display else "<div class=\"time\">&nbsp;</div>"
+
         html_body += f"""
-                        <div class="game-item">{idx}. {winners} def. {losers} ({score}){comment}</div>
+                                <tr>
+                                    <td class=\"date-time\">
+                                        <div class=\"date\">{date_display}</div>
+                                        {time_html}
+                                    </td>
+                                    <td class=\"team-cell\">{winner_lines}</td>
+                                    <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
+                                    <td class=\"team-cell\">{loser_lines}</td>
+                                    <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
+                                </tr>
                 """
 
+        comment_text = str(game[9]).strip() if len(game) > 9 and game[9] else ""
+        if comment_text:
+            safe_comment = comment_text.replace('\n', '<br>')
+            html_body += f"""
+                                <tr class=\"comment-row\">
+                                    <td colspan=\"5\"><span class=\"comment-label\">Comment</span>{safe_comment}</td>
+                                </tr>
+                    """
+
     html_body += """
+                            </tbody>
+                        </table>
                     </div>
             """
 
@@ -2206,6 +2355,108 @@ def create_one_v_one_email_html(summary, stats, games):
                         font-weight: bold;
                         margin: 5px;
                     }}
+                    .card.today-games-card {{
+                        border: 2px solid rgba(174, 238, 152, 0.4);
+                        background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
+                        padding: 24px 20px;
+                    }}
+                    .today-games-title {{
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #aeee98;
+                        text-align: center;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 18px;
+                        text-transform: uppercase;
+                    }}
+                    .today-games-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        color: #ffffff;
+                        font-size: 14px;
+                        background: rgba(17, 22, 28, 0.6);
+                        border-radius: 18px;
+                        overflow: hidden;
+                    }}
+                    .today-games-table thead {{
+                        background: rgba(36, 56, 76, 0.85);
+                    }}
+                    .today-games-table th {{
+                        padding: 12px 10px;
+                        text-align: center;
+                        font-size: 12px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        color: #dbe2ea;
+                    }}
+                    .today-games-table td {{
+                        padding: 16px 12px;
+                        text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        vertical-align: middle;
+                    }}
+                    .today-games-table tbody tr:last-child td {{
+                        border-bottom: none;
+                    }}
+                    .date-time {{
+                        font-weight: 600;
+                        color: #dbe2ea;
+                        line-height: 1.4;
+                    }}
+                    .date-time .date {{
+                        font-size: 14px;
+                    }}
+                    .date-time .time {{
+                        font-size: 13px;
+                        color: #aeee98;
+                        margin-top: 4px;
+                    }}
+                    .team-cell {{
+                        text-align: left;
+                    }}
+                    .player-line {{
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        margin: 2px 0;
+                    }}
+                    .score-cell {{
+                        width: 70px;
+                    }}
+                    .score-pill {{
+                        display: inline-block;
+                        min-width: 44px;
+                        padding: 10px 14px;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
+                    }}
+                    .score-pill.winner {{
+                        background: rgba(76, 175, 80, 0.18);
+                        color: #aeee98;
+                        box-shadow: inset 0 0 0 1px rgba(174, 238, 152, 0.45);
+                    }}
+                    .score-pill.loser {{
+                        background: rgba(244, 67, 54, 0.18);
+                        color: #ff8686;
+                        box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
+                    }}
+                    .comment-row td {{
+                        text-align: left;
+                        font-size: 12px;
+                        color: #dbe2ea;
+                        background: rgba(255, 255, 255, 0.05);
+                        padding-top: 10px;
+                        padding-bottom: 14px;
+                        border-bottom: none;
+                    }}
+                    .comment-label {{
+                        font-weight: 600;
+                        color: #aeee98;
+                        margin-right: 6px;
+                    }}
                 </style>
             </head>
             <body>
@@ -2251,20 +2502,55 @@ def create_one_v_one_email_html(summary, stats, games):
     html_body += """
                     </div>
                     
-                    <div class="card card-green">
-                        <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
+                    <div class="card today-games-card">
+                        <div class="today-games-title">Today's 1v1 Games (""" + str(len(games)) + """)</div>
+                        <table class="today-games-table">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Winner</th>
+                                    <th>Score</th>
+                                    <th>Loser</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             """
 
-    for idx, game in enumerate(games, 1):
-        winner = game[4]
-        loser = game[6]
-        score = f"{game[5]}-{game[7]}"
-        game_name = game[3] if len(game) > 3 else "1v1"
+    for game in games:
+        date_display = ""
+        time_display = ""
+        if len(game) > 1 and game[1]:
+            date_time_str = str(game[1]).strip()
+            parts = date_time_str.split()
+            if parts:
+                date_display = parts[0]
+                if len(parts) > 1:
+                    time_display = " ".join(parts[1:]).strip()
+
+        winner_name = game[4] if len(game) > 4 and game[4] else ""
+        loser_name = game[6] if len(game) > 6 and game[6] else ""
+        winner_score = game[5] if len(game) > 5 and game[5] is not None else ""
+        loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
+
+        time_html = f"<div class=\"time\">{time_display}</div>" if time_display else "<div class=\"time\">&nbsp;</div>"
+
         html_body += f"""
-                        <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
+                                <tr>
+                                    <td class=\"date-time\">
+                                        <div class=\"date\">{date_display}</div>
+                                        {time_html}
+                                    </td>
+                                    <td class=\"team-cell\"><div class=\"player-line\">{winner_name}</div></td>
+                                    <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
+                                    <td class=\"team-cell\"><div class=\"player-line\">{loser_name}</div></td>
+                                    <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
+                                </tr>
                 """
 
     html_body += """
+                            </tbody>
+                        </table>
                     </div>
                     <div class="footer">
                         <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
