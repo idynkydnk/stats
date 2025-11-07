@@ -12,6 +12,7 @@ import subprocess
 import sqlite3
 import secrets
 import hashlib
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -1872,244 +1873,10 @@ Write the summary:"""
             'error': f'Failed to generate summary: {str(e)}'
         }), 500
 
-@app.route('/generate_and_email_today', methods=['POST'])
-def generate_and_email_today():
-    """Generate AI summary for today's games and email to all players who played"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
-    import google.generativeai as genai
-    import os
-    from datetime import date
-    
-    # Check configurations
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        return jsonify({
-            'success': False,
-            'error': 'Gemini API key not configured.'
-        }), 400
-    
-    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-        return jsonify({
-            'success': False,
-            'error': 'Email not configured.'
-        }), 400
-    
-    try:
-        # Get selected game IDs from request
-        data = request.get_json() or {}
-        selected_game_ids = data.get('game_ids', [])
-        
-        # Get today's date
-        today = date.today().strftime('%Y-%m-%d')
-        
-        # Get stats for today
-        stats, all_games = specific_date_stats(today)
-        
-        if not all_games:
-            return jsonify({
-                'success': False,
-                'error': f'No games found for today ({today})'
-            }), 404
-        
-        # Filter games by selected IDs if provided
-        if selected_game_ids:
-            games = [game for game in all_games if str(game[0]) in selected_game_ids]
-            if not games:
-                return jsonify({
-                    'success': False,
-                    'error': 'None of the selected games were found'
-                }), 404
-            
-            # Recalculate stats for selected games only
-            from stat_functions import calculate_stats_from_games
-            stats = calculate_stats_from_games(games)
-        else:
-            games = all_games
-        
-        # Build context for AI with player details and historical context
-        from player_functions import get_player_by_name
-        from stat_functions import get_current_streaks_last_365_days
-        from datetime import datetime
-        
-        # Get current streaks for all players
-        all_streaks = get_current_streaks_last_365_days()
-        streaks_dict = {streak[0]: {'length': streak[1], 'type': streak[2], 'max': streak[3]} for streak in all_streaks}
-        
-        context = f"Date: {today}\n"
-        context += f"Total Games: {len(games)}\n\n"
-        context += "Player Stats (with details & streaks):\n"
-        for stat in stats[:10]:
-            player_name = stat[0]
-            wins = stat[1]
-            losses = stat[2]
-            win_pct = stat[3] * 100
-            differential = stat[4]
-            
-            # Get player details
-            player_info = get_player_by_name(player_name)
-            age_str = ""
-            height_str = ""
-            if player_info:
-                # Calculate age if birth date exists
-                if player_info[3]:  # date_of_birth at index 3
-                    try:
-                        birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
-                        age = datetime.now().year - birth_date.year
-                        age_str = f", Age: {age}"
-                    except:
-                        pass
-                # Get height
-                if player_info[4]:  # height at index 4
-                    height_str = f", Height: {player_info[4]}"
-            
-            # Get current streak
-            streak_str = ""
-            if player_name in streaks_dict:
-                streak_info = streaks_dict[player_name]
-                streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
-            
-            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
-        
-        # Add head-to-head and partnership context
-        context += f"\nHistorical Context:\n"
-        
-        # Get head-to-head records for today's matchups
-        cur = set_cur()
-        for game in games[:5]:
-            team1 = (game[2], game[3])
-            team2 = (game[5], game[6])
-            
-            # Get historical record between these two teams
-            cur.execute("""
-                SELECT COUNT(*) FROM games 
-                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
-                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
-                  AND game_date < ?
-            """, (team1[0], team1[1], team1[1], team1[0], 
-                  team2[0], team2[1], team2[1], team2[0], today))
-            team1_wins = cur.fetchone()[0]
-            
-            cur.execute("""
-                SELECT COUNT(*) FROM games 
-                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
-                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
-                  AND game_date < ?
-            """, (team2[0], team2[1], team2[1], team2[0],
-                  team1[0], team1[1], team1[1], team1[0], today))
-            team2_wins = cur.fetchone()[0]
-            
-            if team1_wins > 0 or team2_wins > 0:
-                context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
-        
-        context += f"\nGames Played Today (in chronological order):\n"
-        # Reverse to show games in chronological order (earliest first)
-        for game in reversed(games[:10]):
-            winners = f"{game[2]} & {game[3]}"
-            losers = f"{game[5]} & {game[6]}"
-            score = f"{game[4]}-{game[7]}"
-            # Extract time from game[1] if available
-            time_str = ""
-            if len(game[1]) > 10:
-                time_str = f" ({game[1][11:19]})"
-            # Add comments if they exist (index 9 after conversion)
-            comment_str = ""
-            if len(game) > 9 and game[9]:
-                comment_str = f" - Comment: {game[9]}"
-            context += f"- {winners} def. {losers} ({score}){time_str}{comment_str}\n"
-        
-        # Generate AI summary with rotating prompts
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('models/gemini-flash-latest')
-        
-        # Multiple prompts that rotate
-        import random
-        prompts = [
-            f"""Write a brief recap of today's volleyball games for the players. 
-            Focus on key results and notable stats. Keep it direct and factual.
+def create_doubles_email_html(summary, stats, games, date_obj):
+    summary_html = summary.replace(chr(10), '<br>') if summary else ''
 
-{context}
-
-Your recap:""",
-            
-            f"""Summarize today's volleyball session. 
-            Mention the important performances and outcomes. Be concise.
-
-{context}
-
-Summary:""",
-            
-            f"""Give a short overview of today's games. 
-            Highlight standout performances and interesting results. Keep it simple and clear.
-
-{context}
-
-Overview:""",
-            
-            f"""Recap today's volleyball action briefly. 
-            Focus on what happened and who performed well. Avoid excessive descriptions.
-
-{context}
-
-Recap:""",
-            
-            f"""Provide a straightforward summary of today's games. 
-            Note the key performances and results. Be direct and to the point.
-
-{context}
-
-Summary:"""
-        ]
-        
-        prompt = random.choice(prompts)
-        
-        response = model.generate_content(prompt)
-        summary = response.text
-        
-        # Get players from the selected games
-        players_set = set()
-        for game in games:
-            for player_name in [game[2], game[3], game[5], game[6]]:
-                if player_name and player_name.strip():
-                    players_set.add(player_name)
-        
-        # Get email addresses for these players
-        from player_functions import get_player_by_name
-        players = []
-        players_without_email = []
-        for player_name in players_set:
-            player_info = get_player_by_name(player_name)
-            if player_info and player_info[2]:  # Has email at index 2
-                players.append({'name': player_name, 'email': player_info[2]})
-            else:
-                players_without_email.append(player_name)
-        
-        if not players:
-            error_msg = f'No players with email addresses found in selected games.'
-            if players_without_email:
-                error_msg += f' Players without emails: {", ".join(players_without_email)}'
-            return jsonify({
-                'success': False,
-                'error': error_msg
-            }), 404
-        
-        # Send one email to all players
-        try:
-            # Collect all email addresses
-            all_emails = [player['email'] for player in players]
-            
-            # Format date as MM/DD/YY for subject
-            date_obj = datetime.strptime(today, '%Y-%m-%d')
-            formatted_date = date_obj.strftime('%m/%d/%y')
-            
-            msg = Message(
-                subject=f"🏐 Today's Volleyball Recap - {formatted_date}",
-                recipients=all_emails
-            )
-            
-            # Create HTML email body
-            html_body = f"""
+    html_body = f"""
             <html>
             <head>
                 <style>
@@ -2242,31 +2009,30 @@ Summary:"""
                     <div class="card card-green">
                         <h2>AI Summary</h2>
                         <div class="summary-text">
-                            {summary.replace(chr(10), '<br>')}
+                            {summary_html}
                         </div>
                     </div>
                     
                     <div class="card card-neutral">
                         <h2>Player Stats</h2>
             """
-            
-            for stat in stats:
-                player_name = stat[0]
-                wins = stat[1]
-                losses = stat[2]
-                win_pct = stat[3] * 100
-                differential = stat[4]
-                diff_sign = '+' if differential >= 0 else ''
-                
-                # Determine color class based on win percentage
-                if win_pct > 50:
-                    color_class = "win"
-                elif win_pct == 50:
-                    color_class = "neutral"
-                else:
-                    color_class = "loss"
-                
-                html_body += f"""
+
+    for stat in stats:
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+
+        if win_pct > 50:
+            color_class = "win"
+        elif win_pct == 50:
+            color_class = "neutral"
+        else:
+            color_class = "loss"
+
+        html_body += f"""
                         <div class="stat-item {color_class}">
                             <span class="player-name-stat">{player_name}</span>
                             <span class="stat-info">
@@ -2275,30 +2041,32 @@ Summary:"""
                             </span>
                         </div>
                 """
-            
-            html_body += """
+
+    html_body += """
                     </div>
                     
                     <div class="card card-green">
                         <h2>Today's Games (""" + str(len(games)) + """)</h2>
             """
-            
-            for idx, game in enumerate(games, 1):
-                winners = f"{game[2]} & {game[3]}"
-                losers = f"{game[5]} & {game[6]}"
-                score = f"{game[4]}-{game[7]}"
-                html_body += f"""
-                        <div class="game-item">{idx}. {winners} def. {losers} ({score})</div>
+
+    for idx, game in enumerate(games, 1):
+        winners = f"{game[2]} & {game[3]}"
+        losers = f"{game[5]} & {game[6]}"
+        score = f"{game[4]}-{game[7]}"
+        comment = ""
+        if len(game) > 9 and game[9]:
+            comment = f" - Comment: {game[9]}"
+        html_body += f"""
+                        <div class="game-item">{idx}. {winners} def. {losers} ({score}){comment}</div>
                 """
-            
-            html_body += """
+
+    html_body += """
                     </div>
-                """
-            
-            # Format date for URL (YYYY-MM-DD)
-            url_date = date_obj.strftime('%Y-%m-%d')
-            
-            html_body += f"""
+            """
+
+    url_date = date_obj.strftime('%Y-%m-%d')
+
+    html_body += f"""
                     <div class="footer">
                         <a href="https://idynkydnk.pythonanywhere.com/date_range_stats?start_date={url_date}&end_date={url_date}" class="link-button">View Today's Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
@@ -2307,225 +2075,14 @@ Summary:"""
             </body>
             </html>
             """
-            
-            msg.html = html_body
-            mail.send(msg)
-            emails_sent = len(all_emails)
-            errors = []
-            
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'Failed to send email: {str(e)}'
-            }), 500
-        
-        # Create summary preview (first 150 chars)
-        summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
-        
-        return jsonify({
-            'success': True,
-            'emails_sent': emails_sent,
-            'summary_preview': summary_preview,
-            'errors': errors
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to generate and send: {str(e)}'
-        }), 500
 
-@app.route('/generate_and_email_today_1v1', methods=['POST'])
-def generate_and_email_today_1v1():
-    """Generate AI summary for today's 1v1 games and email to all players who played"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
-    import google.generativeai as genai
-    import os
-    from datetime import date
-    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games, calculate_one_v_one_stats_from_games
-    from player_functions import get_player_by_name
-    
-    # Check configurations
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        return jsonify({
-            'success': False,
-            'error': 'Gemini API key not configured.'
-        }), 400
-    
-    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-        return jsonify({
-            'success': False,
-            'error': 'Email not configured.'
-        }), 400
-    
-    try:
-        # Get selected game IDs from request
-        data = request.get_json() or {}
-        selected_game_ids = data.get('game_ids', [])
-        
-        # Get today's date
-        today = date.today().strftime('%Y-%m-%d')
-        
-        # Get all 1v1 games for today
-        all_games = todays_one_v_one_games()
-        
-        if not all_games:
-            return jsonify({
-                'success': False,
-                'error': f'No 1v1 games found for today ({today})'
-            }), 404
-        
-        # Filter games by selected IDs if provided
-        if selected_game_ids:
-            games = [game for game in all_games if str(game[0]) in selected_game_ids]
-            if not games:
-                return jsonify({
-                    'success': False,
-                    'error': 'None of the selected games were found'
-                }), 404
-            
-            # Recalculate stats for selected games only
-            stats = calculate_one_v_one_stats_from_games(games)
-        else:
-            games = all_games
-            stats = todays_one_v_one_stats()
-        
-        # Build context for AI
-        context = f"Date: {today}\n"
-        context += f"Total 1v1 Games: {len(games)}\n\n"
-        context += "Player Stats (with details):\n"
-        
-        for stat in stats[:10]:
-            player_name = stat[0]
-            wins = stat[1]
-            losses = stat[2]
-            win_pct = stat[3] * 100
-            differential = stat[4]
-            
-            # Get player details
-            player_info = get_player_by_name(player_name)
-            age_str = ""
-            height_str = ""
-            if player_info:
-                if player_info[3]:  # date_of_birth
-                    try:
-                        birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
-                        age = datetime.now().year - birth_date.year
-                        age_str = f", Age: {age}"
-                    except:
-                        pass
-                if player_info[4]:  # height
-                    height_str = f", Height: {player_info[4]}"
-            
-            context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
-        
-        context += f"\n1v1 Games Played Today (in chronological order):\n"
-        # Reverse to show games in chronological order (earliest first)
-        for game in reversed(games[:10]):
-            winner = game[4]
-            loser = game[6]
-            score = f"{game[5]}-{game[7]}"
-            game_name = game[3] if len(game) > 3 else "1v1"
-            # Extract time from game[1] if available
-            time_str = ""
-            if len(game[1]) > 10:
-                time_str = f" ({game[1][9:]})"
-            context += f"- {winner} def. {loser} ({score}) - {game_name}{time_str}\n"
-        
-        # Generate AI summary with rotating prompts
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('models/gemini-flash-latest')
-        
-        # Determine summary length
-        num_games = len(games)
-        if num_games <= 2:
-            length_guide = "1-2 sentences"
-        elif num_games <= 5:
-            length_guide = "1 short paragraph (3-4 sentences)"
-        elif num_games <= 10:
-            length_guide = "2 paragraphs"
-        else:
-            length_guide = "3 paragraphs"
-        
-        # Rotating prompts for 1v1 games
-        import random
-        prompts = [
-            f"""Write a fun, engaging summary of these 1v1 games in {length_guide}. 
-            Highlight the top performers, most exciting matches, and any notable achievements. 
-            Make it conversational and entertaining. Use player details (age, height) to add personality.
+    return html_body
 
-{context}
 
-Write the summary:""",
-            
-            f"""You're a witty sports journalist writing a 1v1 games recap in {length_guide}. 
-            Create a story about today's action, weaving in player ages and heights when relevant. 
-            Focus on rivalries, upsets, and standout performances. Make it fun!
+def create_one_v_one_email_html(summary, stats, games):
+    summary_html = summary.replace(chr(10), '<br>') if summary else ''
 
-{context}
-
-Write the recap:""",
-            
-            f"""Write a {length_guide} 1v1 games recap as if you're texting a friend who missed the action. 
-            Be casual, funny, and highlight the wild moments. Make them wish they were there!
-
-{context}
-
-Tell the story:"""
-        ]
-        
-        prompt = random.choice(prompts)
-        response = model.generate_content(prompt)
-        summary = response.text
-        
-        # Get players who played today
-        players_set = set()
-        for game in games:
-            if game[4]:  # winner
-                players_set.add(game[4])
-            if game[6]:  # loser
-                players_set.add(game[6])
-        
-        # Get email addresses
-        players_with_emails = []
-        players_without_email = []
-        for player_name in players_set:
-            player_info = get_player_by_name(player_name)
-            if player_info and player_info[2]:  # has email
-                players_with_emails.append({
-                    'name': player_name,
-                    'email': player_info[2]
-                })
-            else:
-                players_without_email.append(player_name)
-        
-        if not players_with_emails:
-            error_msg = f'No players with email addresses found in selected games.'
-            if players_without_email:
-                error_msg += f' Players without emails: {", ".join(players_without_email)}'
-            return jsonify({
-                'success': False,
-                'error': error_msg
-            }), 404
-        
-        # Send one email to all players
-        try:
-            all_emails = [player['email'] for player in players_with_emails]
-            
-            # Format date as MM/DD/YY
-            date_obj = datetime.strptime(today, '%Y-%m-%d')
-            formatted_date = date_obj.strftime('%m/%d/%y')
-            
-            msg = Message(
-                subject=f"🎯 Today's 1v1 Recap - {formatted_date}",
-                recipients=all_emails
-            )
-            
-            # Create HTML email body (use same styling as doubles)
-            html_body = f"""
+    html_body = f"""
             <html>
             <head>
                 <style>
@@ -2658,31 +2215,30 @@ Tell the story:"""
                     <div class="card card-green">
                         <h2>AI Summary</h2>
                         <div class="summary-text">
-                            {summary.replace(chr(10), '<br>')}
+                            {summary_html}
                         </div>
                     </div>
                     
                     <div class="card card-neutral">
                         <h2>Player Stats</h2>
             """
-            
-            for stat in stats:
-                player_name = stat[0]
-                wins = stat[1]
-                losses = stat[2]
-                win_pct = stat[3] * 100
-                differential = stat[4]
-                diff_sign = '+' if differential >= 0 else ''
-                
-                # Determine color class based on win percentage
-                if win_pct > 50:
-                    color_class = "win"
-                elif win_pct == 50:
-                    color_class = "neutral"
-                else:
-                    color_class = "loss"
-                
-                html_body += f"""
+
+    for stat in stats:
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+
+        if win_pct > 50:
+            color_class = "win"
+        elif win_pct == 50:
+            color_class = "neutral"
+        else:
+            color_class = "loss"
+
+        html_body += f"""
                         <div class="stat-item {color_class}">
                             <span class="player-name-stat">{player_name}</span>
                             <span class="stat-info">
@@ -2691,28 +2247,25 @@ Tell the story:"""
                             </span>
                         </div>
                 """
-            
-            html_body += """
+
+    html_body += """
                     </div>
                     
                     <div class="card card-green">
                         <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
             """
-            
-            for idx, game in enumerate(games, 1):
-                winner = game[4]
-                loser = game[6]
-                score = f"{game[5]}-{game[7]}"
-                game_name = game[3] if len(game) > 3 else "1v1"
-                html_body += f"""
+
+    for idx, game in enumerate(games, 1):
+        winner = game[4]
+        loser = game[6]
+        score = f"{game[5]}-{game[7]}"
+        game_name = game[3] if len(game) > 3 else "1v1"
+        html_body += f"""
                         <div class="game-item">{idx}. {winner} def. {loser} ({score}) - {game_name}</div>
                 """
-            
-            html_body += """
+
+    html_body += """
                     </div>
-                """
-            
-            html_body += f"""
                     <div class="footer">
                         <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
@@ -2721,32 +2274,526 @@ Tell the story:"""
             </body>
             </html>
             """
-            
-            msg.html = html_body
-            mail.send(msg)
-            emails_sent = len(all_emails)
-            
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'Failed to send email: {str(e)}'
-            }), 500
-        
-        # Create summary preview
-        summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
-        
-        return jsonify({
-            'success': True,
-            'emails_sent': emails_sent,
-            'summary_preview': summary_preview,
-            'errors': []
-        })
-        
+
+    return html_body
+
+
+def build_doubles_email_payload(selected_game_ids):
+    import google.generativeai as genai
+    import random
+    from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days
+    from player_functions import get_player_by_name
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        raise ValueError('Email not configured.')
+
+    today = date.today().strftime('%Y-%m-%d')
+    stats, all_games = specific_date_stats(today)
+
+    if not all_games:
+        raise ValueError(f'No games found for today ({today})')
+
+    selected_ids_set = set(str(gid) for gid in selected_game_ids if gid)
+    if selected_ids_set:
+        games = [game for game in all_games if str(game[0]) in selected_ids_set]
+        if not games:
+            raise ValueError('None of the selected games were found.')
+        stats = calculate_stats_from_games(games)
+    else:
+        games = all_games
+
+    all_streaks = get_current_streaks_last_365_days()
+    streaks_dict = {streak[0]: {'length': streak[1], 'type': streak[2], 'max': streak[3]} for streak in all_streaks}
+
+    context = f"Date: {today}\n"
+    context += f"Total Games: {len(games)}\n\n"
+    context += "Player Stats (with details & streaks):\n"
+    for stat in stats[:10]:
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+        differential = stat[4]
+
+        player_info = get_player_by_name(player_name)
+        age_str = ""
+        height_str = ""
+        if player_info:
+            if player_info[3]:
+                try:
+                    birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
+                    age = datetime.now().year - birth_date.year
+                    age_str = f", Age: {age}"
+                except Exception:
+                    pass
+            if player_info[4]:
+                height_str = f", Height: {player_info[4]}"
+
+        streak_str = ""
+        if player_name in streaks_dict:
+            streak_info = streaks_dict[player_name]
+            streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
+
+        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
+
+    context += "\nHistorical Context:\n"
+    cur = set_cur()
+    for game in games[:5]:
+        team1 = (game[2], game[3])
+        team2 = (game[5], game[6])
+
+        cur.execute("""
+                SELECT COUNT(*) FROM games 
+                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
+                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
+                  AND game_date < ?
+            """, (team1[0], team1[1], team1[1], team1[0], 
+                  team2[0], team2[1], team2[1], team2[0], today))
+        team1_wins = cur.fetchone()[0]
+
+        cur.execute("""
+                SELECT COUNT(*) FROM games 
+                WHERE ((winner1 = ? AND winner2 = ?) OR (winner1 = ? AND winner2 = ?))
+                  AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
+                  AND game_date < ?
+            """, (team2[0], team2[1], team2[1], team2[0],
+                  team1[0], team1[1], team1[1], team1[0], today))
+        team2_wins = cur.fetchone()[0]
+
+        if team1_wins > 0 or team2_wins > 0:
+            context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
+
+    context += "\nGames Played Today (in chronological order):\n"
+    for game in reversed(games[:10]):
+        winners = f"{game[2]} & {game[3]}"
+        losers = f"{game[5]} & {game[6]}"
+        score = f"{game[4]}-{game[7]}"
+        time_str = ""
+        if len(game[1]) > 10:
+            time_str = f" ({game[1][11:19]})"
+        comment_str = ""
+        if len(game) > 9 and game[9]:
+            comment_str = f" - Comment: {game[9]}"
+        context += f"- {winners} def. {losers} ({score}){time_str}{comment_str}\n"
+
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('models/gemini-flash-latest')
+
+    prompts = [
+        f"""Write a brief recap of today's volleyball games for the players. 
+            Focus on key results and notable stats. Keep it direct and factual.
+
+{context}
+
+Your recap:""",
+        f"""Summarize today's volleyball session. 
+            Mention the important performances and outcomes. Be concise.
+
+{context}
+
+Summary:""",
+        f"""Give a short overview of today's games. 
+            Highlight standout performances and interesting results. Keep it simple and clear.
+
+{context}
+
+Overview:""",
+        f"""Recap today's volleyball action briefly. 
+            Focus on what happened and who performed well. Avoid excessive descriptions.
+
+{context}
+
+Recap:""",
+        f"""Provide a straightforward summary of today's games. 
+            Note the key performances and results. Be direct and to the point.
+
+{context}
+
+Summary:"""
+    ]
+
+    prompt = random.choice(prompts)
+    response = model.generate_content(prompt)
+    summary = getattr(response, 'text', '') or ''
+
+    players_set = set()
+    for game in games:
+        for player_name in [game[2], game[3], game[5], game[6]]:
+            if player_name and player_name.strip():
+                players_set.add(player_name)
+
+    players = []
+    players_without_email = []
+    for player_name in players_set:
+        player_info = get_player_by_name(player_name)
+        if player_info and player_info[2]:
+            players.append({'name': player_name, 'email': player_info[2]})
+        else:
+            players_without_email.append(player_name)
+
+    all_emails = [player['email'] for player in players]
+
+    date_obj = datetime.strptime(today, '%Y-%m-%d')
+    formatted_date = date_obj.strftime('%m/%d/%y')
+
+    html_body = create_doubles_email_html(summary, stats, games, date_obj)
+    subject = f"🏐 Today's Volleyball Recap - {formatted_date}"
+
+    summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+
+    return {
+        'today': today,
+        'games': games,
+        'stats': stats,
+        'summary': summary,
+        'summary_preview': summary_preview,
+        'context': context,
+        'players': players,
+        'players_without_email': players_without_email,
+        'all_emails': all_emails,
+        'html_body': html_body,
+        'subject': subject,
+        'date_obj': date_obj,
+        'formatted_date': formatted_date
+    }
+
+
+def build_one_v_one_email_payload(selected_game_ids):
+    import google.generativeai as genai
+    import random
+    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games, calculate_one_v_one_stats_from_games
+    from player_functions import get_player_by_name
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        raise ValueError('Email not configured.')
+
+    today = date.today().strftime('%Y-%m-%d')
+    all_games = todays_one_v_one_games()
+
+    if not all_games:
+        raise ValueError(f'No 1v1 games found for today ({today})')
+
+    selected_ids_set = set(str(gid) for gid in selected_game_ids if gid)
+    if selected_ids_set:
+        games = [game for game in all_games if str(game[0]) in selected_ids_set]
+        if not games:
+            raise ValueError('None of the selected games were found.')
+        stats = calculate_one_v_one_stats_from_games(games)
+    else:
+        games = all_games
+        stats = todays_one_v_one_stats()
+
+    context = f"Date: {today}\n"
+    context += f"Total 1v1 Games: {len(games)}\n\n"
+    context += "Player Stats (with details):\n"
+
+    for stat in stats[:10]:
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+        differential = stat[4]
+
+        player_info = get_player_by_name(player_name)
+        age_str = ""
+        height_str = ""
+        if player_info:
+            if player_info[3]:
+                try:
+                    birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
+                    age = datetime.now().year - birth_date.year
+                    age_str = f", Age: {age}"
+                except Exception:
+                    pass
+            if player_info[4]:
+                height_str = f", Height: {player_info[4]}"
+
+        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
+
+    context += "\n1v1 Games Played Today (in chronological order):\n"
+    for game in reversed(games[:10]):
+        winner = game[4]
+        loser = game[6]
+        score = f"{game[5]}-{game[7]}"
+        game_name = game[3] if len(game) > 3 else "1v1"
+        time_str = ""
+        if len(game[1]) > 10:
+            time_str = f" ({game[1][9:]})"
+        context += f"- {winner} def. {loser} ({score}) - {game_name}{time_str}\n"
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('models/gemini-flash-latest')
+
+    num_games = len(games)
+    if num_games <= 2:
+        length_guide = "1-2 sentences"
+    elif num_games <= 5:
+        length_guide = "1 short paragraph (3-4 sentences)"
+    elif num_games <= 10:
+        length_guide = "2 paragraphs"
+    else:
+        length_guide = "3 paragraphs"
+
+    prompts = [
+        f"""Write a fun, engaging summary of these 1v1 games in {length_guide}. 
+            Highlight the top performers, most exciting matches, and any notable achievements. 
+            Make it conversational and entertaining.
+
+{context}
+
+Write the summary:""",
+        f"""You're a witty sports journalist writing a 1v1 games recap in {length_guide}. 
+            Create a story about today's action, weaving in interesting context when relevant. 
+            Focus on rivalries, upsets, and standout performances.
+
+{context}
+
+Write the recap:""",
+        f"""Write a {length_guide} 1v1 games recap as if you're texting a friend who missed the action. 
+            Be casual and highlight the wild moments.
+
+{context}
+
+Tell the story:"""
+    ]
+
+    prompt = random.choice(prompts)
+    response = model.generate_content(prompt)
+    summary = getattr(response, 'text', '') or ''
+
+    players_set = set()
+    for game in games:
+        if game[4]:
+            players_set.add(game[4])
+        if game[6]:
+            players_set.add(game[6])
+
+    players_with_emails = []
+    players_without_email = []
+    for player_name in players_set:
+        player_info = get_player_by_name(player_name)
+        if player_info and player_info[2]:
+            players_with_emails.append({'name': player_name, 'email': player_info[2]})
+        else:
+            players_without_email.append(player_name)
+
+    all_emails = [player['email'] for player in players_with_emails]
+
+    date_obj = datetime.strptime(today, '%Y-%m-%d')
+    formatted_date = date_obj.strftime('%m/%d/%y')
+
+    html_body = create_one_v_one_email_html(summary, stats, games)
+    subject = f"🎯 Today's 1v1 Recap - {formatted_date}"
+
+    summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+
+    return {
+        'today': today,
+        'games': games,
+        'stats': stats,
+        'summary': summary,
+        'summary_preview': summary_preview,
+        'context': context,
+        'players': players_with_emails,
+        'players_without_email': players_without_email,
+        'all_emails': all_emails,
+        'html_body': html_body,
+        'subject': subject,
+        'date_obj': date_obj,
+        'formatted_date': formatted_date,
+        'length_guide': length_guide
+    }
+
+
+@app.route('/generate_and_email_today', methods=['POST'])
+def generate_and_email_today():
+    """Generate AI summary for today's games and email to all players who played"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+            selected_game_ids = data.get('game_ids', [])
+        else:
+            form_ids = request.form.getlist('game_ids')
+            if not form_ids:
+                raw_ids = request.form.get('game_ids', '')
+                form_ids = [gid for gid in raw_ids.split(',') if gid]
+            selected_game_ids = form_ids
+
+        payload = build_doubles_email_payload(selected_game_ids)
+    except ValueError as ve:
+        message = str(ve)
+        status_code = 404 if 'not found' in message.lower() else 400
+        return jsonify({'success': False, 'error': message}), status_code
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to generate and send: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Failed to generate summary: {str(e)}'}), 500
+
+    players = payload['players']
+    players_without_email = payload['players_without_email']
+
+    if not players:
+        error_msg = 'No players with email addresses found in selected games.'
+        if players_without_email:
+            error_msg += f" Players without emails: {', '.join(players_without_email)}"
+        return jsonify({'success': False, 'error': error_msg}), 404
+
+    try:
+        msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
+        msg.html = payload['html_body']
+        mail.send(msg)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
+
+    return jsonify({
+        'success': True,
+        'emails_sent': len(payload['all_emails']),
+        'summary_preview': payload['summary_preview']
+    })
+
+@app.route('/generate_and_email_today_1v1', methods=['POST'])
+def generate_and_email_today_1v1():
+    """Generate AI summary for today's 1v1 games and email to all players who played"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+            selected_game_ids = data.get('game_ids', [])
+        else:
+            form_ids = request.form.getlist('game_ids')
+            if not form_ids:
+                raw_ids = request.form.get('game_ids', '')
+                form_ids = [gid for gid in raw_ids.split(',') if gid]
+            selected_game_ids = form_ids
+
+        payload = build_one_v_one_email_payload(selected_game_ids)
+    except ValueError as ve:
+        message = str(ve)
+        status_code = 404 if 'not found' in message.lower() else 400
+        return jsonify({'success': False, 'error': message}), status_code
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to generate summary: {str(e)}'}), 500
+
+    players = payload['players']
+    players_without_email = payload['players_without_email']
+
+    if not players:
+        error_msg = 'No players with email addresses found in selected games.'
+        if players_without_email:
+            error_msg += f" Players without emails: {', '.join(players_without_email)}"
+        return jsonify({'success': False, 'error': error_msg}), 404
+
+    try:
+        msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
+        msg.html = payload['html_body']
+        mail.send(msg)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
+
+    return jsonify({
+        'success': True,
+        'emails_sent': len(payload['all_emails']),
+        'summary_preview': payload['summary_preview']
+    })
+
+
+@app.route('/preview_ai_summary', methods=['POST'])
+def preview_ai_summary():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    selected_game_ids = request.form.getlist('game_ids')
+    if not selected_game_ids:
+        raw_ids = request.form.get('game_ids', '')
+        if raw_ids:
+            selected_game_ids = [gid for gid in raw_ids.split(',') if gid]
+
+    if not selected_game_ids:
+        flash('Please select at least one game to preview the AI summary.', 'error')
+        return redirect(url_for('add_game'))
+
+    try:
+        payload = build_doubles_email_payload(selected_game_ids)
+    except ValueError as ve:
+        flash(str(ve), 'error')
+        return redirect(url_for('add_game'))
+    except Exception as e:
+        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
+        return redirect(url_for('add_game'))
+
+    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
+
+    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
+
+    return render_template(
+        'preview_ai_summary.html',
+        game_type='doubles',
+        header_title="Doubles AI Summary Preview",
+        subject=payload['subject'],
+        email_html=payload['html_body'],
+        players=payload['players'],
+        players_without_email=payload['players_without_email'],
+        selected_game_ids_json=selected_game_ids_json,
+        send_url=url_for('generate_and_email_today'),
+        back_url=url_for('add_game'),
+        can_send=can_send,
+        formatted_date=payload['formatted_date']
+    )
+
+
+@app.route('/preview_ai_summary_1v1', methods=['POST'])
+def preview_ai_summary_1v1():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    selected_game_ids = request.form.getlist('game_ids')
+    if not selected_game_ids:
+        raw_ids = request.form.get('game_ids', '')
+        if raw_ids:
+            selected_game_ids = [gid for gid in raw_ids.split(',') if gid]
+
+    if not selected_game_ids:
+        flash('Please select at least one game to preview the AI summary.', 'error')
+        return redirect(url_for('add_one_v_one_game'))
+
+    try:
+        payload = build_one_v_one_email_payload(selected_game_ids)
+    except ValueError as ve:
+        flash(str(ve), 'error')
+        return redirect(url_for('add_one_v_one_game'))
+    except Exception as e:
+        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
+        return redirect(url_for('add_one_v_one_game'))
+
+    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
+    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
+
+    return render_template(
+        'preview_ai_summary.html',
+        game_type='one_v_one',
+        header_title="1v1 AI Summary Preview",
+        subject=payload['subject'],
+        email_html=payload['html_body'],
+        players=payload['players'],
+        players_without_email=payload['players_without_email'],
+        selected_game_ids_json=selected_game_ids_json,
+        send_url=url_for('generate_and_email_today_1v1'),
+        back_url=url_for('add_one_v_one_game'),
+        can_send=can_send,
+        formatted_date=payload['formatted_date']
+    )
 
 @app.route('/cleanup_tokens')
 def cleanup_tokens():

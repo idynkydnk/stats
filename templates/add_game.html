@@ -599,48 +599,28 @@ function toggleAllGames() {
 }
 
 function generateAndEmailSummary() {
-    const button = document.getElementById('generate-and-email-btn');
-    const originalValue = button.value;
-    
-    // Get selected game IDs
     const selectedCheckboxes = document.querySelectorAll('.game-checkbox:checked');
     const selectedGameIds = Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-game-id'));
-    
+
     if (selectedGameIds.length === 0) {
         alert('Please select at least one game to include in the summary.');
         return;
     }
-    
-    if (!confirm(`Generate an AI summary of ${selectedGameIds.length} selected game(s) and email it to everyone who played?`)) {
-        return;
-    }
-    
-    button.disabled = true;
-    button.value = 'Generating and sending...';
-    
-    fetch('/generate_and_email_today', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ game_ids: selectedGameIds })
-    })
-    .then(response => response.json())
-    .then(data => {
-        button.disabled = false;
-        button.value = originalValue;
-        
-        if (data.success) {
-            alert(`Success! Generated AI summary and sent to ${data.emails_sent} player(s).\n\nPreview:\n${data.summary_preview}`);
-        } else {
-            alert('Error: ' + (data.error || 'Unknown error occurred'));
-        }
-    })
-    .catch(error => {
-        button.disabled = false;
-        button.value = originalValue;
-        alert('Error: ' + error.message);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/preview_ai_summary';
+
+    selectedGameIds.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'game_ids';
+        input.value = id;
+        form.appendChild(input);
     });
+
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}

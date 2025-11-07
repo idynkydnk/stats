@@ -546,48 +546,28 @@ function toggleAllGames1v1() {
 }
 
 function generateAndEmailSummary1v1() {
-    const button = document.getElementById('generate-and-email-btn-1v1');
-    const originalValue = button.value;
-    
-    // Get selected game IDs
     const selectedCheckboxes = document.querySelectorAll('.game-checkbox-1v1:checked');
     const selectedGameIds = Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-game-id'));
-    
+
     if (selectedGameIds.length === 0) {
         alert('Please select at least one game to include in the summary.');
         return;
     }
-    
-    if (!confirm(`Generate an AI summary of ${selectedGameIds.length} selected 1v1 game(s) and email it to everyone who played?`)) {
-        return;
-    }
-    
-    button.disabled = true;
-    button.value = 'Generating and sending...';
-    
-    fetch('/generate_and_email_today_1v1', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ game_ids: selectedGameIds })
-    })
-    .then(response => response.json())
-    .then(data => {
-        button.disabled = false;
-        button.value = originalValue;
-        
-        if (data.success) {
-            alert(`Success! Generated AI summary and sent to ${data.emails_sent} player(s).\n\nPreview:\n${data.summary_preview}`);
-        } else {
-            alert('Error: ' + (data.error || 'Unknown error occurred'));
-        }
-    })
-    .catch(error => {
-        button.disabled = false;
-        button.value = originalValue;
-        alert('Error: ' + error.message);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/preview_ai_summary_1v1';
+
+    selectedGameIds.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'game_ids';
+        input.value = id;
+        form.appendChild(input);
     });
+
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}

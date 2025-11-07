@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Summary Preview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ header_title }}</h1>
+    <p class="subtitle">Subject: {{ subject }}</p>
+</div>
+
+<div class="card">
+    <h2>Recipients</h2>
+    {% if players %}
+        <ul class="recipient-list">
+        {% for player in players %}
+            <li>{{ player.name }} &lt;{{ player.email }}&gt;</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No players with email addresses were found for the selected games.</p>
+    {% endif %}
+
+    {% if players_without_email %}
+        <div class="warning-box">
+            <strong>Missing emails for:</strong>
+            <ul>
+            {% for player in players_without_email %}
+                <li>{{ player }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="actions">
+        <button id="confirm-send" class="btn btn-primary" onclick="confirmSend()" {% if not can_send %}disabled{% endif %}>
+            Send Email
+        </button>
+        <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+    </div>
+
+    {% if not can_send %}
+        <p class="note">Add email addresses for the players above to enable sending.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Email Preview</h2>
+    <div class="email-preview">
+        <iframe id="email-preview-frame" title="Email preview"></iframe>
+    </div>
+</div>
+
+<style>
+    .page-header { margin-bottom: 20px; }
+    .subtitle { color: var(--caption); margin-top: 4px; }
+    .card { margin-bottom: 24px; padding: 20px; background-color: var(--card-bg); border-radius: 16px; }
+    .recipient-list { list-style: none; margin: 0; padding: 0; }
+    .recipient-list li { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .recipient-list li:last-child { border-bottom: none; }
+    .warning-box { margin-top: 16px; padding: 12px; border-radius: 8px; background: rgba(244, 67, 54, 0.2); border-left: 4px solid #f44336; }
+    .warning-box ul { margin: 8px 0 0 16px; }
+    .actions { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+    .btn { padding: 10px 16px; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-block; }
+    .btn-primary { background-color: #4CAF50; color: #fff; border: none; }
+    .btn-primary[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background-color: transparent; color: #aeee98; border: 1px solid #aeee98; }
+    .email-preview { margin-top: 16px; background-color: #11161c; border-radius: 16px; padding: 0; overflow: hidden; border: 1px solid rgba(174, 238, 152, 0.2); height: 700px; }
+    .email-preview iframe { width: 100%; height: 100%; border: none; background-color: #11161c; }
+    .note { margin-top: 12px; color: #fbc02d; }
+</style>
+
+<script>
+    const selectedGameIds = JSON.parse('{{ selected_game_ids_json | safe }}');
+    const emailHtml = {{ email_html | tojson | safe }};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const frame = document.getElementById('email-preview-frame');
+        if (frame) {
+            frame.srcdoc = emailHtml;
+        }
+    });
+
+    function confirmSend() {
+        const button = document.getElementById('confirm-send');
+        if (!button || button.disabled) {
+            return;
+        }
+
+        if (!confirm('Send this AI summary email to the listed recipients?')) {
+            return;
+        }
+
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = 'Sending...';
+
+        fetch('{{ send_url }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_ids: selectedGameIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Email sent to ${data.emails_sent} player(s).`);
+                window.location.href = '{{ back_url }}';
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+            button.disabled = false;
+            button.textContent = originalText;
+        });
+    }
+</script>
+{% endblock %}
+
