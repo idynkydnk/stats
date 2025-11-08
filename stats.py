@@ -1909,6 +1909,8 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         font-size: 18px;
                         font-weight: bold;
                         margin-bottom: 15px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
                     }}
                     .card-green {{
                         border: 2px solid #aeee98;
@@ -1918,11 +1920,11 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         border-bottom: 2px solid #aeee98;
                     }}
                     .card-neutral {{
-                        border: 2px solid #9E9E9E;
+                        border: 2px solid rgba(174, 238, 152, 0.4);
                     }}
                     .card-neutral h2 {{
-                        color: #9E9E9E;
-                        border-bottom: 2px solid #9E9E9E;
+                        color: #aeee98;
+                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
                     }}
                     .summary-text {{
                         background-color: rgba(174, 238, 152, 0.1);
@@ -2052,18 +2054,10 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     .today-games-table tbody tr:last-child td {{
                         border-bottom: none;
                     }}
-                    .date-time {{
+                    .time-cell {{
                         font-weight: 600;
-                        color: #dbe2ea;
-                        line-height: 1.4;
-                    }}
-                    .date-time .date {{
-                        font-size: 14px;
-                    }}
-                    .date-time .time {{
-                        font-size: 13px;
                         color: #aeee98;
-                        margin-top: 4px;
+                        font-size: 14px;
                     }}
                     .team-cell {{
                         text-align: left;
@@ -2073,6 +2067,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         font-weight: 600;
                         color: #ffffff;
                         margin: 2px 0;
+                        white-space: nowrap;
                     }}
                     .score-cell {{
                         width: 70px;
@@ -2176,7 +2171,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         <table class="today-games-table">
                             <thead>
                                 <tr>
-                                    <th>Date/Time</th>
+                                    <th>Time</th>
                                     <th>Winners</th>
                                     <th>Score</th>
                                     <th>Losers</th>
@@ -2187,15 +2182,16 @@ def create_doubles_email_html(summary, stats, games, date_obj):
             """
 
     for game in games:
-        date_display = ""
         time_display = ""
         if len(game) > 1 and game[1]:
             date_time_str = str(game[1]).strip()
             parts = date_time_str.split()
-            if parts:
-                date_display = parts[0]
-                if len(parts) > 1:
-                    time_display = " ".join(parts[1:]).strip()
+            if len(parts) > 1:
+                time_display = " ".join(parts[1:]).strip()
+            elif parts:
+                time_display = parts[0]
+        if not time_display:
+            time_display = "&nbsp;"
 
         winner_lines = "".join(
             f"<div class=\"player-line\">{name}</div>" for name in [game[2], game[3]] if name
@@ -2207,14 +2203,9 @@ def create_doubles_email_html(summary, stats, games, date_obj):
         winner_score = game[4] if len(game) > 4 and game[4] is not None else ""
         loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
 
-        time_html = f"<div class=\"time\">{time_display}</div>" if time_display else "<div class=\"time\">&nbsp;</div>"
-
         html_body += f"""
                                 <tr>
-                                    <td class=\"date-time\">
-                                        <div class=\"date\">{date_display}</div>
-                                        {time_html}
-                                    </td>
+                                    <td class=\"time-cell\">{time_display}</td>
                                     <td class=\"team-cell\">{winner_lines}</td>
                                     <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
                                     <td class=\"team-cell\">{loser_lines}</td>
@@ -2288,6 +2279,8 @@ def create_one_v_one_email_html(summary, stats, games):
                         font-size: 18px;
                         font-weight: bold;
                         margin-bottom: 15px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
                     }}
                     .card-green {{
                         border: 2px solid #aeee98;
@@ -2297,11 +2290,11 @@ def create_one_v_one_email_html(summary, stats, games):
                         border-bottom: 2px solid #aeee98;
                     }}
                     .card-neutral {{
-                        border: 2px solid #9E9E9E;
+                        border: 2px solid rgba(174, 238, 152, 0.4);
                     }}
                     .card-neutral h2 {{
-                        color: #9E9E9E;
-                        border-bottom: 2px solid #9E9E9E;
+                        color: #aeee98;
+                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
                     }}
                     .summary-text {{
                         background-color: rgba(174, 238, 152, 0.1);
@@ -2420,18 +2413,10 @@ def create_one_v_one_email_html(summary, stats, games):
                     .today-games-table tbody tr:last-child td {{
                         border-bottom: none;
                     }}
-                    .date-time {{
+                    .time-cell {{
                         font-weight: 600;
-                        color: #dbe2ea;
-                        line-height: 1.4;
-                    }}
-                    .date-time .date {{
-                        font-size: 14px;
-                    }}
-                    .date-time .time {{
-                        font-size: 13px;
                         color: #aeee98;
-                        margin-top: 4px;
+                        font-size: 14px;
                     }}
                     .team-cell {{
                         text-align: left;
@@ -2441,6 +2426,7 @@ def create_one_v_one_email_html(summary, stats, games):
                         font-weight: 600;
                         color: #ffffff;
                         margin: 2px 0;
+                        white-space: nowrap;
                     }}
                     .score-cell {{
                         width: 70px;
@@ -2528,7 +2514,7 @@ def create_one_v_one_email_html(summary, stats, games):
                         <table class="today-games-table">
                             <thead>
                                 <tr>
-                                    <th>Date/Time</th>
+                                    <th>Time</th>
                                     <th>Winner</th>
                                     <th>Score</th>
                                     <th>Loser</th>
@@ -2539,29 +2525,25 @@ def create_one_v_one_email_html(summary, stats, games):
             """
 
     for game in games:
-        date_display = ""
         time_display = ""
         if len(game) > 1 and game[1]:
             date_time_str = str(game[1]).strip()
             parts = date_time_str.split()
-            if parts:
-                date_display = parts[0]
-                if len(parts) > 1:
-                    time_display = " ".join(parts[1:]).strip()
+            if len(parts) > 1:
+                time_display = " ".join(parts[1:]).strip()
+            elif parts:
+                time_display = parts[0]
+        if not time_display:
+            time_display = "&nbsp;"
 
         winner_name = game[4] if len(game) > 4 and game[4] else ""
         loser_name = game[6] if len(game) > 6 and game[6] else ""
         winner_score = game[5] if len(game) > 5 and game[5] is not None else ""
         loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
 
-        time_html = f"<div class=\"time\">{time_display}</div>" if time_display else "<div class=\"time\">&nbsp;</div>"
-
         html_body += f"""
                                 <tr>
-                                    <td class=\"date-time\">
-                                        <div class=\"date\">{date_display}</div>
-                                        {time_html}
-                                    </td>
+                                    <td class=\"time-cell\">{time_display}</td>
                                     <td class=\"team-cell\"><div class=\"player-line\">{winner_name}</div></td>
                                     <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
                                     <td class=\"team-cell\"><div class=\"player-line\">{loser_name}</div></td>
@@ -2832,10 +2814,16 @@ def build_one_v_one_email_payload(selected_game_ids):
         loser = game[6]
         score = f"{game[5]}-{game[7]}"
         game_name = game[3] if len(game) > 3 else "1v1"
-        time_str = ""
-        if len(game[1]) > 10:
-            time_str = f" ({game[1][9:]})"
-        context += f"- {winner} def. {loser} ({score}) - {game_name}{time_str}\n"
+        time_display = ""
+        if len(game) > 1 and game[1]:
+            date_time_str = str(game[1]).strip()
+            parts = date_time_str.split()
+            if len(parts) > 1:
+                time_display = " ".join(parts[1:]).strip()
+            elif parts:
+                time_display = parts[0]
+        time_suffix = f" ({time_display})" if time_display else ""
+        context += f"- {winner} def. {loser} ({score}) - {game_name}{time_suffix}\n"
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('models/gemini-flash-latest')
