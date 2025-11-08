@@ -1932,48 +1932,59 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         color: #ffffff;
                         line-height: 1.8;
                     }}
-                    .stat-item {{
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 12px;
-                        border-radius: 8px;
-                        margin-bottom: 8px;
+                    .today-stats-table {{
+                        width: 100%;
+                        border-collapse: collapse;
                         color: #ffffff;
-                    }}
-                    .stat-item:last-child {{
-                        margin-bottom: 0;
-                    }}
-                    .stat-item.win {{
-                        background-color: rgba(76, 175, 80, 0.1);
-                        border-left: 4px solid #4CAF50;
-                    }}
-                    .stat-item.loss {{
-                        background-color: rgba(244, 67, 54, 0.1);
-                        border-left: 4px solid #f44336;
-                    }}
-                    .stat-item.neutral {{
-                        background-color: rgba(158, 158, 158, 0.1);
-                        border-left: 4px solid #9E9E9E;
-                    }}
-                    .player-name-stat {{
                         font-size: 14px;
-                        font-weight: normal;
-                        color: #ffffff;
+                        background: rgba(17, 22, 28, 0.6);
+                        border-radius: 18px;
+                        overflow: hidden;
+                        margin-top: 10px;
                     }}
-                    .stat-info {{
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        font-size: 14px;
+                    .today-stats-table thead {{
+                        background: rgba(36, 56, 76, 0.85);
                     }}
-                    .record-info {{
-                        min-width: 60px;
+                    .today-stats-table th {{
+                        padding: 12px 10px;
                         text-align: center;
+                        font-size: 12px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        color: #dbe2ea;
                     }}
-                    .differential {{
-                        min-width: 40px;
+                    .today-stats-table td {{
+                        padding: 14px 12px;
                         text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        vertical-align: middle;
+                    }}
+                    .today-stats-table tbody tr:last-child td {{
+                        border-bottom: none;
+                    }}
+                    .today-stats-table tbody tr:nth-child(even) {{
+                        background: rgba(36, 56, 76, 0.35);
+                    }}
+                    .stats-player-cell {{
+                        text-align: left;
+                        font-weight: 600;
+                    }}
+                    .stats-rank-cell {{
+                        width: 40px;
+                        font-weight: 700;
+                        color: #aeee98;
+                    }}
+                    .stats-diff-cell {{
+                        font-weight: 600;
+                    }}
+                    .diff-positive {{
+                        color: #aeee98;
+                        font-weight: 600;
+                    }}
+                    .diff-negative {{
+                        color: #ff8686;
+                        font-weight: 600;
                     }}
                     .game-item {{
                         padding: 12px;
@@ -2005,13 +2016,10 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
                         padding: 24px 20px;
                     }}
-                    .today-games-title {{
-                        font-size: 18px;
-                        font-weight: 700;
+                    .card.today-games-card h2 {{
                         color: #aeee98;
-                        text-align: center;
+                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
                         letter-spacing: 0.5px;
-                        margin-bottom: 18px;
                         text-transform: uppercase;
                     }}
                     .today-games-table {{
@@ -2117,9 +2125,21 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     
                     <div class="card card-neutral">
                         <h2>Player Stats</h2>
+                        <table class="today-stats-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>Wins</th>
+                                    <th>Losses</th>
+                                    <th>Win %</th>
+                                    <th>+/-</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             """
 
-    for stat in stats:
+    for index, stat in enumerate(stats, start=1):
         player_name = stat[0]
         wins = stat[1]
         losses = stat[2]
@@ -2127,28 +2147,32 @@ def create_doubles_email_html(summary, stats, games, date_obj):
         differential = stat[4]
         diff_sign = '+' if differential >= 0 else ''
 
-        if win_pct > 50:
-            color_class = "win"
-        elif win_pct == 50:
-            color_class = "neutral"
+        if differential > 0:
+            diff_class = "diff-positive"
+        elif differential < 0:
+            diff_class = "diff-negative"
         else:
-            color_class = "loss"
+            diff_class = ""
+        diff_class_attr = f" {diff_class}" if diff_class else ""
 
         html_body += f"""
-                        <div class="stat-item {color_class}">
-                            <span class="player-name-stat">{player_name}</span>
-                            <span class="stat-info">
-                                <span class="record-info">{wins}-{losses} ({win_pct:.1f}%)</span>
-                                <span class="differential">{diff_sign}{differential}</span>
-                            </span>
-                        </div>
+                                <tr>
+                                    <td class="stats-rank-cell">{index}</td>
+                                    <td class="stats-player-cell">{player_name}</td>
+                                    <td>{wins}</td>
+                                    <td>{losses}</td>
+                                    <td>{win_pct:.1f}%</td>
+                                    <td class="stats-diff-cell{diff_class_attr}">{diff_sign}{differential}</td>
+                                </tr>
                 """
 
     html_body += """
+                            </tbody>
+                        </table>
                     </div>
                     
                     <div class="card today-games-card">
-                        <div class="today-games-title">Today's Games (""" + str(len(games)) + """)</div>
+                        <h2>Today's Games (""" + str(len(games)) + """)</h2>
                         <table class="today-games-table">
                             <thead>
                                 <tr>
@@ -2360,13 +2384,10 @@ def create_one_v_one_email_html(summary, stats, games):
                         background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
                         padding: 24px 20px;
                     }}
-                    .today-games-title {{
-                        font-size: 18px;
-                        font-weight: 700;
+                    .card.today-games-card h2 {{
                         color: #aeee98;
-                        text-align: center;
+                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
                         letter-spacing: 0.5px;
-                        margin-bottom: 18px;
                         text-transform: uppercase;
                     }}
                     .today-games-table {{
@@ -2503,7 +2524,7 @@ def create_one_v_one_email_html(summary, stats, games):
                     </div>
                     
                     <div class="card today-games-card">
-                        <div class="today-games-title">Today's 1v1 Games (""" + str(len(games)) + """)</div>
+                        <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
                         <table class="today-games-table">
                             <thead>
                                 <tr>
@@ -2672,31 +2693,31 @@ def build_doubles_email_payload(selected_game_ids):
 
     prompts = [
         f"""Write a brief recap of today's volleyball games for the players. 
-            Focus on key results and notable stats. Keep it direct and factual.
+            Focus on key results and notable stats. Call out any game comments (if provided) and highlight anything unusual—big streaks, surprising score lines, or historical rivalries.
 
 {context}
 
 Your recap:""",
-        f"""Summarize today's volleyball session. 
-            Mention the important performances and outcomes. Be concise.
+        f"""Summarize today's volleyball session for the group. 
+            Mention standout performances, surprising data points, and explicitly work in every game comment that appears (if any). Keep it concise but vivid.
 
 {context}
 
 Summary:""",
         f"""Give a short overview of today's games. 
-            Highlight standout performances and interesting results. Keep it simple and clear.
+            Emphasize memorable moments drawn from comments, highlight extraordinary stats or historical records, and keep the tone upbeat.
 
 {context}
 
 Overview:""",
-        f"""Recap today's volleyball action briefly. 
-            Focus on what happened and who performed well. Avoid excessive descriptions.
+        f"""Recap today's volleyball action as if you're updating the players' chat. 
+            Bring forward notable comments, point out anything out of the ordinary (streaks, lopsided results, rare matchups), and keep it punchy.
 
 {context}
 
 Recap:""",
-        f"""Provide a straightforward summary of today's games. 
-            Note the key performances and results. Be direct and to the point.
+        f"""Provide a straightforward summary of today's games for the players. 
+            Make sure you reference any comments that were recorded, plus spotlight unusual context—historic head-to-head notes, massive differentials, or streak milestones.
 
 {context}
 

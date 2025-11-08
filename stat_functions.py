@@ -275,7 +275,23 @@ def convert_ampm(games):
         else:
             updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S")
             updated_date = updated_datetime.strftime("%m/%d/%Y")
-        converted_games.append([game[0], game_date, game[2], game[3], game[4], game[5], game[6], game[7], updated_date])
+
+        comment_text = ""
+        if len(game) > 9 and game[9]:
+            comment_text = str(game[9])
+
+        converted_games.append([
+            game[0],
+            game_date,
+            game[2],
+            game[3],
+            game[4],
+            game[5],
+            game[6],
+            game[7],
+            updated_date,
+            comment_text
+        ])
     return converted_games
 
 def search_games_by_player(year, player_name):
