@@ -2070,14 +2070,14 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         white-space: nowrap;
                     }}
                     .score-cell {{
-                        width: 70px;
+                        width: 48px;
                     }}
                     .score-pill {{
                         display: inline-block;
-                        min-width: 44px;
-                        padding: 10px 14px;
+                        min-width: 38px;
+                        padding: 8px 12px;
                         border-radius: 12px;
-                        font-size: 16px;
+                        font-size: 15px;
                         font-weight: 700;
                         letter-spacing: 1px;
                     }}
@@ -2090,20 +2090,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         background: rgba(244, 67, 54, 0.18);
                         color: #ff8686;
                         box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
-                    }}
-                    .comment-row td {{
-                        text-align: left;
-                        font-size: 12px;
-                        color: #dbe2ea;
-                        background: rgba(255, 255, 255, 0.05);
-                        padding-top: 10px;
-                        padding-bottom: 14px;
-                        border-bottom: none;
-                    }}
-                    .comment-label {{
-                        font-weight: 600;
-                        color: #aeee98;
-                        margin-right: 6px;
                     }}
                 </style>
             </head>
@@ -2212,15 +2198,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                                     <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
                                 </tr>
                 """
-
-        comment_text = str(game[9]).strip() if len(game) > 9 and game[9] else ""
-        if comment_text:
-            safe_comment = comment_text.replace('\n', '<br>')
-            html_body += f"""
-                                <tr class=\"comment-row\">
-                                    <td colspan=\"5\"><span class=\"comment-label\">Comment</span>{safe_comment}</td>
-                                </tr>
-                    """
 
     html_body += """
                             </tbody>
@@ -2429,14 +2406,14 @@ def create_one_v_one_email_html(summary, stats, games):
                         white-space: nowrap;
                     }}
                     .score-cell {{
-                        width: 70px;
+                        width: 48px;
                     }}
                     .score-pill {{
                         display: inline-block;
-                        min-width: 44px;
-                        padding: 10px 14px;
+                        min-width: 38px;
+                        padding: 8px 12px;
                         border-radius: 12px;
-                        font-size: 16px;
+                        font-size: 15px;
                         font-weight: 700;
                         letter-spacing: 1px;
                     }}
@@ -2449,20 +2426,6 @@ def create_one_v_one_email_html(summary, stats, games):
                         background: rgba(244, 67, 54, 0.18);
                         color: #ff8686;
                         box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
-                    }}
-                    .comment-row td {{
-                        text-align: left;
-                        font-size: 12px;
-                        color: #dbe2ea;
-                        background: rgba(255, 255, 255, 0.05);
-                        padding-top: 10px;
-                        padding-bottom: 14px;
-                        border-bottom: none;
-                    }}
-                    .comment-label {{
-                        font-weight: 600;
-                        color: #aeee98;
-                        margin-right: 6px;
                     }}
                 </style>
             </head>
@@ -2569,7 +2532,6 @@ def create_one_v_one_email_html(summary, stats, games):
 
 def build_doubles_email_payload(selected_game_ids):
     import google.generativeai as genai
-    import random
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days
     from player_functions import get_player_by_name
 
@@ -2673,40 +2635,14 @@ def build_doubles_email_payload(selected_game_ids):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('models/gemini-flash-latest')
 
-    prompts = [
-        f"""Write a brief recap of today's volleyball games for the players. 
-            Focus on key results and notable stats. Call out any game comments (if provided) and highlight anything unusual—big streaks, surprising score lines, or historical rivalries.
+    prompt = f"""You are writing a single daily recap email for a group of volleyball players.
+Highlight key results, standout performances, surprising statistics, and any notable streaks or historical context.
+If there are game comments in the data, weave them naturally into the narrative so they feel like part of the story—do not list them separately.
+Keep the tone energetic, friendly, and easy to read in 2-3 compact paragraphs.
 
 {context}
 
-Your recap:""",
-        f"""Summarize today's volleyball session for the group. 
-            Mention standout performances, surprising data points, and explicitly work in every game comment that appears (if any). Keep it concise but vivid.
-
-{context}
-
-Summary:""",
-        f"""Give a short overview of today's games. 
-            Emphasize memorable moments drawn from comments, highlight extraordinary stats or historical records, and keep the tone upbeat.
-
-{context}
-
-Overview:""",
-        f"""Recap today's volleyball action as if you're updating the players' chat. 
-            Bring forward notable comments, point out anything out of the ordinary (streaks, lopsided results, rare matchups), and keep it punchy.
-
-{context}
-
-Recap:""",
-        f"""Provide a straightforward summary of today's games for the players. 
-            Make sure you reference any comments that were recorded, plus spotlight unusual context—historic head-to-head notes, massive differentials, or streak milestones.
-
-{context}
-
-Summary:"""
-    ]
-
-    prompt = random.choice(prompts)
+Daily recap:"""
     response = model.generate_content(prompt)
     summary = getattr(response, 'text', '') or ''
 
