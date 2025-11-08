@@ -444,7 +444,25 @@ def edit_games_by_year(year):
 def update(id):
     game_id = id
     x = find_game(id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
+    if not x:
+        flash('Game not found.')
+        return redirect(url_for('edit_games'))
+    raw_game = x[0]
+    existing_comment = ''
+    if len(raw_game) > 9 and raw_game[9]:
+        existing_comment = raw_game[9]
+    game = [
+        raw_game[0],  # id
+        raw_game[1],  # game_date
+        raw_game[2],  # winner1
+        raw_game[3],  # winner2
+        raw_game[4],  # winner_score
+        raw_game[5],  # loser1
+        raw_game[6],  # loser2
+        raw_game[7],  # loser_score
+        raw_game[8],  # updated_at
+        existing_comment
+    ]
     w_scores = winners_scores()
     l_scores = losers_scores()
     games = year_games(str(date.today().year))
@@ -458,13 +476,15 @@ def update(id):
         loser2 = request.form['loser2']
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
+        comment = request.form.get('comment', '').strip()
+        game[9] = comment
 
         if not game_date or not game_time or not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
         else:
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
-            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), game_id)
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), comment, game_id)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')

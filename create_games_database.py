@@ -45,7 +45,8 @@ def database_update_game(conn, game):
                     loser1 = ?,
                     loser2 = ?,
                     loser_score = ?,
-                    updated_at = ? 
+                    updated_at = ?,
+                    comments = ?
               WHERE id = ?'''
     cur = conn.cursor()
     cur.execute(sql, game)
