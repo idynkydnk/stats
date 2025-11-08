@@ -13,6 +13,7 @@ import sqlite3
 import secrets
 import hashlib
 import json
+import re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -2874,12 +2875,15 @@ def generate_and_email_today():
         if request.is_json:
             data = request.get_json() or {}
             selected_game_ids = data.get('game_ids', [])
+            additional_emails = data.get('additional_emails', [])
         else:
             form_ids = request.form.getlist('game_ids')
             if not form_ids:
                 raw_ids = request.form.get('game_ids', '')
                 form_ids = [gid for gid in raw_ids.split(',') if gid]
             selected_game_ids = form_ids
+            raw_additional = request.form.get('additional_emails', '')
+            additional_emails = raw_additional.split(',') if raw_additional else []
 
         payload = build_doubles_email_payload(selected_game_ids)
     except ValueError as ve:
@@ -2897,6 +2901,25 @@ def generate_and_email_today():
         if players_without_email:
             error_msg += f" Players without emails: {', '.join(players_without_email)}"
         return jsonify({'success': False, 'error': error_msg}), 404
+
+    # Append any additional email addresses provided by the user
+    if additional_emails:
+        extra_cleaned = []
+        for email in additional_emails:
+            if isinstance(email, str):
+                email = email.strip()
+                if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+                    extra_cleaned.append(email)
+        if extra_cleaned:
+            combined = payload['all_emails'] + extra_cleaned
+            # Remove duplicates while preserving order
+            seen = set()
+            deduped = []
+            for addr in combined:
+                if addr not in seen:
+                    seen.add(addr)
+                    deduped.append(addr)
+            payload['all_emails'] = deduped
 
     try:
         msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
@@ -2921,12 +2944,15 @@ def generate_and_email_today_1v1():
         if request.is_json:
             data = request.get_json() or {}
             selected_game_ids = data.get('game_ids', [])
+            additional_emails = data.get('additional_emails', [])
         else:
             form_ids = request.form.getlist('game_ids')
             if not form_ids:
                 raw_ids = request.form.get('game_ids', '')
                 form_ids = [gid for gid in raw_ids.split(',') if gid]
             selected_game_ids = form_ids
+            raw_additional = request.form.get('additional_emails', '')
+            additional_emails = raw_additional.split(',') if raw_additional else []
 
         payload = build_one_v_one_email_payload(selected_game_ids)
     except ValueError as ve:
@@ -2944,6 +2970,23 @@ def generate_and_email_today_1v1():
         if players_without_email:
             error_msg += f" Players without emails: {', '.join(players_without_email)}"
         return jsonify({'success': False, 'error': error_msg}), 404
+
+    if additional_emails:
+        extra_cleaned = []
+        for email in additional_emails:
+            if isinstance(email, str):
+                email = email.strip()
+                if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+                    extra_cleaned.append(email)
+        if extra_cleaned:
+            combined = payload['all_emails'] + extra_cleaned
+            seen = set()
+            deduped = []
+            for addr in combined:
+                if addr not in seen:
+                    seen.add(addr)
+                    deduped.append(addr)
+            payload['all_emails'] = deduped
 
     try:
         msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
@@ -2996,6 +3039,7 @@ def preview_ai_summary():
         players=payload['players'],
         players_without_email=payload['players_without_email'],
         selected_game_ids_json=selected_game_ids_json,
+        selected_game_ids=selected_game_ids,
         send_url=url_for('generate_and_email_today'),
         back_url=url_for('add_game'),
         can_send=can_send,
@@ -3039,11 +3083,47 @@ def preview_ai_summary_1v1():
         players=payload['players'],
         players_without_email=payload['players_without_email'],
         selected_game_ids_json=selected_game_ids_json,
+        selected_game_ids=selected_game_ids,
         send_url=url_for('generate_and_email_today_1v1'),
         back_url=url_for('add_one_v_one_game'),
         can_send=can_send,
         formatted_date=payload['formatted_date']
     )
+
+
+@app.route('/add_player_email', methods=['POST'])
+@login_required
+def add_player_email():
+    """Add or update a player's email address from the AI summary preview."""
+    data = request.get_json() or {}
+    player_name = (data.get('player_name') or '').strip()
+    email = (data.get('email') or '').strip()
+
+    if not player_name or not email:
+        return jsonify({'success': False, 'error': 'Player name and email are required.'}), 400
+
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({'success': False, 'error': 'Invalid email address.'}), 400
+
+    from player_functions import get_player_by_name, add_new_player, update_player_info
+
+    player_record = get_player_by_name(player_name)
+    if player_record:
+        player_id = player_record[0]
+        # Preserve existing metadata when updating
+        existing_full_name = player_record[1]
+        date_of_birth = player_record[3]
+        height = player_record[4]
+        notes = player_record[5]
+        update_player_info(player_id, existing_full_name, email=email,
+                           date_of_birth=date_of_birth, height=height, notes=notes)
+    else:
+        add_new_player(player_name, email=email)
+
+    user = session.get('username', 'unknown')
+    log_user_action(user, 'Updated player email', f'{player_name} -> {email}')
+
+    return jsonify({'success': True, 'email': email})
 
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
