@@ -2046,7 +2046,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         color: #dbe2ea;
                     }}
                     .today-games-table td {{
-                        padding: 16px 12px;
+                        padding: 14px 10px;
                         text-align: center;
                         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                         vertical-align: middle;
@@ -2063,23 +2063,23 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         text-align: left;
                     }}
                     .player-line {{
-                        font-size: 14px;
+                        font-size: 13px;
                         font-weight: 600;
                         color: #ffffff;
                         margin: 2px 0;
                         white-space: nowrap;
                     }}
                     .score-cell {{
-                        width: 48px;
+                        width: 42px;
                     }}
                     .score-pill {{
                         display: inline-block;
-                        min-width: 38px;
-                        padding: 8px 12px;
-                        border-radius: 12px;
-                        font-size: 15px;
+                        min-width: 34px;
+                        padding: 6px 10px;
+                        border-radius: 10px;
+                        font-size: 14px;
                         font-weight: 700;
-                        letter-spacing: 1px;
+                        letter-spacing: 0.5px;
                     }}
                     .score-pill.winner {{
                         background: rgba(76, 175, 80, 0.18);
@@ -2382,7 +2382,7 @@ def create_one_v_one_email_html(summary, stats, games):
                         color: #dbe2ea;
                     }}
                     .today-games-table td {{
-                        padding: 16px 12px;
+                        padding: 14px 10px;
                         text-align: center;
                         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                         vertical-align: middle;
@@ -2399,23 +2399,23 @@ def create_one_v_one_email_html(summary, stats, games):
                         text-align: left;
                     }}
                     .player-line {{
-                        font-size: 14px;
+                        font-size: 13px;
                         font-weight: 600;
                         color: #ffffff;
                         margin: 2px 0;
                         white-space: nowrap;
                     }}
                     .score-cell {{
-                        width: 48px;
+                        width: 42px;
                     }}
                     .score-pill {{
                         display: inline-block;
-                        min-width: 38px;
-                        padding: 8px 12px;
-                        border-radius: 12px;
-                        font-size: 15px;
+                        min-width: 34px;
+                        padding: 6px 10px;
+                        border-radius: 10px;
+                        font-size: 14px;
                         font-weight: 700;
-                        letter-spacing: 1px;
+                        letter-spacing: 0.5px;
                     }}
                     .score-pill.winner {{
                         background: rgba(76, 175, 80, 0.18);
