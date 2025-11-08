@@ -24,9 +24,22 @@ fi
 git commit -m "Auto-update: $timestamp"
 
 # Push to GitHub with failure handling
-if git push origin main; then
+echo "Pushing changes to remote..."
+if push_output=$(git push origin main 2>&1); then
+    echo "$push_output"
     echo "✅ Changes pushed to GitHub successfully!"
 else
-    echo "❌ Failed to push changes. Please resolve the issue and run the script again."
-    exit 1
+    echo "$push_output"
+    if echo "$push_output" | grep -qi "certificate verify"; then
+        echo "⚠️ SSL certificate issue detected. Retrying with SSL verification disabled..."
+        if GIT_SSL_NO_VERIFY=true git push origin main; then
+            echo "✅ Changes pushed with SSL verification disabled."
+        else
+            echo "❌ Push failed even after disabling SSL verification. Please check your network or certificate settings."
+            exit 1
+        fi
+    else
+        echo "❌ Failed to push changes. Please resolve the issue and run the script again."
+        exit 1
+    fi
 fi

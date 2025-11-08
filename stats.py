@@ -2209,7 +2209,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
 
     html_body += f"""
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/date_range_stats?start_date={url_date}&end_date={url_date}" class="link-button">View Today's Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
                 </div>
