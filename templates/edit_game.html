@@ -24,6 +24,20 @@
 		</tbody>
 	</table>
 	<div>
+	   <style>
+	   textarea#comments {
+		   width: 280px !important;
+		   padding: 6px !important;
+		   text-align: center !important;
+		   border-radius: 12px !important;
+		   border: 2px solid #aeee98 !important;
+		   background-color: #2e445b !important;
+		   color: #dbe2ea !important;
+		   font-family: inherit !important;
+		   font-size: 16px !important;
+		   resize: vertical !important;
+	   }
+	   </style>
 	   <form method="post">
 			  {% if from_add_game %}
 			  <input type="hidden" name="from_add_game" value="true">
@@ -70,7 +84,11 @@
 			  <input type="number" pattern="[0-9]*" name="loser_score" value="{{ game[7] }}"
 					 placeholder="Losers' Score"
 					 value="{{ request.form['loser_score'] }}">
-			  <textarea name="comment" rows="3" placeholder="Comment">{{ request.form.get('comment', game[9]) }}</textarea>
+			  <div class="autocomplete">
+			  <textarea name="comment" id="comments"
+						placeholder="Comments (optional)"
+						rows="3">{{ request.form.get('comment', game[9]) }}</textarea>
+			  </div>
 			  <input type="submit" value="Submit">
 		   </form>
 	   </div>
