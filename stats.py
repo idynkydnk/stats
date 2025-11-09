@@ -2650,9 +2650,11 @@ def build_doubles_email_payload(selected_game_ids):
     model = genai.GenerativeModel('models/gemini-flash-latest')
 
     prompt = f"""You are writing a single daily recap email for a group of volleyball players.
-Highlight key results, standout performances, surprising statistics, and any notable streaks or historical context.
-If there are game comments in the data, weave them naturally into the narrative so they feel like part of the story—do not list them separately.
-Keep the tone energetic, friendly, and easy to read in 2-3 compact paragraphs.
+ Highlight key results, standout performances, surprising statistics, and any notable streaks or historical context.
+ Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks. 
+ Only quote a comment if it is already in the data enclosed in quotation marks.
+ Weave any comments smoothly into the narrative.
+ Keep the tone energetic, friendly, and easy to read in 2-3 compact paragraphs.
 
 {context}
 
@@ -2791,6 +2793,8 @@ def build_one_v_one_email_payload(selected_game_ids):
     prompts = [
         f"""Write a fun, engaging summary of these 1v1 games in {length_guide}. 
             Highlight the top performers, most exciting matches, and any notable achievements. 
+            Use clear sentences without bullet points, asterisks, emojis, or decorative quotation marks. 
+            Only quote a comment if it already appears in quotation marks in the data.
             Make it conversational and entertaining.
 
 {context}
@@ -2798,6 +2802,8 @@ def build_one_v_one_email_payload(selected_game_ids):
 Write the summary:""",
         f"""You're a witty sports journalist writing a 1v1 games recap in {length_guide}. 
             Create a story about today's action, weaving in interesting context when relevant. 
+            Stay away from bullet points, asterisks, emojis, or unnecessary quotation marks. 
+            Only quote comments if they are already quoted. 
             Focus on rivalries, upsets, and standout performances.
 
 {context}
@@ -2805,6 +2811,7 @@ Write the summary:""",
 Write the recap:""",
         f"""Write a {length_guide} 1v1 games recap as if you're texting a friend who missed the action. 
             Be casual and highlight the wild moments.
+            Avoid bullet lists, asterisks, emojis, or decorative quotation marks—only quote comments that come quoted in the data.
 
 {context}
 
