@@ -395,10 +395,10 @@ def add_game():
     games = todays_games()
     year = str(date.today().year)
     if request.method == 'POST':
-        winner1 = request.form['winner1']
-        winner2 = request.form['winner2']
-        loser1 = request.form['loser1']
-        loser2 = request.form['loser2']
+        winner1 = request.form['winner1'].strip()
+        winner2 = request.form['winner2'].strip()
+        loser1 = request.form['loser1'].strip()
+        loser2 = request.form['loser2'].strip()
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
         comments = request.form.get('comments', '').strip()
@@ -410,6 +410,12 @@ def add_game():
         elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
         else:
+            # Ensure each player exists in the database
+            from player_functions import get_player_by_name, add_new_player
+            for player_name in [winner1, winner2, loser1, loser2]:
+                if player_name and not get_player_by_name(player_name):
+                    add_new_player(player_name)
+
             add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
                 winner_score, loser_score, datetime.now(), comments])
             
