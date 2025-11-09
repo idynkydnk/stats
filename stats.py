@@ -1924,12 +1924,12 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         margin-bottom: 30px;
                     }}
                     .card {{
-                        background-color: rgba(30, 45, 65, 0.9);
+                        background: linear-gradient(140deg, rgba(34, 52, 70, 0.95), rgba(18, 28, 40, 0.95));
                         border-radius: 20px;
-                        padding: 22px;
-                        margin-bottom: 20px;
-                        border: 1px solid rgba(174, 238, 152, 0.35);
-                        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.35);
+                        padding: 24px;
+                        margin-bottom: 22px;
+                        border: 1px solid rgba(174, 238, 152, 0.32);
+                        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
                     }}
                     .card h2 {{
                         margin-top: 0;
@@ -1943,15 +1943,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         color: #aeee98;
                         border-bottom: 2px solid rgba(174, 238, 152, 0.45);
                     }}
-                    .card-summary {{
-                        background: linear-gradient(135deg, rgba(34, 52, 70, 0.95), rgba(22, 34, 46, 0.95));
-                    }}
-                    .card-stats {{
-                        background: linear-gradient(135deg, rgba(34, 58, 72, 0.95), rgba(24, 36, 48, 0.95));
-                    }}
-                    .card-games {{
-                        background: linear-gradient(135deg, rgba(33, 50, 64, 0.95), rgba(20, 30, 42, 0.95));
-                    }}
                     .summary-text {{
                         background-color: rgba(174, 238, 152, 0.12);
                         padding: 18px;
@@ -1961,10 +1952,10 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         line-height: 1.7;
                         box-shadow: inset 0 0 12px rgba(174, 238, 152, 0.12);
                     }}
-                    .stats-table-wrapper {{
+                    .table-wrapper {{
                         background: rgba(12, 18, 25, 0.6);
                         border-radius: 18px;
-                        padding: 14px;
+                        padding: 16px;
                     }}
                     .today-stats-table {{
                         width: 100%;
@@ -2049,17 +2040,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     .link-button:hover {{
                         background-color: #c0f7a0;
                     }}
-                    .card.today-games-card {{
-                        border: 2px solid rgba(174, 238, 152, 0.4);
-                        background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
-                        padding: 24px 20px;
-                    }}
-                    .card.today-games-card h2 {{
-                        color: #aeee98;
-                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
-                        letter-spacing: 0.5px;
-                        text-transform: uppercase;
-                    }}
                     .today-games-table {{
                         width: 100%;
                         border-collapse: collapse;
@@ -2133,16 +2113,16 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                 <div class="container">
                     <h1>🏐 Today's Volleyball Recap</h1>
                     
-                    <div class="card card-summary">
+                    <div class="card">
                         <h2>AI Summary</h2>
                         <div class="summary-text">
                             {summary_html}
                         </div>
                     </div>
                     
-                    <div class="card card-stats">
+                    <div class="card">
                         <h2>Player Stats</h2>
-                        <div class="stats-table-wrapper">
+                        <div class="table-wrapper">
                         <table class="today-stats-table">
                             <thead>
                                 <tr>
@@ -2190,8 +2170,9 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         </div>
                     </div>
                     
-                    <div class="card card-games">
+                    <div class="card">
                         <h2>Today's Games (""" + str(len(games)) + """)</h2>
+                        <div class="table-wrapper">
                         <table class="today-games-table">
                             <thead>
                                 <tr>
@@ -2240,6 +2221,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
     html_body += """
                             </tbody>
                         </table>
+                        </div>
                     </div>
             """
 
@@ -2281,10 +2263,12 @@ def create_one_v_one_email_html(summary, stats, games):
                         margin-bottom: 30px;
                     }}
                     .card {{
-                        background-color: #2e445b;
+                        background: linear-gradient(140deg, rgba(34, 52, 70, 0.95), rgba(18, 28, 40, 0.95));
                         border-radius: 20px;
-                        padding: 20px;
-                        margin-bottom: 20px;
+                        padding: 24px;
+                        margin-bottom: 22px;
+                        border: 1px solid rgba(174, 238, 152, 0.32);
+                        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
                     }}
                     .card h2 {{
                         margin-top: 0;
@@ -2292,23 +2276,11 @@ def create_one_v_one_email_html(summary, stats, games):
                         text-align: center;
                         font-size: 18px;
                         font-weight: bold;
-                        margin-bottom: 15px;
+                        margin-bottom: 18px;
                         text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                    }}
-                    .card-green {{
-                        border: 2px solid #aeee98;
-                    }}
-                    .card-green h2 {{
+                        letter-spacing: 0.6px;
                         color: #aeee98;
-                        border-bottom: 2px solid #aeee98;
-                    }}
-                    .card-neutral {{
-                        border: 2px solid rgba(174, 238, 152, 0.4);
-                    }}
-                    .card-neutral h2 {{
-                        color: #aeee98;
-                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
+                        border-bottom: 2px solid rgba(174, 238, 152, 0.45);
                     }}
                     .summary-text {{
                         background-color: rgba(174, 238, 152, 0.1);
@@ -2317,6 +2289,11 @@ def create_one_v_one_email_html(summary, stats, games):
                         border-left: 4px solid #aeee98;
                         color: #ffffff;
                         line-height: 1.8;
+                    }}
+                    .table-wrapper {{
+                        background: rgba(12, 18, 25, 0.6);
+                        border-radius: 18px;
+                        padding: 16px;
                     }}
                     .stat-item {{
                         display: flex;
@@ -2378,24 +2355,17 @@ def create_one_v_one_email_html(summary, stats, games):
                     }}
                     .link-button {{
                         display: inline-block;
-                        background-color: #aeee98;
-                        color: #1d2025;
+                        background-color: rgba(174, 238, 152, 0.9);
+                        color: #102436;
                         padding: 12px 24px;
                         border-radius: 12px;
                         text-decoration: none;
                         font-weight: bold;
                         margin: 5px;
+                        box-shadow: 0 6px 15px rgba(174, 238, 152, 0.25);
                     }}
-                    .card.today-games-card {{
-                        border: 2px solid rgba(174, 238, 152, 0.4);
-                        background: linear-gradient(135deg, #223246 0%, #1b2836 100%);
-                        padding: 24px 20px;
-                    }}
-                    .card.today-games-card h2 {{
-                        color: #aeee98;
-                        border-bottom: 2px solid rgba(174, 238, 152, 0.4);
-                        letter-spacing: 0.5px;
-                        text-transform: uppercase;
+                    .link-button:hover {{
+                        background-color: #c0f7a0;
                     }}
                     .today-games-table {{
                         width: 100%;
@@ -2470,14 +2440,14 @@ def create_one_v_one_email_html(summary, stats, games):
                 <div class="container">
                     <h1>🎯 Today's 1v1 Recap</h1>
                     
-                    <div class="card card-green">
+                    <div class="card">
                         <h2>AI Summary</h2>
                         <div class="summary-text">
                             {summary_html}
                         </div>
                     </div>
                     
-                    <div class="card card-neutral">
+                    <div class="card">
                         <h2>Player Stats</h2>
             """
 
@@ -2509,8 +2479,9 @@ def create_one_v_one_email_html(summary, stats, games):
     html_body += """
                     </div>
                     
-                    <div class="card today-games-card">
+                    <div class="card">
                         <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
+                        <div class="table-wrapper">
                         <table class="today-games-table">
                             <thead>
                                 <tr>
@@ -2554,6 +2525,7 @@ def create_one_v_one_email_html(summary, stats, games):
     html_body += """
                             </tbody>
                         </table>
+                        </div>
                     </div>
                     <div class="footer">
                         <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
