@@ -1900,6 +1900,21 @@ Write the summary:"""
             'error': f'Failed to generate summary: {str(e)}'
         }), 500
 
+def format_name_for_email(name):
+    if not name:
+        return ""
+    name = str(name).strip()
+    if not name:
+        return ""
+    if ' ' in name:
+        first, rest = name.split(' ', 1)
+        return f"{first}<br>{rest}"
+    if len(name) > 10:
+        mid = len(name) // 2
+        return f"{name[:mid]}<br>{name[mid:]}"
+    return f"{name}<br>&nbsp;"
+
+
 def create_doubles_email_html(summary, stats, games, date_obj):
     summary_html = summary.replace(chr(10), '<br>') if summary else ''
 
@@ -1994,8 +2009,13 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         background: rgba(36, 56, 76, 0.25);
                     }}
                     .stats-player-cell {{
-                        text-align: left;
+                        text-align: center;
                         font-weight: 600;
+                        white-space: nowrap;
+                    }}
+                    .stats-player-cell div {{
+                        display: inline-block;
+                        text-align: center;
                     }}
                     .stats-rank-cell {{
                         width: 40px;
@@ -2081,7 +2101,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         font-size: 14px;
                     }}
                     .team-cell {{
-                        text-align: left;
+                        text-align: center;
                     }}
                     .player-line {{
                         font-size: 13px;
@@ -2089,6 +2109,8 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         color: #ffffff;
                         margin: 2px 0;
                         white-space: nowrap;
+                        display: inline-block;
+                        text-align: center;
                     }}
                     .score-cell {{
                         width: 42px;
@@ -2161,7 +2183,7 @@ def create_doubles_email_html(summary, stats, games, date_obj):
         html_body += f"""
                                 <tr>
                                     <td class="stats-rank-cell">{index}</td>
-                                    <td class="stats-player-cell">{player_name}</td>
+                                    <td class="stats-player-cell">{format_name_for_email(player_name)}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.1f}%</td>
@@ -2204,10 +2226,10 @@ def create_doubles_email_html(summary, stats, games, date_obj):
             time_display = "&nbsp;"
 
         winner_lines = "".join(
-            f"<div class=\"player-line\">{name}</div>" for name in [game[2], game[3]] if name
+            f"<div class=\"player-line\">{format_name_for_email(name)}</div>" for name in [game[2], game[3]] if name
         )
         loser_lines = "".join(
-            f"<div class=\"player-line\">{name}</div>" for name in [game[5], game[6]] if name
+            f"<div class=\"player-line\">{format_name_for_email(name)}</div>" for name in [game[5], game[6]] if name
         )
 
         winner_score = game[4] if len(game) > 4 and game[4] is not None else ""
@@ -2326,8 +2348,11 @@ def create_one_v_one_email_html(summary, stats, games):
                     }}
                     .player-name-stat {{
                         font-size: 14px;
-                        font-weight: normal;
+                        font-weight: 600;
                         color: #ffffff;
+                        display: inline-block;
+                        text-align: center;
+                        white-space: nowrap;
                     }}
                     .stat-info {{
                         display: flex;
@@ -2408,7 +2433,7 @@ def create_one_v_one_email_html(summary, stats, games):
                         font-size: 14px;
                     }}
                     .team-cell {{
-                        text-align: left;
+                        text-align: center;
                     }}
                     .player-line {{
                         font-size: 13px;
@@ -2416,6 +2441,8 @@ def create_one_v_one_email_html(summary, stats, games):
                         color: #ffffff;
                         margin: 2px 0;
                         white-space: nowrap;
+                        display: inline-block;
+                        text-align: center;
                     }}
                     .score-cell {{
                         width: 42px;
@@ -2473,7 +2500,7 @@ def create_one_v_one_email_html(summary, stats, games):
 
         html_body += f"""
                         <div class="stat-item {color_class}">
-                            <span class="player-name-stat">{player_name}</span>
+                            <span class="player-name-stat">{format_name_for_email(player_name)}</span>
                             <span class="stat-info">
                                 <span class="record-info">{wins}-{losses} ({win_pct:.1f}%)</span>
                                 <span class="differential">{diff_sign}{differential}</span>
@@ -2520,9 +2547,9 @@ def create_one_v_one_email_html(summary, stats, games):
         html_body += f"""
                                 <tr>
                                     <td class=\"time-cell\">{time_display}</td>
-                                    <td class=\"team-cell\"><div class=\"player-line\">{winner_name}</div></td>
+                                    <td class=\"team-cell\"><div class=\"player-line\">{format_name_for_email(winner_name)}</div></td>
                                     <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
-                                    <td class=\"team-cell\"><div class=\"player-line\">{loser_name}</div></td>
+                                    <td class=\"team-cell\"><div class=\"player-line\">{format_name_for_email(loser_name)}</div></td>
                                     <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
                                 </tr>
                 """
