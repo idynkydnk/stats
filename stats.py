@@ -1944,13 +1944,12 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         border-bottom: 2px solid rgba(174, 238, 152, 0.45);
                     }}
                     .summary-text {{
-                        background-color: rgba(174, 238, 152, 0.12);
-                        padding: 18px;
-                        border-radius: 14px;
-                        border-left: 4px solid #aeee98;
+                        background: rgba(12, 18, 25, 0.6);
+                        border-radius: 18px;
+                        padding: 16px;
+                        border: 1px solid rgba(174, 238, 152, 0.25);
                         color: #ffffff;
                         line-height: 1.7;
-                        box-shadow: inset 0 0 12px rgba(174, 238, 152, 0.12);
                     }}
                     .table-wrapper {{
                         background: rgba(12, 18, 25, 0.6);
@@ -1990,6 +1989,9 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     }}
                     .today-stats-table tbody tr:nth-child(even) {{
                         background: rgba(36, 56, 76, 0.35);
+                    }}
+                    .today-games-table tbody tr:nth-child(even) {{
+                        background: rgba(36, 56, 76, 0.25);
                     }}
                     .stats-player-cell {{
                         text-align: left;
@@ -2069,6 +2071,9 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     }}
                     .today-games-table tbody tr:last-child td {{
                         border-bottom: none;
+                    }}
+                    .today-games-table tbody tr:nth-child(even) {{
+                        background: rgba(36, 56, 76, 0.25);
                     }}
                     .time-cell {{
                         font-weight: 600;
@@ -2283,12 +2288,12 @@ def create_one_v_one_email_html(summary, stats, games):
                         border-bottom: 2px solid rgba(174, 238, 152, 0.45);
                     }}
                     .summary-text {{
-                        background-color: rgba(174, 238, 152, 0.1);
-                        padding: 15px;
-                        border-radius: 12px;
-                        border-left: 4px solid #aeee98;
+                        background: rgba(12, 18, 25, 0.6);
+                        border-radius: 18px;
+                        padding: 16px;
+                        border: 1px solid rgba(174, 238, 152, 0.25);
                         color: #ffffff;
-                        line-height: 1.8;
+                        line-height: 1.7;
                     }}
                     .table-wrapper {{
                         background: rgba(12, 18, 25, 0.6);
