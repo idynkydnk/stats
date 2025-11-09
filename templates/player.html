@@ -48,7 +48,7 @@
   					<th class="numbered_stats" scope="col" colspan="1">Games</th>
 				</tr>
 				</thead>
-    		<tbody>
+    		<tbody class="limited-table" data-table-id="partner-stats">
     			{% for stat in partner_stats %}
     			<tr>
                     <td class="rank">{{ loop.index }}</td>
@@ -61,6 +61,11 @@
         		{% endfor %}
         	</tbody>
         </table>
+        {% if partner_stats|length > 5 %}
+        <div class="show-more-container" data-target="partner-stats">
+            <button class="show-more-btn" type="button" onclick="toggleLimitedTable(this, 'partner-stats')">Show More</button>
+        </div>
+        {% endif %}
         {% endif %}
         {% if opponent_stats %}
         <table>
@@ -75,7 +80,7 @@
                     <th class="numbered_stats" scope="col" colspan="1">Games</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="limited-table" data-table-id="opponent-stats">
                 {% for stat in opponent_stats %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
@@ -88,6 +93,11 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if opponent_stats|length > 5 %}
+        <div class="show-more-container" data-target="opponent-stats">
+            <button class="show-more-btn" type="button" onclick="toggleLimitedTable(this, 'opponent-stats')">Show More</button>
+        </div>
+        {% endif %}
         {% endif %}
         
         <!-- Games Played in Selected Year -->
@@ -103,7 +113,7 @@
                     <th scope="col" colspan="1">Score</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="limited-table" data-table-id="games-table">
                 {% for game in games %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
@@ -117,6 +127,11 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if games|length > 5 %}
+        <div class="show-more-container" data-target="games-table">
+            <button class="show-more-btn" type="button" onclick="toggleLimitedTable(this, 'games-table')">Show More</button>
+        </div>
+        {% endif %}
         
         {% if rare_partner_stats or rare_opponent_stats %}
         <h1>Less than {{ minimum_games }} games</h1>
@@ -134,7 +149,7 @@
                     <th class="numbered_stats" scope="col" colspan="1">Games</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="limited-table" data-table-id="rare-partner-stats">
                 {% for stat in rare_partner_stats %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
@@ -147,6 +162,11 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if rare_partner_stats|length > 5 %}
+        <div class="show-more-container" data-target="rare-partner-stats">
+            <button class="show-more-btn" type="button" onclick="toggleLimitedTable(this, 'rare-partner-stats')">Show More</button>
+        </div>
+        {% endif %}
         {% endif %}
         {% if rare_opponent_stats %}
         <table>
@@ -161,7 +181,7 @@
                     <th class="numbered_stats" scope="col" colspan="1">Games</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="limited-table" data-table-id="rare-opponent-stats">
                 {% for stat in rare_opponent_stats %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
@@ -174,6 +194,84 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if rare_opponent_stats|length > 5 %}
+        <div class="show-more-container" data-target="rare-opponent-stats">
+            <button class="show-more-btn" type="button" onclick="toggleLimitedTable(this, 'rare-opponent-stats')">Show More</button>
+        </div>
+        {% endif %}
         {% endif %}
     </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const ROW_LIMIT = 5;
+
+    function applyInitialLimit() {
+        const tables = document.querySelectorAll('.limited-table');
+        tables.forEach(tbody => {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach((row, index) => {
+                if (index >= ROW_LIMIT) {
+                    row.classList.add('hidden-row');
+                }
+            });
+            const targetId = tbody.getAttribute('data-table-id');
+            const container = document.querySelector(`.show-more-container[data-target="${targetId}"]`);
+            if (container && rows.length <= ROW_LIMIT) {
+                container.style.display = 'none';
+            }
+        });
+    }
+
+    function toggleLimitedTable(button, targetId) {
+        const tbody = document.querySelector(`.limited-table[data-table-id="${targetId}"]`);
+        if (!tbody) return;
+
+        const hiddenRows = tbody.querySelectorAll('.hidden-row');
+        const isCollapsed = hiddenRows.length > 0;
+
+        if (isCollapsed) {
+            hiddenRows.forEach(row => row.classList.remove('hidden-row'));
+            button.textContent = 'Show Less';
+        } else {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach((row, index) => {
+                if (index >= ROW_LIMIT) {
+                    row.classList.add('hidden-row');
+                }
+            });
+            button.textContent = 'Show More';
+            const top = tbody.parentElement.offsetTop;
+            window.scrollTo({ top: top - 100, behavior: 'smooth' });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', applyInitialLimit);
+</script>
+
+<style>
+    .hidden-row {
+        display: none;
+    }
+    .show-more-container {
+        text-align: center;
+        margin-top: 12px;
+    }
+    .show-more-btn {
+        padding: 8px 16px;
+        border-radius: 10px;
+        border: 1px solid var(--button-border-1);
+        background-color: var(--button-bg-1);
+        color: var(--button-text-1);
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .show-more-btn:hover {
+        border-color: var(--button-bg-1);
+        background-color: var(--button-border-1);
+        color: var(--button-bg-1);
+    }
+</style>
 {% endblock %}

@@ -5,6 +5,9 @@
 {% block content %}
 <div class="container">
     <h1>Player List</h1>
+    <div class="actions">
+        <button class="btn-primary" type="button" onclick="openAddPlayerModal()">Add New Player</button>
+    </div>
     
     {% if players %}
     <div class="search-container">
@@ -63,11 +66,76 @@
     {% endif %}
 </div>
 
+<!-- Add Player Modal -->
+<div id="addPlayerModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeAddPlayerModal()">&times;</span>
+        <h2>Add New Player</h2>
+        <form id="addPlayerForm" onsubmit="submitNewPlayer(event)">
+            <div class="form-group">
+                <label for="new-player-name">Full Name</label>
+                <input type="text" id="new-player-name" name="full_name" placeholder="Full Name" required>
+            </div>
+            <div class="form-group">
+                <label for="new-player-email">Email (optional)</label>
+                <input type="email" id="new-player-email" name="email" placeholder="player@example.com">
+            </div>
+            <div class="form-group">
+                <label for="new-player-dob">Date of Birth (optional)</label>
+                <input type="date" id="new-player-dob" name="date_of_birth">
+            </div>
+            <div class="form-group">
+                <label for="new-player-height">Height (optional)</label>
+                <input type="text" id="new-player-height" name="height" placeholder="e.g. 6'1&quot;">
+            </div>
+            <div class="form-group">
+                <label for="new-player-notes">Notes (optional)</label>
+                <textarea id="new-player-notes" name="notes" rows="3" placeholder="Additional details"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Save Player</button>
+                <button type="button" class="btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--button-border-1);
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--button-bg-1);
+}
+
+.btn-primary:hover {
+    border-color: var(--button-bg-1);
+    background-color: var(--button-border-1);
+    color: var(--button-bg-1);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(174, 238, 152, 0.15);
 }
 
 .search-container {
@@ -125,6 +193,73 @@ tbody tr:hover {
     text-decoration: underline;
 }
 
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    padding-top: 60px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+    background-color: #1d2025;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #aeee98;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(174, 238, 152, 0.4);
+    background-color: rgba(17, 22, 28, 0.9);
+    color: #fff;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
 p {
     margin: 10px 0;
     color: var(--caption);
@@ -160,6 +295,58 @@ function searchPlayers() {
     }
     
     resultCount.textContent = `Showing ${visibleCount} of {{ players|length }} players`;
+}
+
+function openAddPlayerModal() {
+    document.getElementById('addPlayerModal').style.display = 'block';
+}
+
+function closeAddPlayerModal() {
+    document.getElementById('addPlayerModal').style.display = 'none';
+    document.getElementById('addPlayerForm').reset();
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('addPlayerModal');
+    if (event.target === modal) {
+        closeAddPlayerModal();
+    }
+};
+
+function submitNewPlayer(event) {
+    event.preventDefault();
+    const form = event.target;
+    const payload = {
+        full_name: form.full_name.value.trim(),
+        email: form.email.value.trim(),
+        date_of_birth: form.date_of_birth.value,
+        height: form.height.value.trim(),
+        notes: form.notes.value.trim()
+    };
+
+    if (!payload.full_name) {
+        alert('Full name is required.');
+        return;
+    }
+
+    fetch('{{ url_for("api_add_player") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Player added successfully.');
+            closeAddPlayerModal();
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unable to add player.'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
 }
 </script>
 {% endblock %}

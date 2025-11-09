@@ -3097,6 +3097,37 @@ def preview_ai_summary_1v1():
     )
 
 
+@app.route('/api/add_player', methods=['POST'])
+@login_required
+def api_add_player():
+    """Add a new player via AJAX and ensure they appear in future dropdowns."""
+    data = request.get_json() or {}
+    full_name = (data.get('full_name') or '').strip()
+    email = (data.get('email') or '').strip() or None
+    date_of_birth = (data.get('date_of_birth') or '').strip() or None
+    height = (data.get('height') or '').strip() or None
+    notes = (data.get('notes') or '').strip() or None
+
+    if not full_name:
+        return jsonify({'success': False, 'error': 'Full name is required.'}), 400
+
+    if email and not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({'success': False, 'error': 'Invalid email address.'}), 400
+
+    from player_functions import get_player_by_name, add_new_player
+
+    existing = get_player_by_name(full_name)
+    if existing:
+        return jsonify({'success': False, 'error': 'Player already exists.'}), 400
+
+    player_id = add_new_player(full_name, email=email, date_of_birth=date_of_birth, height=height, notes=notes)
+
+    user = session.get('username', 'unknown')
+    log_user_action(user, 'Added new player', f'{full_name} ({email or "no email"})')
+
+    return jsonify({'success': True, 'player_id': player_id})
+
+
 @app.route('/add_player_email', methods=['POST'])
 @login_required
 def add_player_email():
