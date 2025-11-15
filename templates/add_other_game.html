@@ -8,6 +8,32 @@
     text-align: center;
 }
 
+.player-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.player-score-input {
+    width: 120px;
+    padding: 6px;
+    text-align: center;
+}
+
+.player-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.player-line .player-score {
+    font-weight: bold;
+    color: #aeee98;
+}
+
 .autocomplete input {
     width: 280px;
     padding: 6px;
@@ -98,38 +124,37 @@
                     value="{{ request.form['game_type'] }}">
             <div class="autocomplete-list" id="game_typeList"></div>
         </div>
-        <div class="autocomplete">
-            <input type="text" name="winner1" id="winner1"
-                    placeholder="Winner 1"
-                    value="{{ request.form['winner1'] }}"
-                    onchange="updatePlayerOptions()">
-            <div class="autocomplete-list" id="winner1List"></div>
+        <div class="player-entry" data-player-type="winner" data-index="1">
+            <div class="autocomplete">
+                <input type="text" name="winner1" id="winner1"
+                        placeholder="Winner 1"
+                        value="{{ request.form['winner1'] }}"
+                        onchange="updatePlayerOptions()">
+                <div class="autocomplete-list" id="winner1List"></div>
+            </div>
+            <input type="number" pattern="[0-9]*" name="winner1_score" class="player-score-input"
+                   placeholder="Score"
+                   list="winning_scores"
+                   value="{{ request.form['winner1_score'] or '' }}">
         </div>
         <div id="winners-container"></div>
         <button type="button" onclick="addWinner()" style="margin: 5px 0;">+ Add Winner</button>
         
-        <div class="autocomplete">
-            <input type="text" name="loser1" id="loser1"
-                    placeholder="Loser 1"
-                    value="{{ request.form['loser1'] }}"
-                    onchange="updatePlayerOptions()">
-            <div class="autocomplete-list" id="loser1List"></div>
+        <div class="player-entry" data-player-type="loser" data-index="1">
+            <div class="autocomplete">
+                <input type="text" name="loser1" id="loser1"
+                        placeholder="Loser 1"
+                        value="{{ request.form['loser1'] }}"
+                        onchange="updatePlayerOptions()">
+                <div class="autocomplete-list" id="loser1List"></div>
+            </div>
+            <input type="number" pattern="[0-9]*" name="loser1_score" class="player-score-input"
+                   placeholder="Score"
+                   list="losing_scores"
+                   value="{{ request.form['loser1_score'] or '' }}">
         </div>
         <div id="losers-container"></div>
         <button type="button" onclick="addLoser()" style="margin: 5px 0;">+ Add Loser</button>     
-        
-        <div class="autocomplete">
-            <input type="number" pattern="[0-9]*" name="winner_score"
-                    placeholder="Winner's Score (optional)"
-                    value="{{ request.form['winner_score'] or '' }}">
-            <div class="autocomplete-list" id="winner_scoreList"></div>
-        </div>
-        <div class="autocomplete">
-            <input type="number" pattern="[0-9]*" name="loser_score"
-                    placeholder="Loser's Score (optional)"
-                    value="{{ request.form['loser_score'] }}">
-            <div class="autocomplete-list" id="loser_scoreList"></div>
-        </div>    
         <input type="text" name="comment"
                 placeholder="comment"
                 value="{{ request.form['comment'] }}">   
@@ -173,42 +198,44 @@
             <tr>
                 <th scope="col">Date/Time</th>
                 <th scope="col">Game</th>
-                <th scope="col">Winner</th>
-                <th scope="col">Score</th>
-                <th scope="col">Loser</th>
-                <th scope="col">Score</th>
+                <th scope="col">Winner(s)</th>
+                <th scope="col">Loser(s)</th>
                 <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
         {% for game in games %}
             <tr>
-                <td>{{ game[1][:8] }}<br>
-                    {% if game[1]|length > 9 %}
-                        {{ game[1][9:] }}
+                <td>{{ game['game_date_only'] }}<br>
+                    {% if game['game_time'] %}
+                        {{ game['game_time'] }}
                     {% endif %}</td>
-                <td><a href="{{ url_for('game_name_stats', game_name=game[3]) }}">{{ game[3] }}</a></td>
+                <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></td>
                 <td>
-                    {% for i in range(4, 19) %}
-                        {% if game[i] %}
-                            <a href="{{ url_for('other_player_stats', year=year, name=game[i]) }}">{{ game[i] }}</a><br>
-                        {% endif %}
+                    {% for winner in game['winners'] %}
+                        <div class="player-line">
+                            <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                            {% if winner.score is not none %}
+                                <span class="player-score">{{ winner.score }}</span>
+                            {% endif %}
+                        </div>
                     {% endfor %}
                 </td>
-                <td class="score winner-score">{{ game[19] }}</td>
                 <td>
-                    {% for i in range(20, 35) %}
-                        {% if game[i] %}
-                            <a href="{{ url_for('other_player_stats', year=year, name=game[i]) }}">{{ game[i] }}</a><br>
-                        {% endif %}
+                    {% for loser in game['losers'] %}
+                        <div class="player-line">
+                            <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                            {% if loser.score is not none %}
+                                <span class="player-score">{{ loser.score }}</span>
+                            {% endif %}
+                        </div>
                     {% endfor %}
                 </td>
-                <td class="score loser-score">{{ game[35] }}</td>
                 <td>
-                    <a href="{{ url_for('update_other_game', id=game[0]) }}" style="display: block; margin-bottom: 5px;">
+                    <a href="{{ url_for('update_other_game', id=game['game_id']) }}" style="display: block; margin-bottom: 5px;">
                         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
                     </a>
-                    <a href="{{ url_for('delete_other_game', id=game[0]) }}" style="display: block;">
+                    <a href="{{ url_for('delete_other_game', id=game['game_id']) }}" style="display: block;">
                         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg>
                     </a>
                 </td>
@@ -259,17 +286,23 @@ function addWinner() {
     winnerCount++;
     const container = document.getElementById('winners-container');
     const newDiv = document.createElement('div');
-    newDiv.className = 'autocomplete';
+    newDiv.className = 'player-entry';
+    newDiv.setAttribute('data-player-type', 'winner');
+    newDiv.setAttribute('data-index', winnerCount);
     newDiv.innerHTML = `
-        <input type="text" name="winner${winnerCount}" id="winner${winnerCount}"
-                placeholder="Winner ${winnerCount}"
-                onchange="updatePlayerOptions()">
-        <div class="autocomplete-list" id="winner${winnerCount}List"></div>
+        <div class="autocomplete">
+            <input type="text" name="winner${winnerCount}" id="winner${winnerCount}"
+                    placeholder="Winner ${winnerCount}"
+                    onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="winner${winnerCount}List"></div>
+        </div>
+        <input type="number" pattern="[0-9]*" name="winner${winnerCount}_score" class="player-score-input"
+               placeholder="Score"
+               list="winning_scores">
     `;
     container.appendChild(newDiv);
     
-    // Add event listeners to new input
-    const newInput = newDiv.querySelector('input');
+    const newInput = newDiv.querySelector('input[type=\"text\"]');
     const newList = newDiv.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newInput, newList);
     updatePlayerOptions();
@@ -283,17 +316,23 @@ function addLoser() {
     loserCount++;
     const container = document.getElementById('losers-container');
     const newDiv = document.createElement('div');
-    newDiv.className = 'autocomplete';
+    newDiv.className = 'player-entry';
+    newDiv.setAttribute('data-player-type', 'loser');
+    newDiv.setAttribute('data-index', loserCount);
     newDiv.innerHTML = `
-        <input type="text" name="loser${loserCount}" id="loser${loserCount}"
-                placeholder="Loser ${loserCount}"
-                onchange="updatePlayerOptions()">
-        <div class="autocomplete-list" id="loser${loserCount}List"></div>
+        <div class="autocomplete">
+            <input type="text" name="loser${loserCount}" id="loser${loserCount}"
+                    placeholder="Loser ${loserCount}"
+                    onchange="updatePlayerOptions()">
+            <div class="autocomplete-list" id="loser${loserCount}List"></div>
+        </div>
+        <input type="number" pattern="[0-9]*" name="loser${loserCount}_score" class="player-score-input"
+               placeholder="Score"
+               list="losing_scores">
     `;
     container.appendChild(newDiv);
     
-    // Add event listeners to new input
-    const newInput = newDiv.querySelector('input');
+    const newInput = newDiv.querySelector('input[type=\"text\"]');
     const newList = newDiv.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newInput, newList);
     updatePlayerOptions();
@@ -302,22 +341,15 @@ function addLoser() {
 function updatePlayerOptions() {
     const playersDatalist = document.getElementById('players');
     
-    // Get all current player inputs
-    const winnerInputs = document.querySelectorAll('#winners-container input');
-    const loserInputs = document.querySelectorAll('#losers-container input');
-    
-    // Get currently selected players
+    const nameInputs = document.querySelectorAll('.player-entry input[type="text"]');
     const selectedPlayers = [];
-    [...winnerInputs, ...loserInputs].forEach(input => {
+    nameInputs.forEach(input => {
         if (input.value.trim()) {
             selectedPlayers.push(input.value.trim());
         }
     });
     
-    // Clear existing options
     playersDatalist.innerHTML = '';
-    
-    // Add back only unselected players
     originalPlayerOptions.forEach(player => {
         if (!selectedPlayers.includes(player)) {
             const option = document.createElement('option');
@@ -386,19 +418,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setupPlayerAutocomplete(loser1Field, loser1List);
     }
     
-    // Setup autocomplete for winner score
-    const winnerScoreField = document.getElementById('winner_score');
-    const winnerScoreList = document.getElementById('winner_scoreList');
-    if (winnerScoreField && winnerScoreList) {
-        setupScoreAutocomplete(winnerScoreField, winnerScoreList, winnerScores);
-    }
-    
-    // Setup autocomplete for loser score
-    const loserScoreField = document.getElementById('loser_score');
-    const loserScoreList = document.getElementById('loser_scoreList');
-    if (loserScoreField && loserScoreList) {
-        setupScoreAutocomplete(loserScoreField, loserScoreList, winnerScores);
-    }
     
     // Hide lists when clicking outside
     document.addEventListener('click', (e) => {
@@ -421,27 +440,11 @@ function setupPlayerAutocomplete(field, list) {
             list.style.display = 'none';
             updatePlayerOptions();
             
-            // Auto-focus next field
-            const nextField = field.nextElementSibling?.nextElementSibling?.querySelector('input');
-            if (nextField) {
-                setTimeout(() => nextField.focus(), 100);
-            }
-        }
-    });
-}
-
-function setupScoreAutocomplete(field, list, scores) {
-    field.addEventListener('focus', () => showScoreList(field, list, scores));
-    field.addEventListener('input', () => filterScoreList(field, list, scores));
-    list.addEventListener('click', (e) => {
-        if (e.target.tagName === 'DIV') {
-            field.value = e.target.textContent;
-            list.style.display = 'none';
-            
-            // Auto-focus next field
-            const nextField = field.parentElement.nextElementSibling?.querySelector('input');
-            if (nextField) {
-                setTimeout(() => nextField.focus(), 100);
+            // Auto-focus paired score input
+            const playerEntry = field.closest('.player-entry');
+            const scoreInput = playerEntry ? playerEntry.querySelector('.player-score-input') : null;
+            if (scoreInput) {
+                setTimeout(() => scoreInput.focus(), 100);
             }
         }
     });
@@ -564,38 +567,6 @@ function filterPlayerList(field, list, allPlayers) {
     });
     
     list.style.display = filteredPlayers.length > 0 ? 'block' : 'none';
-}
-
-// Show score list
-function showScoreList(field, list, scores) {
-    list.innerHTML = '';
-    scores.slice(0, 10).forEach(score => {
-        const div = document.createElement('div');
-        div.textContent = score;
-        div.style.fontSize = '20px';
-        div.style.lineHeight = '1.4';
-        list.appendChild(div);
-    });
-    list.style.display = 'block';
-}
-
-// Filter score list
-function filterScoreList(field, list, scores) {
-    const inputValue = field.value;
-    const filteredScores = scores.filter(score => 
-        score.includes(inputValue)
-    );
-    
-    list.innerHTML = '';
-    filteredScores.slice(0, 10).forEach(score => {
-        const div = document.createElement('div');
-        div.textContent = score;
-        div.style.fontSize = '20px';
-        div.style.lineHeight = '1.4';
-        list.appendChild(div);
-    });
-    
-    list.style.display = filteredScores.length > 0 ? 'block' : 'none';
 }
 </script>
 {% endblock %}

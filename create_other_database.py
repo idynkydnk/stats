@@ -1,6 +1,32 @@
 import sqlite3
 from sqlite3 import Error
 
+WINNER_FIELDS = [f"winner{i}" for i in range(1, 16)]
+LOSER_FIELDS = [f"loser{i}" for i in range(1, 16)]
+WINNER_SCORE_FIELDS = [f"{field}_score" for field in WINNER_FIELDS]
+LOSER_SCORE_FIELDS = [f"{field}_score" for field in LOSER_FIELDS]
+
+BASE_INSERT_COLUMNS = (
+    ["game_date", "game_type", "game_name"]
+    + WINNER_FIELDS
+    + WINNER_SCORE_FIELDS
+    + ["winner_score"]
+    + LOSER_FIELDS
+    + LOSER_SCORE_FIELDS
+    + ["loser_score", "comment", "updated_at"]
+)
+
+BASE_UPDATE_COLUMNS = (
+    ["game_date", "game_type", "game_name"]
+    + WINNER_FIELDS
+    + WINNER_SCORE_FIELDS
+    + ["winner_score"]
+    + LOSER_FIELDS
+    + LOSER_SCORE_FIELDS
+    + ["loser_score", "comment", "updated_at"]
+)
+
+
 def create_connection(db_file):
     """ create a database connection to the SQLite database
         specified by db_file
@@ -16,6 +42,7 @@ def create_connection(db_file):
 
     return conn
 
+
 def create_table(conn, create_table_sql):
     """ create a table from the create_table_sql statement
     :param conn: Connection object
@@ -28,58 +55,21 @@ def create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
+
 def create_other_game(conn, game):
-    sql = ''' INSERT INTO other_games(game_date, game_type, game_name, winner1, winner2, winner3, winner4, 
-                                        winner5, winner6, winner7, winner8, winner9, winner10, winner11, winner12,
-                                        winner13, winner14, winner15, winner_score, loser1, loser2, loser3, loser4, 
-                                        loser5, loser6, loser7, loser8, loser9, loser10, loser11, loser12,
-                                        loser13, loser14, loser15, loser_score, comment, updated_at)
-              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+    placeholders = ",".join(["?"] * len(BASE_INSERT_COLUMNS))
+    sql = f"""INSERT INTO other_games({', '.join(BASE_INSERT_COLUMNS)})
+              VALUES({placeholders})"""
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()
 
+
 def database_update_other_game(conn, game):
-    sql = ''' UPDATE other_games
-              SET id = ? ,
-                    game_date = ?,
-                    game_type = ?,
-                    game_name = ?,
-                    winner1 = ?,
-                    winner2 = ?,
-                    winner3 = ?,
-                    winner4 = ?,
-                    winner5 = ?,
-                    winner6 = ?,
-                    winner7 = ?,
-                    winner8 = ?,
-                    winner9 = ?,
-                    winner10 = ?,
-                    winner11 = ?,
-                    winner12 = ?,
-                    winner13 = ?,
-                    winner14 = ?,
-                    winner15 = ?,
-                    winner_score = ?,
-                    loser1 = ?,
-                    loser2 = ?,
-                    loser3 = ?,
-                    loser4 = ?,
-                    loser5 = ?,
-                    loser6 = ?,
-                    loser7 = ?,
-                    loser8 = ?,
-                    loser9 = ?,
-                    loser10 = ?,
-                    loser11 = ?,
-                    loser12 = ?,
-                    loser13 = ?,
-                    loser14 = ?,
-                    loser15 = ?,
-                    loser_score = ?,
-                    comment = ?,
-                    updated_at = ? 
-              WHERE id = ?'''
+    set_clause = ", ".join([f"{col} = ?" for col in BASE_UPDATE_COLUMNS])
+    sql = f"""UPDATE other_games
+              SET {set_clause}
+              WHERE id = ?"""
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()
@@ -93,24 +83,16 @@ def database_delete_other_game(conn, game_id):
 def main():
     database = r"stats.db"
 
-    sql_create_other_games_table = """CREATE TABLE IF NOT EXISTS other_games (
+    sql_create_other_games_table = f"""CREATE TABLE IF NOT EXISTS other_games (
                                     id integer PRIMARY KEY,
                                     game_date DATETIME NOT NULL,
                                     game_type text NOT NULL,
                                     game_name text NOT NULL,
-                                    winner1 text NOT NULL,
-                                    winner2 text,
-                                    winner3 text,
-                                    winner4 text,
-                                    winner5 text,
-                                    winner6 text,
+                                    {', '.join(f'{field} text' for field in WINNER_FIELDS)},
+                                    {', '.join(f'{field} integer' for field in WINNER_SCORE_FIELDS)},
                                     winner_score integer,
-                                    loser1 text NOT NULL,
-                                    loser2 text,
-                                    loser3 text,
-                                    loser4 text,
-                                    loser5 text,
-                                    loser6 text,
+                                    {', '.join(f'{field} text' for field in LOSER_FIELDS)},
+                                    {', '.join(f'{field} integer' for field in LOSER_SCORE_FIELDS)},
                                     loser_score integer,
                                     comment text,
                                     updated_at DATETIME NOT NULL
@@ -121,7 +103,6 @@ def main():
 
     # create tables
     if conn is not None:
-        # create games table
         create_table(conn, sql_create_other_games_table)
     else:
         print("Error! cannot create the database connection.")

@@ -20,36 +20,38 @@
                     <tr>
                         <th scope="col">Date/Time</th>
                         <th scope="col">Game</th>
-                        <th scope="col">Winner</th>
-                        <th scope="col">Score</th>
-                        <th scope="col">Loser</th>
-                        <th scope="col">Score</th>
+                        <th scope="col">Winner(s)</th>
+                        <th scope="col">Loser(s)</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for game in games %}
                     <tr>
-                        <td>{{ game["game_date"][0:8] }}<br>
+                        <td>{{ game["game_date_only"] }}<br>
                             {% if game["game_date"]|length > 9 %}
                                 {{ game["game_date"][9:] }}
                             {% endif %}</td>
                         <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game["game_name"] }}</a></td>
                         <td>
-                            {% for i in range(1, 16) %}
-                                {% if game["winner" + i|string] %}
-                                    <a href="{{ url_for('other_player_stats', year=year, name=game['winner' + i|string]) }}">{{ game["winner" + i|string] }}</a><br>
-                                {% endif %}
+                            {% for winner in game["winners"] %}
+                                <div class="player-line">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                    {% if winner.score is not none %}
+                                        <span class="player-score">{{ winner.score }}</span>
+                                    {% endif %}
+                                </div>
                             {% endfor %}
                         </td>
-                        <td class="score winner-score">{{ game["winner_score"] }}</td>
                         <td>
-                            {% for i in range(1, 16) %}
-                                {% if game["loser" + i|string] %}
-                                    <a href="{{ url_for('other_player_stats', year=year, name=game['loser' + i|string]) }}">{{ game["loser" + i|string] }}</a><br>
-                                {% endif %}
+                            {% for loser in game["losers"] %}
+                                <div class="player-line">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                    {% if loser.score is not none %}
+                                        <span class="player-score">{{ loser.score }}</span>
+                                    {% endif %}
+                                </div>
                             {% endfor %}
                         </td>
-                        <td class="score loser-score">{{ game["loser_score"] }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>

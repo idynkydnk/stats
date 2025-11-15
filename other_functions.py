@@ -1,5 +1,6 @@
 from create_other_database import *
 from datetime import datetime, date
+import sqlite3
 
 def get_other_dashboard_data(year):
     """Get dashboard data for other games"""
@@ -69,80 +70,125 @@ def get_other_dashboard_data(year):
         'game_specific': game_specific_data
     }
 
-def add_other_stats(game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
-                    winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
-                    winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
-                    loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, updated_at):
+MAX_OTHER_PLAYERS = 15
+
+
+def _normalize_players(players, scores):
+    """Ensure exactly MAX_OTHER_PLAYERS entries and convert blank scores to None."""
+    normalized_players = (players + [""] * MAX_OTHER_PLAYERS)[:MAX_OTHER_PLAYERS]
+    normalized_scores = []
+    for score in (scores + [None] * MAX_OTHER_PLAYERS)[:MAX_OTHER_PLAYERS]:
+        if score in ("", None):
+            normalized_scores.append(None)
+        else:
+            try:
+                normalized_scores.append(int(score))
+            except (TypeError, ValueError):
+                normalized_scores.append(None)
+    return normalized_players, normalized_scores
+
+
+def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
+                    losers, loser_scores, comment, updated_at):
+    """Insert an other-game record with per-player scores."""
+    winners_normalized, winner_scores_normalized = _normalize_players(winners, winner_scores)
+    losers_normalized, loser_scores_normalized = _normalize_players(losers, loser_scores)
+
+    # Maintain legacy aggregate columns for backward compatibility
+    aggregate_winner_score = next((score for score in winner_scores_normalized if score is not None), None)
+    aggregate_loser_score = next((score for score in loser_scores_normalized if score is not None), None)
+
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
-    with conn: 
-        game = (game_date, game_type, game_name, winner1, winner2, winner3, winner4, winner5, winner6,
-                winner7, winner8, winner9, winner10, winner11, winner12, winner13, winner14, winner15,
-                winner_score, loser1, loser2, loser3, loser4, loser5, loser6, loser7, loser8, loser9,
-                loser10, loser11, loser12, loser13, loser14, loser15, loser_score, comment, updated_at);
-        create_other_game(conn, game)
+
+    with conn:
+        values = (
+            [game_date, game_type, game_name]
+            + winners_normalized
+            + winner_scores_normalized
+            + [aggregate_winner_score]
+            + losers_normalized
+            + loser_scores_normalized
+            + [aggregate_loser_score, comment, updated_at]
+        )
+        create_other_game(conn, tuple(values))
+
+def _parse_datetime_string(value):
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+def _build_other_game_display(game, include_time=False):
+    record = dict(game)
+
+    game_dt = _parse_datetime_string(record.get('game_date'))
+    updated_dt = _parse_datetime_string(record.get('updated_at'))
+
+    if game_dt:
+        date_only = game_dt.strftime("%m/%d/%y")
+        time_only = game_dt.strftime("%I:%M %p") if len(record.get('game_date', '')) > 10 else ''
+        combined_date = f"{date_only} {time_only}".strip()
+    else:
+        combined_date = record.get('game_date', '')
+        date_only = combined_date[:8]
+        time_only = combined_date[9:] if len(combined_date) > 9 else ''
+
+    data = {
+        'game_id': record.get('id'),
+        'game_date': combined_date,
+        'game_date_only': date_only,
+        'game_time': time_only if include_time else '',
+        'game_type': record.get('game_type'),
+        'game_name': record.get('game_name'),
+        'comment': record.get('comment') or '',
+        'updated_at': updated_dt.strftime("%m/%d/%y %I:%M %p") if updated_dt else (record.get('updated_at') or '')
+    }
+
+    winners_list = []
+    for i in range(1, MAX_OTHER_PLAYERS + 1):
+        name_key = f'winner{i}'
+        score_key = f'{name_key}_score'
+        name = record.get(name_key, '')
+        score = record.get(score_key)
+        data[name_key] = name
+        data[score_key] = score
+        if name:
+            winners_list.append({'name': name, 'score': score})
+    data['winners'] = winners_list
+    data['winner_score'] = record.get('winner_score')
+
+    losers_list = []
+    for i in range(1, MAX_OTHER_PLAYERS + 1):
+        name_key = f'loser{i}'
+        score_key = f'{name_key}_score'
+        name = record.get(name_key, '')
+        score = record.get(score_key)
+        data[name_key] = name
+        data[score_key] = score
+        if name:
+            losers_list.append({'name': name, 'score': score})
+    data['losers'] = losers_list
+    data['loser_score'] = record.get('loser_score')
+
+    return data
 
 def todays_other_games():
     cur = set_cur()
-    cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours')")
+    cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours') ORDER BY game_date DESC")
     games = cur.fetchall()
-    games.sort(reverse=True)
     readable_games = readable_games_data(games)
     return readable_games
 
 def readable_games_data(games):
-    from datetime import datetime
-    readable_games = []
-    for game in games:
-        # Convert game_date format
-        try:
-            if len(game[1]) > 19:
-                game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-                game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-            elif len(game[1]) > 10:
-                game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-                game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-            else:
-                game_datetime = datetime.strptime(game[1], "%Y-%m-%d")
-                game_date = game_datetime.strftime("%m/%d/%y")
-        except:
-            game_date = game[1]
-        
-        # Convert updated_at format (now at index 37)
-        try:
-            if len(game[37]) > 19:
-                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S.%f")
-                updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-            elif len(game[37]) > 10:
-                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S")
-                updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-            else:
-                updated_datetime = datetime.strptime(game[37], "%Y-%m-%d")
-                updated_date = updated_datetime.strftime("%m/%d/%y")
-        except:
-            updated_date = game[37] if len(game) > 37 else ''
-        
-        data = {
-            'game_id': game[0], 
-            'game_date': game_date, 
-            'game_type': game[2], 
-            'game_name': game[3],
-            'winner1': game[4], 'winner2': game[5], 'winner3': game[6], 'winner4': game[7], 'winner5': game[8], 
-            'winner6': game[9], 'winner7': game[10], 'winner8': game[11], 'winner9': game[12], 'winner10': game[13],
-            'winner11': game[14], 'winner12': game[15], 'winner13': game[16], 'winner14': game[17], 'winner15': game[18],
-            'winner_score': game[19],
-            'loser1': game[20], 'loser2': game[21], 'loser3': game[22], 'loser4': game[23], 'loser5': game[24],
-            'loser6': game[25], 'loser7': game[26], 'loser8': game[27], 'loser9': game[28], 'loser10': game[29],
-            'loser11': game[30], 'loser12': game[31], 'loser13': game[32], 'loser14': game[33], 'loser15': game[34],
-            'loser_score': game[35],
-            'comment': game[36],
-            'updated_at': updated_date
-        }
-        readable_games.append(data)
-    return readable_games
+    return [_build_other_game_display(game, include_time=False) for game in games]
 
 def other_stats_per_year(year, minimum_games):
     games = other_year_games(year)
@@ -244,11 +290,10 @@ def other_game_type_for_name(games, game_name):
 def other_year_games(year):
     cur = set_cur()
     if year == 'All years':
-        cur.execute("SELECT * FROM other_games")
+        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC")
     else:
-        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=?", (year,))
+        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
     row = cur.fetchall()
-    row.sort(reverse=True)
     games = readable_games_data(row)
     return games
 
@@ -262,32 +307,7 @@ def other_year_games_raw(year):
     return row
 
 def convert_other_ampm(games):
-    from datetime import datetime
-    converted_games = []
-    for game in games:
-        if len(game[1]) > 19:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-        else:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-        if len(game[37]) > 19:
-            updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S.%f")
-            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-        else:
-            updated_datetime = datetime.strptime(game[37], "%Y-%m-%d %H:%M:%S")
-            updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
-        # Include all columns: id, date, type, name, winner1-15, winner_score, loser1-15, loser_score, comment, updated_at
-        converted_games.append([
-            game[0], game_date, game[2], game[3],  # id, date, type, name
-            game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15], game[16], game[17], game[18],  # winner1-15
-            game[19],  # winner_score
-            game[20], game[21], game[22], game[23], game[24], game[25], game[26], game[27], game[28], game[29], game[30], game[31], game[32], game[33], game[34],  # loser1-15
-            game[35],  # loser_score
-            game[36],  # comment
-            updated_date  # updated_at
-        ])
-    return converted_games
+    return [_build_other_game_display(game, include_time=True) for game in games]
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -295,6 +315,7 @@ def set_cur():
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     return cur  
 

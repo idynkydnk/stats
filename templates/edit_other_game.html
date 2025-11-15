@@ -12,177 +12,39 @@
             
             <div class="form-group">
                 <label for="game_type">Game Type:</label>
-                <input type="text" name="game_type" id="game_type" value="{{ game[2] }}" required>
+                <input type="text" name="game_type" id="game_type" value="{{ request.form.get('game_type', game['game_type']) }}" required>
             </div>
             
             <div class="form-group">
                 <label for="game_name">Game Name:</label>
-                <input type="text" name="game_name" id="game_name" value="{{ game[3] }}" required>
+                <input type="text" name="game_name" id="game_name" value="{{ request.form.get('game_name', game['game_name']) }}" required>
             </div>
             
-            <div class="form-group">
-                <label for="winner1">Winner 1:</label>
-                <input type="text" name="winner1" id="winner1" value="{{ game[4] }}" list="players" required>
+            <h3>Winners</h3>
+            {% for i in range(1, 16) %}
+            <div class="form-group player-score-row">
+                <label for="winner{{ i }}">Winner {{ i }}:</label>
+                <div class="dual-inputs">
+                    <input type="text" name="winner{{ i }}" id="winner{{ i }}" value="{{ request.form.get('winner' ~ i, game['winner' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
+                    <input type="number" name="winner{{ i }}_score" placeholder="Score" value="{{ request.form.get('winner' ~ i ~ '_score', '' if game['winner' ~ i ~ '_score'] is none else game['winner' ~ i ~ '_score']) }}">
+                </div>
             </div>
+            {% endfor %}
             
-            <div class="form-group">
-                <label for="winner2">Winner 2:</label>
-                <input type="text" name="winner2" id="winner2" value="{{ game[5] }}" list="players">
+            <h3>Losers</h3>
+            {% for i in range(1, 16) %}
+            <div class="form-group player-score-row">
+                <label for="loser{{ i }}">Loser {{ i }}:</label>
+                <div class="dual-inputs">
+                    <input type="text" name="loser{{ i }}" id="loser{{ i }}" value="{{ request.form.get('loser' ~ i, game['loser' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
+                    <input type="number" name="loser{{ i }}_score" placeholder="Score" value="{{ request.form.get('loser' ~ i ~ '_score', '' if game['loser' ~ i ~ '_score'] is none else game['loser' ~ i ~ '_score']) }}">
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="winner3">Winner 3:</label>
-                <input type="text" name="winner3" id="winner3" value="{{ game[6] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner4">Winner 4:</label>
-                <input type="text" name="winner4" id="winner4" value="{{ game[7] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner5">Winner 5:</label>
-                <input type="text" name="winner5" id="winner5" value="{{ game[8] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner6">Winner 6:</label>
-                <input type="text" name="winner6" id="winner6" value="{{ game[9] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner7">Winner 7:</label>
-                <input type="text" name="winner7" id="winner7" value="{{ game[10] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner8">Winner 8:</label>
-                <input type="text" name="winner8" id="winner8" value="{{ game[11] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner9">Winner 9:</label>
-                <input type="text" name="winner9" id="winner9" value="{{ game[12] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner10">Winner 10:</label>
-                <input type="text" name="winner10" id="winner10" value="{{ game[13] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner11">Winner 11:</label>
-                <input type="text" name="winner11" id="winner11" value="{{ game[14] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner12">Winner 12:</label>
-                <input type="text" name="winner12" id="winner12" value="{{ game[15] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner13">Winner 13:</label>
-                <input type="text" name="winner13" id="winner13" value="{{ game[16] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner14">Winner 14:</label>
-                <input type="text" name="winner14" id="winner14" value="{{ game[17] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner15">Winner 15:</label>
-                <input type="text" name="winner15" id="winner15" value="{{ game[18] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="winner_score">Winner Score:</label>
-                <input type="number" name="winner_score" id="winner_score" value="{{ game[19] }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="loser1">Loser 1:</label>
-                <input type="text" name="loser1" id="loser1" value="{{ game[20] }}" list="players" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="loser2">Loser 2:</label>
-                <input type="text" name="loser2" id="loser2" value="{{ game[21] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser3">Loser 3:</label>
-                <input type="text" name="loser3" id="loser3" value="{{ game[22] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser4">Loser 4:</label>
-                <input type="text" name="loser4" id="loser4" value="{{ game[23] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser5">Loser 5:</label>
-                <input type="text" name="loser5" id="loser5" value="{{ game[24] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser6">Loser 6:</label>
-                <input type="text" name="loser6" id="loser6" value="{{ game[25] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser7">Loser 7:</label>
-                <input type="text" name="loser7" id="loser7" value="{{ game[26] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser8">Loser 8:</label>
-                <input type="text" name="loser8" id="loser8" value="{{ game[27] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser9">Loser 9:</label>
-                <input type="text" name="loser9" id="loser9" value="{{ game[28] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser10">Loser 10:</label>
-                <input type="text" name="loser10" id="loser10" value="{{ game[29] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser11">Loser 11:</label>
-                <input type="text" name="loser11" id="loser11" value="{{ game[30] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser12">Loser 12:</label>
-                <input type="text" name="loser12" id="loser12" value="{{ game[31] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser13">Loser 13:</label>
-                <input type="text" name="loser13" id="loser13" value="{{ game[32] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser14">Loser 14:</label>
-                <input type="text" name="loser14" id="loser14" value="{{ game[33] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser15">Loser 15:</label>
-                <input type="text" name="loser15" id="loser15" value="{{ game[34] }}" list="players">
-            </div>
-            
-            <div class="form-group">
-                <label for="loser_score">Loser Score:</label>
-                <input type="number" name="loser_score" id="loser_score" value="{{ game[35] }}" required>
-            </div>
+            {% endfor %}
             
             <div class="form-group">
                 <label for="comment">Comment:</label>
-                <input type="text" name="comment" id="comment" value="{{ game[36] }}">
+                <input type="text" name="comment" id="comment" value="{{ request.form.get('comment', game['comment'] or '') }}">
             </div>
             
             <div class="form-group">
@@ -208,6 +70,15 @@
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
+        }
+        
+        .player-score-row .dual-inputs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .player-score-row .dual-inputs input {
+            width: 50%;
         }
         
         .btn {
