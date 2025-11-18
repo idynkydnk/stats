@@ -1479,7 +1479,49 @@ def streak_details(player_name, streak_type, streak_length, year=None):
 @app.route('/tournaments/')
 def tournaments():
     """Tournament results page"""
-    return render_template('tournaments.html')
+    from database_functions import create_connection
+    
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    
+    if conn is None:
+        return "Database connection error", 500
+    
+    cur = conn.cursor()
+    
+    # Get all tournaments ordered by date (most recent first)
+    cur.execute("""
+        SELECT tournament_date, place, team, location, tournament_name
+        FROM tournaments
+        ORDER BY tournament_date DESC
+    """)
+    
+    tournaments = cur.fetchall()
+    conn.close()
+    
+    # Format dates for display (YYYY-MM-DD -> MM/DD/YY)
+    formatted_tournaments = []
+    for tourn in tournaments:
+        date_str, place, team, location, tournament_name = tourn
+        try:
+            # Parse YYYY-MM-DD format
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%m/%d/%y')
+        except:
+            formatted_date = date_str
+        
+        formatted_tournaments.append({
+            'date': formatted_date,
+            'place': place,
+            'team': team,
+            'location': location,
+            'tournament_name': tournament_name
+        })
+    
+    return render_template('tournaments.html', tournaments=formatted_tournaments)
 
 @app.route('/glicko_rankings/')
 def glicko_rankings():
