@@ -75,38 +75,68 @@
         </div>
     </div>
 
-    <!-- Selected Year Stats -->
+    <!-- Recent Games -->
     <div class="dashboard-card">
         <div class="card-navigation">
-            <h2>{{ selected_year }} Win%</h2>
+            <h2>{{ selected_year }} Recent Games</h2>
         </div>
-        <div class="streaks-list">
-            {% if top_win_percentage %}
-            {% for stat in top_win_percentage[:5] %}
-            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
-                <span class="player-name">
-                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                </span>
-                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+        {% if recent_games %}
+        <div class="recent-games-list">
+            {% for game in recent_games[:5] %}
+            <div class="recent-game-item">
+                <div class="game-winners">
+                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a></div>
+                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a></div>
+                </div>
+                <div class="game-score-display">
+                    <span class="winner-score">{{ game[4] }}</span>
+                    <span class="score-divider">-</span>
+                    <span class="loser-score">{{ game[7] }}</span>
+                </div>
+                <div class="game-losers">
+                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a></div>
+                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a></div>
+                </div>
             </div>
             {% endfor %}
-            {% if top_win_percentage|length > 5 %}
+            {% if recent_games|length > 5 %}
             <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'win-percentage-more')">Show More</button>
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'recent-games-more')">Show More</button>
             </div>
-            <div class="streaks-list hidden" id="win-percentage-more">
-                {% for stat in top_win_percentage[5:20] %}
-                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
-                    <span class="player-name">
-                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                    </span>
-                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            <div class="hidden" id="recent-games-more">
+                <div class="recent-games-list">
+                    {% for game in recent_games[5:20] %}
+                    <div class="recent-game-item">
+                        <div class="game-winners">
+                            <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a></div>
+                            <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a></div>
+                        </div>
+                        <div class="game-score-display">
+                            <span class="winner-score">{{ game[4] }}</span>
+                            <span class="score-divider">-</span>
+                            <span class="loser-score">{{ game[7] }}</span>
+                        </div>
+                        <div class="game-losers">
+                            <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a></div>
+                            <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a></div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <div class="show-all-container">
+                    <a href="{{ url_for('games_by_year', year=selected_year) }}" class="show-all-btn">Show All</a>
+                </div>
             </div>
-            {% endif %}
             {% endif %}
         </div>
+        {% else %}
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No recent games</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- TrueSkill Rankings -->
@@ -154,83 +184,6 @@
             </div>
         </div>
         {% endif %}
-    </div>
-
-    <!-- Top Teams -->
-    <div class="dashboard-card">
-        <div class="card-navigation">
-            <h2>{{ selected_year }} Top Teams</h2>
-        </div>
-        {% if top_teams %}
-        <div class="streaks-list">
-            {% for team in top_teams[:5] %}
-            <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
-                <span class="player-name">
-                    {{ team.team.player1 }} & {{ team.team.player2 }}
-                </span>
-                <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
-            </div>
-            {% endfor %}
-            {% if top_teams|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'top-teams-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="top-teams-more">
-                {% for team in top_teams[5:20] %}
-                <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
-                    <span class="player-name">
-                        {{ team.team.player1 }} & {{ team.team.player2 }}
-                    </span>
-                    <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="streaks-list">
-            <div class="streak-item">
-                <span class="player-name">No teams available</span>
-                <span class="streak-info">Check back later</span>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Year Leaders -->
-    <div class="dashboard-card">
-        <div class="card-navigation">
-            <h2>{{ selected_year }} Games</h2>
-        </div>
-        <div class="streaks-list">
-            {% for stat in top_games_played[:5] %}
-            <div class="streak-item">
-                <span class="player-name">
-                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                </span>
-                <span class="streak-info">
-                    {{ stat[1] + stat[2] }} games
-                </span>
-            </div>
-            {% endfor %}
-            {% if top_games_played|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'games-played-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="games-played-more">
-                {% for stat in top_games_played[5:20] %}
-                <div class="streak-item">
-                    <span class="player-name">
-                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
-                    </span>
-                    <span class="streak-info">
-                        {{ stat[1] + stat[2] }} games
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
     </div>
 
     <!-- Winning Streaks -->
@@ -315,6 +268,117 @@
         {% else %}
         <p>No active losing streaks</p>
         {% endif %}
+    </div>
+
+    <!-- Selected Year Stats -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Win%</h2>
+        </div>
+        <div class="streaks-list">
+            {% if top_win_percentage %}
+            {% for stat in top_win_percentage[:5] %}
+            <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                </span>
+                <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if top_win_percentage|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'win-percentage-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="win-percentage-more">
+                {% for stat in top_win_percentage[5:20] %}
+                <div class="streak-item {% if stat[3] < 0.5 %}loss{% elif stat[3] == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    </span>
+                    <span class="streak-info">{{ "%.1f"|format(stat[3] * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Top Teams -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Top Teams</h2>
+        </div>
+        {% if top_teams %}
+        <div class="streaks-list">
+            {% for team in top_teams[:5] %}
+            <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
+                <span class="player-name">
+                    {{ team.team.player1 }} & {{ team.team.player2 }}
+                </span>
+                <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
+            </div>
+            {% endfor %}
+            {% if top_teams|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'top-teams-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="top-teams-more">
+                {% for team in top_teams[5:20] %}
+                <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
+                    <span class="player-name">
+                        {{ team.team.player1 }} & {{ team.team.player2 }}
+                    </span>
+                    <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="streaks-list">
+            <div class="streak-item">
+                <span class="player-name">No teams available</span>
+                <span class="streak-info">Check back later</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Year Leaders -->
+    <div class="dashboard-card">
+        <div class="card-navigation">
+            <h2>{{ selected_year }} Games</h2>
+        </div>
+        <div class="streaks-list">
+            {% for stat in top_games_played[:5] %}
+            <div class="streak-item">
+                <span class="player-name">
+                    <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                </span>
+                <span class="streak-info">
+                    {{ stat[1] + stat[2] }} games
+                </span>
+            </div>
+            {% endfor %}
+            {% if top_games_played|length > 5 %}
+            <div class="show-more-container">
+                <button class="show-more-btn" onclick="toggleShowMore(this, 'games-played-more')">Show More</button>
+            </div>
+            <div class="streaks-list hidden" id="games-played-more">
+                {% for stat in top_games_played[5:20] %}
+                <div class="streak-item">
+                    <span class="player-name">
+                        <a href="{{ url_for('player_stats', year=selected_year, name=stat[0]) }}">{{ stat[0] }}</a>
+                    </span>
+                    <span class="streak-info">
+                        {{ stat[1] + stat[2] }} games
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Best Winning Streaks -->
@@ -453,65 +517,6 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
-
-    <!-- Recent Games -->
-    <div class="dashboard-card">
-        <div class="card-navigation">
-            <h2>{{ selected_year }} Recent Games</h2>
-        </div>
-        {% if recent_games %}
-        <div class="recent-games-list">
-            {% for game in recent_games[:5] %}
-            <div class="recent-game-item">
-                <div class="game-winners">
-                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a></div>
-                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a></div>
-                </div>
-                <div class="game-score-display">
-                    <span class="winner-score">{{ game[4] }}</span>
-                    <span class="score-divider">-</span>
-                    <span class="loser-score">{{ game[7] }}</span>
-                </div>
-                <div class="game-losers">
-                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a></div>
-                    <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a></div>
-                </div>
-            </div>
-            {% endfor %}
-            {% if recent_games|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'recent-games-more')">Show More</button>
-            </div>
-            <div class="recent-games-list hidden" id="recent-games-more">
-                {% for game in recent_games[5:20] %}
-                <div class="recent-game-item">
-                    <div class="game-winners">
-                        <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[2]) }}">{{ game[2] }}</a></div>
-                        <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[3]) }}">{{ game[3] }}</a></div>
-                    </div>
-                    <div class="game-score-display">
-                        <span class="winner-score">{{ game[4] }}</span>
-                        <span class="score-divider">-</span>
-                        <span class="loser-score">{{ game[7] }}</span>
-                    </div>
-                    <div class="game-losers">
-                        <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[5]) }}">{{ game[5] }}</a></div>
-                        <div class="player-line"><a href="{{ url_for('player_stats', year=selected_year, name=game[6]) }}">{{ game[6] }}</a></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="streaks-list">
-            <div class="streak-item">
-                <span class="player-name">No recent games</span>
-                <span class="streak-info">Check back later</span>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
 </div>
@@ -1083,6 +1088,32 @@
 .show-more-btn:hover {
     background-color: var(--caption);
     color: var(--bg);
+}
+
+.show-all-container {
+    text-align: center;
+    margin: 15px 0 0 0;
+    padding: 10px 0;
+    border-top: 1px solid var(--caption);
+}
+
+.show-all-btn {
+    background-color: transparent;
+    color: var(--button-bg-1);
+    border: 2px solid var(--button-bg-1);
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: normal;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.show-all-btn:hover {
+    background-color: var(--button-bg-1);
+    color: var(--button-text-1);
 }
 
 .hidden {
