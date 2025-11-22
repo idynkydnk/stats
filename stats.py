@@ -1391,6 +1391,32 @@ def dashboard():
     # Get top teams data for the selected year
     from stat_functions import team_stats_per_year, year_games
     games = year_games(selected_year)
+    
+    # Calculate wins and losses for each player in trueskill rankings
+    player_wins_losses = {}
+    for game in games:
+        winners = [game[2], game[3]]
+        losers = [game[5], game[6]]
+        winners = [w for w in winners if '?' not in w]
+        losers = [l for l in losers if '?' not in l]
+        
+        for player in winners + losers:
+            if player not in player_wins_losses:
+                player_wins_losses[player] = {'wins': 0, 'losses': 0}
+            if player in winners:
+                player_wins_losses[player]['wins'] += 1
+            elif player in losers:
+                player_wins_losses[player]['losses'] += 1
+    
+    # Add wins and losses to each ranking
+    for ranking in trueskill_rankings:
+        player_name = ranking['player']
+        if player_name in player_wins_losses:
+            ranking['wins'] = player_wins_losses[player_name]['wins']
+            ranking['losses'] = player_wins_losses[player_name]['losses']
+        else:
+            ranking['wins'] = 0
+            ranking['losses'] = 0
     if games:
         if len(games) < 70:
             minimum_games_teams = 1

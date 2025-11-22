@@ -147,14 +147,12 @@
         {% if trueskill_rankings %}
         <div class="streaks-list">
             {% for ranking in trueskill_rankings[:5] %}
-            <div class="streak-item">
+            <div class="streak-item trueskill-item">
                 <span class="player-name">
                     <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
                 </span>
-                <span class="streak-info">
-                    <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
-                    <small class="trueskill-games">{{ ranking.games_played }} games</small>
-                </span>
+                <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
+                <small class="trueskill-games">{{ ranking.wins }}-{{ ranking.losses }} ({{ ranking.games_played }} games)</small>
             </div>
             {% endfor %}
             {% if trueskill_rankings|length > 5 %}
@@ -163,14 +161,12 @@
             </div>
             <div class="streaks-list hidden" id="trueskill-rankings-more">
                 {% for ranking in trueskill_rankings[5:20] %}
-                <div class="streak-item">
+                <div class="streak-item trueskill-item">
                     <span class="player-name">
                         <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
                     </span>
-                    <span class="streak-info">
-                        <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
-                        <small class="trueskill-games">{{ ranking.games_played }} games</small>
-                    </span>
+                    <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
+                    <small class="trueskill-games">{{ ranking.wins }}-{{ ranking.losses }} ({{ ranking.games_played }} games)</small>
                 </div>
                 {% endfor %}
             </div>
@@ -1140,16 +1136,32 @@
 }
 
 /* TrueSkill rankings styling */
+.dashboard-card .streak-item.trueskill-item {
+    display: grid !important;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 12px;
+    align-items: center;
+    justify-content: unset;
+}
+
+.trueskill-item .player-name {
+    text-align: left;
+}
+
 .trueskill-rating {
     font-weight: bold;
     font-size: 16px;
     color: var(--button-bg-1);
+    text-align: left;
+    width: 60px;
+    display: block;
 }
 
 .trueskill-games {
     font-size: 12px;
     color: var(--caption);
-    margin-left: 8px;
+    text-align: right;
+    min-width: 100px;
 }
 
 /* Hidden class for expandable sections */
