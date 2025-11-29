@@ -115,7 +115,9 @@
             <input type="text" name="game_name" id="game_name"
                     placeholder="Game name"
                     value="{{ request.form['game_name'] }}"
-                    onchange="autoFillGameType('other')">
+                    list="game_names"
+                    onchange="autoFillGameType('other')"
+                    onblur="handleGameNameBlur()">
             <div class="autocomplete-list" id="game_nameList"></div>
         </div>
         <div class="autocomplete">
@@ -270,11 +272,30 @@ function autoFillGameType(gameType) {
             .then(data => {
                 if (data.game_type) {
                     gameTypeInput.value = data.game_type;
+                    // After game type is auto-filled, focus on winner1 field
+                    setTimeout(() => {
+                        const winner1Field = document.getElementById('winner1');
+                        if (winner1Field) {
+                            winner1Field.focus();
+                        }
+                    }, 150);
                 }
             })
             .catch(error => {
                 console.log('Error fetching game type:', error);
             });
+    }
+}
+
+function handleGameNameBlur() {
+    // When game name field loses focus, check if it matches an existing game name
+    const gameNameInput = document.getElementById('game_name');
+    const gameName = gameNameInput.value.trim();
+    const allGameNames = Array.from(document.getElementById('game_names').options).map(opt => opt.value);
+    
+    // Check if the entered name exactly matches an existing game name
+    if (gameName && allGameNames.includes(gameName)) {
+        autoFillGameType('other');
     }
 }
 
@@ -378,10 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 gameNameField.value = e.target.textContent;
                 gameNameList.style.display = 'none';
                 autoFillGameType('other');
-                setTimeout(() => {
-                    const gameTypeField = document.getElementById('game_type');
-                    if (gameTypeField) gameTypeField.focus();
-                }, 100);
+                // Focus will be handled by autoFillGameType after game type is set
             }
         });
     }
