@@ -929,6 +929,103 @@ def get_dashboard_data(selected_year=None):
 		'minimum_games': minimum_games
 	}
 
+def get_combined_dashboard_data(selected_year=None):
+	"""Get comprehensive dashboard data with separate sections for 1v1, vollis, and other games"""
+	from datetime import datetime
+	from one_v_one_functions import get_one_v_one_dashboard_data, one_v_one_year_games, todays_one_v_one_stats
+	from vollis_functions import get_vollis_dashboard_data, vollis_year_games, todays_vollis_stats
+	from other_functions import get_other_dashboard_data, other_year_games, todays_other_stats
+	
+	# Use selected year or default to current year
+	if selected_year is None:
+		selected_year = str(datetime.now().year)
+	else:
+		selected_year = str(selected_year)
+	
+	# Get data from each game type
+	one_v_one_data = get_one_v_one_dashboard_data(selected_year)
+	vollis_data = get_vollis_dashboard_data(selected_year)
+	other_data = get_other_dashboard_data(selected_year)
+	
+	# Get games for the year (already sorted most recent first)
+	all_one_v_one_games = one_v_one_year_games(selected_year)
+	all_vollis_games = vollis_year_games(selected_year)
+	all_other_games = other_year_games(selected_year)
+	
+	# Get recent games for each type (first 10 = most recent, since they're sorted reverse=True)
+	one_v_one_recent = all_one_v_one_games[:10] if all_one_v_one_games else []
+	vollis_recent = all_vollis_games[:10] if all_vollis_games else []
+	other_recent = all_other_games[:10] if all_other_games else []
+	
+	# Get today's stats for each type
+	today_one_v_one = todays_one_v_one_stats()
+	today_vollis = todays_vollis_stats()
+	today_other = todays_other_stats()
+	
+	return {
+		'current_year': selected_year,
+		# 1v1 data
+		'one_v_one_stats': one_v_one_data['top_win_percentage'][:10],
+		'one_v_one_recent_games': one_v_one_recent,
+		'one_v_one_today_stats': today_one_v_one[:10],
+		'one_v_one_total_games': len(all_one_v_one_games),
+		# Vollis data
+		'vollis_stats': vollis_data['top_win_percentage'][:10],
+		'vollis_recent_games': vollis_recent,
+		'vollis_today_stats': today_vollis[:10],
+		'vollis_total_games': len(all_vollis_games),
+		# Other games data
+		'other_stats': other_data['top_win_percentage'][:10],
+		'other_recent_games': other_recent,
+		'other_today_stats': today_other[:10],
+		'other_total_games': len(all_other_games),
+		# Summary
+		'total_games': len(all_one_v_one_games) + len(all_vollis_games) + len(all_other_games)
+	}
+
+def get_combined_monthly_game_counts(year):
+	"""Get combined monthly game counts from 1v1, vollis, and other games"""
+	from one_v_one_functions import one_v_one_year_games
+	from vollis_functions import vollis_year_games
+	from other_functions import other_year_games
+	from datetime import datetime
+	
+	# Get all games for the year
+	one_v_one_games = one_v_one_year_games(year)
+	vollis_games = vollis_year_games(year)
+	other_games = other_year_games(year)
+	
+	# Combine all games
+	all_games = []
+	all_games.extend(one_v_one_games)
+	all_games.extend(vollis_games)
+	all_games.extend(other_games)
+	
+	# Count games by month
+	monthly_counts = {}
+	for game in all_games:
+		# Extract date from game (date is typically at index 1)
+		if isinstance(game, (list, tuple)) and len(game) > 1:
+			game_date = game[1]
+			if isinstance(game_date, str):
+				try:
+					# Try to parse the date
+					if len(game_date) > 10:
+						dt = datetime.strptime(game_date[:10], '%Y-%m-%d')
+					else:
+						dt = datetime.strptime(game_date, '%Y-%m-%d')
+					month = dt.month
+					monthly_counts[month] = monthly_counts.get(month, 0) + 1
+				except:
+					pass
+	
+	# Fill in missing months with 0
+	for month in range(1, 13):
+		if month not in monthly_counts:
+			monthly_counts[month] = 0
+	
+	return monthly_counts
+
 def get_monthly_game_counts(year):
 	"""Get game counts by month for a given year"""
 	cur = set_cur()
@@ -959,6 +1056,30 @@ def get_monthly_game_counts(year):
 			monthly_counts[month] = 0
 	
 	return monthly_counts
+
+def get_combined_years():
+	"""Get all years that have 1v1, vollis, or other games"""
+	from one_v_one_functions import all_one_v_one_years
+	from vollis_functions import all_vollis_years
+	from other_functions import all_other_years
+	
+	one_v_one_years = all_one_v_one_years()
+	vollis_years = all_vollis_years()
+	other_years = all_other_years()
+	
+	# Combine and deduplicate years
+	all_years = set()
+	all_years.update(one_v_one_years)
+	all_years.update(vollis_years)
+	all_years.update(other_years)
+	
+	# Convert to list and sort
+	years_list = [y for y in all_years if y != 'All years']
+	years_list.sort(reverse=True)
+	if 'All years' in all_years:
+		years_list.append('All years')
+	
+	return years_list
 
 def get_win_loss_streaks():
 	"""Get current win/loss streaks for all players"""

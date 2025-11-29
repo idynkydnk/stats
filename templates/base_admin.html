@@ -48,6 +48,7 @@
                     <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
         <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
         <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="{{ url_for('add_tournament') }}"><i class="fas fa-plus"></i> Add Tournament</a></li>
         <li><a href="{{ url_for('trueskill_rankings') }}"><i class="fas fa-star"></i> TrueSkill Rankings</a></li>
         <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Player List</a></li>
                     {% if session.logged_in %}

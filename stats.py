@@ -880,13 +880,39 @@ def single_game_stats_with_year(game_name, year):
 
 
 
+def build_other_game_cards(year):
+    """Build per-game cards for other games."""
+    from other_functions import other_year_games, other_game_names, total_game_name_stats
+    
+    games = other_year_games(year)
+    game_cards = []
+    
+    if games:
+        game_names = other_game_names(games)
+        for game_name in game_names:
+            game_specific = [game for game in games if game.get('game_name') == game_name]
+            if not game_specific:
+                continue
+            stats_for_game = total_game_name_stats(game_specific)
+            if not stats_for_game:
+                continue
+            total_games = sum(stat[4] if len(stat) > 4 else (stat[1] + stat[2]) for stat in stats_for_game)
+            game_cards.append({
+                'game_name': game_name,
+                'stats': stats_for_game[:8],
+                'total_games': total_games
+            })
+    return game_cards
+
+
 @app.route('/other_stats/<year>/')
 def other_stats(year):
     all_years = all_other_years()
     minimum_games = 1
     stats = other_stats_per_year(year, minimum_games)
+    game_cards = build_other_game_cards(year)
     return render_template('other_stats.html', stats=stats,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
 
 @app.route('/other_stats/')
 def other():
@@ -896,8 +922,9 @@ def other():
     games = todays_other_games()
     minimum_games = 0
     stats = other_stats_per_year(year, minimum_games)
+    game_cards = build_other_game_cards(year)
     return render_template('other_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
 
 
 @app.route('/add_other_game/', methods=('GET', 'POST'))
@@ -1440,6 +1467,29 @@ def dashboard():
     
     return render_template('dashboard.html', **dashboard_data)
 
+@app.route('/combined_dashboard/')
+def combined_dashboard():
+    """Visual dashboard showing key statistics from 1v1, vollis, and other games"""
+    from stat_functions import get_combined_dashboard_data, get_combined_years
+    from datetime import datetime
+    
+    # Get selected year from query parameter, default to current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = str(datetime.now().year)
+    
+    # Get available years
+    available_years = get_combined_years()
+    
+    # Get dashboard data for selected year
+    dashboard_data = get_combined_dashboard_data(selected_year)
+    dashboard_data['selected_year'] = selected_year
+    dashboard_data['available_years'] = available_years
+    dashboard_data['current_year'] = datetime.now().year
+    dashboard_data['current_month'] = datetime.now().month
+    
+    return render_template('combined_dashboard.html', **dashboard_data)
+
 @app.route('/api/dashboard/today-activity/')
 def dashboard_today_activity():
     """API endpoint to get just the Today's Activity card content"""
@@ -1506,6 +1556,7 @@ def streak_details(player_name, streak_type, streak_length, year=None):
 def tournaments():
     """Tournament results page"""
     from database_functions import create_connection
+    from datetime import datetime
     
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -1517,6 +1568,27 @@ def tournaments():
         return "Database connection error", 500
     
     cur = conn.cursor()
+    
+    # Check if tournaments table exists, create it if it doesn't
+    cur.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='tournaments'
+    """)
+    table_exists = cur.fetchone()
+    
+    if not table_exists:
+        # Create tournaments table if it doesn't exist
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tournaments (
+                id integer PRIMARY KEY,
+                tournament_date DATE NOT NULL,
+                place text NOT NULL,
+                team text NOT NULL,
+                location text NOT NULL,
+                tournament_name text NOT NULL
+            )
+        """)
+        conn.commit()
     
     # Get all tournaments ordered by date (most recent first)
     cur.execute("""
@@ -1531,23 +1603,193 @@ def tournaments():
     # Format dates for display (YYYY-MM-DD -> MM/DD/YY)
     formatted_tournaments = []
     for tourn in tournaments:
-        date_str, place, team, location, tournament_name = tourn
-        try:
-            # Parse YYYY-MM-DD format
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-            formatted_date = date_obj.strftime('%m/%d/%y')
-        except:
-            formatted_date = date_str
-        
-        formatted_tournaments.append({
-            'date': formatted_date,
-            'place': place,
-            'team': team,
-            'location': location,
-            'tournament_name': tournament_name
-        })
+        if len(tourn) >= 5:
+            date_str, place, team, location, tournament_name = tourn
+            try:
+                # Parse YYYY-MM-DD format
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                formatted_date = date_obj.strftime('%m/%d/%y')
+            except Exception as e:
+                # If date parsing fails, use the original date string
+                formatted_date = date_str
+            
+            formatted_tournaments.append({
+                'date': formatted_date,
+                'place': place or '',
+                'team': team or '',
+                'location': location or '',
+                'tournament_name': tournament_name or ''
+            })
     
     return render_template('tournaments.html', tournaments=formatted_tournaments)
+
+@app.route('/add_tournament/', methods=('GET', 'POST'))
+@login_required
+def add_tournament():
+    """Add a new tournament"""
+    from database_functions import create_connection
+    from datetime import datetime
+    from player_functions import get_all_players
+    
+    # Get all players for the partner dropdown
+    all_players_full = get_all_players()
+    # Extract first and last name for display, but keep full name for storage
+    all_players = []
+    for player in all_players_full:
+        full_name = player[1] if len(player) > 1 else player  # full_name is at index 1
+        if isinstance(full_name, str):
+            # Extract first and last name (assume format is "First Last" or "First Middle Last")
+            name_parts = full_name.strip().split()
+            if len(name_parts) >= 2:
+                # Take first and last name
+                display_name = f"{name_parts[0]} {name_parts[-1]}"
+            else:
+                # If only one part, use it as is
+                display_name = full_name
+            all_players.append((display_name, full_name))  # (display_name, full_name)
+        else:
+            all_players.append((str(full_name), str(full_name)))
+    
+    # Get unique values from existing tournaments for dropdowns
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    
+    teams = []
+    locations = []
+    tournament_names = []
+    
+    if conn:
+        cur = conn.cursor()
+        # Get unique teams
+        cur.execute("SELECT DISTINCT team FROM tournaments WHERE team IS NOT NULL AND team != '' ORDER BY team")
+        teams = [row[0] for row in cur.fetchall()]
+        
+        # Get unique locations
+        cur.execute("SELECT DISTINCT location FROM tournaments WHERE location IS NOT NULL AND location != '' ORDER BY location")
+        locations = [row[0] for row in cur.fetchall()]
+        
+        # Get unique tournament names
+        cur.execute("SELECT DISTINCT tournament_name FROM tournaments WHERE tournament_name IS NOT NULL AND tournament_name != '' ORDER BY tournament_name")
+        tournament_names = [row[0] for row in cur.fetchall()]
+        conn.close()
+    
+    if request.method == 'POST':
+        tournament_date = request.form.get('tournament_date', '').strip()
+        place = request.form.get('place', '').strip()
+        team = request.form.get('team', '').strip()
+        location = request.form.get('location', '').strip()
+        tournament_name = request.form.get('tournament_name', '').strip()
+        
+        if not tournament_date or not place or not team or not location or not tournament_name:
+            flash('All fields are required!', 'error')
+            # Re-fetch players in case of error
+            all_players_full = get_all_players()
+            all_players = []
+            for player in all_players_full:
+                full_name = player[1] if len(player) > 1 else player
+                if isinstance(full_name, str):
+                    name_parts = full_name.strip().split()
+                    if len(name_parts) >= 2:
+                        display_name = f"{name_parts[0]} {name_parts[-1]}"
+                    else:
+                        display_name = full_name
+                    all_players.append((display_name, full_name))
+                else:
+                    all_players.append((str(full_name), str(full_name)))
+            return render_template('add_tournament.html',
+                                 all_players=all_players,
+                                 teams=teams,
+                                 locations=locations,
+                                 tournament_names=tournament_names)
+        else:
+            # Parse date - accept YYYY-MM-DD or MM/DD/YYYY format
+            try:
+                if '/' in tournament_date:
+                    # MM/DD/YYYY format
+                    date_obj = datetime.strptime(tournament_date, '%m/%d/%Y')
+                else:
+                    # YYYY-MM-DD format
+                    date_obj = datetime.strptime(tournament_date, '%Y-%m-%d')
+                formatted_date = date_obj.strftime('%Y-%m-%d')
+            except ValueError:
+                flash('Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY', 'error')
+                # Re-fetch players in case of error
+                all_players_full = get_all_players()
+                all_players = []
+                for player in all_players_full:
+                    full_name = player[1] if len(player) > 1 else player
+                    if isinstance(full_name, str):
+                        name_parts = full_name.strip().split()
+                        if len(name_parts) >= 2:
+                            display_name = f"{name_parts[0]} {name_parts[-1]}"
+                        else:
+                            display_name = full_name
+                        all_players.append((display_name, full_name))
+                    else:
+                        all_players.append((str(full_name), str(full_name)))
+                return render_template('add_tournament.html',
+                                     all_players=all_players,
+                                     teams=teams,
+                                     locations=locations,
+                                     tournament_names=tournament_names)
+            
+            # Insert tournament into database
+            database = '/home/Idynkydnk/stats/stats.db'
+            conn = create_connection(database)
+            if conn is None:
+                database = r'stats.db'
+                conn = create_connection(database)
+            
+            if conn is None:
+                flash('Database connection error', 'error')
+                # Re-fetch players in case of error
+                all_players_full = get_all_players()
+                all_players = []
+                for player in all_players_full:
+                    full_name = player[1] if len(player) > 1 else player
+                    if isinstance(full_name, str):
+                        name_parts = full_name.strip().split()
+                        if len(name_parts) >= 2:
+                            display_name = f"{name_parts[0]} {name_parts[-1]}"
+                        else:
+                            display_name = full_name
+                        all_players.append((display_name, full_name))
+                    else:
+                        all_players.append((str(full_name), str(full_name)))
+                return render_template('add_tournament.html',
+                                     all_players=all_players,
+                                     teams=teams,
+                                     locations=locations,
+                                     tournament_names=tournament_names)
+            
+            try:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO tournaments(tournament_date, place, team, location, tournament_name)
+                    VALUES(?, ?, ?, ?, ?)
+                """, (formatted_date, place, team, location, tournament_name))
+                conn.commit()
+                conn.close()
+                
+                # Log the action
+                user = session.get('username', 'unknown')
+                details = f"Tournament: {tournament_name} - {team} ({place}) on {formatted_date}"
+                log_user_action(user, 'Added tournament', details)
+                
+                flash(f'Tournament added successfully!', 'success')
+                return redirect(url_for('tournaments'))
+            except Exception as e:
+                conn.close()
+                flash(f'Error adding tournament: {str(e)}', 'error')
+    
+    return render_template('add_tournament.html', 
+                         all_players=all_players,
+                         teams=teams,
+                         locations=locations,
+                         tournament_names=tournament_names)
 
 @app.route('/glicko_rankings/')
 def glicko_rankings():

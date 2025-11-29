@@ -478,10 +478,12 @@ def total_game_name_stats(games):
                 wins += 1
             elif player in (game['loser1'], game['loser2'], game['loser3'], game['loser4'], game['loser5'], game['loser6']):
                 losses += 1
-        win_percentage = wins / (wins + losses)
-        stats.append([player, wins, losses, win_percentage])
+        total_games = wins + losses
+        if total_games == 0:
+            continue
+        win_percentage = wins / total_games
+        stats.append([player, wins, losses, win_percentage, total_games])
     stats.sort(key=lambda x: x[3], reverse=True)
-    print(stats)
     return stats
 
 def game_name_games(year, game_name):

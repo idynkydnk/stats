@@ -73,4 +73,138 @@
             	</tbody>
             </table>
         </div>
+
+    {% if game_cards %}
+    <section class="game-cards-section">
+        <h2>{{ year }} Game Breakdowns</h2>
+        <div class="game-cards-grid">
+            {% for card in game_cards %}
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h3>{{ card.game_name }}</h3>
+                    <span class="game-card-meta">{{ card.total_games }} games</span>
+                </div>
+                <div class="game-card-body">
+                    {% if card.stats %}
+                    <ul class="game-card-list">
+                        {% for stat in card.stats %}
+                        <li>
+                            <span class="player-name">{{ stat[0] }}</span>
+                            <span class="player-record">{{ stat[1] }}-{{ stat[2] }}</span>
+                            <span class="player-win-pct">{{ "{:.1f}".format(stat[3] * 100) }}%</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="game-card-empty">No stats available.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 {% endblock %}
+
+<style>
+.game-cards-section {
+    margin-top: 40px;
+}
+
+.game-cards-section h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.game-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.game-card {
+    background: var(--table-bg);
+    border: 2px solid var(--button-bg-1);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--table-banding);
+    padding-bottom: 8px;
+}
+
+.game-card-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.game-card-meta {
+    font-size: 13px;
+    color: var(--caption);
+}
+
+.game-card-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game-card-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--table-banding);
+}
+
+.game-card-list li:last-child {
+    border-bottom: none;
+}
+
+.player-name {
+    font-weight: 600;
+}
+
+.player-record {
+    color: var(--caption);
+    min-width: 70px;
+    text-align: center;
+}
+
+.player-win-pct {
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+    color: var(--button-bg-1);
+}
+
+.game-card-empty {
+    margin: 0;
+    color: var(--caption);
+    font-style: italic;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .game-card-list li {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .player-record,
+    .player-win-pct {
+        text-align: left;
+    }
+}
+</style>
