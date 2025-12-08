@@ -175,11 +175,29 @@ Add this line:
 0 8 * * * /path/to/send_daily_stats.sh
 ```
 
+## PythonAnywhere Setup
+
+If you're deploying to PythonAnywhere, the `.env` file won't work there. Instead, you need to set environment variables through PythonAnywhere's web interface.
+
+**See `PYTHONANYWHERE_EMAIL_SETUP.md` for detailed instructions.**
+
+Quick steps:
+1. Go to PythonAnywhere → Web tab → Your web app
+2. Scroll to "Environment variables" section
+3. Add: `MAIL_SERVER = smtp.gmail.com`
+4. Add: `MAIL_PORT = 587`
+5. Add: `MAIL_USE_TLS = True`
+6. Add: `MAIL_USERNAME = your_email@gmail.com`
+7. Add: `MAIL_PASSWORD = your_app_password`
+8. Add: `MAIL_DEFAULT_SENDER = your_email@gmail.com`
+9. Save and Reload your web app
+
 ## Security Notes
 
 - Never commit your email password to git
 - Use App Passwords instead of real passwords when possible
 - Keep your .env file in .gitignore
+- On PythonAnywhere, use environment variables (not .env file)
 - Consider using environment-specific configuration management
 
 ## Support

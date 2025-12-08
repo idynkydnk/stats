@@ -14,6 +14,10 @@ import secrets
 import hashlib
 import json
 import re
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
@@ -3003,7 +3007,7 @@ Daily recap:"""
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     html_body = create_doubles_email_html(summary, stats, games, date_obj)
-    subject = f"🏐 Today's Volleyball Recap - {formatted_date}"
+    subject = f"Vball Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -3164,7 +3168,7 @@ Tell the story:"""
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     html_body = create_one_v_one_email_html(summary, stats, games)
-    subject = f"🎯 Today's 1v1 Recap - {formatted_date}"
+    subject = f"Vball Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -3243,7 +3247,14 @@ def generate_and_email_today():
             payload['all_emails'] = deduped
 
     try:
-        msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
+        # Set sender with display name
+        sender_email = app.config['MAIL_DEFAULT_SENDER']
+        if '@' in sender_email and not '<' in sender_email:
+            # Format as "Name <email>" if not already formatted
+            sender = f"KT Vball Summary <{sender_email}>"
+        else:
+            sender = sender_email
+        msg = Message(subject=payload['subject'], recipients=payload['all_emails'], sender=sender)
         msg.html = payload['html_body']
         mail.send(msg)
     except Exception as e:
@@ -3310,7 +3321,14 @@ def generate_and_email_today_1v1():
             payload['all_emails'] = deduped
 
     try:
-        msg = Message(subject=payload['subject'], recipients=payload['all_emails'])
+        # Set sender with display name
+        sender_email = app.config['MAIL_DEFAULT_SENDER']
+        if '@' in sender_email and not '<' in sender_email:
+            # Format as "Name <email>" if not already formatted
+            sender = f"KT Vball Summary <{sender_email}>"
+        else:
+            sender = sender_email
+        msg = Message(subject=payload['subject'], recipients=payload['all_emails'], sender=sender)
         msg.html = payload['html_body']
         mail.send(msg)
     except Exception as e:

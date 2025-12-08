@@ -27,3 +27,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Environment files and scripts with credentials
+.env
+.env.local
+run_with_email.sh
