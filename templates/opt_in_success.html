@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Opt-In Successful{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 50px auto; padding: 30px; text-align: center;">
+    <h1 style="color: #aeee98; margin-bottom: 20px;">✅ Successfully Opted In!</h1>
+    <p style="color: #ffffff; font-size: 18px; margin-bottom: 30px;">
+        You've been added to receive ALL AI summary emails, even when you're not playing.
+    </p>
+    <p style="color: #dbe2ea; font-size: 14px; margin-bottom: 30px;">
+        Email: <strong>{{ email }}</strong>
+    </p>
+    <a href="https://idynkydnk.pythonanywhere.com/dashboard/" 
+       style="display: inline-block; background-color: rgba(174, 238, 152, 0.9); color: #102436; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: bold;">
+        Go to Dashboard
+    </a>
+</div>
+{% endblock %}
+

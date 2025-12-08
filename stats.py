@@ -16,10 +16,11 @@ import json
 import re
 
 # Load environment variables from .env file if it exists (optional, for local development)
+# Only load if dotenv is available - not required on PythonAnywhere where env vars are set in WSGI file
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     # dotenv not available (e.g., on PythonAnywhere) - that's fine, use environment variables directly
     pass
 
@@ -2559,6 +2560,10 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     <div class="footer">
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
+                    <div class="footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                        <p style="color: #aeee98; font-size: 14px; margin-bottom: 10px;">Want all future AI summaries?</p>
+                        <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="link-button" style="background-color: rgba(174, 238, 152, 0.7); font-size: 13px; padding: 10px 20px;">Yes, include me</a>
+                    </div>
                 </div>
             </body>
             </html>
@@ -2864,6 +2869,10 @@ def create_one_v_one_email_html(summary, stats, games):
                         <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
                         <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
                     </div>
+                    <div class="footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                        <p style="color: #aeee98; font-size: 14px; margin-bottom: 10px;">Want all future AI summaries?</p>
+                        <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="link-button" style="background-color: rgba(174, 238, 152, 0.7); font-size: 13px; padding: 10px 20px;">Yes, include me</a>
+                    </div>
                 </div>
             </body>
             </html>
@@ -3006,6 +3015,15 @@ Daily recap:"""
             players_without_email.append(player_name)
 
     all_emails = [player['email'] for player in players]
+    
+    # Add emails from players who opted in to receive all AI emails
+    cur = set_cur()
+    cur.execute("SELECT email FROM players WHERE email IS NOT NULL AND notes LIKE ?", ('%AI_EMAILS_OPT_IN%',))
+    opted_in_players = cur.fetchall()
+    for opt_in_player in opted_in_players:
+        opt_in_email = opt_in_player[0]
+        if opt_in_email and opt_in_email not in all_emails:
+            all_emails.append(opt_in_email)
 
     date_obj = datetime.strptime(today, '%Y-%m-%d')
     formatted_date = date_obj.strftime('%m/%d/%y')
@@ -3167,6 +3185,16 @@ Tell the story:"""
             players_without_email.append(player_name)
 
     all_emails = [player['email'] for player in players_with_emails]
+    
+    # Add emails from players who opted in to receive all AI emails
+    from database_functions import set_cur
+    cur = set_cur()
+    cur.execute("SELECT email FROM players WHERE email IS NOT NULL AND notes LIKE ?", ('%AI_EMAILS_OPT_IN%',))
+    opted_in_players = cur.fetchall()
+    for opt_in_player in opted_in_players:
+        opt_in_email = opt_in_player[0]
+        if opt_in_email and opt_in_email not in all_emails:
+            all_emails.append(opt_in_email)
 
     date_obj = datetime.strptime(today, '%Y-%m-%d')
     formatted_date = date_obj.strftime('%m/%d/%y')
@@ -3258,9 +3286,15 @@ def generate_and_email_today():
             sender = f"KT Vball Summary <{sender_email}>"
         else:
             sender = sender_email
-        msg = Message(subject=payload['subject'], recipients=payload['all_emails'], sender=sender)
-        msg.html = payload['html_body']
-        mail.send(msg)
+        # Send individual emails to each recipient with personalized opt-in link
+        # Also BCC idynkydnk@gmail.com to all emails
+        for recipient_email in payload['all_emails']:
+            # Replace email placeholder with actual recipient email for personalized opt-in link
+            html_body_personalized = payload['html_body'].replace('{{{{EMAIL_PLACEHOLDER}}}}', recipient_email)
+            
+            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
+            msg.html = html_body_personalized
+            mail.send(msg)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
 
@@ -3332,9 +3366,16 @@ def generate_and_email_today_1v1():
             sender = f"KT Vball Summary <{sender_email}>"
         else:
             sender = sender_email
-        msg = Message(subject=payload['subject'], recipients=payload['all_emails'], sender=sender)
-        msg.html = payload['html_body']
-        mail.send(msg)
+        
+        # Send individual emails to each recipient with personalized opt-in link
+        # Also BCC idynkydnk@gmail.com to all emails
+        for recipient_email in payload['all_emails']:
+            # Replace email placeholder with actual recipient email for personalized opt-in link
+            html_body_personalized = payload['html_body'].replace('{{{{EMAIL_PLACEHOLDER}}}}', recipient_email)
+            
+            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
+            msg.html = html_body_personalized
+            mail.send(msg)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
 
@@ -3498,6 +3539,46 @@ def add_player_email():
     log_user_action(user, 'Updated player email', f'{player_name} -> {email}')
 
     return jsonify({'success': True, 'email': email})
+
+
+@app.route('/opt_in_ai_emails')
+def opt_in_ai_emails():
+    """Handle opt-in link from AI summary emails"""
+    email = request.args.get('email', '').strip()
+    
+    if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return render_template('opt_in_error.html', error='Invalid email address.')
+    
+    # Store opt-in preference - add note to player with this email
+    from player_functions import get_player_by_name, update_player_info
+    from database_functions import set_cur
+    
+    cur = set_cur()
+    
+    # Check if there's a player with this email
+    cur.execute("SELECT id, full_name, email, notes FROM players WHERE email = ?", (email,))
+    player = cur.fetchone()
+    
+    if player:
+        # Update player's notes to include opt-in flag
+        player_id = player[0]
+        full_name = player[1]
+        existing_email = player[2]
+        existing_notes = player[3] or ""
+        
+        # Add opt-in flag if not already present
+        if "AI_EMAILS_OPT_IN" not in existing_notes:
+            new_notes = existing_notes + ("\n" if existing_notes else "") + "AI_EMAILS_OPT_IN"
+            update_player_info(player_id, full_name, email=existing_email, notes=new_notes)
+            success = True
+        else:
+            success = True  # Already opted in
+    else:
+        # No player found with this email - still show success
+        success = True
+    
+    return render_template('opt_in_success.html', email=email, success=success)
+
 
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
