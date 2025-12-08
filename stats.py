@@ -14,10 +14,14 @@ import secrets
 import hashlib
 import json
 import re
-from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
-load_dotenv()
+# Load environment variables from .env file if it exists (optional, for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available (e.g., on PythonAnywhere) - that's fine, use environment variables directly
+    pass
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
