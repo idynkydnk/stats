@@ -3291,7 +3291,7 @@ def generate_and_email_today():
         # Also BCC idynkydnk@gmail.com to all emails
         for recipient_email in payload['all_emails']:
             # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = payload['html_body'].replace('{{{{EMAIL_PLACEHOLDER}}}}', recipient_email)
+            html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
             msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
             msg.html = html_body_personalized
@@ -3372,7 +3372,7 @@ def generate_and_email_today_1v1():
         # Also BCC idynkydnk@gmail.com to all emails
         for recipient_email in payload['all_emails']:
             # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = payload['html_body'].replace('{{{{EMAIL_PLACEHOLDER}}}}', recipient_email)
+            html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
             msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
             msg.html = html_body_personalized
