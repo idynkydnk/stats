@@ -45,7 +45,8 @@ USERS = {
     'ryan': 'ryan2025',
     'arbel': 'arbel2025',
     'mark': 'mark2025',
-    'troy': 'troy2025'
+    'troy': 'troy2025',
+    'jason': 'jason2025'
 }
 
 def init_notifications_db():
