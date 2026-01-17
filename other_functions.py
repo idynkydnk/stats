@@ -583,6 +583,58 @@ def game_name_games(year, game_name):
             game_name_games.append(game)
     return game_name_games
 
+def player_game_name_games(year, game_name, player_name):
+    """Get all games for a specific player in a specific game type for a given year."""
+    games = game_name_games(year, game_name)
+    player_games = []
+    for game in games:
+        # Check if player is in winners
+        for i in range(1, 16):
+            val = game.get(f'winner{i}')
+            if _is_valid_player_name(val) and val == player_name:
+                player_games.append(game)
+                break
+        else:
+            # Check if player is in losers
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val) and val == player_name:
+                    player_games.append(game)
+                    break
+    return player_games
+
+def player_game_name_stats(games, player_name):
+    """Calculate stats for a specific player from a list of games."""
+    wins, losses = 0, 0
+    for game in games:
+        # Get all valid winner names from the game
+        winner_names = []
+        for i in range(1, 16):
+            val = game.get(f'winner{i}')
+            if _is_valid_player_name(val):
+                winner_names.append(val)
+        
+        # Get all valid loser names from the game
+        loser_names = []
+        for i in range(1, 16):
+            val = game.get(f'loser{i}')
+            if _is_valid_player_name(val):
+                loser_names.append(val)
+        
+        if player_name in winner_names:
+            wins += 1
+        elif player_name in loser_names:
+            losses += 1
+    
+    total_games = wins + losses
+    win_percentage = wins / total_games if total_games > 0 else 0
+    return {
+        'wins': wins,
+        'losses': losses,
+        'win_percentage': win_percentage,
+        'total_games': total_games
+    }
+
 def game_name_stats(game_name):
     games = other_year_games(year)
     game_name_games = []

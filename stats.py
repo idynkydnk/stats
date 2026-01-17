@@ -1181,6 +1181,22 @@ def game_name_stats_with_year(game_name, year):
         minimum_games=minimum_games, 
         year=year)
 
+@app.route('/player_game_stats/<year>/<game_name>/<player_name>/')
+def player_game_stats(year, game_name, player_name):
+    from other_functions import player_game_name_games, player_game_name_stats, game_name_years
+    
+    all_years = game_name_years(game_name)
+    games = player_game_name_games(year, game_name, player_name)
+    stats = player_game_name_stats(games, player_name)
+    
+    return render_template('player_game_stats.html',
+        player_name=player_name,
+        game_name=game_name,
+        year=year,
+        all_years=all_years,
+        stats=stats,
+        games=games)
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():

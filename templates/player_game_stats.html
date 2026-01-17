@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for y in all_years %}
+                    <a href="{{ url_for('player_game_stats', year=y, game_name=game_name, player_name=player_name) }}">{{ y }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    <h1>{% block title %} {{ player_name }} - {{ game_name }} {% endblock %}</h1>
+    <h2>{{ year }}</h2>
+    
+    <!-- Stats Card -->
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="numbered_stats">{{ stats.wins }}</td>
+                    <td class="numbered_stats">{{ stats.losses }}</td>
+                    <td class="numbered_stats">{{ "{:.2f}".format(stats.win_percentage * 100) }}</td>
+                    <td class="numbered_stats">{{ stats.total_games }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Games Card -->
+    <h1>{{ game_name }} Games</h1>
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Result</th>
+                    <th scope="col">Winner(s)</th>
+                    <th scope="col">Loser(s)</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for game in games %}
+                <tr>
+                    <td>{{ game["game_date_only"] }}</td>
+                    <td>
+                        {% set ns = namespace(is_winner=false) %}
+                        {% for winner in game["winners"] %}
+                            {% if winner.name == player_name %}
+                                {% set ns.is_winner = true %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if ns.is_winner %}
+                            <span style="color: var(--button-bg-1); font-weight: 700;">W</span>
+                        {% else %}
+                            <span style="color: #ff6b6b; font-weight: 700;">L</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for winner in game["winners"] %}
+                            <div class="player-line">
+                                {{ winner.name }}
+                                {% if winner.score is not none %}
+                                    <span class="player-score">{{ winner.score }}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for loser in game["losers"] %}
+                            <div class="player-line">
+                                {{ loser.name }}
+                                {% if loser.score is not none %}
+                                    <span class="player-score">{{ loser.score }}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
