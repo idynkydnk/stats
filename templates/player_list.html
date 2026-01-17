@@ -35,7 +35,11 @@
                     {% if player[0] %}
                         <a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a>
                     {% else %}
-                        {{ player[1] }}
+                        <a href="#"
+                           data-player-name="{{ player[1]|e }}"
+                           onclick="openAddPlayerModal(this.dataset.playerName); return false;">
+                            {{ player[1] }}
+                        </a>
                     {% endif %}
                 </td>
                 <td>{{ player[2] if player[2] else '-' }}</td>
@@ -297,8 +301,14 @@ function searchPlayers() {
     resultCount.textContent = `Showing ${visibleCount} of {{ players|length }} players`;
 }
 
-function openAddPlayerModal() {
+function openAddPlayerModal(prefillName) {
     document.getElementById('addPlayerModal').style.display = 'block';
+    const nameInput = document.getElementById('new-player-name');
+    if (prefillName) {
+        nameInput.value = prefillName;
+    }
+    // Focus for faster entry
+    nameInput.focus();
 }
 
 function closeAddPlayerModal() {

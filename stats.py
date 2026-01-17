@@ -1139,19 +1139,47 @@ def game_name_stats(game_name):
     all_years = game_name_years(game_name)
     year = str(date.today().year)
     games = game_name_games(year, game_name)
-    minimum_games = 0
-    stats = total_game_name_stats(games)
-    return render_template('game_name_stats.html', stats=stats, game_name=game_name,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+    
+    # Get all stats (no minimum)
+    all_stats = total_game_name_stats(games)
+    
+    # Calculate minimum games requirement (at least 5 games to qualify)
+    minimum_games = 5
+    
+    # Filter stats to only include players with minimum games, sorted by win %
+    qualified_stats = [s for s in all_stats if s[4] >= minimum_games]
+    qualified_stats.sort(key=lambda x: x[3], reverse=True)
+    
+    return render_template('game_name_stats.html', 
+        qualified_stats=qualified_stats,
+        all_stats=all_stats, 
+        game_name=game_name,
+        all_years=all_years, 
+        minimum_games=minimum_games, 
+        year=year)
 
 @app.route('/game_name_stats/<game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
     all_years = game_name_years(game_name)
     games = game_name_games(year, game_name)
-    minimum_games = 0
-    stats = total_game_name_stats(games)
-    return render_template('game_name_stats.html', stats=stats, game_name=game_name,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+    
+    # Get all stats (no minimum)
+    all_stats = total_game_name_stats(games)
+    
+    # Calculate minimum games requirement (at least 5 games to qualify)
+    minimum_games = 5
+    
+    # Filter stats to only include players with minimum games, sorted by win %
+    qualified_stats = [s for s in all_stats if s[4] >= minimum_games]
+    qualified_stats.sort(key=lambda x: x[3], reverse=True)
+    
+    return render_template('game_name_stats.html', 
+        qualified_stats=qualified_stats,
+        all_stats=all_stats, 
+        game_name=game_name,
+        all_years=all_years, 
+        minimum_games=minimum_games, 
+        year=year)
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])

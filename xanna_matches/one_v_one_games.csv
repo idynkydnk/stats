@@ -1,0 +1,11 @@
+id,game_date,game_type,game_name,winner,winner_score,loser,loser_score,updated_at
+1,2023-02-25 16:35:44.816540,Board games,Backgammon,Kyle Thomson,8,Xanna Waugh,5,2023-02-25 16:35:44.816546
+2,2023-02-25 16:35:59.504651,Board games,Backgammon,Kyle Thomson,7,Xanna Waugh,3,2023-02-25 16:35:59.504657
+3,2023-02-25 16:36:18.593441,Board games,Backgammon,Kyle Thomson,5,Xanna Waugh,2,2023-02-25 16:36:18.593447
+36,2023-03-15 16:11:25.140317,Board games,Backgammon,Kyle Thomson,1,Xanna Waugh,0,2023-03-15 16:11:25.140320
+37,2023-03-15 16:11:39.068232,Board games,Backgammon,Xanna Waugh,1,Kyle Thomson,0,2023-03-15 16:11:39.068235
+38,2023-03-15 16:11:52.171257,Board games,Backgammon,Xanna Waugh,1,Kyle Thomson,0,2023-03-15 16:11:52.171260
+39,2023-03-15 16:12:13.348124,Board games,Backgammon,Xanna Waugh,2,Kyle Thomson,0,2023-03-15 16:12:13.348127
+40,2023-03-15 16:13:10.232587,Board games,Backgammon,Xanna Waugh,1,Kyle Thomson,0,2023-03-15 16:13:10.232590
+70,2023-05-27 22:08:51.199972,Board games,Backgammon,Xanna Waugh,1,Kyle Thomson,0,2023-05-27 22:08:51.199975
+71,2023-05-27 22:31:18.086113,Board games,Backgammon,Xanna Waugh,1,Kyle Thomson,0,2023-05-27 22:31:18.086116

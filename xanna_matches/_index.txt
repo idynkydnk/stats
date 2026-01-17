@@ -1,0 +1,3 @@
+one_v_one_games: 10 rows -> xanna_matches/one_v_one_games.csv
+other_games: 13 rows -> xanna_matches/other_games.csv
+players: 1 rows -> xanna_matches/players.csv

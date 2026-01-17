@@ -12,9 +12,23 @@ def get_other_dashboard_data(year):
     for player in players:
         wins, losses = 0, 0
         for game in games:
-            if player == game['winner1']:  # winner
+            # Get all valid winner names from the game
+            winner_names = []
+            for i in range(1, 16):
+                val = game.get(f'winner{i}')
+                if _is_valid_player_name(val):
+                    winner_names.append(val)
+            
+            # Get all valid loser names from the game
+            loser_names = []
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val):
+                    loser_names.append(val)
+            
+            if player in winner_names:
                 wins += 1
-            elif player == game['loser1']:  # loser
+            elif player in loser_names:
                 losses += 1
         
         if wins + losses > 0:
@@ -37,16 +51,30 @@ def get_other_dashboard_data(year):
     # Get game-specific data
     game_specific_data = {}
     for game_name in ['Sequence', 'Coed', 'No jump', 'Mixed doubles', 'Euchre']:
-        game_games = [game for game in games if game.get('game_name') == game_name]
+        game_games = [g for g in games if g.get('game_name') == game_name]
         if game_games:
             game_players = all_other_players(game_games)
             game_player_stats = []
             for player in game_players:
                 wins, losses = 0, 0
-                for game in game_games:
-                    if player == game.get('winner1'):  # winner
+                for g in game_games:
+                    # Get all valid winner names from the game
+                    winner_names = []
+                    for i in range(1, 16):
+                        val = g.get(f'winner{i}')
+                        if _is_valid_player_name(val):
+                            winner_names.append(val)
+                    
+                    # Get all valid loser names from the game
+                    loser_names = []
+                    for i in range(1, 16):
+                        val = g.get(f'loser{i}')
+                        if _is_valid_player_name(val):
+                            loser_names.append(val)
+                    
+                    if player in winner_names:
                         wins += 1
-                    elif player == game.get('loser1'):  # loser
+                    elif player in loser_names:
                         losses += 1
                 
                 if wins + losses > 0:
@@ -197,20 +225,54 @@ def other_stats_per_year(year, minimum_games):
     for player in players:
         wins, losses = 0, 0
         for game in games:
-            x = 1 + 1
-            if player in ( game["winner1"], game["winner2"], game["winner3"], game["winner4"], game["winner5"], game["winner6"],
-                          game["winner7"], game["winner8"], game["winner9"], game["winner10"], game["winner11"], game["winner12"],
-                          game["winner13"], game["winner14"], game["winner15"] ):
+            # Get all valid winner names from the game
+            winner_names = []
+            for i in range(1, 16):
+                val = game.get(f'winner{i}')
+                if _is_valid_player_name(val):
+                    winner_names.append(val)
+            
+            # Get all valid loser names from the game
+            loser_names = []
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val):
+                    loser_names.append(val)
+            
+            if player in winner_names:
                 wins += 1
-            elif player in ( game["loser1"], game["loser2"], game["loser3"], game["loser4"], game["loser5"], game["loser6"],
-                            game["loser7"], game["loser8"], game["loser9"], game["loser10"], game["loser11"], game["loser12"],
-                            game["loser13"], game["loser14"], game["loser15"] ):
+            elif player in loser_names:
                 losses += 1
+        if wins + losses == 0:
+            continue
         win_percentage = wins / (wins + losses)
         if wins + losses >= minimum_games:
             stats.append([player, wins, losses, win_percentage])
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
+
+def _is_valid_player_name(value):
+    """Check if a value is a valid player name (not a score, timestamp, or round sequence)."""
+    if not value or not isinstance(value, str):
+        return False
+    value = value.strip()
+    if not value:
+        return False
+    # Filter out numeric values (scores)
+    if value.replace('-', '').replace('.', '').isdigit():
+        return False
+    # Filter out timestamps (contain colons or look like dates)
+    if ':' in value or value.startswith('20'):
+        return False
+    # Filter out round-by-round win sequences (mostly single letters/initials separated by spaces)
+    # These look like "K L A K L A" or "A K L A K"
+    words = value.split()
+    if len(words) >= 3:
+        # If most words are very short (1-2 chars), it's likely a round sequence
+        short_words = sum(1 for w in words if len(w) <= 2)
+        if short_words >= len(words) * 0.7:  # 70% or more are short
+            return False
+    return True
 
 def all_other_players(games):
     players = []
@@ -218,12 +280,12 @@ def all_other_players(games):
         # Check all 15 winner slots
         for i in range(1, 16):
             winner_key = f'winner{i}'
-            if winner_key in game and game[winner_key] and game[winner_key] not in players:
+            if winner_key in game and _is_valid_player_name(game[winner_key]) and game[winner_key] not in players:
                 players.append(game[winner_key])
         # Check all 15 loser slots
         for i in range(1, 16):
             loser_key = f'loser{i}'
-            if loser_key in game and game[loser_key] and game[loser_key] not in players:
+            if loser_key in game and _is_valid_player_name(game[loser_key]) and game[loser_key] not in players:
                 players.append(game[loser_key])
     if "" in players: players.remove("")
     return players
@@ -437,11 +499,24 @@ def todays_other_stats():
     for player in players:
         wins, losses, differential = 0, 0, 0
         for game in games:
-            if player in (game['winner1'], game['winner2'], game['winner3'], game['winner4'], game['winner5'], game['winner6']):
-                print(player)
+            # Get all valid winner names from the game
+            winner_names = []
+            for i in range(1, 16):
+                val = game.get(f'winner{i}')
+                if _is_valid_player_name(val):
+                    winner_names.append(val)
+            
+            # Get all valid loser names from the game
+            loser_names = []
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val):
+                    loser_names.append(val)
+            
+            if player in winner_names:
                 wins += 1
                 differential += (0-0) # TEMPORARY
-            elif player in (game['loser1'], game['loser2'], game['loser3'], game['loser4'], game['loser5'], game['loser6']):
+            elif player in loser_names:
                 losses += 1
                 differential -= (0-0) # TEMPORARY
         win_percentage = 0 ##wins / (wins + losses)
@@ -474,9 +549,23 @@ def total_game_name_stats(games):
     for player in players:
         wins, losses = 0, 0
         for game in games:
-            if player in (game['winner1'], game['winner2'], game['winner3'], game['winner4'], game['winner5'], game['winner6']):
+            # Get all valid winner names from the game
+            winner_names = []
+            for i in range(1, 16):
+                val = game.get(f'winner{i}')
+                if _is_valid_player_name(val):
+                    winner_names.append(val)
+            
+            # Get all valid loser names from the game
+            loser_names = []
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val):
+                    loser_names.append(val)
+            
+            if player in winner_names:
                 wins += 1
-            elif player in (game['loser1'], game['loser2'], game['loser3'], game['loser4'], game['loser5'], game['loser6']):
+            elif player in loser_names:
                 losses += 1
         total_games = wins + losses
         if total_games == 0:
