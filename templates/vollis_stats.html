@@ -71,6 +71,7 @@
     {% endif %}
     </div>
     <h1>{% block title %} {{ year }} Vollis Stats {% endblock %}</h1>
+            <p class="page-sublink"><a href="{{ url_for('vollis_games_by_year', year=year) }}"><i class="fas fa-volleyball-ball"></i> View {{ year }} vollis games</a></p>
         <div>
         	<table>
         		<thead>

@@ -157,6 +157,26 @@ h1 {
   text-align: center;
 }
 
+.page-sublink {
+  text-align: center;
+  margin: 5px 0 15px 0;
+  font-size: 13px;
+}
+
+.page-sublink a {
+  color: var(--caption);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.page-sublink a:hover {
+  color: var(--button-bg-1);
+}
+
+.page-sublink i {
+  margin-right: 5px;
+}
+
 /* Center all navigation elements */
 nav {
   text-align: center;

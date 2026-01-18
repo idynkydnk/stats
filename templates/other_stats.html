@@ -47,6 +47,7 @@
     {% endif %}
     </div>
     <h1>{% block title %} {{ year }} Other Stats {% endblock %}</h1>
+            <p class="page-sublink"><a href="{{ url_for('other_games_by_year', year=year) }}"><i class="fas fa-dice"></i> View {{ year }} other games</a></p>
         <div>
         	<table>
         		<thead>
@@ -75,9 +76,9 @@
         </div>
 
     {% if game_cards %}
-    <h2>{{ year }} Game Breakdowns</h2>
     {% for card in game_cards %}
     <h1>{{ card.game_name }}</h1>
+    <p class="page-sublink"><a href="{{ url_for('other_games_by_year_and_name', year=year, game_name=card.game_name) }}"><i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games</a></p>
     <div>
         <table>
             <thead>

@@ -38,18 +38,7 @@
                     <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                     <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
                     <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-                    <li><a href="{{ url_for('games') }}"><i class="fas fa-list-alt"></i> Doubles Games</a></li>
-                    <li><a href="{{ url_for('vollis_games') }}"><i class="fas fa-plus-circle"></i> Vollis Games</a></li>
-                    <li><a href="{{ url_for('top_teams') }}"><i class="fas fa-trophy"></i> Top Teams</a></li>
-                    <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
-                    <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
                     <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-                    <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-                    <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
-                    <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
-                    <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
-                    <li><a href="{{ url_for('trueskill_rankings') }}"><i class="fas fa-star"></i> TrueSkill Rankings</a></li>
-                    <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Player List</a></li>
                     <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>

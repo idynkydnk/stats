@@ -10,6 +10,42 @@
     
     <div class="feature-links">
         <div class="feature-card">
+            <h3><i class="fas fa-list-alt"></i> Doubles Games</h3>
+            <p>List of all doubles volleyball games played</p>
+            <a href="{{ url_for('games') }}" class="feature-link">View Doubles Games</a>
+        </div>
+        
+        <div class="feature-card">
+            <h3><i class="fas fa-volleyball-ball"></i> Vollis Games</h3>
+            <p>List of all vollis games played</p>
+            <a href="{{ url_for('vollis_games') }}" class="feature-link">View Vollis Games</a>
+        </div>
+        
+        <div class="feature-card">
+            <h3><i class="fas fa-trophy"></i> Top Teams</h3>
+            <p>Best performing team combinations</p>
+            <a href="{{ url_for('top_teams') }}" class="feature-link">View Top Teams</a>
+        </div>
+        
+        <div class="feature-card">
+            <h3><i class="fas fa-user"></i> 1v1 Stats</h3>
+            <p>Head-to-head statistics for individual matchups</p>
+            <a href="{{ url_for('one_v_one') }}" class="feature-link">View 1v1 Stats</a>
+        </div>
+        
+        <div class="feature-card">
+            <h3><i class="fas fa-gamepad"></i> 1v1 Games</h3>
+            <p>List of all 1v1 games played</p>
+            <a href="{{ url_for('one_v_one_games') }}" class="feature-link">View 1v1 Games</a>
+        </div>
+        
+        <div class="feature-card">
+            <h3><i class="fas fa-dice"></i> Other Games</h3>
+            <p>List of other types of games played</p>
+            <a href="{{ url_for('other_games') }}" class="feature-link">View Other Games</a>
+        </div>
+        
+        <div class="feature-card">
             <h3><i class="fas fa-star"></i> TrueSkill Rankings</h3>
             <p>Bayesian skill ranking system developed by Microsoft Research</p>
             <a href="{{ url_for('trueskill_rankings') }}" class="feature-link">View Rankings</a>
@@ -37,18 +73,6 @@
             <h3><i class="fas fa-gamepad"></i> Game Hub</h3>
             <p>Miscellaneous games dashboard (vollis, 1v1, other)</p>
             <a href="{{ url_for('game_hub') }}" class="feature-link">View Game Hub</a>
-        </div>
-        
-        <div class="feature-card">
-            <h3><i class="fas fa-chart-pie"></i> Other Stats</h3>
-            <p>Statistics for other types of games</p>
-            <a href="{{ url_for('other') }}" class="feature-link">View Other Stats</a>
-        </div>
-        
-        <div class="feature-card">
-            <h3><i class="fas fa-dice"></i> Other Games</h3>
-            <p>List of other types of games played</p>
-            <a href="{{ url_for('other_games') }}" class="feature-link">View Other Games</a>
         </div>
         
         <div class="feature-card">

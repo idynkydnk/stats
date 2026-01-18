@@ -112,6 +112,7 @@
             </table>
             {% endif %}
             <h1>{% block title %} {{ year }} Doubles Stats {% endblock %}</h1>
+            <p class="page-sublink"><a href="{{ url_for('games_by_year', year=year) }}"><i class="fas fa-list-alt"></i> View {{ year }} doubles games</a></p>
         	<table>
         		<thead>
     				<tr>
