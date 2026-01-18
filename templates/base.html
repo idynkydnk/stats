@@ -22,6 +22,7 @@
                 <a href="{{ url_for('add_one_v_one_game') }}">Add 1v1 game</a>
                 <a href="{{ url_for('edit_one_v_one_games') }}">Edit 1v1 games</a>
                 <a href="{{ url_for('add_other_game') }}">Add other game</a>
+                <a href="{{ url_for('edit_other_games') }}">Edit other games</a>
             </div>
         </div>  
     </nav>
@@ -39,13 +40,24 @@
                     <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
                     <li><a href="{{ url_for('games') }}"><i class="fas fa-list-alt"></i> Doubles Games</a></li>
                     <li><a href="{{ url_for('vollis_games') }}"><i class="fas fa-plus-circle"></i> Vollis Games</a></li>
+                    <li><a href="{{ url_for('top_teams') }}"><i class="fas fa-trophy"></i> Top Teams</a></li>
                     <li><a href="{{ url_for('one_v_one') }}"><i class="fas fa-user"></i> 1v1 Stats</a></li>
                     <li><a href="{{ url_for('one_v_one_games') }}"><i class="fas fa-gamepad"></i> 1v1 Games</a></li>
+                    <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+                    <li><a href="{{ url_for('other_games') }}"><i class="fas fa-dice"></i> Other Games</a></li>
+                    <li><a href="{{ url_for('player_trends') }}"><i class="fas fa-chart-area"></i> Player Trends</a></li>
+                    <li><a href="{{ url_for('date_range_stats') }}"><i class="fas fa-calendar-alt"></i> Date Range Stats</a></li>
+                    <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
+                    <li><a href="{{ url_for('trueskill_rankings') }}"><i class="fas fa-star"></i> TrueSkill Rankings</a></li>
+                    <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Player List</a></li>
                     <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
-           {% if session.logged_in %}
-               <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
+                    {% if session.logged_in %}
+                        <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
+                        {% if session.username == 'kyle' %}
+                            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        {% endif %}
                         <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
-                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
                     {% else %}
                         <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                     {% endif %}
