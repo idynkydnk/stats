@@ -1,5 +1,10 @@
 from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response
-from flask_caching import Cache
+# Flask-Caching is optional - the custom caching in stat_functions.py will still work
+try:
+    from flask_caching import Cache
+    FLASK_CACHING_AVAILABLE = True
+except ImportError:
+    FLASK_CACHING_AVAILABLE = False
 from flask_mail import Mail, Message
 from database_functions import *
 from stat_functions import *
@@ -30,9 +35,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
 
 # Cache configuration - cache expensive calculations for 5 minutes
-app.config['CACHE_TYPE'] = 'SimpleCache'
-app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes
-cache = Cache(app)
+# Flask-Caching is optional - stat_functions.py has its own caching that works without it
+if FLASK_CACHING_AVAILABLE:
+    app.config['CACHE_TYPE'] = 'SimpleCache'
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes
+    cache = Cache(app)
 
 # Email configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
