@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+
+{% block title %}Performance Benchmarks{% endblock %}
+
+{% block content %}
+<style>
+    .benchmarks-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .benchmarks-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .benchmarks-header h1 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 2em;
+    }
+    
+    .run-benchmark-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .run-benchmark-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .run-benchmark-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .benchmark-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+        overflow: hidden;
+        border: 1px solid #e8e8e8;
+    }
+    
+    .benchmark-card-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 18px 24px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .benchmark-timestamp {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .benchmark-summary {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .summary-stat {
+        text-align: center;
+        padding: 5px 15px;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .summary-stat-value {
+        font-size: 1.2em;
+        font-weight: 700;
+    }
+    
+    .summary-stat-label {
+        font-size: 0.75em;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+    
+    .fast { color: #28a745; }
+    .medium { color: #ffc107; }
+    .slow { color: #dc3545; }
+    
+    .benchmark-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .benchmark-table th {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+        font-size: 0.9em;
+    }
+    
+    .benchmark-table td {
+        padding: 10px 16px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .benchmark-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .time-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .time-bar-fill {
+        height: 8px;
+        border-radius: 4px;
+        min-width: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    .time-bar-fill.fast { background: linear-gradient(90deg, #28a745, #5cb85c); }
+    .time-bar-fill.medium { background: linear-gradient(90deg, #ffc107, #ffda6a); }
+    .time-bar-fill.slow { background: linear-gradient(90deg, #dc3545, #f1707a); }
+    
+    .time-value {
+        font-weight: 600;
+        min-width: 70px;
+    }
+    
+    .no-benchmarks {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .no-benchmarks i {
+        font-size: 4em;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+    
+    .delete-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: background 0.2s;
+    }
+    
+    .delete-btn:hover {
+        background: #c82333;
+    }
+    
+    .comparison-chart {
+        margin: 30px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    .comparison-chart h2 {
+        margin-top: 0;
+        color: #2c3e50;
+        font-size: 1.3em;
+        margin-bottom: 20px;
+    }
+    
+    .trend-row {
+        display: flex;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .trend-name {
+        width: 200px;
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .trend-bars {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        height: 24px;
+    }
+    
+    .trend-bar {
+        height: 100%;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.7em;
+        font-weight: 600;
+        min-width: 30px;
+        transition: all 0.3s ease;
+    }
+    
+    .trend-bar:hover {
+        transform: scaleY(1.2);
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .benchmark-running-status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #2c3e50;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        display: none;
+        align-items: center;
+        gap: 12px;
+        z-index: 1000;
+    }
+    
+    .benchmark-running-status.active {
+        display: flex;
+    }
+
+    @media (max-width: 768px) {
+        .benchmark-table th:nth-child(3),
+        .benchmark-table td:nth-child(3),
+        .benchmark-table th:nth-child(4),
+        .benchmark-table td:nth-child(4) {
+            display: none;
+        }
+        
+        .trend-name {
+            width: 120px;
+            font-size: 0.85em;
+        }
+    }
+</style>
+
+<div class="benchmarks-container">
+    <div class="benchmarks-header">
+        <h1><i class="fas fa-tachometer-alt"></i> Performance Benchmarks</h1>
+        <button class="run-benchmark-btn" id="run-benchmark" onclick="runBenchmark()">
+            <i class="fas fa-play"></i> Run New Benchmark
+        </button>
+    </div>
+    
+    {% if benchmarks|length > 1 %}
+    <div class="comparison-chart">
+        <h2><i class="fas fa-chart-line"></i> Performance Trend (Average Response Time)</h2>
+        <div id="trend-chart">
+            {% set max_avg = namespace(value=0) %}
+            {% for b in benchmarks %}
+                {% set avg = b.results|selectattr('avg')|map(attribute='avg')|list %}
+                {% if avg %}
+                    {% set avg_ms = (avg|sum / avg|length * 1000)|int %}
+                    {% if avg_ms > max_avg.value %}
+                        {% set max_avg.value = avg_ms %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            
+            {% for route_name in benchmarks[0].results|map(attribute='name')|list %}
+            <div class="trend-row">
+                <div class="trend-name">{{ route_name }}</div>
+                <div class="trend-bars">
+                    {% for b in benchmarks|reverse %}
+                        {% set route_data = b.results|selectattr('name', 'equalto', route_name)|first %}
+                        {% if route_data and route_data.avg %}
+                            {% set ms = (route_data.avg * 1000)|int %}
+                            {% set width = (ms / max_avg.value * 100)|int %}
+                            {% if ms < 200 %}
+                                {% set color = '#28a745' %}
+                            {% elif ms < 500 %}
+                                {% set color = '#ffc107' %}
+                            {% else %}
+                                {% set color = '#dc3545' %}
+                            {% endif %}
+                            <div class="trend-bar" style="width: {{ width }}%; background: {{ color }};" title="{{ b.timestamp[:16] }}: {{ ms }}ms">
+                                {{ ms }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <p style="color: #6c757d; font-size: 0.85em; margin-top: 15px;">
+            <i class="fas fa-info-circle"></i> Bars show benchmarks from oldest (left) to newest (right). Hover for details.
+        </p>
+    </div>
+    {% endif %}
+    
+    {% if benchmarks %}
+        {% for benchmark in benchmarks %}
+        <div class="benchmark-card">
+            <div class="benchmark-card-header">
+                <div class="benchmark-timestamp">
+                    <i class="fas fa-clock"></i> {{ benchmark.timestamp[:19].replace('T', ' ') }}
+                </div>
+                <div class="benchmark-summary">
+                    {% set times = benchmark.results|selectattr('avg')|map(attribute='avg')|list %}
+                    {% if times %}
+                        {% set avg_ms = (times|sum / times|length * 1000)|int %}
+                        {% set min_ms = (times|min * 1000)|int %}
+                        {% set max_ms = (times|max * 1000)|int %}
+                        <div class="summary-stat">
+                            <div class="summary-stat-value {% if avg_ms < 200 %}fast{% elif avg_ms < 500 %}medium{% else %}slow{% endif %}">{{ avg_ms }}ms</div>
+                            <div class="summary-stat-label">Avg</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-value fast">{{ min_ms }}ms</div>
+                            <div class="summary-stat-label">Fastest</div>
+                        </div>
+                        <div class="summary-stat">
+                            <div class="summary-stat-value {% if max_ms < 200 %}fast{% elif max_ms < 500 %}medium{% else %}slow{% endif %}">{{ max_ms }}ms</div>
+                            <div class="summary-stat-label">Slowest</div>
+                        </div>
+                    {% endif %}
+                </div>
+                <form action="{{ url_for('delete_benchmark', filename=benchmark.filename) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this benchmark?');">
+                    <button type="submit" class="delete-btn"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+            <table class="benchmark-table">
+                <thead>
+                    <tr>
+                        <th>Route</th>
+                        <th>Avg Time</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set max_time = benchmark.results|selectattr('avg')|map(attribute='avg')|max %}
+                    {% for result in benchmark.results|sort(attribute='avg', reverse=true) if result.avg %}
+                    <tr>
+                        <td>{{ result.name }}</td>
+                        <td>
+                            <div class="time-bar">
+                                {% set ms = (result.avg * 1000)|int %}
+                                {% set width = (result.avg / max_time * 100)|int %}
+                                <div class="time-bar-fill {% if ms < 200 %}fast{% elif ms < 500 %}medium{% else %}slow{% endif %}" style="width: {{ width }}%;"></div>
+                                <span class="time-value {% if ms < 200 %}fast{% elif ms < 500 %}medium{% else %}slow{% endif %}">{{ ms }}ms</span>
+                            </div>
+                        </td>
+                        <td>{{ (result.min * 1000)|int }}ms</td>
+                        <td>{{ (result.max * 1000)|int }}ms</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-benchmarks">
+            <i class="fas fa-tachometer-alt"></i>
+            <h2>No Benchmarks Yet</h2>
+            <p>Click "Run New Benchmark" to measure your site's performance.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="benchmark-running-status" id="benchmark-status">
+    <div class="loading-spinner"></div>
+    <span id="benchmark-status-text">Running benchmark...</span>
+</div>
+
+<script>
+function runBenchmark() {
+    const btn = document.getElementById('run-benchmark');
+    const status = document.getElementById('benchmark-status');
+    const statusText = document.getElementById('benchmark-status-text');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-spinner"></div> Running...';
+    status.classList.add('active');
+    statusText.textContent = 'Running benchmark (this may take a minute)...';
+    
+    fetch('{{ url_for("run_benchmark") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusText.textContent = 'Benchmark complete! Reloading...';
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('Benchmark failed: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-play"></i> Run New Benchmark';
+            status.classList.remove('active');
+        }
+    })
+    .catch(error => {
+        alert('Error running benchmark: ' + error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Run New Benchmark';
+        status.classList.remove('active');
+    });
+}
+</script>
+{% endblock %}

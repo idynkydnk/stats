@@ -2444,6 +2444,144 @@ def work_in_progress():
     """Work in Progress page with links to various features"""
     return render_template('work_in_progress.html')
 
+@app.route('/benchmarks')
+def benchmarks():
+    """Performance benchmarks page - kyle only"""
+    if session.get('username') != 'kyle':
+        flash('Access denied. This page is only available to administrators.', 'error')
+        return redirect(url_for('index'))
+    
+    # Load all benchmark files from benchmarks folder
+    benchmarks_dir = os.path.join(os.path.dirname(__file__), 'benchmarks')
+    benchmark_list = []
+    
+    if os.path.exists(benchmarks_dir):
+        for filename in sorted(os.listdir(benchmarks_dir), reverse=True):
+            if filename.endswith('.json'):
+                filepath = os.path.join(benchmarks_dir, filename)
+                try:
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        data['filename'] = filename
+                        benchmark_list.append(data)
+                except Exception as e:
+                    print(f"Error loading benchmark {filename}: {e}")
+    
+    return render_template('benchmarks.html', benchmarks=benchmark_list)
+
+@app.route('/run_benchmark', methods=['POST'])
+def run_benchmark():
+    """Run a new benchmark - kyle only"""
+    if session.get('username') != 'kyle':
+        return jsonify({'success': False, 'error': 'Access denied'})
+    
+    import time
+    from statistics import mean, stdev
+    
+    # Routes to benchmark
+    routes = [
+        ('/', 'Homepage'),
+        ('/stats/2025/', 'Stats 2025'),
+        ('/stats/2026/', 'Stats 2026'),
+        ('/dashboard/', 'Dashboard'),
+        ('/combined_dashboard/', 'Combined Dashboard'),
+        ('/player_list/', 'Player List'),
+        ('/player_trends/', 'Player Trends'),
+        ('/games/', 'Games List'),
+        ('/vollis_games/', 'Vollis Games'),
+        ('/one_v_one_games/', 'One v One Games'),
+        ('/other_games/', 'Other Games'),
+        ('/vollis_stats/', 'Vollis Stats'),
+        ('/one_v_one_stats/', 'One v One Stats'),
+        ('/other_stats/', 'Other Stats'),
+        ('/volleyball_stats/', 'Volleyball Stats'),
+        ('/advanced_stats/', 'Advanced Stats'),
+        ('/glicko_rankings/', 'Glicko Rankings'),
+        ('/trueskill_rankings/', 'TrueSkill Rankings'),
+        ('/kobs/', 'KOBs'),
+        ('/tournaments/', 'Tournaments'),
+        ('/top_teams/', 'Top Teams'),
+        ('/game_hub', 'Game Hub'),
+    ]
+    
+    results = []
+    runs = 3
+    
+    with app.test_client() as client:
+        # Login first to access protected pages
+        client.post('/login', data={'username': 'kyle', 'password': 'stats2025'})
+        
+        for route, name in routes:
+            times = []
+            errors = []
+            
+            for _ in range(runs):
+                try:
+                    start = time.perf_counter()
+                    response = client.get(route)
+                    elapsed = time.perf_counter() - start
+                    
+                    if response.status_code == 200:
+                        times.append(elapsed)
+                    else:
+                        errors.append(f"HTTP {response.status_code}")
+                except Exception as e:
+                    errors.append(str(e))
+            
+            results.append({
+                'route': route,
+                'name': name,
+                'times': times,
+                'avg': mean(times) if times else None,
+                'min': min(times) if times else None,
+                'max': max(times) if times else None,
+                'stdev': stdev(times) if len(times) > 1 else 0,
+                'errors': errors,
+                'runs': runs,
+                'successful_runs': len(times),
+            })
+    
+    # Save results
+    benchmarks_dir = os.path.join(os.path.dirname(__file__), 'benchmarks')
+    os.makedirs(benchmarks_dir, exist_ok=True)
+    
+    timestamp = datetime.now().isoformat()
+    filename = f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filepath = os.path.join(benchmarks_dir, filename)
+    
+    data = {
+        'timestamp': timestamp,
+        'results': results,
+    }
+    
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    return jsonify({'success': True, 'filename': filename})
+
+@app.route('/delete_benchmark/<filename>', methods=['POST'])
+def delete_benchmark(filename):
+    """Delete a benchmark file - kyle only"""
+    if session.get('username') != 'kyle':
+        flash('Access denied.', 'error')
+        return redirect(url_for('index'))
+    
+    # Sanitize filename to prevent directory traversal
+    if '..' in filename or '/' in filename:
+        flash('Invalid filename.', 'error')
+        return redirect(url_for('benchmarks'))
+    
+    benchmarks_dir = os.path.join(os.path.dirname(__file__), 'benchmarks')
+    filepath = os.path.join(benchmarks_dir, filename)
+    
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash('Benchmark deleted.', 'success')
+    else:
+        flash('Benchmark not found.', 'error')
+    
+    return redirect(url_for('benchmarks'))
+
 @app.route('/testing_lab')
 def testing_lab():
     """Testing lab for email and AI features"""
