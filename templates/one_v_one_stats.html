@@ -47,6 +47,9 @@
     {% endif %}
     </div>
     <h1>{% block title %} {{ year }} 1v1 Stats {% endblock %}</h1>
+            {% if showing_previous_year %}
+            <p class="no-current-year-notice">No 1v1 games played in {{ current_year }} yet. Showing {{ year }} stats.</p>
+            {% endif %}
         <div>
         	<table>
         		<thead>

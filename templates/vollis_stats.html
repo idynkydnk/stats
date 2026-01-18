@@ -71,6 +71,9 @@
     {% endif %}
     </div>
     <h1>{% block title %} {{ year }} Vollis Stats {% endblock %}</h1>
+            {% if showing_previous_year %}
+            <p class="no-current-year-notice">No vollis games played in {{ current_year }} yet. Showing {{ year }} stats.</p>
+            {% endif %}
             <p class="page-sublink"><a href="{{ url_for('vollis_games_by_year', year=year) }}"><i class="fas fa-volleyball-ball"></i> View {{ year }} vollis games</a></p>
         <div>
         	<table>

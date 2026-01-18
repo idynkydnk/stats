@@ -251,6 +251,40 @@ def other_stats_per_year(year, minimum_games):
     stats.sort(key=lambda x: x[3], reverse=True)
     return stats
 
+def rare_other_stats_per_year(year, minimum_games):
+    """Get stats for players below the minimum games threshold"""
+    games = other_year_games(year)
+    players = all_other_players(games)
+    stats = []
+    for player in players:
+        wins, losses = 0, 0
+        for game in games:
+            # Get all valid winner names from the game
+            winner_names = []
+            for i in range(1, 16):
+                val = game.get(f'winner{i}')
+                if _is_valid_player_name(val):
+                    winner_names.append(val)
+            
+            # Get all valid loser names from the game
+            loser_names = []
+            for i in range(1, 16):
+                val = game.get(f'loser{i}')
+                if _is_valid_player_name(val):
+                    loser_names.append(val)
+            
+            if player in winner_names:
+                wins += 1
+            elif player in loser_names:
+                losses += 1
+        if wins + losses == 0:
+            continue
+        win_percentage = wins / (wins + losses)
+        if wins + losses < minimum_games:
+            stats.append([player, wins, losses, win_percentage])
+    stats.sort(key=lambda x: x[3], reverse=True)
+    return stats
+
 def _is_valid_player_name(value):
     """Check if a value is a valid player name (not a score, timestamp, or round sequence)."""
     if not value or not isinstance(value, str):

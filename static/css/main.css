@@ -163,6 +163,15 @@ h1 {
   font-size: 13px;
 }
 
+.no-current-year-notice {
+  text-align: center;
+  font-size: 12px;
+  color: var(--caption);
+  font-style: italic;
+  margin: 5px 0 10px 0;
+  opacity: 0.85;
+}
+
 .page-sublink a {
   color: var(--caption);
   text-decoration: none;

@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for y in all_years %}
+                    <a href="{{ url_for('volleyball_stats', year=y) }}">{{ y }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+    
+    <h1>{% block title %} {{ year }} Volleyball Stats {% endblock %}</h1>
+    <p class="page-sublink"><a href="{{ url_for('other_stats', year=year) }}"><i class="fas fa-arrow-left"></i> Back to Other Stats</a></p>
+    <p class="page-sublink"><i class="fas fa-volleyball-ball"></i> {{ total_games }} total games across {{ game_cards|length }} game types</p>
+    
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="rank" scope="col" colspan="1">#</th>
+                    <th class="player_name" scope="col" colspan="1">Player</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player_name"><a href="{{ url_for('volleyball_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td>{{ player[1] }}</td>
+                    <td>{{ player[2] }}</td>
+                    <td>{{ "{:.2f}".format(player[3]*100) }}</td>
+                    <td>{{ player[1] + player[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if rare_stats %}
+    <div class="expand-btn-container">
+        <button id="toggle-rare-stats-btn" class="expand-btn" onclick="toggleRareStatsSection()">
+            Show {{ rare_stats|length }} players with less than {{ minimum_games }} games <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    <div id="rare-stats-section" style="display: none;">
+        <table id="rare-stats-table">
+            <thead>
+                <tr>
+                    <th class="rank" scope="col" colspan="1">#</th>
+                    <th class="player_name" scope="col" colspan="1">Player</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in rare_stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player_name"><a href="{{ url_for('volleyball_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td>{{ player[1] }}</td>
+                    <td>{{ player[2] }}</td>
+                    <td>{{ "{:.2f}".format(player[3]*100) }}</td>
+                    <td>{{ player[1] + player[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <style>
+        .expand-btn-container { text-align: center; margin: 10px 0 20px 0; }
+        .expand-btn {
+            background-color: var(--button-border-1);
+            color: var(--button-bg-1);
+            border: 2px solid var(--button-bg-1);
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .expand-btn:hover {
+            background-color: var(--button-bg-1);
+            color: var(--button-text-1);
+        }
+        .expand-btn i { margin-left: 5px; transition: transform 0.2s ease; }
+        .expand-btn.expanded i { transform: rotate(180deg); }
+    </style>
+
+    <script>
+        function toggleRareStatsSection() {
+            const section = document.getElementById('rare-stats-section');
+            const btn = document.getElementById('toggle-rare-stats-btn');
+            const isExpanded = btn.classList.contains('expanded');
+            
+            if (isExpanded) {
+                section.style.display = 'none';
+                btn.innerHTML = 'Show {{ rare_stats|length }} players with less than {{ minimum_games }} games <i class="fa fa-chevron-down"></i>';
+                btn.classList.remove('expanded');
+            } else {
+                section.style.display = 'block';
+                btn.innerHTML = 'Hide players with less than {{ minimum_games }} games <i class="fa fa-chevron-down"></i>';
+                btn.classList.add('expanded');
+            }
+        }
+    </script>
+
+    {% if game_cards %}
+    {% for card in game_cards %}
+    {% set card_index = loop.index %}
+    <h1>{{ card.game_name }}</h1>
+    <p class="page-sublink"><a href="{{ url_for('other_games_by_year_and_name', year=year, game_name=card.game_name) }}"><i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games</a></p>
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="rank" scope="col" colspan="1">#</th>
+                    <th class="player_name" scope="col" colspan="1">Player</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Wins</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Losses</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Win %</th>
+                    <th class="numbered_stats" scope="col" colspan="1">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in card.stats %}
+                <tr class="{% if loop.index > 8 %}vb-card-hidden-{{ card_index }}{% endif %}">
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player_name"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                    <td>{{ stat[1] }}</td>
+                    <td>{{ stat[2] }}</td>
+                    <td>{{ "{:.2f}".format(stat[3]*100) }}</td>
+                    <td>{{ stat[1] + stat[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if card.stats|length > 8 %}
+    <div class="expand-btn-container">
+        <button class="expand-btn" onclick="toggleVbCard({{ card_index }}, {{ card.stats|length - 8 }})">
+            Show {{ card.stats|length - 8 }} more <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <p>No volleyball games recorded for {{ year }}.</p>
+    {% endif %}
+
+    <style>
+        {% for card in game_cards %}
+        {% if card.stats|length > 8 %}
+        .vb-card-hidden-{{ loop.index }} { display: none; }
+        {% endif %}
+        {% endfor %}
+    </style>
+
+    <script>
+        function toggleVbCard(cardIndex, extraCount) {
+            const hiddenRows = document.querySelectorAll('.vb-card-hidden-' + cardIndex);
+            const btn = event.target.closest('.expand-btn');
+            const isExpanded = btn.classList.contains('expanded');
+            
+            hiddenRows.forEach(row => {
+                row.style.display = isExpanded ? 'none' : 'table-row';
+            });
+            
+            if (isExpanded) {
+                btn.innerHTML = 'Show ' + extraCount + ' more <i class="fa fa-chevron-down"></i>';
+                btn.classList.remove('expanded');
+            } else {
+                btn.innerHTML = 'Show less <i class="fa fa-chevron-down"></i>';
+                btn.classList.add('expanded');
+            }
+        }
+    </script>
+{% endblock %}

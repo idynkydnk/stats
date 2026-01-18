@@ -584,13 +584,28 @@ def vollis_stats(year):
 @app.route('/vollis_stats/')
 def vollis():
     all_years = all_vollis_years()
-    year = str(date.today().year)
+    current_year = str(date.today().year)
+    year = current_year
     t_stats = todays_vollis_stats()
     games = todays_vollis_games()
     minimum_games = 0
     stats = vollis_stats_per_year(year, minimum_games)
+    
+    # If no stats for current year, show previous year with a notice
+    showing_previous_year = False
+    if not stats and current_year in all_years:
+        # Remove current year since it has no data, try previous
+        pass
+    if not stats:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            year = previous_year
+            stats = vollis_stats_per_year(year, minimum_games)
+            showing_previous_year = True
+    
     return render_template('vollis_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+        all_years=all_years, minimum_games=minimum_games, year=year, 
+        showing_previous_year=showing_previous_year, current_year=current_year)
 
 
 @app.route('/add_vollis_game/', methods=('GET', 'POST'))
@@ -718,13 +733,25 @@ def one_v_one_stats(year):
 @app.route('/one_v_one_stats/')
 def one_v_one():
     all_years = all_one_v_one_years()
-    year = str(date.today().year)
+    current_year = str(date.today().year)
+    year = current_year
     t_stats = todays_one_v_one_stats()
     games = todays_one_v_one_games()
     minimum_games = 0
     stats = one_v_one_stats_per_year(year, minimum_games)
+    
+    # If no stats for current year, show previous year with a notice
+    showing_previous_year = False
+    if not stats:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            year = previous_year
+            stats = one_v_one_stats_per_year(year, minimum_games)
+            showing_previous_year = True
+    
     return render_template('one_v_one_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+        all_years=all_years, minimum_games=minimum_games, year=year,
+        showing_previous_year=showing_previous_year, current_year=current_year)
 
 
 @app.route('/add_one_v_one_game/', methods=('GET', 'POST'))
@@ -891,9 +918,92 @@ def single_game_stats_with_year(game_name, year):
 
 
 
-def build_other_game_cards(year):
-    """Build per-game cards for other games."""
-    from other_functions import other_year_games, other_game_names, total_game_name_stats
+def build_other_game_cards(year, exclude_volleyball=True, minimum_games=1):
+    """Build per-game cards for other games.
+    
+    If exclude_volleyball is True, consolidates all Volleyball games into a single summary card.
+    minimum_games is used to filter players in the consolidated volleyball card.
+    """
+    from other_functions import other_year_games, other_game_names, total_game_name_stats, other_game_type_for_name
+    
+    games = other_year_games(year)
+    game_cards = []
+    volleyball_games = []
+    
+    if games:
+        game_names = other_game_names(games)
+        for game_name in game_names:
+            game_specific = [game for game in games if game.get('game_name') == game_name]
+            if not game_specific:
+                continue
+            
+            # Check if this is a volleyball game
+            game_type = other_game_type_for_name(games, game_name)
+            if exclude_volleyball and game_type == 'Volleyball':
+                volleyball_games.extend(game_specific)
+                continue
+            
+            stats_for_game = total_game_name_stats(game_specific)
+            if not stats_for_game:
+                continue
+            
+            # Calculate minimum games for this game type using same formula as doubles
+            num_games = len(game_specific)
+            if num_games < 30:
+                card_minimum_games = 1
+            else:
+                card_minimum_games = num_games // 30
+            
+            # Split stats into qualified and rare
+            qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
+            rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
+            
+            game_cards.append({
+                'game_name': game_name,
+                'stats': qualified_stats,
+                'rare_stats': rare_stats,
+                'minimum_games': card_minimum_games,
+                'total_games': len(game_specific)  # Count actual games, not player participations
+            })
+        
+        # Add consolidated volleyball card if we have volleyball games
+        if exclude_volleyball and volleyball_games:
+            volleyball_stats = total_game_name_stats(volleyball_games)
+            if volleyball_stats:
+                total_vb_games = len(volleyball_games)  # Count actual games, not player participations
+                # Count unique volleyball game types
+                vb_game_names = set(g.get('game_name') for g in volleyball_games)
+                
+                # Calculate minimum games for volleyball based on total volleyball games
+                if len(volleyball_games) < 30:
+                    vb_minimum_games = 1
+                else:
+                    vb_minimum_games = len(volleyball_games) // 30
+                
+                # Split stats by minimum games requirement
+                qualified_stats = [s for s in volleyball_stats if (s[1] + s[2]) >= vb_minimum_games]
+                rare_stats = [s for s in volleyball_stats if (s[1] + s[2]) < vb_minimum_games]
+                
+                game_cards.append({
+                    'game_name': 'Volleyball',
+                    'game_type': 'Volleyball',
+                    'is_consolidated': True,
+                    'num_game_types': len(vb_game_names),
+                    'stats': qualified_stats,
+                    'rare_stats': rare_stats,
+                    'total_games': total_vb_games,
+                    'minimum_games': vb_minimum_games
+                })
+    
+    # Sort all cards by total games descending
+    game_cards.sort(key=lambda x: x['total_games'], reverse=True)
+    
+    return game_cards
+
+
+def build_volleyball_game_cards(year):
+    """Build per-game cards for volleyball games only."""
+    from other_functions import other_year_games, other_game_names, total_game_name_stats, other_game_type_for_name
     
     games = other_year_games(year)
     game_cards = []
@@ -904,38 +1014,218 @@ def build_other_game_cards(year):
             game_specific = [game for game in games if game.get('game_name') == game_name]
             if not game_specific:
                 continue
+            
+            # Only include volleyball games
+            game_type = other_game_type_for_name(games, game_name)
+            if game_type != 'Volleyball':
+                continue
+            
             stats_for_game = total_game_name_stats(game_specific)
             if not stats_for_game:
                 continue
-            total_games = sum(stat[4] if len(stat) > 4 else (stat[1] + stat[2]) for stat in stats_for_game)
             game_cards.append({
                 'game_name': game_name,
-                'stats': stats_for_game[:8],
-                'total_games': total_games
+                'stats': stats_for_game,  # Pass all stats, template handles display limit
+                'total_games': len(game_specific)  # Count actual games, not player participations
             })
+        
+        # Sort by total games descending
+        game_cards.sort(key=lambda x: x['total_games'], reverse=True)
+    
     return game_cards
 
 
 @app.route('/other_stats/<year>/')
 def other_stats(year):
     all_years = all_other_years()
-    minimum_games = 1
+    # Calculate minimum games using same formula as doubles stats
+    games = other_year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
     stats = other_stats_per_year(year, minimum_games)
+    rare_stats = rare_other_stats_per_year(year, minimum_games)
     game_cards = build_other_game_cards(year)
-    return render_template('other_stats.html', stats=stats,
+    return render_template('other_stats.html', stats=stats, rare_stats=rare_stats,
         all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
 
 @app.route('/other_stats/')
 def other():
     all_years = all_other_years()
-    year = str(date.today().year)
+    current_year = str(date.today().year)
+    year = current_year
     t_stats = todays_other_stats()
-    games = todays_other_games()
-    minimum_games = 0
+    todays_games = todays_other_games()
+    
+    # Calculate minimum games using same formula as doubles stats
+    year_games = other_year_games(year)
+    if year_games:
+        if len(year_games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(year_games) // 30
+    else:
+        minimum_games = 1
+    
     stats = other_stats_per_year(year, minimum_games)
+    rare_stats = rare_other_stats_per_year(year, minimum_games)
     game_cards = build_other_game_cards(year)
-    return render_template('other_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
+    
+    # If no stats for current year, show previous year with a notice
+    showing_previous_year = False
+    if not stats and not rare_stats:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            year = previous_year
+            # Recalculate minimum games for the previous year
+            year_games = other_year_games(year)
+            if year_games:
+                if len(year_games) < 30:
+                    minimum_games = 1
+                else:
+                    minimum_games = len(year_games) // 30
+            else:
+                minimum_games = 1
+            stats = other_stats_per_year(year, minimum_games)
+            rare_stats = rare_other_stats_per_year(year, minimum_games)
+            game_cards = build_other_game_cards(year)
+            showing_previous_year = True
+    
+    return render_template('other_stats.html', stats=stats, rare_stats=rare_stats, 
+        todays_stats=t_stats, games=todays_games,
+        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards,
+        showing_previous_year=showing_previous_year, current_year=current_year)
+
+
+@app.route('/volleyball_stats/')
+def volleyball_stats_default():
+    return volleyball_stats(str(date.today().year))
+
+
+@app.route('/volleyball_stats/<year>/')
+def volleyball_stats(year):
+    from other_functions import other_year_games, total_game_name_stats
+    
+    all_years = all_other_years()
+    games = other_year_games(year)
+    
+    # Filter to only volleyball games
+    volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
+    
+    # Calculate overall volleyball stats
+    overall_stats = total_game_name_stats(volleyball_games) if volleyball_games else []
+    
+    # Calculate minimum games for qualification
+    if volleyball_games:
+        if len(volleyball_games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(volleyball_games) // 30
+    else:
+        minimum_games = 1
+    
+    # Split into qualified and rare stats
+    qualified_stats = [s for s in overall_stats if (s[1] + s[2]) >= minimum_games]
+    rare_stats = [s for s in overall_stats if (s[1] + s[2]) < minimum_games]
+    
+    # Get individual game cards for each volleyball game type
+    game_cards = build_volleyball_game_cards(year)
+    
+    return render_template('volleyball_stats.html', 
+        stats=qualified_stats,
+        rare_stats=rare_stats,
+        all_years=all_years, 
+        minimum_games=minimum_games, 
+        year=year, 
+        game_cards=game_cards,
+        total_games=len(volleyball_games))
+
+
+@app.route('/volleyball_player/<year>/<name>')
+def volleyball_player_stats(year, name):
+    """Show volleyball stats for a specific player with cards for each game type."""
+    from other_functions import other_year_games, total_game_name_stats, other_game_names, _is_valid_player_name
+    
+    all_years = all_other_years()
+    games = other_year_games(year)
+    
+    # Filter to only volleyball games where this player participated
+    player_volleyball_games = []
+    for game in games:
+        if game.get('game_type') != 'Volleyball':
+            continue
+        # Check if player is in this game
+        for i in range(1, 16):
+            winner = game.get(f'winner{i}')
+            loser = game.get(f'loser{i}')
+            if (winner and _is_valid_player_name(winner) and winner == name) or \
+               (loser and _is_valid_player_name(loser) and loser == name):
+                player_volleyball_games.append(game)
+                break
+    
+    # Calculate overall stats for this player
+    wins, losses = 0, 0
+    for game in player_volleyball_games:
+        for i in range(1, 16):
+            winner = game.get(f'winner{i}')
+            loser = game.get(f'loser{i}')
+            if winner and _is_valid_player_name(winner) and winner == name:
+                wins += 1
+                break
+            if loser and _is_valid_player_name(loser) and loser == name:
+                losses += 1
+                break
+    
+    total_games = wins + losses
+    win_percentage = wins / total_games if total_games > 0 else 0
+    overall_stats = [[name, wins, losses, win_percentage, total_games]]
+    
+    # Build game cards for each volleyball game type this player has played
+    game_cards = []
+    game_names = other_game_names(player_volleyball_games)
+    for game_name in game_names:
+        game_specific = [g for g in player_volleyball_games if g.get('game_name') == game_name]
+        if not game_specific:
+            continue
+        
+        # Calculate player's stats for this specific game type
+        type_wins, type_losses = 0, 0
+        for game in game_specific:
+            for i in range(1, 16):
+                winner = game.get(f'winner{i}')
+                loser = game.get(f'loser{i}')
+                if winner and _is_valid_player_name(winner) and winner == name:
+                    type_wins += 1
+                    break
+                if loser and _is_valid_player_name(loser) and loser == name:
+                    type_losses += 1
+                    break
+        
+        type_total = type_wins + type_losses
+        type_win_pct = type_wins / type_total if type_total > 0 else 0
+        
+        game_cards.append({
+            'game_name': game_name,
+            'wins': type_wins,
+            'losses': type_losses,
+            'win_percentage': type_win_pct,
+            'total_games': type_total
+        })
+    
+    # Sort by total games descending
+    game_cards.sort(key=lambda x: x['total_games'], reverse=True)
+    
+    return render_template('volleyball_player.html',
+        player=name,
+        year=year,
+        all_years=all_years,
+        stats=overall_stats,
+        game_cards=game_cards,
+        total_games=total_games)
 
 
 @app.route('/add_other_game/', methods=('GET', 'POST'))

@@ -140,7 +140,7 @@
             	</tbody>
             </table>
             {% if rare_stats %}
-            <table>
+            <table id="rare-stats-table">
                 <h3>Less than {{ minimum_games }} games</h3>
                 <thead>
                     <tr>
@@ -155,7 +155,7 @@
                 </thead>
                 <tbody>
                     {% for player in rare_stats %}
-                    <tr>
+                    <tr class="{% if loop.index > 5 %}rare-stats-hidden{% endif %}">
                         <td class="rank">{{ loop.index }}</td>
                         <td class="player_name"><a href="{{ url_for('player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
                         <td>{{ player[4] }}</td>
@@ -167,6 +167,54 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% if rare_stats|length > 5 %}
+            <div class="expand-btn-container">
+                <button id="expand-rare-stats" class="expand-btn" onclick="toggleRareStats()">
+                    Show {{ rare_stats|length - 5 }} more <i class="fa fa-chevron-down"></i>
+                </button>
+            </div>
             {% endif %}
+            {% endif %}
+
+            <style>
+                .rare-stats-hidden { display: none; }
+                .expand-btn-container { text-align: center; margin: 10px 0 20px 0; }
+                .expand-btn {
+                    background-color: var(--button-border-1);
+                    color: var(--button-bg-1);
+                    border: 2px solid var(--button-bg-1);
+                    border-radius: 12px;
+                    padding: 8px 16px;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .expand-btn:hover {
+                    background-color: var(--button-bg-1);
+                    color: var(--button-text-1);
+                }
+                .expand-btn i { margin-left: 5px; transition: transform 0.2s ease; }
+                .expand-btn.expanded i { transform: rotate(180deg); }
+            </style>
+
+            <script>
+                function toggleRareStats() {
+                    const hiddenRows = document.querySelectorAll('.rare-stats-hidden');
+                    const btn = document.getElementById('expand-rare-stats');
+                    const isExpanded = btn.classList.contains('expanded');
+                    
+                    hiddenRows.forEach(row => {
+                        row.style.display = isExpanded ? 'none' : 'table-row';
+                    });
+                    
+                    if (isExpanded) {
+                        btn.innerHTML = 'Show {{ rare_stats|length - 5 }} more <i class="fa fa-chevron-down"></i>';
+                        btn.classList.remove('expanded');
+                    } else {
+                        btn.innerHTML = 'Show less <i class="fa fa-chevron-down"></i>';
+                        btn.classList.add('expanded');
+                    }
+                }
+            </script>
         </div>
 {% endblock %}
