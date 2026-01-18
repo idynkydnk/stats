@@ -1322,11 +1322,14 @@ def other_games_by_year(year):
 
 @app.route('/other_games/<year>/<game_name>')
 def other_games_by_year_and_name(year, game_name):
+    from other_functions import total_game_name_stats
     all_years = all_other_years()
     all_games = other_year_games(year)
     # Filter games by game_name
     games = [g for g in all_games if g.get('game_name') == game_name]
-    return render_template('other_games.html', all_years=all_years, games=games, year=year, game_name=game_name)
+    # Calculate stats for this game type
+    stats = total_game_name_stats(games)
+    return render_template('other_games.html', all_years=all_years, games=games, year=year, game_name=game_name, stats=stats)
 
 
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
