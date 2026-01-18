@@ -139,131 +139,40 @@
         {% endif %}
     </div>
 
-    <!-- TrueSkill Rankings -->
-    <div class="dashboard-card">
+    <!-- TrueSkill Rankings (lazy loaded) -->
+    <div class="dashboard-card" id="trueskill-card">
         <div class="card-navigation">
             <h2>TrueSkill Rankings</h2>
         </div>
-        {% if trueskill_rankings %}
-        <div class="streaks-list">
-            {% for ranking in trueskill_rankings[:5] %}
-            <div class="streak-item trueskill-item">
-                <span class="player-name">
-                    <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
-                </span>
-                <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
-                <small class="trueskill-games">{{ ranking.wins }}-{{ ranking.losses }} ({{ ranking.games_played }} games)</small>
-            </div>
-            {% endfor %}
-            {% if trueskill_rankings|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'trueskill-rankings-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="trueskill-rankings-more">
-                {% for ranking in trueskill_rankings[5:20] %}
-                <div class="streak-item trueskill-item">
-                    <span class="player-name">
-                        <a href="{{ url_for('player_stats', year='All years', name=ranking.player) }}">{{ ranking.player }}</a>
-                    </span>
-                    <span class="trueskill-rating">{{ "%.1f"|format(ranking.rating) }}</span>
-                    <small class="trueskill-games">{{ ranking.wins }}-{{ ranking.losses }} ({{ ranking.games_played }} games)</small>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="streaks-list">
-            <div class="streak-item">
-                <span class="player-name">No rankings available</span>
-                <span class="streak-info">Check back later</span>
+        <div class="streaks-list" id="trueskill-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
         </div>
-        {% endif %}
     </div>
 
-    <!-- Winning Streaks -->
-    <div class="dashboard-card">
+    <!-- Winning Streaks (lazy loaded) -->
+    <div class="dashboard-card" id="win-streaks-card">
         <div class="card-navigation">
             <h2>Current Winning Streaks</h2>
         </div>
-        {% if win_streaks %}
-        <div class="streaks-list">
-            {% for streak in win_streaks[:5] %}
-            <div class="streak-item {{ streak[2] }}">
-                <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
-                </span>
-                <span class="streak-info">
-                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                    <small>(Best: {{ streak[3] }})</small>
-                </span>
+        <div class="streaks-list" id="win-streaks-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
-            {% endfor %}
-            {% if win_streaks|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'win-streaks-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="win-streaks-more">
-                {% for streak in win_streaks[5:20] %}
-                <div class="streak-item {{ streak[2] }}">
-                    <span class="player-name">
-                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
-                    </span>
-                    <span class="streak-info">
-                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                        <small>(Best: {{ streak[3] }})</small>
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
-        {% else %}
-        <p>No active winning streaks</p>
-        {% endif %}
     </div>
 
-    <!-- Losing Streaks -->
-    <div class="dashboard-card">
+    <!-- Losing Streaks (lazy loaded) -->
+    <div class="dashboard-card" id="loss-streaks-card">
         <div class="card-navigation">
             <h2>Current Losing Streaks</h2>
         </div>
-        {% if loss_streaks %}
-        <div class="streaks-list">
-            {% for streak in loss_streaks[:5] %}
-            <div class="streak-item {{ streak[2] }}">
-                <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
-                </span>
-                <span class="streak-info">
-                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                    <small>(Best: {{ streak[3] }})</small>
-                </span>
+        <div class="streaks-list" id="loss-streaks-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
-            {% endfor %}
-            {% if loss_streaks|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'loss-streaks-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="loss-streaks-more">
-                {% for streak in loss_streaks[5:20] %}
-                <div class="streak-item {{ streak[2] }}">
-                    <span class="player-name">
-                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1]) }}">{{ streak[0] }}</a>
-                    </span>
-                    <span class="streak-info">
-                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                        <small>(Best: {{ streak[3] }})</small>
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
-        {% else %}
-        <p>No active losing streaks</p>
-        {% endif %}
     </div>
 
     <!-- Selected Year Stats -->
@@ -300,45 +209,16 @@
         </div>
     </div>
 
-    <!-- Top Teams -->
-    <div class="dashboard-card">
+    <!-- Top Teams (lazy loaded) -->
+    <div class="dashboard-card" id="top-teams-card">
         <div class="card-navigation">
             <h2>{{ selected_year }} Top Teams</h2>
         </div>
-        {% if top_teams %}
-        <div class="streaks-list">
-            {% for team in top_teams[:5] %}
-            <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
-                <span class="player-name">
-                    {{ team.team.player1 }} & {{ team.team.player2 }}
-                </span>
-                <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
-            </div>
-            {% endfor %}
-            {% if top_teams|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'top-teams-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="top-teams-more">
-                {% for team in top_teams[5:20] %}
-                <div class="streak-item {% if team.win_percentage < 0.5 %}loss{% elif team.win_percentage == 0.5 %}neutral{% else %}win{% endif %}">
-                    <span class="player-name">
-                        {{ team.team.player1 }} & {{ team.team.player2 }}
-                    </span>
-                    <span class="streak-info">{{ "%.1f"|format(team.win_percentage * 100) }}%</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="streaks-list">
-            <div class="streak-item">
-                <span class="player-name">No teams available</span>
-                <span class="streak-info">Check back later</span>
+        <div class="streaks-list" id="top-teams-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
         </div>
-        {% endif %}
     </div>
 
     <!-- Year Leaders -->
@@ -377,84 +257,28 @@
         </div>
     </div>
 
-    <!-- Best Winning Streaks -->
-    <div class="dashboard-card">
+    <!-- Best Winning Streaks (lazy loaded) -->
+    <div class="dashboard-card" id="best-win-streaks-card">
         <div class="card-navigation">
             <h2>Best Winning Streaks ({{ selected_year }})</h2>
         </div>
-        {% if best_win_streaks %}
-        <div class="streaks-list">
-            {% for streak in best_win_streaks[:5] %}
-            <div class="streak-item {{ streak[2] }}">
-                <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
-                </span>
-                <span class="streak-info">
-                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                </span>
+        <div class="streaks-list" id="best-win-streaks-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
-            {% endfor %}
-            {% if best_win_streaks|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'best-win-streaks-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="best-win-streaks-more">
-                {% for streak in best_win_streaks[5:20] %}
-                <div class="streak-item {{ streak[2] }}">
-                    <span class="player-name">
-                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
-                    </span>
-                    <span class="streak-info">
-                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
-        {% else %}
-        <p>No winning streaks recorded</p>
-        {% endif %}
     </div>
 
-    <!-- Worst Losing Streaks -->
-    <div class="dashboard-card">
+    <!-- Worst Losing Streaks (lazy loaded) -->
+    <div class="dashboard-card" id="best-loss-streaks-card">
         <div class="card-navigation">
             <h2>Worst Losing Streaks ({{ selected_year }})</h2>
         </div>
-        {% if best_loss_streaks %}
-        <div class="streaks-list">
-            {% for streak in best_loss_streaks[:5] %}
-            <div class="streak-item {{ streak[2] }}">
-                <span class="player-name">
-                    <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
-                </span>
-                <span class="streak-info">
-                    {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                </span>
+        <div class="streaks-list" id="best-loss-streaks-content">
+            <div class="lazy-loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
             </div>
-            {% endfor %}
-            {% if best_loss_streaks|length > 5 %}
-            <div class="show-more-container">
-                <button class="show-more-btn" onclick="toggleShowMore(this, 'best-loss-streaks-more')">Show More</button>
-            </div>
-            <div class="streaks-list hidden" id="best-loss-streaks-more">
-                {% for streak in best_loss_streaks[5:20] %}
-                <div class="streak-item {{ streak[2] }}">
-                    <span class="player-name">
-                        <a href="{{ url_for('streak_details', player_name=streak[0], streak_type=streak[2], streak_length=streak[1], year=selected_year) }}">{{ streak[0] }}</a>
-                    </span>
-                    <span class="streak-info">
-                        {{ streak[1] }} {{ streak[2] }}{{ 'es' if streak[2] == 'loss' and streak[1] != 1 else ('s' if streak[1] != 1 else '') }}
-                    </span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
-        {% else %}
-        <p>No losing streaks recorded</p>
-        {% endif %}
     </div>
 
     <!-- Monthly Activity -->
@@ -1169,6 +993,19 @@
     display: none !important;
 }
 
+/* Lazy loading placeholder */
+.lazy-loading-placeholder {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--caption);
+    font-size: 14px;
+}
+
+.lazy-loading-placeholder i {
+    margin-right: 8px;
+    color: var(--button-bg-1);
+}
+
 /* Recent Games Clean Layout */
 .recent-games-list {
     display: flex;
@@ -1404,5 +1241,293 @@ function toggleShowMore(button, sectionId) {
         }
     }
 }
+
+// Lazy loading for expensive dashboard cards
+const selectedYear = '{{ selected_year }}';
+
+// Load TrueSkill Rankings
+function loadTrueSkillRankings() {
+    fetch(`/api/dashboard/trueskill/?year=${selectedYear}`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('trueskill-content');
+            if (data.rankings && data.rankings.length > 0) {
+                let html = '';
+                data.rankings.slice(0, 5).forEach(ranking => {
+                    html += `
+                        <div class="streak-item trueskill-item">
+                            <span class="player-name">
+                                <a href="/player/All years/${encodeURIComponent(ranking.player)}/">${ranking.player}</a>
+                            </span>
+                            <span class="trueskill-rating">${ranking.rating.toFixed(1)}</span>
+                            <small class="trueskill-games">${ranking.wins}-${ranking.losses} (${ranking.games_played} games)</small>
+                        </div>
+                    `;
+                });
+                if (data.rankings.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'trueskill-rankings-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="trueskill-rankings-more">
+                    `;
+                    data.rankings.slice(5, 20).forEach(ranking => {
+                        html += `
+                            <div class="streak-item trueskill-item">
+                                <span class="player-name">
+                                    <a href="/player/All years/${encodeURIComponent(ranking.player)}/">${ranking.player}</a>
+                                </span>
+                                <span class="trueskill-rating">${ranking.rating.toFixed(1)}</span>
+                                <small class="trueskill-games">${ranking.wins}-${ranking.losses} (${ranking.games_played} games)</small>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="streak-item"><span class="player-name">No rankings available</span><span class="streak-info">Check back later</span></div>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('trueskill-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading rankings</span></div>';
+        });
+}
+
+// Load Current Streaks
+function loadCurrentStreaks() {
+    fetch('/api/dashboard/streaks/')
+        .then(response => response.json())
+        .then(data => {
+            // Win streaks
+            const winContainer = document.getElementById('win-streaks-content');
+            if (data.win_streaks && data.win_streaks.length > 0) {
+                let html = '';
+                data.win_streaks.slice(0, 5).forEach(streak => {
+                    const plural = streak[1] !== 1 ? 's' : '';
+                    html += `
+                        <div class="streak-item ${streak[2]}">
+                            <span class="player-name">
+                                <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/">${streak[0]}</a>
+                            </span>
+                            <span class="streak-info">${streak[1]} ${streak[2]}${plural} <small>(Best: ${streak[3]})</small></span>
+                        </div>
+                    `;
+                });
+                if (data.win_streaks.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'win-streaks-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="win-streaks-more">
+                    `;
+                    data.win_streaks.slice(5, 20).forEach(streak => {
+                        const plural = streak[1] !== 1 ? 's' : '';
+                        html += `
+                            <div class="streak-item ${streak[2]}">
+                                <span class="player-name">
+                                    <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/">${streak[0]}</a>
+                                </span>
+                                <span class="streak-info">${streak[1]} ${streak[2]}${plural} <small>(Best: ${streak[3]})</small></span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                winContainer.innerHTML = html;
+            } else {
+                winContainer.innerHTML = '<p>No active winning streaks</p>';
+            }
+            
+            // Loss streaks
+            const lossContainer = document.getElementById('loss-streaks-content');
+            if (data.loss_streaks && data.loss_streaks.length > 0) {
+                let html = '';
+                data.loss_streaks.slice(0, 5).forEach(streak => {
+                    const plural = streak[2] === 'loss' && streak[1] !== 1 ? 'es' : (streak[1] !== 1 ? 's' : '');
+                    html += `
+                        <div class="streak-item ${streak[2]}">
+                            <span class="player-name">
+                                <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/">${streak[0]}</a>
+                            </span>
+                            <span class="streak-info">${streak[1]} ${streak[2]}${plural} <small>(Best: ${streak[3]})</small></span>
+                        </div>
+                    `;
+                });
+                if (data.loss_streaks.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'loss-streaks-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="loss-streaks-more">
+                    `;
+                    data.loss_streaks.slice(5, 20).forEach(streak => {
+                        const plural = streak[2] === 'loss' && streak[1] !== 1 ? 'es' : (streak[1] !== 1 ? 's' : '');
+                        html += `
+                            <div class="streak-item ${streak[2]}">
+                                <span class="player-name">
+                                    <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/">${streak[0]}</a>
+                                </span>
+                                <span class="streak-info">${streak[1]} ${streak[2]}${plural} <small>(Best: ${streak[3]})</small></span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                lossContainer.innerHTML = html;
+            } else {
+                lossContainer.innerHTML = '<p>No active losing streaks</p>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('win-streaks-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading streaks</span></div>';
+            document.getElementById('loss-streaks-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading streaks</span></div>';
+        });
+}
+
+// Load Best Streaks for Year
+function loadBestStreaks() {
+    fetch(`/api/dashboard/best-streaks/?year=${selectedYear}`)
+        .then(response => response.json())
+        .then(data => {
+            // Best win streaks
+            const winContainer = document.getElementById('best-win-streaks-content');
+            if (data.best_win_streaks && data.best_win_streaks.length > 0) {
+                let html = '';
+                data.best_win_streaks.slice(0, 5).forEach(streak => {
+                    const plural = streak[1] !== 1 ? 's' : '';
+                    html += `
+                        <div class="streak-item ${streak[2]}">
+                            <span class="player-name">
+                                <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/${selectedYear}/">${streak[0]}</a>
+                            </span>
+                            <span class="streak-info">${streak[1]} ${streak[2]}${plural}</span>
+                        </div>
+                    `;
+                });
+                if (data.best_win_streaks.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'best-win-streaks-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="best-win-streaks-more">
+                    `;
+                    data.best_win_streaks.slice(5, 20).forEach(streak => {
+                        const plural = streak[1] !== 1 ? 's' : '';
+                        html += `
+                            <div class="streak-item ${streak[2]}">
+                                <span class="player-name">
+                                    <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/${selectedYear}/">${streak[0]}</a>
+                                </span>
+                                <span class="streak-info">${streak[1]} ${streak[2]}${plural}</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                winContainer.innerHTML = html;
+            } else {
+                winContainer.innerHTML = '<p>No winning streaks recorded</p>';
+            }
+            
+            // Best loss streaks
+            const lossContainer = document.getElementById('best-loss-streaks-content');
+            if (data.best_loss_streaks && data.best_loss_streaks.length > 0) {
+                let html = '';
+                data.best_loss_streaks.slice(0, 5).forEach(streak => {
+                    const plural = streak[2] === 'loss' && streak[1] !== 1 ? 'es' : (streak[1] !== 1 ? 's' : '');
+                    html += `
+                        <div class="streak-item ${streak[2]}">
+                            <span class="player-name">
+                                <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/${selectedYear}/">${streak[0]}</a>
+                            </span>
+                            <span class="streak-info">${streak[1]} ${streak[2]}${plural}</span>
+                        </div>
+                    `;
+                });
+                if (data.best_loss_streaks.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'best-loss-streaks-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="best-loss-streaks-more">
+                    `;
+                    data.best_loss_streaks.slice(5, 20).forEach(streak => {
+                        const plural = streak[2] === 'loss' && streak[1] !== 1 ? 'es' : (streak[1] !== 1 ? 's' : '');
+                        html += `
+                            <div class="streak-item ${streak[2]}">
+                                <span class="player-name">
+                                    <a href="/streak_details/${encodeURIComponent(streak[0])}/${streak[2]}/${streak[1]}/${selectedYear}/">${streak[0]}</a>
+                                </span>
+                                <span class="streak-info">${streak[1]} ${streak[2]}${plural}</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                lossContainer.innerHTML = html;
+            } else {
+                lossContainer.innerHTML = '<p>No losing streaks recorded</p>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('best-win-streaks-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading streaks</span></div>';
+            document.getElementById('best-loss-streaks-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading streaks</span></div>';
+        });
+}
+
+// Load Top Teams
+function loadTopTeams() {
+    fetch(`/api/dashboard/top-teams/?year=${selectedYear}`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('top-teams-content');
+            if (data.top_teams && data.top_teams.length > 0) {
+                let html = '';
+                data.top_teams.slice(0, 5).forEach(team => {
+                    const itemClass = team.win_percentage < 0.5 ? 'loss' : (team.win_percentage === 0.5 ? 'neutral' : 'win');
+                    html += `
+                        <div class="streak-item ${itemClass}">
+                            <span class="player-name">${team.player1} & ${team.player2}</span>
+                            <span class="streak-info">${(team.win_percentage * 100).toFixed(1)}%</span>
+                        </div>
+                    `;
+                });
+                if (data.top_teams.length > 5) {
+                    html += `
+                        <div class="show-more-container">
+                            <button class="show-more-btn" onclick="toggleShowMore(this, 'top-teams-more')">Show More</button>
+                        </div>
+                        <div class="streaks-list hidden" id="top-teams-more">
+                    `;
+                    data.top_teams.slice(5, 20).forEach(team => {
+                        const itemClass = team.win_percentage < 0.5 ? 'loss' : (team.win_percentage === 0.5 ? 'neutral' : 'win');
+                        html += `
+                            <div class="streak-item ${itemClass}">
+                                <span class="player-name">${team.player1} & ${team.player2}</span>
+                                <span class="streak-info">${(team.win_percentage * 100).toFixed(1)}%</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="streak-item"><span class="player-name">No teams available</span><span class="streak-info">Check back later</span></div>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('top-teams-content').innerHTML = '<div class="streak-item"><span class="player-name">Error loading teams</span></div>';
+        });
+}
+
+// Trigger lazy loading when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Load all lazy content in parallel
+    loadTrueSkillRankings();
+    loadCurrentStreaks();
+    loadBestStreaks();
+    loadTopTeams();
+});
 </script>
 {% endblock %}

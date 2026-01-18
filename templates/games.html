@@ -14,6 +14,7 @@
         </div>       
     </nav>
     <h1>{% block title %} {{ year }} Doubles games {% endblock %}</h1>
+    <p class="page-sublink"><a href="{{ url_for('stats', year=year) }}"><i class="fas fa-arrow-left"></i> Back to {{ year }} doubles stats</a></p>
         <div>
             <table>
                 <thead>

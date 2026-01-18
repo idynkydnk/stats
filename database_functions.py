@@ -283,6 +283,162 @@ def get_all_unique_players():
     all_players = [p for p in all_players if p is not None]
     return sorted(all_players)
 
+def init_trueskill_table():
+    """Create the trueskill_rankings table if it doesn't exist"""
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
+        database = r'stats.db'
+        conn = sqlite3.connect(database)
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trueskill_rankings (
+            id INTEGER PRIMARY KEY,
+            year TEXT NOT NULL,
+            player TEXT NOT NULL,
+            mu REAL NOT NULL,
+            sigma REAL NOT NULL,
+            rating REAL NOT NULL,
+            games_played INTEGER NOT NULL,
+            wins INTEGER DEFAULT 0,
+            losses INTEGER DEFAULT 0,
+            updated_at DATETIME NOT NULL,
+            UNIQUE(year, player)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trueskill_year ON trueskill_rankings(year)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_trueskill_rating ON trueskill_rankings(rating DESC)")
+    conn.commit()
+    conn.close()
+
+def get_trueskill_from_db(year):
+    """Get TrueSkill rankings from database for a specific year"""
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
+        database = r'stats.db'
+        conn = sqlite3.connect(database)
+    
+    cursor = conn.cursor()
+    year_str = str(year) if year else 'All years'
+    
+    cursor.execute("""
+        SELECT player, mu, sigma, rating, games_played, wins, losses, updated_at
+        FROM trueskill_rankings
+        WHERE year = ?
+        ORDER BY rating DESC
+    """, (year_str,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    if not rows:
+        return None
+    
+    rankings = []
+    for row in rows:
+        rankings.append({
+            'player': row[0],
+            'mu': row[1],
+            'sigma': row[2],
+            'rating': row[3],
+            'games_played': row[4],
+            'wins': row[5],
+            'losses': row[6]
+        })
+    
+    return rankings
+
+def save_trueskill_to_db(year, rankings):
+    """Save TrueSkill rankings to database"""
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
+        database = r'stats.db'
+        conn = sqlite3.connect(database)
+    
+    cursor = conn.cursor()
+    year_str = str(year) if year else 'All years'
+    now = datetime.now()
+    
+    # Delete existing rankings for this year
+    cursor.execute("DELETE FROM trueskill_rankings WHERE year = ?", (year_str,))
+    
+    # Insert new rankings
+    for ranking in rankings:
+        cursor.execute("""
+            INSERT INTO trueskill_rankings (year, player, mu, sigma, rating, games_played, wins, losses, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            year_str,
+            ranking['player'],
+            ranking['mu'],
+            ranking['sigma'],
+            ranking['rating'],
+            ranking['games_played'],
+            ranking.get('wins', 0),
+            ranking.get('losses', 0),
+            now
+        ))
+    
+    conn.commit()
+    conn.close()
+
+def get_trueskill_last_updated(year):
+    """Get when TrueSkill rankings were last updated for a year"""
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
+        database = r'stats.db'
+        conn = sqlite3.connect(database)
+    
+    cursor = conn.cursor()
+    year_str = str(year) if year else 'All years'
+    
+    cursor.execute("""
+        SELECT MAX(updated_at) FROM trueskill_rankings WHERE year = ?
+    """, (year_str,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result and result[0]:
+        return datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S.%f')
+    return None
+
+def get_last_game_date():
+    """Get the date of the most recent game"""
+    try:
+        database = '/home/Idynkydnk/stats/stats.db'
+        conn = sqlite3.connect(database)
+    except:
+        database = r'stats.db'
+        conn = sqlite3.connect(database)
+    
+    cursor = conn.cursor()
+    cursor.execute("SELECT MAX(game_date) FROM games")
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result and result[0]:
+        date_str = result[0]
+        try:
+            if len(date_str) > 19:
+                return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S.%f')
+            else:
+                return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+        except:
+            return None
+    return None
+
+# Initialize the trueskill table on import
+init_trueskill_table()
+
 if __name__ == '__main__':
     main()
 

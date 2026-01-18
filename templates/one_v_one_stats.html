@@ -50,6 +50,7 @@
             {% if showing_previous_year %}
             <p class="no-current-year-notice">No 1v1 games played in {{ current_year }} yet. Showing {{ year }} stats.</p>
             {% endif %}
+            <p class="page-sublink"><a href="{{ url_for('one_v_one_games_by_year', year=year) }}"><i class="fas fa-list-alt"></i> View {{ year }} 1v1 games</a></p>
         <div>
         	<table>
         		<thead>

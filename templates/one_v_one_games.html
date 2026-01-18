@@ -28,6 +28,7 @@
         </div>       
     </nav>
     <h1>{% block title %} {{ year }} 1v1 Games{% if selected_game_type %} - {{ selected_game_type }}{% endif %} {% endblock %}</h1>
+    <p class="page-sublink"><a href="{{ url_for('one_v_one_stats', year=year) }}"><i class="fas fa-arrow-left"></i> Back to {{ year }} 1v1 stats</a></p>
         <div>
             <table>
                 <thead>

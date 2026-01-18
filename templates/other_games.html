@@ -14,6 +14,7 @@
         </div>       
     </nav>
     <h1>{% block title %} {{ year }} {% if game_name %}{{ game_name }}{% else %}Other{% endif %} Games {% endblock %}</h1>
+    <p class="page-sublink"><a href="{{ url_for('other_stats', year=year) }}"><i class="fas fa-arrow-left"></i> Back to {{ year }} other stats</a></p>
     
     {% if stats and game_name %}
     <h3>{{ game_name }} Stats</h3>

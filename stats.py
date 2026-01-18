@@ -1741,8 +1741,8 @@ def date_range_stats(start_date=None, end_date=None):
 
 @app.route('/dashboard/')
 def dashboard():
-    """Visual dashboard showing key doubles statistics"""
-    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date, calculate_glicko_rankings
+    """Visual dashboard showing key doubles statistics - optimized with lazy loading"""
+    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date
     from datetime import datetime
     
     # Get selected year from query parameter, default to current year
@@ -1758,7 +1758,7 @@ def dashboard():
     # Get available years
     available_years = grab_all_years()
     
-    # Get dashboard data for selected year
+    # Get dashboard data for selected year (fast - cached)
     dashboard_data = get_dashboard_data(selected_year)
     dashboard_data['selected_year'] = selected_year
     dashboard_data['available_years'] = available_years
@@ -1787,35 +1787,6 @@ def dashboard():
     except:
         display_date = target_date
     
-    # Get trueskill rankings for the selected year
-    from stat_functions import calculate_trueskill_rankings, get_player_wins_losses
-    trueskill_rankings = calculate_trueskill_rankings(selected_year)
-    
-    # Get top teams data for the selected year
-    from stat_functions import team_stats_per_year, year_games
-    games = year_games(selected_year)
-    
-    # Get player wins/losses from cached function (O(n) instead of recalculating)
-    player_wins_losses = get_player_wins_losses(selected_year)
-    
-    # Add wins and losses to each ranking
-    for ranking in trueskill_rankings:
-        player_name = ranking['player']
-        if player_name in player_wins_losses:
-            ranking['wins'] = player_wins_losses[player_name]['wins']
-            ranking['losses'] = player_wins_losses[player_name]['losses']
-        else:
-            ranking['wins'] = 0
-            ranking['losses'] = 0
-    if games:
-        if len(games) < 70:
-            minimum_games_teams = 1
-        else:
-            minimum_games_teams = len(games) // 70
-    else:
-        minimum_games_teams = 1
-    top_teams = team_stats_per_year(selected_year, minimum_games_teams, games)
-    
     # Add date navigation data
     dashboard_data['today_stats'] = date_stats
     dashboard_data['current_date'] = target_date
@@ -1824,9 +1795,14 @@ def dashboard():
     dashboard_data['next_date'] = next_date
     dashboard_data['has_previous'] = has_previous
     dashboard_data['has_next'] = has_next
-    dashboard_data['trueskill_rankings'] = trueskill_rankings
     dashboard_data['current_month'] = datetime.now().month
-    dashboard_data['top_teams'] = top_teams
+    
+    # These will be lazy-loaded via AJAX - pass empty placeholders
+    dashboard_data['trueskill_rankings'] = []
+    dashboard_data['top_teams'] = []
+    # Note: win_streaks, loss_streaks, best_win_streaks, best_loss_streaks are already in get_dashboard_data
+    # but we'll lazy load them too for faster initial render
+    dashboard_data['lazy_load_enabled'] = True
     
     return render_template('dashboard.html', **dashboard_data)
 
@@ -1898,6 +1874,96 @@ def dashboard_today_activity():
         'has_previous': has_previous,
         'has_next': has_next
     })
+
+@app.route('/api/dashboard/trueskill/')
+def dashboard_trueskill():
+    """API endpoint for lazy-loading TrueSkill rankings"""
+    from stat_functions import calculate_trueskill_rankings, get_player_wins_losses
+    from flask import jsonify
+    
+    selected_year = request.args.get('year', str(datetime.now().year))
+    
+    trueskill_rankings = calculate_trueskill_rankings(selected_year)
+    
+    # Get player wins/losses if not already included
+    if trueskill_rankings and 'wins' not in trueskill_rankings[0]:
+        player_wins_losses = get_player_wins_losses(selected_year)
+        for ranking in trueskill_rankings:
+            player_name = ranking['player']
+            if player_name in player_wins_losses:
+                ranking['wins'] = player_wins_losses[player_name]['wins']
+                ranking['losses'] = player_wins_losses[player_name]['losses']
+            else:
+                ranking['wins'] = 0
+                ranking['losses'] = 0
+    
+    return jsonify({'rankings': trueskill_rankings[:20]})
+
+@app.route('/api/dashboard/streaks/')
+def dashboard_streaks():
+    """API endpoint for lazy-loading current win/loss streaks"""
+    from stat_functions import get_current_streaks_last_365_days
+    from flask import jsonify
+    
+    current_streaks = get_current_streaks_last_365_days()
+    
+    win_streaks = [streak for streak in current_streaks if streak[2] == 'win']
+    loss_streaks = [streak for streak in current_streaks if streak[2] == 'loss']
+    
+    return jsonify({
+        'win_streaks': win_streaks[:20],
+        'loss_streaks': loss_streaks[:20]
+    })
+
+@app.route('/api/dashboard/best-streaks/')
+def dashboard_best_streaks():
+    """API endpoint for lazy-loading best streaks for a year"""
+    from stat_functions import get_best_streaks_for_year
+    from flask import jsonify
+    
+    selected_year = request.args.get('year', str(datetime.now().year))
+    
+    year_best_streaks = get_best_streaks_for_year(selected_year)
+    best_win_streaks = [streak for streak in year_best_streaks if streak[2] == 'win']
+    best_loss_streaks = [streak for streak in year_best_streaks if streak[2] == 'loss']
+    
+    return jsonify({
+        'best_win_streaks': best_win_streaks[:20],
+        'best_loss_streaks': best_loss_streaks[:20]
+    })
+
+@app.route('/api/dashboard/top-teams/')
+def dashboard_top_teams():
+    """API endpoint for lazy-loading top teams"""
+    from stat_functions import team_stats_per_year, year_games
+    from flask import jsonify
+    
+    selected_year = request.args.get('year', str(datetime.now().year))
+    
+    games = year_games(selected_year)
+    if games:
+        if len(games) < 70:
+            minimum_games_teams = 1
+        else:
+            minimum_games_teams = len(games) // 70
+    else:
+        minimum_games_teams = 1
+    
+    top_teams = team_stats_per_year(selected_year, minimum_games_teams, games)
+    
+    # Convert to JSON-serializable format
+    teams_data = []
+    for team in top_teams[:20]:
+        teams_data.append({
+            'player1': team['team']['player1'],
+            'player2': team['team']['player2'],
+            'wins': team['wins'],
+            'losses': team['losses'],
+            'win_percentage': team['win_percentage'],
+            'total_games': team['total_games']
+        })
+    
+    return jsonify({'top_teams': teams_data})
 
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/')
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/<year>/')

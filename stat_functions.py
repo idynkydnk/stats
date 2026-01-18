@@ -6,7 +6,7 @@ import time
 # Simple in-memory cache with expiration
 _cache = {}
 _cache_timestamps = {}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 1800  # 30 minutes - increased for better performance
 
 def cached(ttl=CACHE_TTL):
     """Decorator for caching function results with TTL"""
@@ -35,7 +35,7 @@ def clear_stats_cache():
     _cache = {}
     _cache_timestamps = {}
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def get_player_wins_losses(year):
     """Get wins and losses for all players in a year - O(n) instead of O(n²)"""
     if year == 'All years':
@@ -110,7 +110,7 @@ def set_cur():
     cur = conn.cursor()
     return cur
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def stats_per_year(year, minimum_games):
     if year == 'All years':
         games = all_games()
@@ -152,7 +152,7 @@ def team_stats_per_year(year, minimum_games, games):
     """Calculate team stats - uses cached helper for expensive computation"""
     return _team_stats_per_year_cached(year, minimum_games)
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def _team_stats_per_year_cached(year, minimum_games):
     """Cached version of team stats calculation"""
     if year == 'All years':
@@ -310,7 +310,7 @@ def get_next_date(current_date, days_forward=1):
     next_date = current_date + timedelta(days=days_forward)
     return next_date.strftime('%Y-%m-%d')
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def get_all_game_dates():
     """Get all dates that have games - single query instead of checking each date"""
     cur = set_cur()
@@ -412,7 +412,7 @@ def search_games_by_player(year, player_name):
     row = convert_ampm(row)
     return row
 	
-@cached(ttl=300)
+@cached(ttl=1800)
 def rare_stats_per_year(year, minimum_games):
     if year == 'All years':
         games = all_games()
@@ -471,7 +471,7 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def year_games(year):
 	cur = set_cur()
 	if year == 'All years':
@@ -494,7 +494,7 @@ def current_year_games():
 	row = cur.fetchall()
 	return row
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def grab_all_years():
 	games = all_games()
 	years = []
@@ -967,7 +967,7 @@ def get_date_range_stats(start_date, end_date):
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def get_dashboard_data(selected_year=None):
 	"""Get comprehensive data for the dashboard"""
 	from datetime import datetime, timedelta
@@ -1251,7 +1251,7 @@ def get_win_loss_streaks_for_year(year):
 		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (str(year),))
 	all_games = cur.fetchall()
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def get_current_streaks_last_365_days():
 	"""Get current win/loss streaks for all players in the last 365 days"""
 	from datetime import datetime, timedelta
@@ -1321,7 +1321,7 @@ def get_current_streaks_last_365_days():
 	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
 	return streak_list  # Return all streaks, not just top 10
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def calculate_glicko_rankings(year=None):
 	"""Calculate Glicko-2 rankings for all players based on doubles games"""
 	import math
@@ -1490,9 +1490,32 @@ def f(x, delta, phi, v, a, tau=0.5):
 	denom2 = tau**2
 	return num1 / denom1 - num2 / denom2
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def calculate_trueskill_rankings(year=None):
-	"""Calculate TrueSkill rankings for all players based on doubles games"""
+	"""Calculate TrueSkill rankings - uses database cache when available"""
+	from database_functions import get_trueskill_from_db, save_trueskill_to_db, get_trueskill_last_updated, get_last_game_date
+	
+	# Check if we have cached rankings in the database
+	db_rankings = get_trueskill_from_db(year)
+	if db_rankings:
+		# Check if rankings are still fresh (newer than last game)
+		last_updated = get_trueskill_last_updated(year)
+		last_game = get_last_game_date()
+		
+		if last_updated and last_game and last_updated > last_game:
+			# Database rankings are fresh, use them
+			return db_rankings
+	
+	# Calculate fresh rankings
+	rankings = _calculate_trueskill_rankings_fresh(year)
+	
+	# Save to database for future use
+	save_trueskill_to_db(year, rankings)
+	
+	return rankings
+
+def _calculate_trueskill_rankings_fresh(year=None):
+	"""Calculate TrueSkill rankings from scratch - expensive operation"""
 	import math
 	from collections import defaultdict
 	
@@ -1584,8 +1607,10 @@ def calculate_trueskill_rankings(year=None):
 	else:
 		minimum_games = len(games) // 30
 	
-	# Count games per player
+	# Count games per player and wins/losses
 	player_game_counts = defaultdict(int)
+	player_wins = defaultdict(int)
+	player_losses = defaultdict(int)
 	for game in games:
 		winners = [game[2], game[3]]
 		losers = [game[5], game[6]]
@@ -1593,8 +1618,12 @@ def calculate_trueskill_rankings(year=None):
 		winners = [w for w in winners if '?' not in w]
 		losers = [l for l in losers if '?' not in l]
 		
-		for player in winners + losers:
+		for player in winners:
 			player_game_counts[player] += 1
+			player_wins[player] += 1
+		for player in losers:
+			player_game_counts[player] += 1
+			player_losses[player] += 1
 	
 	# Convert to list and sort by conservative rating (mu - 3*sigma)
 	all_rankings = []
@@ -1605,7 +1634,9 @@ def calculate_trueskill_rankings(year=None):
 			'mu': round(rating_data['mu'], 2),
 			'sigma': round(rating_data['sigma'], 2),
 			'rating': round(conservative_rating, 2),
-			'games_played': player_game_counts[player]
+			'games_played': player_game_counts[player],
+			'wins': player_wins[player],
+			'losses': player_losses[player]
 		})
 	
 	# Sort by conservative rating (highest first)
@@ -1650,7 +1681,7 @@ def w_lose(t):
 	v = v_lose(t)
 	return v * (v + t)
 
-@cached(ttl=300)
+@cached(ttl=1800)
 def get_best_streaks_for_year(year):
 	"""Get the best win/loss streaks for a specific year"""
 	cur = set_cur()
