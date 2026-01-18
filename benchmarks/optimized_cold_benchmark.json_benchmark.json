@@ -1,0 +1,313 @@
+{
+  "timestamp": "2026-01-18T12:03:15.681753",
+  "results": [
+    {
+      "route": "/",
+      "name": "Homepage",
+      "times": [
+        0.273032084
+      ],
+      "avg": 0.273032084,
+      "min": 0.273032084,
+      "max": 0.273032084,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/stats/2025/",
+      "name": "Stats 2025",
+      "times": [
+        0.21391587499999998
+      ],
+      "avg": 0.21391587499999998,
+      "min": 0.21391587499999998,
+      "max": 0.21391587499999998,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/stats/2026/",
+      "name": "Stats 2026",
+      "times": [
+        0.07024187500000001
+      ],
+      "avg": 0.07024187500000001,
+      "min": 0.07024187500000001,
+      "max": 0.07024187500000001,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/dashboard/",
+      "name": "Dashboard",
+      "times": [
+        3.282625458
+      ],
+      "avg": 3.282625458,
+      "min": 3.282625458,
+      "max": 3.282625458,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/combined_dashboard/",
+      "name": "Combined Dashboard",
+      "times": [
+        0.6759634590000001
+      ],
+      "avg": 0.6759634590000001,
+      "min": 0.6759634590000001,
+      "max": 0.6759634590000001,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/player_list/",
+      "name": "Player List",
+      "times": [
+        0.21303779200000061
+      ],
+      "avg": 0.21303779200000061,
+      "min": 0.21303779200000061,
+      "max": 0.21303779200000061,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/player_trends/",
+      "name": "Player Trends",
+      "times": [
+        0.07573445799999945
+      ],
+      "avg": 0.07573445799999945,
+      "min": 0.07573445799999945,
+      "max": 0.07573445799999945,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/games/",
+      "name": "Games List",
+      "times": [
+        0.07977775000000076
+      ],
+      "avg": 0.07977775000000076,
+      "min": 0.07977775000000076,
+      "max": 0.07977775000000076,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/vollis_games/",
+      "name": "Vollis Games",
+      "times": [
+        0.12053245799999956
+      ],
+      "avg": 0.12053245799999956,
+      "min": 0.12053245799999956,
+      "max": 0.12053245799999956,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/one_v_one_games/",
+      "name": "One v One Games",
+      "times": [
+        0.1814012079999996
+      ],
+      "avg": 0.1814012079999996,
+      "min": 0.1814012079999996,
+      "max": 0.1814012079999996,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/other_games/",
+      "name": "Other Games",
+      "times": [
+        0.19816404199999926
+      ],
+      "avg": 0.19816404199999926,
+      "min": 0.19816404199999926,
+      "max": 0.19816404199999926,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/vollis_stats/",
+      "name": "Vollis Stats",
+      "times": [
+        0.2612773749999997
+      ],
+      "avg": 0.2612773749999997,
+      "min": 0.2612773749999997,
+      "max": 0.2612773749999997,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/one_v_one_stats/",
+      "name": "One v One Stats",
+      "times": [
+        0.3364870409999998
+      ],
+      "avg": 0.3364870409999998,
+      "min": 0.3364870409999998,
+      "max": 0.3364870409999998,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/other_stats/",
+      "name": "Other Stats",
+      "times": [
+        0.3732319999999998
+      ],
+      "avg": 0.3732319999999998,
+      "min": 0.3732319999999998,
+      "max": 0.3732319999999998,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/volleyball_stats/",
+      "name": "Volleyball Stats",
+      "times": [
+        0.16145237500000054
+      ],
+      "avg": 0.16145237500000054,
+      "min": 0.16145237500000054,
+      "max": 0.16145237500000054,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/advanced_stats/",
+      "name": "Advanced Stats",
+      "times": [
+        0.002504542000000498
+      ],
+      "avg": 0.002504542000000498,
+      "min": 0.002504542000000498,
+      "max": 0.002504542000000498,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/glicko_rankings/",
+      "name": "Glicko Rankings",
+      "times": [
+        0.12234187500000004
+      ],
+      "avg": 0.12234187500000004,
+      "min": 0.12234187500000004,
+      "max": 0.12234187500000004,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/trueskill_rankings/",
+      "name": "TrueSkill Rankings",
+      "times": [
+        0.06725133299999975
+      ],
+      "avg": 0.06725133299999975,
+      "min": 0.06725133299999975,
+      "max": 0.06725133299999975,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/kobs/",
+      "name": "KOBs",
+      "times": [
+        0.06423287500000008
+      ],
+      "avg": 0.06423287500000008,
+      "min": 0.06423287500000008,
+      "max": 0.06423287500000008,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/tournaments/",
+      "name": "Tournaments",
+      "times": [
+        0.04957641699999993
+      ],
+      "avg": 0.04957641699999993,
+      "min": 0.04957641699999993,
+      "max": 0.04957641699999993,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/top_teams/",
+      "name": "Top Teams",
+      "times": [
+        0.20198608399999962
+      ],
+      "avg": 0.20198608399999962,
+      "min": 0.20198608399999962,
+      "max": 0.20198608399999962,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    },
+    {
+      "route": "/game_hub",
+      "name": "Game Hub",
+      "times": [
+        0.5736782910000002
+      ],
+      "avg": 0.5736782910000002,
+      "min": 0.5736782910000002,
+      "max": 0.5736782910000002,
+      "stdev": 0,
+      "errors": [],
+      "runs": 1,
+      "successful_runs": 1
+    }
+  ]
+}

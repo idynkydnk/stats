@@ -1,5 +1,66 @@
 from database_functions import *
 from datetime import datetime, date
+from functools import lru_cache
+import time
+
+# Simple in-memory cache with expiration
+_cache = {}
+_cache_timestamps = {}
+CACHE_TTL = 300  # 5 minutes
+
+def cached(ttl=CACHE_TTL):
+    """Decorator for caching function results with TTL"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # Create cache key from function name and arguments
+            key = (func.__name__, args, tuple(sorted(kwargs.items())))
+            current_time = time.time()
+            
+            # Check if cached and not expired
+            if key in _cache and key in _cache_timestamps:
+                if current_time - _cache_timestamps[key] < ttl:
+                    return _cache[key]
+            
+            # Calculate and cache result
+            result = func(*args, **kwargs)
+            _cache[key] = result
+            _cache_timestamps[key] = current_time
+            return result
+        return wrapper
+    return decorator
+
+def clear_stats_cache():
+    """Clear all cached stats - call after adding/editing games"""
+    global _cache, _cache_timestamps
+    _cache = {}
+    _cache_timestamps = {}
+
+@cached(ttl=300)
+def get_player_wins_losses(year):
+    """Get wins and losses for all players in a year - O(n) instead of O(n²)"""
+    if year == 'All years':
+        games = all_games()
+    else:
+        games = year_games(year)
+    
+    player_wins_losses = {}
+    for game in games:
+        winners = [game[2], game[3]]
+        losers = [game[5], game[6]]
+        winners = [w for w in winners if '?' not in w]
+        losers = [l for l in losers if '?' not in l]
+        
+        for player in winners:
+            if player not in player_wins_losses:
+                player_wins_losses[player] = {'wins': 0, 'losses': 0}
+            player_wins_losses[player]['wins'] += 1
+        
+        for player in losers:
+            if player not in player_wins_losses:
+                player_wins_losses[player] = {'wins': 0, 'losses': 0}
+            player_wins_losses[player]['losses'] += 1
+    
+    return player_wins_losses
 
 def add_game_stats(game):
     all_games = []
@@ -49,6 +110,7 @@ def set_cur():
     cur = conn.cursor()
     return cur
 
+@cached(ttl=300)
 def stats_per_year(year, minimum_games):
     if year == 'All years':
         games = all_games()
@@ -87,30 +149,63 @@ def stats_per_year(year, minimum_games):
     return stats
 
 def team_stats_per_year(year, minimum_games, games):
+    """Calculate team stats - uses cached helper for expensive computation"""
+    return _team_stats_per_year_cached(year, minimum_games)
+
+@cached(ttl=300)
+def _team_stats_per_year_cached(year, minimum_games):
+    """Cached version of team stats calculation"""
+    if year == 'All years':
+        games = all_games()
+    else:
+        games = year_games(year)
+    
+    # Build a lookup dict for faster team matching
+    team_records = {}
+    
+    for game in games:
+        # Create normalized team keys (sorted player names)
+        winner_key = tuple(sorted([game[2], game[3]]))
+        loser_key = tuple(sorted([game[5], game[6]]))
+        
+        # Record win for winner team
+        if winner_key not in team_records:
+            team_records[winner_key] = {'wins': 0, 'losses': 0}
+        team_records[winner_key]['wins'] += 1
+        
+        # Record loss for loser team
+        if loser_key not in team_records:
+            team_records[loser_key] = {'wins': 0, 'losses': 0}
+        team_records[loser_key]['losses'] += 1
+    
+    # Convert to output format
     stats = []
-    all_teams = teams(games)
     no_wins = []
-    for team in all_teams:
-        wins, losses = 0, 0
-        for game in games:
-            if team['player1'] == game[2] and team['player2'] == game[3] or team['player1'] == game[3] and team['player2'] == game[2]:
-                wins += 1
-            elif team['player1'] == game[5] and team['player2'] == game[6] or team['player1'] == game[6] and team['player2'] == game[5]:
-                losses += 1
-        win_percent = wins / (wins + losses)
+    
+    for team_key, record in team_records.items():
+        wins = record['wins']
+        losses = record['losses']
         total_games = wins + losses
+        
+        if total_games == 0:
+            continue
+            
+        win_percent = wins / total_games
+        
         x = {
-            'team': team,
+            'team': {'player1': team_key[0], 'player2': team_key[1]},
             'wins': wins,
             'losses': losses,
             'win_percentage': win_percent,
             'total_games': total_games
         }
+        
         if total_games >= minimum_games and win_percent > 0.5:
             if wins == 0:
                 no_wins.append(x)
             else:
                 stats.append(x)
+    
     stats.sort(key=lambda x: x['win_percentage'], reverse=True)
     for stat in no_wins:
         stats.append(stat)
@@ -215,12 +310,17 @@ def get_next_date(current_date, days_forward=1):
     next_date = current_date + timedelta(days=days_forward)
     return next_date.strftime('%Y-%m-%d')
 
+@cached(ttl=300)
+def get_all_game_dates():
+    """Get all dates that have games - single query instead of checking each date"""
+    cur = set_cur()
+    cur.execute("SELECT DISTINCT date(game_date) FROM games ORDER BY game_date DESC")
+    return set(row[0] for row in cur.fetchall())
+
 def has_games_on_date(target_date):
     """Check if there are games on a specific date"""
-    cur = set_cur()
-    cur.execute("SELECT COUNT(*) FROM games WHERE date(game_date) = ?", (target_date,))
-    count = cur.fetchone()[0]
-    return count > 0
+    game_dates = get_all_game_dates()
+    return target_date in game_dates
 
 def get_previous_date_with_games(current_date, max_days_back=30):
     """Get the previous date that has games, skipping days with no games"""
@@ -228,10 +328,12 @@ def get_previous_date_with_games(current_date, max_days_back=30):
     if isinstance(current_date, str):
         current_date = datetime.strptime(current_date, '%Y-%m-%d')
     
+    game_dates = get_all_game_dates()
+    
     for days_back in range(1, max_days_back + 1):
         previous_date = current_date - timedelta(days=days_back)
         date_str = previous_date.strftime('%Y-%m-%d')
-        if has_games_on_date(date_str):
+        if date_str in game_dates:
             return date_str
     return None
 
@@ -241,10 +343,12 @@ def get_next_date_with_games(current_date, max_days_forward=30):
     if isinstance(current_date, str):
         current_date = datetime.strptime(current_date, '%Y-%m-%d')
     
+    game_dates = get_all_game_dates()
+    
     for days_forward in range(1, max_days_forward + 1):
         next_date = current_date + timedelta(days=days_forward)
         date_str = next_date.strftime('%Y-%m-%d')
-        if has_games_on_date(date_str):
+        if date_str in game_dates:
             return date_str
     return None
 
@@ -253,10 +357,12 @@ def get_most_recent_date_with_games(max_days_back=30):
     from datetime import datetime, timedelta
     today = datetime.now()
     
+    game_dates = get_all_game_dates()
+    
     for days_back in range(0, max_days_back + 1):
         check_date = today - timedelta(days=days_back)
         date_str = check_date.strftime('%Y-%m-%d')
-        if has_games_on_date(date_str):
+        if date_str in game_dates:
             return date_str
     return None
 
@@ -306,6 +412,7 @@ def search_games_by_player(year, player_name):
     row = convert_ampm(row)
     return row
 	
+@cached(ttl=300)
 def rare_stats_per_year(year, minimum_games):
     if year == 'All years':
         games = all_games()
@@ -364,6 +471,7 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
+@cached(ttl=300)
 def year_games(year):
 	cur = set_cur()
 	if year == 'All years':
@@ -386,6 +494,7 @@ def current_year_games():
 	row = cur.fetchall()
 	return row
 
+@cached(ttl=300)
 def grab_all_years():
 	games = all_games()
 	years = []
@@ -858,6 +967,7 @@ def get_date_range_stats(start_date, end_date):
 	stats.sort(key=lambda x: x[3], reverse=True)
 	return stats
 
+@cached(ttl=300)
 def get_dashboard_data(selected_year=None):
 	"""Get comprehensive data for the dashboard"""
 	from datetime import datetime, timedelta
@@ -1141,6 +1251,7 @@ def get_win_loss_streaks_for_year(year):
 		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (str(year),))
 	all_games = cur.fetchall()
 
+@cached(ttl=300)
 def get_current_streaks_last_365_days():
 	"""Get current win/loss streaks for all players in the last 365 days"""
 	from datetime import datetime, timedelta
@@ -1210,6 +1321,7 @@ def get_current_streaks_last_365_days():
 	streak_list.sort(key=lambda x: (x[2] == 'win', x[1]), reverse=True)
 	return streak_list  # Return all streaks, not just top 10
 
+@cached(ttl=300)
 def calculate_glicko_rankings(year=None):
 	"""Calculate Glicko-2 rankings for all players based on doubles games"""
 	import math
@@ -1378,6 +1490,7 @@ def f(x, delta, phi, v, a, tau=0.5):
 	denom2 = tau**2
 	return num1 / denom1 - num2 / denom2
 
+@cached(ttl=300)
 def calculate_trueskill_rankings(year=None):
 	"""Calculate TrueSkill rankings for all players based on doubles games"""
 	import math
@@ -1537,6 +1650,7 @@ def w_lose(t):
 	v = v_lose(t)
 	return v * (v + t)
 
+@cached(ttl=300)
 def get_best_streaks_for_year(year):
 	"""Get the best win/loss streaks for a specific year"""
 	cur = set_cur()

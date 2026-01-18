@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response
+from flask_caching import Cache
 from flask_mail import Mail, Message
 from database_functions import *
 from stat_functions import *
+from stat_functions import clear_stats_cache
 from datetime import datetime, date, timedelta
 from vollis_functions import *
 from one_v_one_functions import *
@@ -26,6 +28,11 @@ except (ImportError, ModuleNotFoundError):
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
+
+# Cache configuration - cache expensive calculations for 5 minutes
+app.config['CACHE_TYPE'] = 'SimpleCache'
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutes
+cache = Cache(app)
 
 # Email configuration
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -430,6 +437,9 @@ def add_game():
             add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
                 winner_score, loser_score, datetime.now(), comments])
             
+            # Clear stats cache after adding a game
+            clear_stats_cache()
+            
             # Log the action for notifications
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1.strip()}, {winner2.strip()}; Losers: {loser1.strip()}, {loser2.strip()}; Score: {winner_score}-{loser_score}"
@@ -503,6 +513,9 @@ def update(id):
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
             update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), comment, game_id)
+            
+            # Clear stats cache after editing a game
+            clear_stats_cache()
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -1768,28 +1781,15 @@ def dashboard():
         display_date = target_date
     
     # Get trueskill rankings for the selected year
-    from stat_functions import calculate_trueskill_rankings
+    from stat_functions import calculate_trueskill_rankings, get_player_wins_losses
     trueskill_rankings = calculate_trueskill_rankings(selected_year)
     
     # Get top teams data for the selected year
     from stat_functions import team_stats_per_year, year_games
     games = year_games(selected_year)
     
-    # Calculate wins and losses for each player in trueskill rankings
-    player_wins_losses = {}
-    for game in games:
-        winners = [game[2], game[3]]
-        losers = [game[5], game[6]]
-        winners = [w for w in winners if '?' not in w]
-        losers = [l for l in losers if '?' not in l]
-        
-        for player in winners + losers:
-            if player not in player_wins_losses:
-                player_wins_losses[player] = {'wins': 0, 'losses': 0}
-            if player in winners:
-                player_wins_losses[player]['wins'] += 1
-            elif player in losers:
-                player_wins_losses[player]['losses'] += 1
+    # Get player wins/losses from cached function (O(n) instead of recalculating)
+    player_wins_losses = get_player_wins_losses(selected_year)
     
     # Add wins and losses to each ranking
     for ranking in trueskill_rankings:
