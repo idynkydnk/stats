@@ -75,7 +75,7 @@
                             {% for winner in game["winners"] %}
                                 <div class="player-line">
                                     <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                                    {% if winner.score is not none %}
+                                    {% if winner.score is not none and game["game_name"] != "Matterhorn" %}
                                         <span class="player-score">{{ winner.score }}</span>
                                     {% endif %}
                                 </div>
@@ -85,7 +85,7 @@
                             {% for loser in game["losers"] %}
                                 <div class="player-line">
                                     <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                                    {% if loser.score is not none %}
+                                    {% if loser.score is not none and game["game_name"] != "Matterhorn" %}
                                         <span class="player-score">{{ loser.score }}</span>
                                     {% endif %}
                                 </div>
