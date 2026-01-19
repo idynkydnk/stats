@@ -1398,6 +1398,7 @@ def update_other_game(id):
     if request.method == 'POST':
         game_type = request.form.get('game_type', '')
         game_name = request.form.get('game_name', '')
+        score_type = request.form.get('score_type', 'individual')
         winners = []
         winner_scores = []
         losers = []
@@ -1408,16 +1409,20 @@ def update_other_game(id):
             winner_score_value = request.form.get(f'winner{i}_score', '').strip()
             if winner_name:
                 winners.append(winner_name)
-                winner_scores.append(winner_score_value)
+                winner_scores.append(winner_score_value if score_type == 'individual' else '')
 
         for i in range(1, 16):
             loser_name = request.form.get(f'loser{i}', '').strip()
             loser_score_value = request.form.get(f'loser{i}_score', '').strip()
             if loser_name:
                 losers.append(loser_name)
-                loser_scores.append(loser_score_value)
+                loser_scores.append(loser_score_value if score_type == 'individual' else '')
 
         comment = request.form.get('comment', '')
+        
+        # Get team scores (for team scoring mode)
+        team_winner_score = request.form.get('winner_score', '').strip()
+        team_loser_score = request.form.get('loser_score', '').strip()
 
         if not game_type or not game_name or not winners or not losers:
             flash('Required fields missing!')
@@ -1432,15 +1437,23 @@ def update_other_game(id):
                 database = r'stats.db'
                 conn = create_connection(database)
             
+            # Determine aggregate scores based on score type
+            if score_type == 'team':
+                aggregate_winner_score = int(team_winner_score) if team_winner_score else None
+                aggregate_loser_score = int(team_loser_score) if team_loser_score else None
+            else:
+                aggregate_winner_score = next((int(score) for score in winner_scores if score not in ("", None)), None)
+                aggregate_loser_score = next((int(score) for score in loser_scores if score not in ("", None)), None)
+            
             with conn:
                 game_data = tuple(
                     [game_row[1], game_type, game_name]
                     + (winners + [""] * 15)[:15]
                     + [(int(score) if score not in ("", None) else None) for score in (winner_scores + [None] * 15)[:15]]
-                    + [next((int(score) for score in winner_scores if score not in ("", None)), None)]
+                    + [aggregate_winner_score]
                     + (losers + [""] * 15)[:15]
                     + [(int(score) if score not in ("", None) else None) for score in (loser_scores + [None] * 15)[:15]]
-                    + [next((int(score) for score in loser_scores if score not in ("", None)), None), comment, datetime.now(), game_id]
+                    + [aggregate_loser_score, comment, datetime.now(), game_id]
                 )
                 database_update_other_game(conn, game_data)
             

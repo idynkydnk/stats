@@ -20,16 +20,34 @@
                 <input type="text" name="game_name" id="game_name" value="{{ request.form.get('game_name', game['game_name']) }}" required>
             </div>
             
+            <div class="form-group">
+                <label for="score_type_display">Score Type:</label>
+                <input type="text" name="score_type_display" id="score_type_display" 
+                       value="{% if game['winner_score'] is not none and game['winner1_score'] is none %}Team Scores{% else %}Individual Scores{% endif %}"
+                       readonly onclick="toggleScoreTypeDropdown()" style="cursor: pointer;">
+                <input type="hidden" name="score_type" id="score_type" 
+                       value="{% if game['winner_score'] is not none and game['winner1_score'] is none %}team{% else %}individual{% endif %}">
+                <div class="score-type-dropdown" id="score_type_dropdown" style="display: none;">
+                    <div onclick="setScoreType('individual', 'Individual Scores')">Individual Scores</div>
+                    <div onclick="setScoreType('team', 'Team Scores')">Team Scores</div>
+                </div>
+            </div>
+            
             <h3>Winners</h3>
             {% for i in range(1, 16) %}
             <div class="form-group player-score-row">
                 <label for="winner{{ i }}">Winner {{ i }}:</label>
                 <div class="dual-inputs">
                     <input type="text" name="winner{{ i }}" id="winner{{ i }}" value="{{ request.form.get('winner' ~ i, game['winner' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
-                    <input type="number" name="winner{{ i }}_score" placeholder="Score" value="{{ request.form.get('winner' ~ i ~ '_score', '' if game['winner' ~ i ~ '_score'] is none else game['winner' ~ i ~ '_score']) }}">
+                    <input type="number" name="winner{{ i }}_score" class="individual-score" placeholder="Score" value="{{ request.form.get('winner' ~ i ~ '_score', '' if game['winner' ~ i ~ '_score'] is none else game['winner' ~ i ~ '_score']) }}">
                 </div>
             </div>
             {% endfor %}
+            
+            <div class="form-group team-score-row" id="winner-team-score">
+                <label for="winner_score">Winner Team Score:</label>
+                <input type="number" name="winner_score" id="winner_score" placeholder="Team Score" value="{{ request.form.get('winner_score', '' if game['winner_score'] is none else game['winner_score']) }}">
+            </div>
             
             <h3>Losers</h3>
             {% for i in range(1, 16) %}
@@ -37,10 +55,15 @@
                 <label for="loser{{ i }}">Loser {{ i }}:</label>
                 <div class="dual-inputs">
                     <input type="text" name="loser{{ i }}" id="loser{{ i }}" value="{{ request.form.get('loser' ~ i, game['loser' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
-                    <input type="number" name="loser{{ i }}_score" placeholder="Score" value="{{ request.form.get('loser' ~ i ~ '_score', '' if game['loser' ~ i ~ '_score'] is none else game['loser' ~ i ~ '_score']) }}">
+                    <input type="number" name="loser{{ i }}_score" class="individual-score" placeholder="Score" value="{{ request.form.get('loser' ~ i ~ '_score', '' if game['loser' ~ i ~ '_score'] is none else game['loser' ~ i ~ '_score']) }}">
                 </div>
             </div>
             {% endfor %}
+            
+            <div class="form-group team-score-row" id="loser-team-score">
+                <label for="loser_score">Loser Team Score:</label>
+                <input type="number" name="loser_score" id="loser_score" placeholder="Team Score" value="{{ request.form.get('loser_score', '' if game['loser_score'] is none else game['loser_score']) }}">
+            </div>
             
             <div class="form-group">
                 <label for="comment">Comment:</label>
@@ -81,6 +104,33 @@
             width: 50%;
         }
         
+        .team-score-row {
+            display: none;
+        }
+        
+        .score-type-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            z-index: 100;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .score-type-dropdown div {
+            padding: 10px;
+            cursor: pointer;
+        }
+        
+        .score-type-dropdown div:hover {
+            background: #f5f5f5;
+        }
+        
+        .individual-score.hidden {
+            display: none;
+        }
+        
         .btn {
             padding: 10px 20px;
             margin: 5px;
@@ -105,4 +155,47 @@
             opacity: 0.8;
         }
     </style>
+    
+    <script>
+        function toggleScoreTypeDropdown() {
+            const dropdown = document.getElementById('score_type_dropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function setScoreType(value, displayText) {
+            document.getElementById('score_type').value = value;
+            document.getElementById('score_type_display').value = displayText;
+            document.getElementById('score_type_dropdown').style.display = 'none';
+            updateScoreVisibility();
+        }
+        
+        function updateScoreVisibility() {
+            const scoreType = document.getElementById('score_type').value;
+            const individualScores = document.querySelectorAll('.individual-score');
+            const winnerTeamScore = document.getElementById('winner-team-score');
+            const loserTeamScore = document.getElementById('loser-team-score');
+            
+            if (scoreType === 'team') {
+                individualScores.forEach(input => input.classList.add('hidden'));
+                winnerTeamScore.style.display = 'block';
+                loserTeamScore.style.display = 'block';
+            } else {
+                individualScores.forEach(input => input.classList.remove('hidden'));
+                winnerTeamScore.style.display = 'none';
+                loserTeamScore.style.display = 'none';
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.matches('#score_type_display')) {
+                document.getElementById('score_type_dropdown').style.display = 'none';
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateScoreVisibility();
+        });
+    </script>
 {% endblock %}

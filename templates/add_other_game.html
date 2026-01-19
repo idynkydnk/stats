@@ -1,138 +1,184 @@
 {% extends 'base_admin.html' %}
 
+{% block content %}
 <style>
-.autocomplete {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    text-align: center;
-}
-
-.player-entry {
+/* Game card styles matching edit_other_games.html */
+.games-grid {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
-    margin-bottom: 8px;
 }
 
-.player-score-input {
-    width: 280px;
-    padding: 6px;
-    text-align: center;
+.game-card {
+    background: var(--table-bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--table-banding);
+    transition: all 0.2s ease;
 }
 
-.player-score-input.hidden {
-    display: none;
+.game-card:hover {
+    border-color: var(--button-border-1);
 }
 
-#score_type_display {
-    width: 280px;
-    padding: 6px;
-    text-align: center;
-    cursor: pointer;
-}
-
-.add-player-placeholder {
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-.add-player-placeholder:hover {
-    opacity: 1;
-}
-
-.add-player-placeholder .placeholder-input {
-    cursor: pointer;
-    color: #888;
-}
-
-.team-score-entry {
-    margin: 10px 0;
-    text-align: center;
-}
-
-.team-score-input {
-    width: 280px;
-    padding: 6px;
-    text-align: center;
-}
-
-.player-line {
+.card-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
     gap: 8px;
 }
 
-.player-line .player-score {
-    font-weight: bold;
+.card-title {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.game-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.game-name a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.game-name a:hover {
     color: #aeee98;
 }
 
-/* All loser scores should be red */
-.loser-team .player-score {
-    color: #ff6b6b;
+.game-type-label {
+    font-size: 11px;
+    color: var(--caption);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
-.team-cell {
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.game-date {
+    font-size: 12px;
+    color: var(--caption);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--table-banding);
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: var(--button-bg-1);
+}
+
+.action-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.action-btn.delete:hover {
+    background: rgba(220, 53, 69, 0.2);
+}
+
+.card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.team-section {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.team-section.winners {
+    border-left: 2px solid #aeee98;
+}
+
+.team-section.losers {
+    border-left: 2px solid #ff6b6b;
+}
+
+.team-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.players-col {
+.players-list {
     flex: 1;
 }
 
-.autocomplete input {
-    width: 280px;
-    padding: 6px;
-    text-align: center;
+.player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1px 0;
 }
 
-.autocomplete-list {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 1px solid #ccc;
-    background: white;
-    z-index: 999;
-    display: none;
-    max-height: 150px;
-    overflow-y: auto;
-    width: 280px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+.player-item a {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
 }
 
-.autocomplete-list div {
-    padding: 12px 16px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    font-size: 20px !important;
-    line-height: 1.4;
-    font-weight: normal !important;
+.player-item a:hover {
+    color: #aeee98;
 }
 
-/* More specific selector to override any base styles */
-.autocomplete .autocomplete-list div {
-    font-size: 20px !important;
-    font-weight: normal !important;
-    line-height: 1.4 !important;
+.card-player-score {
+    font-weight: 600;
+    color: #aeee98;
+    font-size: 12px;
 }
 
-.autocomplete-list div:hover {
-    background: #f5f5f5;
+.team-section.losers .card-player-score {
+    color: #ff6b6b;
 }
 
-.autocomplete-list div:last-child {
-    border-bottom: none;
+.card-footer {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--table-banding);
+}
+
+.game-comment {
+    font-size: 12px;
+    color: var(--caption);
+    font-style: italic;
+}
+
+@media (max-width: 600px) {
+    .card-body {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
 }
 </style>
 
-{% block content %}
     <h1>{% block title %} Add Other Game {% endblock %}</h1>
     
     
@@ -272,71 +318,76 @@
             {% endfor %}
         </tbody>
     </table>
-    <table>
-        <h1>Today's games</h1>
-        <thead>
-            <tr>
-                <th scope="col">Date/Time</th>
-                <th scope="col">Game</th>
-                <th scope="col">Winner(s)</th>
-                <th scope="col">Loser(s)</th>
-                <th scope="col">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
+    <h2 style="margin-bottom: 10px;">Today's games</h2>
+    <div class="games-grid">
         {% for game in games %}
-            <tr>
-                <td>{{ game['game_date_only'] }}<br>
-                    {% if game['game_time'] %}
-                        {{ game['game_time'] }}
-                    {% endif %}</td>
-                <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></td>
-                <td>
-                    <div class="team-cell{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
-                        <div class="players-col">
+        <div class="game-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <h3 class="game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
+                    <div class="game-type-label">{{ game['game_type'] }}</div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="action-btn" title="Edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
+                    </a>
+                    <a href="{{ url_for('delete_other_game', id=game['game_id'], from_add_game='true') }}" class="action-btn delete" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg>
+                    </a>
+                </div>
+                <div class="card-meta">
+                    <div class="game-date">
+                        {{ game['game_date_only'] }}
+                        {% if game['game_time'] %}<br>{{ game['game_time'] }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="team-section winners">
+                    <div class="team-content{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-list">
                             {% for winner in game['winners'] %}
-                                <div class="player-line">
-                                    <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                                    {% if winner.score is not none %}
-                                        <span class="player-score">{{ winner.score }}</span>
-                                    {% endif %}
-                                </div>
+                            <div class="player-item">
+                                <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                {% if winner.score is not none %}
+                                <span class="card-player-score">{{ winner.score }}</span>
+                                {% endif %}
+                            </div>
                             {% endfor %}
                         </div>
                         {% if game['winner_score'] is not none and game['winners'][0].score is none %}
-                            <div class="team-score-col"><span class="player-score">{{ game['winner_score'] }}</span></div>
+                        <div class="team-score-center"><span class="card-player-score">{{ game['winner_score'] }}</span></div>
                         {% endif %}
                     </div>
-                </td>
-                <td>
-                    <div class="team-cell loser-team{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
-                        <div class="players-col">
+                </div>
+                <div class="team-section losers">
+                    <div class="team-content{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-list">
                             {% for loser in game['losers'] %}
-                                <div class="player-line">
-                                    <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                                    {% if loser.score is not none %}
-                                        <span class="player-score">{{ loser.score }}</span>
-                                    {% endif %}
-                                </div>
+                            <div class="player-item">
+                                <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                {% if loser.score is not none %}
+                                <span class="card-player-score">{{ loser.score }}</span>
+                                {% endif %}
+                            </div>
                             {% endfor %}
                         </div>
                         {% if game['loser_score'] is not none and game['losers'][0].score is none %}
-                            <div class="team-score-col"><span class="player-score">{{ game['loser_score'] }}</span></div>
+                        <div class="team-score-center"><span class="card-player-score">{{ game['loser_score'] }}</span></div>
                         {% endif %}
                     </div>
-                </td>
-                <td>
-                    <a href="{{ url_for('update_other_game', id=game['game_id']) }}" style="display: block; margin-bottom: 5px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
-                    </a>
-                    <a href="{{ url_for('delete_other_game', id=game['game_id'], from_add_game='true') }}" style="display: block;">
-                        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg>
-                    </a>
-                </td>
-            </tr>
+                </div>
+            </div>
+            
+            {% if game['comment'] %}
+            <div class="card-footer">
+                <span class="game-comment">{{ game['comment'] }}</span>
+            </div>
+            {% endif %}
+        </div>
         {% endfor %}
-        </tbody>
-    </table>
+    </div>
     <p style="text-align: center; margin-top: 10px;"><a href="{{ url_for('edit_other_games') }}" style="font-size: 14px; color: var(--caption);">Edit games page</a></p>
     {% endif %}
 
@@ -344,70 +395,75 @@
     {% if recent_games and not todays_stats %}
     <div style="margin-top: 30px;">
         <h2 style="margin-bottom: 10px;">Recent Games</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th scope="col">Date/Time</th>
-                    <th scope="col">Game</th>
-                    <th scope="col">Winner(s)</th>
-                    <th scope="col">Loser(s)</th>
-                    <th scope="col">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="games-grid">
             {% for game in recent_games %}
-                <tr>
-                    <td>{{ game['game_date_only'] }}<br>
-                        {% if game['game_time'] %}
-                            {{ game['game_time'] }}
-                        {% endif %}</td>
-                    <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></td>
-                    <td>
-                        <div class="team-cell{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
-                            <div class="players-col">
+            <div class="game-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <h3 class="game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
+                        <div class="game-type-label">{{ game['game_type'] }}</div>
+                    </div>
+                    <div class="card-actions">
+                        <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="action-btn" title="Edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
+                        </a>
+                        <a href="{{ url_for('delete_other_game', id=game['game_id'], from_add_game='true') }}" class="action-btn delete" title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg>
+                        </a>
+                    </div>
+                    <div class="card-meta">
+                        <div class="game-date">
+                            {{ game['game_date_only'] }}
+                            {% if game['game_time'] %}<br>{{ game['game_time'] }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="team-section winners">
+                        <div class="team-content{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
+                            <div class="players-list">
                                 {% for winner in game['winners'] %}
-                                    <div class="player-line">
-                                        <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                                        {% if winner.score is not none %}
-                                            <span class="player-score">{{ winner.score }}</span>
-                                        {% endif %}
-                                    </div>
+                                <div class="player-item">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                    {% if winner.score is not none %}
+                                    <span class="card-player-score">{{ winner.score }}</span>
+                                    {% endif %}
+                                </div>
                                 {% endfor %}
                             </div>
                             {% if game['winner_score'] is not none and game['winners'][0].score is none %}
-                                <div class="team-score-col"><span class="player-score">{{ game['winner_score'] }}</span></div>
+                            <div class="team-score-center"><span class="card-player-score">{{ game['winner_score'] }}</span></div>
                             {% endif %}
                         </div>
-                    </td>
-                    <td>
-                        <div class="team-cell loser-team{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
-                            <div class="players-col">
+                    </div>
+                    <div class="team-section losers">
+                        <div class="team-content{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
+                            <div class="players-list">
                                 {% for loser in game['losers'] %}
-                                    <div class="player-line">
-                                        <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                                        {% if loser.score is not none %}
-                                            <span class="player-score">{{ loser.score }}</span>
-                                        {% endif %}
-                                    </div>
+                                <div class="player-item">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                    {% if loser.score is not none %}
+                                    <span class="card-player-score">{{ loser.score }}</span>
+                                    {% endif %}
+                                </div>
                                 {% endfor %}
                             </div>
                             {% if game['loser_score'] is not none and game['losers'][0].score is none %}
-                                <div class="team-score-col"><span class="player-score">{{ game['loser_score'] }}</span></div>
+                            <div class="team-score-center"><span class="card-player-score">{{ game['loser_score'] }}</span></div>
                             {% endif %}
                         </div>
-                    </td>
-                    <td>
-                        <a href="{{ url_for('update_other_game', id=game['game_id']) }}" style="display: block; margin-bottom: 5px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83l3.75 3.75l1.83-1.83z" fill="#aeee98"></path></svg>
-                        </a>
-                        <a href="{{ url_for('delete_other_game', id=game['game_id'], from_add_game='true') }}" style="display: block;">
-                            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z" fill="#aeee98"></path></svg>
-                        </a>
-                    </td>
-                </tr>
+                    </div>
+                </div>
+                
+                {% if game['comment'] %}
+                <div class="card-footer">
+                    <span class="game-comment">{{ game['comment'] }}</span>
+                </div>
+                {% endif %}
+            </div>
             {% endfor %}
-            </tbody>
-        </table>
+        </div>
         <p style="text-align: center; margin-top: 10px;"><a href="{{ url_for('edit_other_games') }}" style="font-size: 14px; color: var(--caption);">Edit games page</a></p>
     </div>
     {% endif %}
