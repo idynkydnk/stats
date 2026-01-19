@@ -228,8 +228,18 @@ def _build_other_game_display(game, include_time=False):
     return data
 
 def todays_other_games():
+    from datetime import datetime
     cur = set_cur()
-    cur.execute("SELECT * FROM other_games WHERE game_date > date('now','-15 hours') ORDER BY game_date DESC")
+    today = datetime.now().strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM other_games WHERE date(game_date) = ? ORDER BY game_date DESC", (today,))
+    games = cur.fetchall()
+    readable_games = readable_games_data(games)
+    return readable_games
+
+def recent_other_games(limit=10):
+    """Get the most recent other games across all dates"""
+    cur = set_cur()
+    cur.execute("SELECT * FROM other_games ORDER BY game_date DESC LIMIT ?", (limit,))
     games = cur.fetchall()
     readable_games = readable_games_data(games)
     return readable_games

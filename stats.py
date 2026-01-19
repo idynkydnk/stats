@@ -662,8 +662,9 @@ def add_vollis_game():
             
             return redirect(url_for('add_vollis_game'))
 
+    recent = recent_vollis_games(10)
     return render_template('add_vollis_game.html', year=year, players=players, todays_stats=stats, games=games,
-        winning_scores=winning_scores, losing_scores=losing_scores)
+        winning_scores=winning_scores, losing_scores=losing_scores, recent_games=recent)
 
 
 @app.route('/edit_vollis_games/')
@@ -723,6 +724,7 @@ def update_vollis_game(id):
 def delete_vollis_game(id):
     game_id = id
     game = find_vollis_game(id)
+    from_add_game = request.args.get('from_add_game', 'false')
     if request.method == 'POST':
         # Log the action for notifications before deleting
         user = session.get('username', 'unknown')
@@ -730,9 +732,13 @@ def delete_vollis_game(id):
         log_user_action(user, 'Deleted vollis game', details)
         
         remove_vollis_game(game_id)
+        
+        # Redirect back to add_vollis_game if that's where we came from
+        if request.form.get('from_add_game') == 'true':
+            return redirect(url_for('add_vollis_game'))
         return redirect(url_for('edit_vollis_games'))
  
-    return render_template('delete_vollis_game.html', game=game)
+    return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game)
 
 @app.route('/vollis_player/<year>/<name>')
 def vollis_player_stats(year, name):
@@ -1258,8 +1264,6 @@ def volleyball_player_stats(year, name):
 @login_required
 def add_other_game():
     from other_functions import convert_other_ampm, all_combined_players
-    games_raw = other_year_games_raw('All years')
-    games = convert_other_ampm(games_raw)
     
     # Get helper data using the old format
     games_dict = other_year_games('All years')
@@ -1267,6 +1271,7 @@ def add_other_game():
     game_names = other_game_names(games_dict)
     players = all_combined_players()
     stats = todays_other_stats()
+    games = todays_other_games()  # Today's games for display
     year = str(date.today().year)
     winning_scores = other_winning_scores()
     losing_scores = other_losing_scores()
@@ -1335,8 +1340,9 @@ def add_other_game():
             
             return redirect(url_for('add_other_game'))
 
+    recent = recent_other_games(10)
     return render_template('add_other_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
-        winning_scores=winning_scores, losing_scores=losing_scores)
+        winning_scores=winning_scores, losing_scores=losing_scores, recent_games=recent)
 
 
 @app.route('/edit_other_games/')
@@ -1452,6 +1458,7 @@ def update_other_game(id):
 def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
+    from_add_game = request.args.get('from_add_game', 'false')
     if not game:
         flash('Game not found!')
         return redirect(url_for('edit_other_games'))
@@ -1464,9 +1471,13 @@ def delete_other_game(id):
         log_user_action(user, 'Deleted other game', details)
         
         remove_other_game(game_id)
+        
+        # Redirect back to add_other_game if that's where we came from
+        if request.form.get('from_add_game') == 'true':
+            return redirect(url_for('add_other_game'))
         return redirect(url_for('edit_other_games'))
  
-    return render_template('delete_other_game.html', game=game[0])
+    return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game)
 
 @app.route('/other_player/<year>/<name>')
 def other_player_stats(year, name):

@@ -12,13 +12,14 @@
         
         <div class="confirmation-actions">
             <form action='' method="post" class="delete-form">
+                <input type="hidden" name="from_add_game" value="{{ from_add_game }}">
                 <button type="submit" class="delete-button">
                     <i class="fas fa-trash"></i>
                     Delete Game
                 </button>
             </form>
             
-            <a href='/edit_vollis_games' class="cancel-button">
+            <a href="{% if from_add_game == 'true' %}{{ url_for('add_vollis_game') }}{% else %}/edit_vollis_games{% endif %}" class="cancel-button">
                 <i class="fas fa-times"></i>
                 Cancel
             </a>

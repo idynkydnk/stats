@@ -243,6 +243,14 @@ def todays_vollis_games():
     row = convert_vollis_ampm(games)
     return row
 
+def recent_vollis_games(limit=10):
+    """Get the most recent vollis games across all dates"""
+    cur = set_cur()
+    cur.execute("SELECT * FROM vollis_games ORDER BY game_date DESC LIMIT ?", (limit,))
+    games = cur.fetchall()
+    row = convert_vollis_ampm(games)
+    return row
+
 def vollis_winning_scores():
     scores = [21,15,11]
     return scores
