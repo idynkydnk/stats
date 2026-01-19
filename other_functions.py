@@ -117,14 +117,33 @@ def _normalize_players(players, scores):
 
 
 def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
-                    losers, loser_scores, comment, updated_at):
-    """Insert an other-game record with per-player scores."""
+                    losers, loser_scores, comment, updated_at,
+                    team_winner_score=None, team_loser_score=None):
+    """Insert an other-game record with per-player scores or team scores.
+    
+    If team_winner_score/team_loser_score are provided, they are used as the
+    aggregate scores (for team games). Otherwise, the first individual score
+    is used as the aggregate (for individual games).
+    """
     winners_normalized, winner_scores_normalized = _normalize_players(winners, winner_scores)
     losers_normalized, loser_scores_normalized = _normalize_players(losers, loser_scores)
 
-    # Maintain legacy aggregate columns for backward compatibility
-    aggregate_winner_score = next((score for score in winner_scores_normalized if score is not None), None)
-    aggregate_loser_score = next((score for score in loser_scores_normalized if score is not None), None)
+    # Use explicit team scores if provided, otherwise fall back to first individual score
+    if team_winner_score not in (None, ''):
+        try:
+            aggregate_winner_score = int(team_winner_score)
+        except (TypeError, ValueError):
+            aggregate_winner_score = None
+    else:
+        aggregate_winner_score = next((score for score in winner_scores_normalized if score is not None), None)
+    
+    if team_loser_score not in (None, ''):
+        try:
+            aggregate_loser_score = int(team_loser_score)
+        except (TypeError, ValueError):
+            aggregate_loser_score = None
+    else:
+        aggregate_loser_score = next((score for score in loser_scores_normalized if score is not None), None)
 
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -347,9 +366,15 @@ def all_combined_players():
                     player_last_game[player] = game_date
     
     # Process other games (raw data - tuples from database)
+    # Schema: id(0), game_date(1), game_type(2), game_name(3), 
+    #         winner1-15(4-18), winner1_score-15_score(19-33), winner_score(34),
+    #         loser1-15(35-49), loser1_score-15_score(50-64), loser_score(65)
     for game in other_games_raw:
         game_date = game[1]  # game_date is at index 1 in raw data
-        players = [game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11], game[12], game[13], game[14], game[15]]  # winner1-6, loser1-6
+        # Winners are at indices 4-18, losers are at indices 35-49
+        winners = [game[i] for i in range(4, 19)]  # winner1 through winner15
+        losers = [game[i] for i in range(35, 50)]  # loser1 through loser15
+        players = winners + losers
         
         for player in players:
             if player and isinstance(player, str) and player.strip():  # Skip empty players and non-strings
@@ -414,6 +439,42 @@ def set_cur():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     return cur  
+
+
+def get_score_type_for_game(game_name):
+    """Determine if a game uses individual or team scoring based on previous entries.
+    
+    Returns 'team' if winner_score is set but winner1_score is not (or all individual scores match).
+    Returns 'individual' if winner1_score is set with different values per player.
+    Returns 'individual' as default if no previous games exist.
+    """
+    cur = set_cur()
+    cur.execute("""
+        SELECT winner_score, winner1_score, winner2_score, loser_score, loser1_score, loser2_score
+        FROM other_games 
+        WHERE game_name = ? 
+        ORDER BY game_date DESC 
+        LIMIT 1
+    """, (game_name,))
+    row = cur.fetchone()
+    
+    if not row:
+        return 'individual'  # Default for new games
+    
+    winner_score = row['winner_score']
+    winner1_score = row['winner1_score']
+    winner2_score = row['winner2_score']
+    
+    # If there's a team winner_score but no individual scores, it's a team game
+    if winner_score is not None and winner1_score is None:
+        return 'team'
+    
+    # If there are individual scores, it's an individual game
+    if winner1_score is not None:
+        return 'individual'
+    
+    # Default to individual
+    return 'individual'
 
 
 def enter_data_into_database(games_data):

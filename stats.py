@@ -1267,24 +1267,39 @@ def add_other_game():
     if request.method == 'POST':
         game_type = request.form.get('game_type', '')
         game_name = request.form.get('game_name', '')
+        score_type = request.form.get('score_type', 'individual') or 'individual'
         winners = []
         winner_scores = []
         losers = []
         loser_scores = []
+        team_winner_score = None
+        team_loser_score = None
 
+        # Collect player names
         for i in range(1, 16):
             winner_name = request.form.get(f'winner{i}', '').strip()
-            winner_score_value = request.form.get(f'winner{i}_score', '').strip()
             if winner_name:
                 winners.append(winner_name)
-                winner_scores.append(winner_score_value)
+                if score_type == 'individual':
+                    winner_score_value = request.form.get(f'winner{i}_score', '').strip()
+                    winner_scores.append(winner_score_value)
+                else:
+                    winner_scores.append('')  # Empty individual scores for team games
 
         for i in range(1, 16):
             loser_name = request.form.get(f'loser{i}', '').strip()
-            loser_score_value = request.form.get(f'loser{i}_score', '').strip()
             if loser_name:
                 losers.append(loser_name)
-                loser_scores.append(loser_score_value)
+                if score_type == 'individual':
+                    loser_score_value = request.form.get(f'loser{i}_score', '').strip()
+                    loser_scores.append(loser_score_value)
+                else:
+                    loser_scores.append('')  # Empty individual scores for team games
+
+        # Get team scores if team mode
+        if score_type == 'team':
+            team_winner_score = request.form.get('winner_score', '').strip()
+            team_loser_score = request.form.get('loser_score', '').strip()
 
         comment = request.form.get('comment', '')
 
@@ -1300,7 +1315,9 @@ def add_other_game():
                 losers,
                 loser_scores,
                 comment,
-                datetime.now()
+                datetime.now(),
+                team_winner_score,
+                team_loser_score
             )
             
             # Log the action for notifications
@@ -1658,6 +1675,18 @@ def get_other_game_type(game_name):
     games = other_year_games('All years')
     game_type = other_game_type_for_name(games, game_name)
     return {'game_type': game_type} if game_type else {'game_type': None}
+
+@app.route('/api/other_game_info/<game_name>')
+def get_other_game_info(game_name):
+    """API endpoint to get game type and score type for a given game name"""
+    from other_functions import get_score_type_for_game
+    games = other_year_games('All years')
+    game_type = other_game_type_for_name(games, game_name)
+    score_type = get_score_type_for_game(game_name)
+    return {
+        'game_type': game_type,
+        'score_type': score_type
+    }
 
 @app.route('/manage_player_names/', methods=['GET', 'POST'])
 @login_required
@@ -3113,10 +3142,11 @@ def create_doubles_email_html(summary, stats, games, date_obj):
             """
 
     url_date = date_obj.strftime('%Y-%m-%d')
+    stats_year = date_obj.year
 
     html_body += f"""
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/stats/{stats_year}/" class="link-button">View {stats_year} Doubles Stats</a>
                     </div>
                     <div class="footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
                         <p style="color: #aeee98; font-size: 14px; margin-bottom: 10px;">Want all future AI summaries?</p>

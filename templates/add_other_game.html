@@ -10,15 +10,52 @@
 
 .player-entry {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 8px;
 }
 
 .player-score-input {
-    width: 120px;
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+}
+
+.player-score-input.hidden {
+    display: none;
+}
+
+#score_type_display {
+    width: 280px;
+    padding: 6px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.add-player-placeholder {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.add-player-placeholder:hover {
+    opacity: 1;
+}
+
+.add-player-placeholder .placeholder-input {
+    cursor: pointer;
+    color: #888;
+}
+
+.team-score-entry {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.team-score-input {
+    width: 280px;
     padding: 6px;
     text-align: center;
 }
@@ -126,6 +163,14 @@
                     value="{{ request.form['game_type'] }}">
             <div class="autocomplete-list" id="game_typeList"></div>
         </div>
+        <div class="autocomplete">
+            <input type="text" name="score_type_display" id="score_type_display"
+                    placeholder="Score type"
+                    value=""
+                    readonly>
+            <input type="hidden" name="score_type" id="score_type" value="">
+            <div class="autocomplete-list" id="score_typeList"></div>
+        </div>
         <div class="player-entry" data-player-type="winner" data-index="1">
             <div class="autocomplete">
                 <input type="text" name="winner1" id="winner1"
@@ -140,7 +185,16 @@
                    value="{{ request.form['winner1_score'] or '' }}">
         </div>
         <div id="winners-container"></div>
-        <button type="button" onclick="addWinner()" style="margin: 5px 0;">+ Add Winner</button>
+        <div class="player-entry add-player-placeholder" id="add-winner-placeholder" onclick="addWinnerFromPlaceholder()">
+            <div class="autocomplete">
+                <input type="text" class="placeholder-input" placeholder="+ Add Winner" readonly>
+            </div>
+        </div>
+        <div class="team-score-entry" id="winner-team-score" style="display: none;">
+            <input type="number" pattern="[0-9]*" name="winner_score" class="team-score-input"
+                   placeholder="Winner Team Score"
+                   list="winning_scores">
+        </div>
         
         <div class="player-entry" data-player-type="loser" data-index="1">
             <div class="autocomplete">
@@ -156,7 +210,16 @@
                    value="{{ request.form['loser1_score'] or '' }}">
         </div>
         <div id="losers-container"></div>
-        <button type="button" onclick="addLoser()" style="margin: 5px 0;">+ Add Loser</button>     
+        <div class="player-entry add-player-placeholder" id="add-loser-placeholder" onclick="addLoserFromPlaceholder()">
+            <div class="autocomplete">
+                <input type="text" class="placeholder-input" placeholder="+ Add Loser" readonly>
+            </div>
+        </div>
+        <div class="team-score-entry" id="loser-team-score" style="display: none;">
+            <input type="number" pattern="[0-9]*" name="loser_score" class="team-score-input"
+                   placeholder="Loser Team Score"
+                   list="losing_scores">
+        </div>
         <input type="text" name="comment"
                 placeholder="comment"
                 value="{{ request.form['comment'] }}">   
@@ -257,32 +320,71 @@ const originalGameNames = Array.from(document.getElementById('game_names').optio
 let winnerCount = 1;
 let loserCount = 1;
 
+function toggleScoreType() {
+    const scoreType = document.getElementById('score_type').value;
+    const individualScoreInputs = document.querySelectorAll('.player-score-input');
+    const winnerTeamScore = document.getElementById('winner-team-score');
+    const loserTeamScore = document.getElementById('loser-team-score');
+    
+    if (scoreType === 'team') {
+        // Hide individual score inputs, show team score inputs
+        individualScoreInputs.forEach(input => {
+            input.classList.add('hidden');
+            input.value = ''; // Clear individual scores
+        });
+        winnerTeamScore.style.display = 'block';
+        loserTeamScore.style.display = 'block';
+    } else {
+        // Show individual score inputs, hide team score inputs
+        individualScoreInputs.forEach(input => {
+            input.classList.remove('hidden');
+        });
+        winnerTeamScore.style.display = 'none';
+        loserTeamScore.style.display = 'none';
+        // Clear team scores
+        winnerTeamScore.querySelector('input').value = '';
+        loserTeamScore.querySelector('input').value = '';
+    }
+}
+
+function setScoreType(value, displayText) {
+    document.getElementById('score_type').value = value;
+    document.getElementById('score_type_display').value = displayText;
+    document.getElementById('score_typeList').style.display = 'none';
+    toggleScoreType();
+}
+
 function autoFillGameType(gameType) {
     const gameNameInput = document.getElementById('game_name');
     const gameTypeInput = document.getElementById('game_type');
+    const scoreTypeInput = document.getElementById('score_type');
     const gameName = gameNameInput.value.trim();
     
     if (gameName) {
         const apiUrl = gameType === 'one_v_one' ? 
             `/api/one_v_one_game_type/${encodeURIComponent(gameName)}` : 
-            `/api/other_game_type/${encodeURIComponent(gameName)}`;
+            `/api/other_game_info/${encodeURIComponent(gameName)}`;
         
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
                 if (data.game_type) {
                     gameTypeInput.value = data.game_type;
-                    // After game type is auto-filled, focus on winner1 field
-                    setTimeout(() => {
-                        const winner1Field = document.getElementById('winner1');
-                        if (winner1Field) {
-                            winner1Field.focus();
-                        }
-                    }, 150);
                 }
+                if (data.score_type) {
+                    const displayText = data.score_type === 'team' ? 'Team Scores' : 'Individual Scores';
+                    setScoreType(data.score_type, displayText);
+                }
+                // After fields are auto-filled, focus on winner1 field
+                setTimeout(() => {
+                    const winner1Field = document.getElementById('winner1');
+                    if (winner1Field) {
+                        winner1Field.focus();
+                    }
+                }, 150);
             })
             .catch(error => {
-                console.log('Error fetching game type:', error);
+                console.log('Error fetching game info:', error);
             });
     }
 }
@@ -299,10 +401,10 @@ function handleGameNameBlur() {
     }
 }
 
-function addWinner() {
+function addWinner(focusAfter = false) {
     if (winnerCount >= 15) {
         alert('Maximum of 15 winners allowed');
-        return;
+        return null;
     }
     winnerCount++;
     const container = document.getElementById('winners-container');
@@ -310,6 +412,10 @@ function addWinner() {
     newDiv.className = 'player-entry';
     newDiv.setAttribute('data-player-type', 'winner');
     newDiv.setAttribute('data-index', winnerCount);
+    
+    const scoreType = document.getElementById('score_type').value;
+    const hiddenClass = scoreType === 'team' ? 'hidden' : '';
+    
     newDiv.innerHTML = `
         <div class="autocomplete">
             <input type="text" name="winner${winnerCount}" id="winner${winnerCount}"
@@ -317,22 +423,36 @@ function addWinner() {
                     onchange="updatePlayerOptions()">
             <div class="autocomplete-list" id="winner${winnerCount}List"></div>
         </div>
-        <input type="number" pattern="[0-9]*" name="winner${winnerCount}_score" class="player-score-input"
+        <input type="number" pattern="[0-9]*" name="winner${winnerCount}_score" class="player-score-input ${hiddenClass}"
                placeholder="Score"
                list="winning_scores">
     `;
     container.appendChild(newDiv);
     
-    const newInput = newDiv.querySelector('input[type=\"text\"]');
+    const newInput = newDiv.querySelector('input[type="text"]');
     const newList = newDiv.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newInput, newList);
     updatePlayerOptions();
+    
+    if (focusAfter) {
+        setTimeout(() => {
+            newInput.focus();
+            showPlayerList(newInput, newList, originalPlayerOptions);
+        }, 50);
+    }
+    
+    return newInput;
 }
 
-function addLoser() {
+function addWinnerFromPlaceholder() {
+    const input = addWinner(true);
+    if (!input) return;
+}
+
+function addLoser(focusAfter = false) {
     if (loserCount >= 15) {
         alert('Maximum of 15 losers allowed');
-        return;
+        return null;
     }
     loserCount++;
     const container = document.getElementById('losers-container');
@@ -340,6 +460,10 @@ function addLoser() {
     newDiv.className = 'player-entry';
     newDiv.setAttribute('data-player-type', 'loser');
     newDiv.setAttribute('data-index', loserCount);
+    
+    const scoreType = document.getElementById('score_type').value;
+    const hiddenClass = scoreType === 'team' ? 'hidden' : '';
+    
     newDiv.innerHTML = `
         <div class="autocomplete">
             <input type="text" name="loser${loserCount}" id="loser${loserCount}"
@@ -347,28 +471,47 @@ function addLoser() {
                     onchange="updatePlayerOptions()">
             <div class="autocomplete-list" id="loser${loserCount}List"></div>
         </div>
-        <input type="number" pattern="[0-9]*" name="loser${loserCount}_score" class="player-score-input"
+        <input type="number" pattern="[0-9]*" name="loser${loserCount}_score" class="player-score-input ${hiddenClass}"
                placeholder="Score"
                list="losing_scores">
     `;
     container.appendChild(newDiv);
     
-    const newInput = newDiv.querySelector('input[type=\"text\"]');
+    const newInput = newDiv.querySelector('input[type="text"]');
     const newList = newDiv.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newInput, newList);
     updatePlayerOptions();
+    
+    if (focusAfter) {
+        setTimeout(() => {
+            newInput.focus();
+            showPlayerList(newInput, newList, originalPlayerOptions);
+        }, 50);
+    }
+    
+    return newInput;
+}
+
+function addLoserFromPlaceholder() {
+    const input = addLoser(true);
+    if (!input) return;
+}
+
+// Get all selected players from all player input fields
+function getSelectedPlayers(excludeField = null) {
+    const selectedPlayers = [];
+    // Check all player entry inputs (including winner1, loser1, and dynamic ones)
+    document.querySelectorAll('.player-entry input[type="text"]:not(.placeholder-input)').forEach(input => {
+        if (input.value.trim() && input !== excludeField) {
+            selectedPlayers.push(input.value.trim());
+        }
+    });
+    return selectedPlayers;
 }
 
 function updatePlayerOptions() {
     const playersDatalist = document.getElementById('players');
-    
-    const nameInputs = document.querySelectorAll('.player-entry input[type="text"]');
-    const selectedPlayers = [];
-    nameInputs.forEach(input => {
-        if (input.value.trim()) {
-            selectedPlayers.push(input.value.trim());
-        }
-    });
+    const selectedPlayers = getSelectedPlayers();
     
     playersDatalist.innerHTML = '';
     originalPlayerOptions.forEach(player => {
@@ -414,6 +557,51 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target.tagName === 'DIV') {
                 gameTypeField.value = e.target.textContent;
                 gameTypeList.style.display = 'none';
+                setTimeout(() => {
+                    const scoreTypeDisplay = document.getElementById('score_type_display');
+                    if (scoreTypeDisplay) scoreTypeDisplay.focus();
+                }, 100);
+            }
+        });
+    }
+    
+    // Setup dropdown for score type
+    const scoreTypeDisplay = document.getElementById('score_type_display');
+    const scoreTypeList = document.getElementById('score_typeList');
+    const scoreTypeOptions = [
+        { value: 'individual', display: 'Individual Scores' },
+        { value: 'team', display: 'Team Scores' }
+    ];
+    if (scoreTypeDisplay && scoreTypeList) {
+        scoreTypeDisplay.addEventListener('focus', () => {
+            scoreTypeList.innerHTML = '';
+            scoreTypeOptions.forEach(option => {
+                const div = document.createElement('div');
+                div.textContent = option.display;
+                div.setAttribute('data-value', option.value);
+                div.style.fontSize = '20px';
+                div.style.lineHeight = '1.4';
+                scoreTypeList.appendChild(div);
+            });
+            scoreTypeList.style.display = 'block';
+        });
+        scoreTypeDisplay.addEventListener('click', () => {
+            scoreTypeList.innerHTML = '';
+            scoreTypeOptions.forEach(option => {
+                const div = document.createElement('div');
+                div.textContent = option.display;
+                div.setAttribute('data-value', option.value);
+                div.style.fontSize = '20px';
+                div.style.lineHeight = '1.4';
+                scoreTypeList.appendChild(div);
+            });
+            scoreTypeList.style.display = 'block';
+        });
+        scoreTypeList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                const value = e.target.getAttribute('data-value');
+                const display = e.target.textContent;
+                setScoreType(value, display);
                 setTimeout(() => {
                     const winner1Field = document.getElementById('winner1');
                     if (winner1Field) winner1Field.focus();
@@ -534,13 +722,8 @@ function filterGameTypeList(field, list, allGameTypes) {
 
 // Show player list
 function showPlayerList(field, list, allPlayers) {
-    // Get currently selected players
-    const selectedPlayers = [];
-    document.querySelectorAll('#winners-container input, #losers-container input').forEach(input => {
-        if (input.value.trim() && input !== field) {
-            selectedPlayers.push(input.value.trim());
-        }
-    });
+    // Get currently selected players (exclude current field)
+    const selectedPlayers = getSelectedPlayers(field);
     
     // Filter out selected players
     const availablePlayers = allPlayers.filter(player => !selectedPlayers.includes(player));
@@ -561,13 +744,8 @@ function showPlayerList(field, list, allPlayers) {
 function filterPlayerList(field, list, allPlayers) {
     const inputValue = field.value.toLowerCase();
     
-    // Get currently selected players
-    const selectedPlayers = [];
-    document.querySelectorAll('#winners-container input, #losers-container input').forEach(input => {
-        if (input.value.trim() && input !== field) {
-            selectedPlayers.push(input.value.trim());
-        }
-    });
+    // Get currently selected players (exclude current field)
+    const selectedPlayers = getSelectedPlayers(field);
     
     // Filter players
     const filteredPlayers = allPlayers.filter(player => 
