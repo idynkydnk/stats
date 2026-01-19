@@ -116,6 +116,20 @@
     color: #ff6b6b;
 }
 
+.team-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.players-list {
+    flex: 1;
+}
+
+.team-score-center {
+    /* Same positioning as player-score in player-item */
+}
+
 .player-item {
     display: flex;
     justify-content: space-between;
@@ -137,6 +151,11 @@
     font-weight: 600;
     color: #aeee98;
     font-size: 12px;
+}
+
+/* All loser scores should be red */
+.team-section.losers .player-score {
+    color: #ff6b6b;
 }
 
 .empty-state {
@@ -275,26 +294,38 @@
             
             <div class="card-body">
                 <div class="team-section winners">
-                    <div class="team-label winners">Winners</div>
-                    {% for winner in game['winners'] %}
-                    <div class="player-item">
-                        <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                        {% if winner.score is not none and game['game_name'] != "Matterhorn" %}
-                        <span class="player-score">{{ winner.score }}</span>
+                    <div class="team-content{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-list">
+                            {% for winner in game['winners'] %}
+                            <div class="player-item">
+                                <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                {% if winner.score is not none and game['game_name'] != "Matterhorn" %}
+                                <span class="player-score">{{ winner.score }}</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                        <div class="team-score-center"><span class="player-score">{{ game['winner_score'] }}</span></div>
                         {% endif %}
                     </div>
-                    {% endfor %}
                 </div>
                 <div class="team-section losers">
-                    <div class="team-label losers">Losers</div>
-                    {% for loser in game['losers'] %}
-                    <div class="player-item">
-                        <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                        {% if loser.score is not none and game['game_name'] != "Matterhorn" %}
-                        <span class="player-score">{{ loser.score }}</span>
+                    <div class="team-content{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-list">
+                            {% for loser in game['losers'] %}
+                            <div class="player-item">
+                                <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                {% if loser.score is not none and game['game_name'] != "Matterhorn" %}
+                                <span class="player-score">{{ loser.score }}</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                        <div class="team-score-center"><span class="player-score">{{ game['loser_score'] }}</span></div>
                         {% endif %}
                     </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>

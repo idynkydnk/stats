@@ -71,6 +71,21 @@
     color: #aeee98;
 }
 
+/* All loser scores should be red */
+.loser-team .player-score {
+    color: #ff6b6b;
+}
+
+.team-cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.players-col {
+    flex: 1;
+}
+
 .autocomplete input {
     width: 280px;
     padding: 6px;
@@ -277,24 +292,38 @@
                     {% endif %}</td>
                 <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></td>
                 <td>
-                    {% for winner in game['winners'] %}
-                        <div class="player-line">
-                            <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                            {% if winner.score is not none %}
-                                <span class="player-score">{{ winner.score }}</span>
-                            {% endif %}
+                    <div class="team-cell{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-col">
+                            {% for winner in game['winners'] %}
+                                <div class="player-line">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                    {% if winner.score is not none %}
+                                        <span class="player-score">{{ winner.score }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
+                        {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                            <div class="team-score-col"><span class="player-score">{{ game['winner_score'] }}</span></div>
+                        {% endif %}
+                    </div>
                 </td>
                 <td>
-                    {% for loser in game['losers'] %}
-                        <div class="player-line">
-                            <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                            {% if loser.score is not none %}
-                                <span class="player-score">{{ loser.score }}</span>
-                            {% endif %}
+                    <div class="team-cell loser-team{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
+                        <div class="players-col">
+                            {% for loser in game['losers'] %}
+                                <div class="player-line">
+                                    <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                    {% if loser.score is not none %}
+                                        <span class="player-score">{{ loser.score }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
+                        {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                            <div class="team-score-col"><span class="player-score">{{ game['loser_score'] }}</span></div>
+                        {% endif %}
+                    </div>
                 </td>
                 <td>
                     <a href="{{ url_for('update_other_game', id=game['game_id']) }}" style="display: block; margin-bottom: 5px;">
@@ -334,24 +363,38 @@
                         {% endif %}</td>
                     <td><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></td>
                     <td>
-                        {% for winner in game['winners'] %}
-                            <div class="player-line">
-                                <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
-                                {% if winner.score is not none %}
-                                    <span class="player-score">{{ winner.score }}</span>
-                                {% endif %}
+                        <div class="team-cell{% if game['winner_score'] is not none and game['winners'][0].score is none %} has-team-score{% endif %}">
+                            <div class="players-col">
+                                {% for winner in game['winners'] %}
+                                    <div class="player-line">
+                                        <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                        {% if winner.score is not none %}
+                                            <span class="player-score">{{ winner.score }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% endfor %}
+                            {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                                <div class="team-score-col"><span class="player-score">{{ game['winner_score'] }}</span></div>
+                            {% endif %}
+                        </div>
                     </td>
                     <td>
-                        {% for loser in game['losers'] %}
-                            <div class="player-line">
-                                <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
-                                {% if loser.score is not none %}
-                                    <span class="player-score">{{ loser.score }}</span>
-                                {% endif %}
+                        <div class="team-cell loser-team{% if game['loser_score'] is not none and game['losers'][0].score is none %} has-team-score{% endif %}">
+                            <div class="players-col">
+                                {% for loser in game['losers'] %}
+                                    <div class="player-line">
+                                        <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                        {% if loser.score is not none %}
+                                            <span class="player-score">{{ loser.score }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% endfor %}
+                            {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                                <div class="team-score-col"><span class="player-score">{{ game['loser_score'] }}</span></div>
+                            {% endif %}
+                        </div>
                     </td>
                     <td>
                         <a href="{{ url_for('update_other_game', id=game['game_id']) }}" style="display: block; margin-bottom: 5px;">
