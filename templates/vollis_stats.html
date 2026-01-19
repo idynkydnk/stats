@@ -1,104 +1,497 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+/* Vollis Stats - Warm Coral & Amber Theme */
+.vollis-page {
+    --accent: #f97316;
+    --accent-light: #fb923c;
+    --accent-glow: rgba(249, 115, 22, 0.15);
+    --win: #22c55e;
+    --loss: #ef4444;
+}
+
+.vollis-page {
+    max-width: 100%;
+    padding-bottom: 40px;
+}
+
+/* Year Dropdown Override */
+.vollis-page .dropdown .dropbtn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light)) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.vollis-page .dropdown-content a {
+    background: var(--table-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--table-banding) !important;
+}
+
+.vollis-page .dropdown-content a:hover {
+    background: var(--accent) !important;
+    color: white !important;
+    border-color: var(--accent) !important;
+}
+
+/* Page Title */
+.vollis-title {
+    text-align: center;
+    margin: 32px 0 8px 0;
+}
+
+.vollis-title h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+.vollis-title .subtitle {
+    color: var(--caption);
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.vollis-title .subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.vollis-title .subtitle a:hover {
+    color: var(--accent-light);
+    text-decoration: underline;
+}
+
+.vollis-title .subtitle i {
+    margin-right: 6px;
+}
+
+.notice-banner {
+    text-align: center;
+    background: var(--accent-glow);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    color: var(--accent-light);
+    font-size: 14px;
+}
+
+/* Section Divider */
+.section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 32px 0 20px 0;
+}
+
+.section-divider h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.section-divider .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--table-banding), transparent);
+}
+
+.section-divider .count {
+    background: var(--accent-glow);
+    color: var(--accent);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Leaderboard Styles */
+.leaderboard {
+    background: var(--table-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--table-banding);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.leaderboard table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse;
+    margin: 0;
+    table-layout: fixed;
+    padding: 0;
+}
+
+.leaderboard thead {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(251, 191, 36, 0.05));
+}
+
+.leaderboard th {
+    padding: 14px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    font-weight: 700;
+    text-align: left;
+    border-bottom: 2px solid var(--accent);
+}
+
+.leaderboard th.center {
+    text-align: center;
+}
+
+/* Column widths */
+.leaderboard th:nth-child(1),
+.leaderboard td:nth-child(1) { width: 8%; }  /* # */
+.leaderboard th:nth-child(2),
+.leaderboard td:nth-child(2) { width: 36%; } /* Player */
+.leaderboard th:nth-child(3),
+.leaderboard td:nth-child(3) { width: 12%; } /* W */
+.leaderboard th:nth-child(4),
+.leaderboard td:nth-child(4) { width: 12%; } /* L */
+.leaderboard th:nth-child(5),
+.leaderboard td:nth-child(5) { width: 16%; } /* Win% */
+.leaderboard th:nth-child(6),
+.leaderboard td:nth-child(6) { width: 16%; } /* Games/+/- */
+
+.leaderboard td {
+    padding: 14px 12px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(69, 90, 109, 0.5);
+}
+
+.leaderboard tbody tr {
+    transition: all 0.2s;
+}
+
+.leaderboard tbody tr:hover {
+    background: var(--accent-glow);
+}
+
+.leaderboard tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Rank Column */
+.leaderboard .rank {
+    text-align: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--accent);
+}
+
+/* Player Name */
+.leaderboard .player-name {
+    font-weight: 600;
+}
+
+.leaderboard .player-name a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.leaderboard .player-name a:hover {
+    color: var(--accent);
+}
+
+/* Stat Columns */
+.leaderboard .stat {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.leaderboard .wins {
+    color: var(--win);
+    font-weight: 600;
+}
+
+.leaderboard .losses {
+    color: var(--loss);
+    font-weight: 600;
+}
+
+.leaderboard .win-pct {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.leaderboard .plus-minus {
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    min-width: 36px;
+}
+
+.leaderboard .plus-minus.positive {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--win);
+}
+
+.leaderboard .plus-minus.negative {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--loss);
+}
+
+.leaderboard .plus-minus.neutral {
+    color: var(--caption);
+}
+
+/* Games Cards */
+.games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.game-card {
+    background: var(--table-bg);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--table-banding);
+    transition: all 0.25s;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.game-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 20px var(--accent-glow);
+    transform: translateY(-2px);
+}
+
+.game-time {
+    font-size: 11px;
+    color: var(--caption);
+    text-align: center;
+    line-height: 1.5;
+    min-width: 70px;
+}
+
+.game-time .date {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.matchup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.player-block {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.player-block.winner {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+    border-left: 3px solid var(--win);
+}
+
+.player-block.loser {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+    border-left: 3px solid var(--loss);
+}
+
+.player-block .name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.player-block .name a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.player-block .name a:hover {
+    color: var(--accent);
+}
+
+.player-block .score {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.player-block.winner .score {
+    color: var(--win);
+}
+
+.player-block.loser .score {
+    color: var(--loss);
+}
+
+.vs-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--caption);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@media (max-width: 600px) {
+    .game-card {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .game-time {
+        text-align: left;
+        display: flex;
+        gap: 8px;
+    }
+    
+    .matchup {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .vs-badge {
+        display: none;
+    }
+}
+</style>
+
+<div class="vollis-page">
     <nav>
         <div class="dropdown">
             <button class="dropbtn">Select a year
                 <i class="fa fa-caret-down"></i>
             </button>
             <div class="dropdown-content">
-                {% for year in all_years %}
-                    <a href="{{ url_for('vollis_stats', year=year) }}">{{ year }}</a>
+                {% for yr in all_years %}
+                    <a href="{{ url_for('vollis_stats', year=yr) }}">{{ yr }}</a>
                 {% endfor %}
             </div>
         </div>       
     </nav>
-    <div>
+
     {% if todays_stats %}
-    <table>
-        <h1>Today's vollis stats</h1>
-        <thead>
-            <tr>
-                <th class="rank" scope="col" colspan="1">#</th>
-                <th class="player_name" scope="col" colspan="1">Player</th>
-                <th class="numbered_stats" scope="col" colspan="1">Wins</th>
-                <th class="numbered_stats" scope="col" colspan="1">Losses</th>
-                <th class="numbered_stats" scope="col" colspan="1">Win %</th>
-                <th class="numbered_stats" scope="col" colspan="1">+/-</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for stat in todays_stats %}
-            <tr>
-                <td class="rank">{{ loop.index }}</td>
-                <td class="player_name"><a href="{{ url_for('vollis_player_stats', year=year, name=stat[0] ) }}">{{ stat[0] }}</a></td>
-                <td>{{ stat[1] }}</td>
-                <td>{{ stat[2] }}</td>
-                <td>{{ "{:.2f}".format(stat[3]*100) }}</td>
-                {% if stat[4] > 0 %}
-                    <td>+{{ stat[4] }}</td>
-                {% else %}
-                    <td>{{ stat[4] }}</td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <table>
-        <h1>Today's vollis games</h1>
-        <thead>
-            <tr>
-                <th scope="col" colspan="1">Date/Updated</th>
-                <th scope="col" colspan="1">Winner</th>
-                <th scope="col" colspan="1">Loser</th>
-            </tr>
-            </thead>
-        <tbody>
-        {% for game in games %}
-            <tr class="table-double-row">
-                <td>{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</td>
-                <td><a href="{{ url_for('vollis_player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
-                <td><a href="{{ url_for('vollis_player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
-            </tr>
-            <tr class="table-double-row">
-                <td>{{ game[6][0:10] }}<br>{{ game[6][11:19] }}</td>
-                <td>{{ game[3] }}</td>
-                <td>{{ game[5] }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
+    <!-- Today's Stats Section -->
+    <div class="section-divider">
+        <h2>Today's Vollis Stats</h2>
+        <span class="line"></span>
+        <span class="count">{{ todays_stats|length }} players</span>
     </div>
-    <h1>{% block title %} {{ year }} Vollis Stats {% endblock %}</h1>
-            {% if showing_previous_year %}
-            <p class="no-current-year-notice">No vollis games played in {{ current_year }} yet. Showing {{ year }} stats.</p>
-            {% endif %}
-            <p class="page-sublink"><a href="{{ url_for('vollis_games_by_year', year=year) }}"><i class="fas fa-volleyball-ball"></i> View {{ year }} vollis games</a></p>
-        <div>
-        	<table>
-        		<thead>
-    				<tr>
-                        <th class="rank" scope="col" colspan="1">#</th>
-      					<th class="player_name" scope="col" colspan="1">Player</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Wins</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Losses</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Win %</th>
-      					<th class="numbered_stats" scope="col" colspan="1">Games</th>
-    				</tr>
-  				</thead>
-        		<tbody>
-        			{% for player in stats %}
-        			<tr>
-                        <td class="rank">{{ loop.index }}</td>
-            			<td class="player_name"><a href="{{ url_for('vollis_player_stats', year=year, name=player[0] ) }}">{{ player[0] }}</a></td>
-            			<td>{{ player[1] }}</td>
-            			<td>{{ player[2] }}</td>
-            			<td>{{ "{:.2f}".format(player[3]*100) }}</td>
-            			<td>{{ player[1] + player[2] }}</td>
-            		</tr>
-            		{% endfor %}
-            	</tbody>
-            </table>
+
+    <div class="leaderboard">
+        <table>
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">W</th>
+                    <th class="center">L</th>
+                    <th class="center">Win%</th>
+                    <th class="center">+/−</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in todays_stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player-name"><a href="{{ url_for('vollis_player_stats', year=year, name=stat[0]) }}">{{ stat[0] }}</a></td>
+                    <td class="stat wins">{{ stat[1] }}</td>
+                    <td class="stat losses">{{ stat[2] }}</td>
+                    <td class="stat win-pct">{{ "{:.0f}".format(stat[3]*100) }}%</td>
+                    <td class="stat">
+                        <span class="plus-minus {% if stat[4] > 0 %}positive{% elif stat[4] < 0 %}negative{% else %}neutral{% endif %}">
+                            {% if stat[4] > 0 %}+{% endif %}{{ stat[4] }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Today's Games -->
+    <div class="section-divider">
+        <h2>Today's Games</h2>
+        <span class="line"></span>
+        <span class="count">{{ games|length }} games</span>
+    </div>
+
+    <div class="games-list">
+        {% for game in games %}
+        <div class="game-card">
+            <div class="game-time">
+                <span class="date">{{ game[1][0:10] }}</span>
+                <span>{{ game[1][11:19] }}</span>
+            </div>
+            <div class="matchup">
+                <div class="player-block winner">
+                    <span class="name"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></span>
+                    <span class="score">{{ game[3] }}</span>
+                </div>
+                <span class="vs-badge">vs</span>
+                <div class="player-block loser">
+                    <span class="name"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4]) }}">{{ game[4] }}</a></span>
+                    <span class="score">{{ game[5] }}</span>
+                </div>
+            </div>
         </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Year Stats -->
+    <div class="vollis-title">
+        <h1>{% block title %}{{ year }} Vollis Stats{% endblock %}</h1>
+        {% if showing_previous_year %}
+        <div class="notice-banner">No vollis games played in {{ current_year }} yet. Showing {{ year }} stats.</div>
+        {% endif %}
+        <p class="subtitle"><a href="{{ url_for('vollis_games_by_year', year=year) }}"><i class="fas fa-volleyball-ball"></i> View {{ year }} vollis games</a></p>
+    </div>
+
+    <div class="leaderboard">
+        <table>
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">W</th>
+                    <th class="center">L</th>
+                    <th class="center">Win%</th>
+                    <th class="center">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player-name"><a href="{{ url_for('vollis_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td class="stat wins">{{ player[1] }}</td>
+                    <td class="stat losses">{{ player[2] }}</td>
+                    <td class="stat win-pct">{{ "{:.0f}".format(player[3]*100) }}%</td>
+                    <td class="stat">{{ player[1] + player[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
