@@ -457,8 +457,10 @@ def add_game():
             
             return redirect(url_for('add_game'))
 
+    recent = recent_games(10)
     return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
-        w_scores=w_scores, l_scores=l_scores, year=year, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games)
+        w_scores=w_scores, l_scores=l_scores, year=year, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games,
+        recent_games=recent)
 
 
 @app.route('/edit_games/')
@@ -566,6 +568,7 @@ def player_trends():
 def delete_game(id):
     game_id = id
     game = find_game(id)
+    from_add_game = request.args.get('from_add_game', 'false')
     if request.method == 'POST':
         # Log the action for notifications before deleting
         if game and len(game) > 0 and len(game[0]) >= 8:
@@ -579,9 +582,12 @@ def delete_game(id):
         # Update KOBs after deleting game
         update_kobs()
         
+        # Redirect back to add_game if that's where we came from
+        if request.form.get('from_add_game') == 'true':
+            return redirect(url_for('add_game'))
         return redirect(url_for('edit_games'))
  
-    return render_template('delete_game.html', game=game)
+    return render_template('delete_game.html', game=game, from_add_game=from_add_game)
 
 @app.route('/advanced_stats/')
 def advanced_stats():

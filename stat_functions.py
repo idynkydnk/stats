@@ -264,6 +264,14 @@ def todays_games():
     row = convert_ampm(games)
     return row
 
+def recent_games(limit=10):
+    """Get the most recent games across all dates"""
+    cur = set_cur()
+    cur.execute("SELECT * FROM games ORDER BY game_date DESC LIMIT ?", (limit,))
+    games = cur.fetchall()
+    row = convert_ampm(games)
+    return row
+
 def calculate_stats_from_games(games):
     """Calculate player stats from a list of games"""
     players = all_players(games)
