@@ -335,6 +335,120 @@ def stats_by_date(year, date):
                          has_previous=has_previous,
                          has_next=has_next)
 
+
+# ============================================
+# REDESIGNED STATS PAGE (Steam Charts-inspired)
+# ============================================
+
+@app.route('/stats_redesign/')
+def stats_redesign_default():
+    return stats_redesign(str(date.today().year))
+
+
+@app.route('/stats_redesign/<year>/')
+def stats_redesign(year):
+    """Steam Charts-inspired doubles stats page."""
+    games = year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    
+    all_years = grab_all_years()
+    stats = stats_per_year(year, minimum_games)
+    rare_stats = rare_stats_per_year(year, minimum_games)
+    
+    # Calculate tile stats
+    tiles = calculate_tile_stats(year, stats, games)
+    
+    return render_template('stats_redesign.html', 
+        all_years=all_years, 
+        stats=stats, 
+        rare_stats=rare_stats, 
+        minimum_games=minimum_games, 
+        year=year,
+        tiles=tiles)
+
+
+def calculate_tile_stats(year, stats, games):
+    """Calculate stats for the tile cards."""
+    tiles = {
+        'games': len(games) if games else 0,
+        'players': len(stats) if stats else 0,
+        'top_rating': 0,
+        'top_rating_player': '—',
+        'most_games_count': 0,
+        'most_games_player': '—',
+        'avg_win_pct': 0,
+        'highest_win_pct_value': '—',
+        'highest_win_pct_player': '—'
+    }
+    
+    if stats:
+        # Top rating (stats is sorted by rating, index 4 is rating)
+        tiles['top_rating'] = stats[0][4] if stats[0][4] else 0
+        tiles['top_rating_player'] = stats[0][0]
+        
+        # Most games played
+        most_games = max(stats, key=lambda x: x[1] + x[2])
+        tiles['most_games_count'] = most_games[1] + most_games[2]
+        tiles['most_games_player'] = most_games[0]
+        
+        # Average win percentage
+        total_win_pct = sum(s[3] for s in stats)
+        tiles['avg_win_pct'] = total_win_pct / len(stats) if stats else 0
+        
+        # Highest win percentage (minimum 5 games)
+        qualified = [s for s in stats if (s[1] + s[2]) >= 5]
+        if qualified:
+            best = max(qualified, key=lambda x: x[3])
+            tiles['highest_win_pct_value'] = f"{best[3]*100:.0f}%"
+            tiles['highest_win_pct_player'] = best[0]
+    
+    return tiles
+
+
+@app.route('/api/stats/hero')
+def api_stats_hero():
+    """JSON endpoint for hero chart data."""
+    year = request.args.get('year', str(date.today().year))
+    range_filter = request.args.get('range', 'all')
+    
+    games = year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    
+    stats = stats_per_year(year, minimum_games)
+    
+    # Limit based on range
+    if range_filter == '10':
+        stats = stats[:10]
+    elif range_filter == '25':
+        stats = stats[:25]
+    # 'all' returns all stats
+    
+    # Format for chart (bar chart of top players by rating)
+    series = []
+    for player in stats:
+        series.append({
+            'name': player[0],
+            'value': player[4] if player[4] else 0  # rating
+        })
+    
+    return jsonify({
+        'labels': [s['name'] for s in series],
+        'series': series
+    })
+
+
 @app.route('/top_teams/')
 def top_teams():
     all_years = grab_all_years()
@@ -1168,6 +1282,128 @@ def volleyball_stats(year):
     game_cards = build_volleyball_game_cards(year)
     
     return render_template('volleyball_stats.html', 
+        stats=qualified_stats,
+        rare_stats=rare_stats,
+        all_years=all_years, 
+        minimum_games=minimum_games, 
+        year=year, 
+        game_cards=game_cards,
+        total_games=len(volleyball_games))
+
+
+def is_1v1_game(game):
+    """Check if a game is 1v1 (exactly 1 player per team)."""
+    from other_functions import _is_valid_player_name
+    
+    # Count winners
+    winner_count = 0
+    for i in range(1, 16):
+        winner = game.get(f'winner{i}')
+        if winner and _is_valid_player_name(winner):
+            winner_count += 1
+    
+    # Count losers
+    loser_count = 0
+    for i in range(1, 16):
+        loser = game.get(f'loser{i}')
+        if loser and _is_valid_player_name(loser):
+            loser_count += 1
+    
+    return winner_count == 1 and loser_count == 1
+
+
+def build_volleyball_game_cards_styled(year):
+    """Build per-game cards for volleyball games, consolidating all 1v1 games into one card."""
+    from other_functions import other_year_games, other_game_names, total_game_name_stats, other_game_type_for_name
+    
+    games = other_year_games(year)
+    game_cards = []
+    one_v_one_games = []
+    one_v_one_game_names = set()
+    
+    if games:
+        # First, identify all volleyball games and classify them as 1v1 or team
+        volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
+        
+        for game in volleyball_games:
+            if is_1v1_game(game):
+                one_v_one_games.append(game)
+                one_v_one_game_names.add(game.get('game_name', 'Unknown'))
+        
+        # Get game names that are NOT 1v1 (team games)
+        game_names = other_game_names(volleyball_games)
+        for game_name in game_names:
+            # Skip if all games of this type are 1v1
+            game_specific = [g for g in volleyball_games if g.get('game_name') == game_name]
+            non_1v1_games = [g for g in game_specific if not is_1v1_game(g)]
+            
+            if not non_1v1_games:
+                # All games of this type are 1v1, skip (they'll be in consolidated card)
+                continue
+            
+            stats_for_game = total_game_name_stats(non_1v1_games)
+            if not stats_for_game:
+                continue
+            game_cards.append({
+                'game_name': game_name,
+                'stats': stats_for_game,
+                'total_games': len(non_1v1_games),
+                'is_consolidated': False
+            })
+        
+        # Create consolidated 1v1 card if there are any 1v1 games
+        if one_v_one_games:
+            one_v_one_stats = total_game_name_stats(one_v_one_games)
+            if one_v_one_stats:
+                game_cards.append({
+                    'game_name': '1v1 Volleyball',
+                    'stats': one_v_one_stats,
+                    'total_games': len(one_v_one_games),
+                    'is_consolidated': True,
+                    'included_games': sorted(list(one_v_one_game_names))
+                })
+        
+        # Sort by total games descending
+        game_cards.sort(key=lambda x: x['total_games'], reverse=True)
+    
+    return game_cards
+
+
+@app.route('/volleyball_stats_styled/')
+def volleyball_stats_styled_default():
+    return volleyball_stats_styled(str(date.today().year))
+
+
+@app.route('/volleyball_stats_styled/<year>/')
+def volleyball_stats_styled(year):
+    from other_functions import other_year_games, total_game_name_stats
+    
+    all_years = all_other_years()
+    games = other_year_games(year)
+    
+    # Filter to only volleyball games
+    volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
+    
+    # Calculate overall volleyball stats
+    overall_stats = total_game_name_stats(volleyball_games) if volleyball_games else []
+    
+    # Calculate minimum games for qualification
+    if volleyball_games:
+        if len(volleyball_games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(volleyball_games) // 30
+    else:
+        minimum_games = 1
+    
+    # Split into qualified and rare stats
+    qualified_stats = [s for s in overall_stats if (s[1] + s[2]) >= minimum_games]
+    rare_stats = [s for s in overall_stats if (s[1] + s[2]) < minimum_games]
+    
+    # Get game cards with 1v1 consolidation
+    game_cards = build_volleyball_game_cards_styled(year)
+    
+    return render_template('volleyball_stats_styled.html', 
         stats=qualified_stats,
         rare_stats=rare_stats,
         all_years=all_years, 

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ year }} Doubles Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" id="menu-toggle">
+        <i class="fas fa-bars"></i> Menu
+    </button>
+    
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    
+    <!-- Menu Sidebar -->
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close">✕</button>
+        <ul class="menu-list">
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
+            <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
+            <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+            {% if session.logged_in %}
+                <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+                <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <style>
+        /* Menu styles for this standalone page */
+        .menu-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--sr-accent);
+            color: #0b0f14;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+        }
+        .menu-toggle:hover { opacity: 0.9; }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active { opacity: 1; visibility: visible; }
+        .menu-sidebar {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100%;
+            background: #0f1620;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            padding: 20px;
+            visibility: hidden;
+            overflow-y: auto;
+        }
+        .menu-sidebar.active { right: 0; visibility: visible; }
+        .menu-close {
+            background: none;
+            border: none;
+            color: var(--sr-text);
+            font-size: 20px;
+            cursor: pointer;
+            float: right;
+            padding: 5px;
+            margin-bottom: 20px;
+        }
+        .menu-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            clear: both;
+        }
+        .menu-list li { margin: 10px 0; }
+        .menu-list a {
+            display: block;
+            padding: 12px 15px;
+            color: var(--sr-text);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .menu-list a:hover {
+            background: var(--sr-accent-dim);
+            color: var(--sr-accent);
+        }
+        .menu-list a i { margin-right: 10px; width: 16px; }
+    </style>
+
+    <div class="sr-container">
+        <!-- Header Section -->
+        <header class="sr-header">
+            <div class="sr-header-top">
+                <div>
+                    <h1 class="sr-title">{{ year }} Doubles Stats</h1>
+                    <p class="sr-subtitle">Updated: {{ updated_at or 'Live' }}</p>
+                </div>
+            </div>
+            <div class="sr-year-pills">
+                {% for yr in all_years %}
+                <a href="{{ url_for('stats_redesign', year=yr) }}" class="sr-pill {% if yr|string == year|string %}active{% endif %}">{{ yr }}</a>
+                {% endfor %}
+            </div>
+        </header>
+
+        <!-- Leaderboard Table -->
+        <section class="sr-table-section">
+            <div class="sr-card">
+                <div class="sr-card-header">
+                    <h2 class="sr-card-title"><i class="fas fa-trophy" style="margin-right: 8px; opacity: 0.7;"></i>Leaderboard</h2>
+                    <span class="sr-table-helper">Click column headers to sort</span>
+                </div>
+                
+                <div class="sr-search-wrap" style="margin-bottom: 16px;">
+                    <i class="fas fa-search sr-search-icon"></i>
+                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players..." style="width: 100%;">
+                </div>
+                
+                <div id="sr-filter-active" class="sr-filter-active">
+                    <span style="color: var(--sr-muted); font-size: 12px;">Filtering:</span>
+                    <div id="sr-filter-chip" class="sr-filter-chip">
+                        <span class="sr-filter-text"></span>
+                        <span id="sr-filter-chip-close" class="sr-filter-chip-close">✕</span>
+                    </div>
+                </div>
+                
+                {% if stats %}
+                <div class="sr-table-wrap">
+                    <table class="sr-table" id="sr-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in stats %}
+                            <tr>
+                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
+                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
+                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
+                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
+                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="sr-no-results" class="sr-no-results">
+                    <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
+                    <p>No players found matching your search.</p>
+                </div>
+                {% else %}
+                <div class="sr-empty">
+                    <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
+                    <p class="sr-empty-text">No games recorded for {{ year }} yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        
+        {% if rare_stats %}
+        <!-- Players with fewer games -->
+        <section class="sr-table-section">
+            <div class="sr-card">
+                <div class="sr-card-header">
+                    <h2 class="sr-card-title"><i class="fas fa-user-clock" style="margin-right: 8px; opacity: 0.7;"></i>Players with fewer than {{ minimum_games }} games</h2>
+                </div>
+                <div class="sr-table-wrap">
+                    <table class="sr-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Player</th>
+                                <th class="sr-numeric">Rating</th>
+                                <th class="sr-numeric">W</th>
+                                <th class="sr-numeric">L</th>
+                                <th class="sr-numeric">Win%</th>
+                                <th class="sr-numeric">Games</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in rare_stats %}
+                            <tr>
+                                <td class="sr-rank">{{ loop.index }}</td>
+                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-numeric sr-rating">{{ player[4] }}</td>
+                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
+                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
+                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric">{{ player[1] + player[2] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='js/stats_redesign.js') }}"></script>
+    <script>
+        // Menu functionality
+        const menuToggle = document.getElementById('menu-toggle');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const menuSidebar = document.getElementById('menu-sidebar');
+        const menuClose = document.getElementById('menu-close');
+
+        function openMenu() {
+            menuOverlay.classList.add('active');
+            menuSidebar.classList.add('active');
+        }
+
+        function closeMenu() {
+            menuOverlay.classList.remove('active');
+            menuSidebar.classList.remove('active');
+        }
+
+        menuToggle.addEventListener('click', openMenu);
+        menuOverlay.addEventListener('click', closeMenu);
+        menuClose.addEventListener('click', closeMenu);
+    </script>
+</body>
+</html>

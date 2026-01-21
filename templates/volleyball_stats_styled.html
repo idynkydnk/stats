@@ -1,0 +1,520 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+/* Volleyball Stats - Cool Blue & Teal Theme */
+.vb-page {
+    --accent: #06b6d4;
+    --accent-light: #22d3ee;
+    --accent-glow: rgba(6, 182, 212, 0.15);
+    --win: #22c55e;
+    --loss: #ef4444;
+}
+
+.vb-page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+}
+
+/* Year Dropdown Override */
+.vb-page .dropdown .dropbtn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light)) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.vb-page .dropdown-content a {
+    background: var(--table-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--table-banding) !important;
+}
+
+.vb-page .dropdown-content a:hover {
+    background: var(--accent) !important;
+    color: white !important;
+    border-color: var(--accent) !important;
+}
+
+/* Page Title */
+.vb-title {
+    text-align: center;
+    margin: 32px 0 8px 0;
+}
+
+.vb-title h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+.vb-title .subtitle {
+    color: var(--caption);
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.vb-title .subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.vb-title .subtitle a:hover {
+    color: var(--accent-light);
+    text-decoration: underline;
+}
+
+.vb-title .subtitle i {
+    margin-right: 6px;
+}
+
+.stats-summary {
+    text-align: center;
+    color: var(--caption);
+    font-size: 14px;
+    margin: 8px 0 24px 0;
+}
+
+.stats-summary i {
+    color: var(--accent);
+    margin-right: 6px;
+}
+
+/* Section Divider */
+.section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 32px 0 20px 0;
+}
+
+.section-divider h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.section-divider .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--table-banding), transparent);
+}
+
+.section-divider .count {
+    background: var(--accent-glow);
+    color: var(--accent);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Game Type Header */
+.game-type-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+}
+
+.game-type-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--accent);
+}
+
+.game-type-header .game-link {
+    margin-left: auto;
+    color: var(--caption);
+    font-size: 12px;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.game-type-header .game-link:hover {
+    color: var(--accent);
+}
+
+.consolidated-note {
+    font-size: 12px;
+    color: var(--caption);
+    margin: -8px 0 12px 0;
+    font-style: italic;
+}
+
+/* Leaderboard Styles */
+.leaderboard {
+    background: var(--table-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--table-banding);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.leaderboard table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse;
+    margin: 0;
+    table-layout: fixed;
+    padding: 0;
+}
+
+.leaderboard thead {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(168, 85, 247, 0.05));
+}
+
+.leaderboard th {
+    padding: 14px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    font-weight: 700;
+    text-align: left;
+    border-bottom: 2px solid var(--accent);
+}
+
+.leaderboard th.center {
+    text-align: center;
+}
+
+.leaderboard td {
+    padding: 14px 12px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(69, 90, 109, 0.5);
+}
+
+.leaderboard tbody tr {
+    transition: all 0.2s;
+}
+
+.leaderboard tbody tr:hover {
+    background: var(--accent-glow);
+}
+
+.leaderboard tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Column widths */
+.leaderboard th:nth-child(1),
+.leaderboard td:nth-child(1) { width: 8%; }
+.leaderboard th:nth-child(2),
+.leaderboard td:nth-child(2) { width: 36%; }
+.leaderboard th:nth-child(3),
+.leaderboard td:nth-child(3) { width: 12%; }
+.leaderboard th:nth-child(4),
+.leaderboard td:nth-child(4) { width: 12%; }
+.leaderboard th:nth-child(5),
+.leaderboard td:nth-child(5) { width: 16%; }
+.leaderboard th:nth-child(6),
+.leaderboard td:nth-child(6) { width: 16%; }
+
+/* Rank Column */
+.leaderboard .rank {
+    text-align: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--accent);
+}
+
+/* Player Name */
+.leaderboard .player-name {
+    font-weight: 600;
+}
+
+.leaderboard .player-name a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.leaderboard .player-name a:hover {
+    color: var(--accent);
+}
+
+/* Stat Columns */
+.leaderboard .stat {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.leaderboard .wins {
+    color: var(--win);
+    font-weight: 600;
+}
+
+.leaderboard .losses {
+    color: var(--loss);
+    font-weight: 600;
+}
+
+.leaderboard .win-pct {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* Expand Button */
+.expand-section {
+    text-align: center;
+    margin: 16px 0;
+}
+
+.expand-btn {
+    background: transparent;
+    color: var(--caption);
+    border: 1px solid var(--table-banding);
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.expand-btn:hover {
+    background: var(--table-banding);
+    color: var(--text);
+}
+
+.expand-btn i {
+    margin-left: 6px;
+    transition: transform 0.2s;
+}
+
+.expand-btn.expanded i {
+    transform: rotate(180deg);
+}
+
+/* Hidden rows */
+.overall-hidden { display: none; }
+
+{% for card in game_cards %}
+{% if card.stats|length > 8 %}
+.vb-card-hidden-{{ loop.index }} { display: none; }
+{% endif %}
+{% endfor %}
+</style>
+
+<div class="vb-page">
+    <nav>
+        <div class="dropdown">
+            <button class="dropbtn">Select a year
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                {% for yr in all_years %}
+                    <a href="{{ url_for('volleyball_stats_styled', year=yr) }}">{{ yr }}</a>
+                {% endfor %}
+            </div>
+        </div>       
+    </nav>
+
+    <!-- Page Title -->
+    <div class="vb-title">
+        <h1>{% block title %}{{ year }} Volleyball Stats{% endblock %}</h1>
+        <p class="subtitle"><a href="{{ url_for('other_stats', year=year) }}"><i class="fas fa-arrow-left"></i> Back to Other Stats</a></p>
+    </div>
+    
+    <p class="stats-summary"><i class="fas fa-volleyball-ball"></i> {{ total_games }} total games across {{ game_cards|length }} game types</p>
+
+    <!-- Overall Stats -->
+    <div class="section-divider">
+        <h2>Overall Rankings</h2>
+        <span class="line"></span>
+        <span class="count">{{ stats|length }} players</span>
+    </div>
+
+    <div class="leaderboard">
+        <table>
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">W</th>
+                    <th class="center">L</th>
+                    <th class="center">Win%</th>
+                    <th class="center">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in stats %}
+                <tr class="{% if loop.index > 8 %}overall-hidden{% endif %}">
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player-name"><a href="{{ url_for('volleyball_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td class="stat wins">{{ player[1] }}</td>
+                    <td class="stat losses">{{ player[2] }}</td>
+                    <td class="stat win-pct">{{ "{:.0f}".format(player[3]*100) }}%</td>
+                    <td class="stat">{{ player[1] + player[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if stats|length > 8 %}
+    <div class="expand-section">
+        <button id="toggle-overall-btn" class="expand-btn" onclick="toggleOverallStats()">
+            Show {{ stats|length - 8 }} more <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    {% if rare_stats %}
+    <div class="expand-section">
+        <button id="toggle-rare-stats-btn" class="expand-btn" onclick="toggleRareStatsSection()">
+            Show {{ rare_stats|length }} players with fewer games <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    <div id="rare-stats-section" style="display: none;">
+        <div class="leaderboard">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="center">#</th>
+                        <th>Player</th>
+                        <th class="center">W</th>
+                        <th class="center">L</th>
+                        <th class="center">Win%</th>
+                        <th class="center">Games</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in rare_stats %}
+                    <tr>
+                        <td class="rank">{{ loop.index }}</td>
+                        <td class="player-name"><a href="{{ url_for('volleyball_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                        <td class="stat wins">{{ player[1] }}</td>
+                        <td class="stat losses">{{ player[2] }}</td>
+                        <td class="stat win-pct">{{ "{:.0f}".format(player[3]*100) }}%</td>
+                        <td class="stat">{{ player[1] + player[2] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Game Type Cards -->
+    {% if game_cards %}
+    {% for card in game_cards %}
+    {% set card_index = loop.index %}
+    
+    <div class="game-type-header">
+        <h2>{{ card.game_name }}</h2>
+        {% if not card.is_consolidated %}
+        <a href="{{ url_for('other_games_by_year_and_name', year=year, game_name=card.game_name) }}" class="game-link"><i class="fas fa-list-alt"></i> View games</a>
+        {% endif %}
+    </div>
+    {% if card.is_consolidated and card.included_games %}
+    <p class="consolidated-note">Includes: {{ card.included_games|join(', ') }}</p>
+    {% endif %}
+
+    <div class="leaderboard">
+        <table>
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">W</th>
+                    <th class="center">L</th>
+                    <th class="center">Win%</th>
+                    <th class="center">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in card.stats %}
+                <tr class="{% if loop.index > 8 %}vb-card-hidden-{{ card_index }}{% endif %}">
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="player-name"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                    <td class="stat wins">{{ stat[1] }}</td>
+                    <td class="stat losses">{{ stat[2] }}</td>
+                    <td class="stat win-pct">{{ "{:.0f}".format(stat[3]*100) }}%</td>
+                    <td class="stat">{{ stat[1] + stat[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if card.stats|length > 8 %}
+    <div class="expand-section">
+        <button class="expand-btn" onclick="toggleVbCard({{ card_index }}, {{ card.stats|length - 8 }})">
+            Show {{ card.stats|length - 8 }} more <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <p style="text-align: center; color: var(--caption);">No volleyball games recorded for {{ year }}.</p>
+    {% endif %}
+</div>
+
+<script>
+function toggleOverallStats() {
+    const hiddenRows = document.querySelectorAll('.overall-hidden');
+    const btn = document.getElementById('toggle-overall-btn');
+    const isExpanded = btn.classList.contains('expanded');
+    
+    hiddenRows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : 'table-row';
+    });
+    
+    if (isExpanded) {
+        btn.innerHTML = 'Show {{ stats|length - 8 }} more <i class="fa fa-chevron-down"></i>';
+        btn.classList.remove('expanded');
+    } else {
+        btn.innerHTML = 'Show less <i class="fa fa-chevron-down"></i>';
+        btn.classList.add('expanded');
+    }
+}
+
+function toggleRareStatsSection() {
+    const section = document.getElementById('rare-stats-section');
+    const btn = document.getElementById('toggle-rare-stats-btn');
+    const isExpanded = btn.classList.contains('expanded');
+    
+    if (isExpanded) {
+        section.style.display = 'none';
+        btn.innerHTML = 'Show {{ rare_stats|length }} players with fewer games <i class="fa fa-chevron-down"></i>';
+        btn.classList.remove('expanded');
+    } else {
+        section.style.display = 'block';
+        btn.innerHTML = 'Hide players with fewer games <i class="fa fa-chevron-down"></i>';
+        btn.classList.add('expanded');
+    }
+}
+
+function toggleVbCard(cardIndex, extraCount) {
+    const hiddenRows = document.querySelectorAll('.vb-card-hidden-' + cardIndex);
+    const btn = event.target.closest('.expand-btn');
+    const isExpanded = btn.classList.contains('expanded');
+    
+    hiddenRows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : 'table-row';
+    });
+    
+    if (isExpanded) {
+        btn.innerHTML = 'Show ' + extraCount + ' more <i class="fa fa-chevron-down"></i>';
+        btn.classList.remove('expanded');
+    } else {
+        btn.innerHTML = 'Show less <i class="fa fa-chevron-down"></i>';
+        btn.classList.add('expanded');
+    }
+}
+</script>
+{% endblock %}
