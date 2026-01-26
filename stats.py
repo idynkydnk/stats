@@ -511,14 +511,15 @@ def edit_other_games_redesign(year):
 def add_game_redesign():
     """Redesigned add doubles game page."""
     if request.method == 'POST':
-        # Redirect to the existing add_game POST handler
         return add_game()
     year = str(date.today().year)
     all_games = year_games('All years')
     players = all_players(all_games)
     games = todays_games()
+    todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
-    return render_template('add_game_redesign.html', players=players, games=games, year=year, l_scores=l_scores)
+    return render_template('add_game_redesign.html', players=players, games=games, year=year, 
+        l_scores=l_scores, todays_stats=todays_stats_data)
 
 @app.route('/add_vollis_game_redesign/', methods=['GET', 'POST'])
 @login_required
@@ -530,10 +531,11 @@ def add_vollis_game_redesign():
     all_games = vollis_year_games('All years')
     players = all_vollis_players(all_games)
     games = todays_vollis_games()
+    todays_stats_data = todays_vollis_stats()
     winning_scores = list(range(11, 27))
     losing_scores = list(range(0, 26))
     return render_template('add_vollis_game_redesign.html', players=players, games=games, year=year,
-        winning_scores=winning_scores, losing_scores=losing_scores)
+        winning_scores=winning_scores, losing_scores=losing_scores, todays_stats=todays_stats_data)
 
 @app.route('/add_other_game_redesign/', methods=['GET', 'POST'])
 @login_required
@@ -548,8 +550,9 @@ def add_other_game_redesign():
     game_names = other_game_names(games_dict)
     game_types = other_game_types(games_dict)
     games = todays_other_games()
+    todays_stats_data = todays_other_stats()
     return render_template('add_other_game_redesign.html', players=players, games=games, year=year,
-        game_names=game_names, game_types=game_types)
+        game_names=game_names, game_types=game_types, todays_stats=todays_stats_data)
 
 
 # ============================================
