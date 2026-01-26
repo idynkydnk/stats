@@ -355,11 +355,15 @@
         <!-- Games List -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
+                <div class="sr-search-wrap">
+                    <i class="fas fa-search sr-search-icon"></i>
+                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
+                </div>
                 {% if games %}
-                <p class="sr-section-label">{{ games|length }} games</p>
-                <div class="sr-games-grid">
+                <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
+                <div class="sr-games-grid" id="games-grid">
                     {% for game in games %}
-                    <div class="sr-game-card">
+                    <div class="sr-game-card" data-players="{{ game[2]|lower }} {{ game[3]|lower }} {{ game[5]|lower }} {{ game[6]|lower }}">
                         <div class="sr-game-row">
                             <div class="sr-game-date">
                                 {{ game[1][0:10] }}
@@ -384,6 +388,10 @@
                     </div>
                     {% endfor %}
                 </div>
+                <div id="sr-no-results" class="sr-no-results" style="display: none;">
+                    <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
+                    <p>No games found matching your search.</p>
+                </div>
                 {% else %}
                 <div class="sr-empty">
                     <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
@@ -395,6 +403,34 @@
     </div>
 
     <script>
+        // Search functionality
+        const searchInput = document.getElementById('sr-search');
+        const gamesGrid = document.getElementById('games-grid');
+        const gamesCount = document.getElementById('games-count');
+        const noResults = document.getElementById('sr-no-results');
+        
+        if (searchInput && gamesGrid) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const cards = gamesGrid.querySelectorAll('.sr-game-card');
+                let visibleCount = 0;
+                
+                cards.forEach(card => {
+                    const players = card.dataset.players || '';
+                    const matches = !query || players.includes(query);
+                    card.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+                
+                if (gamesCount) {
+                    gamesCount.textContent = visibleCount + ' game' + (visibleCount !== 1 ? 's' : '');
+                }
+                if (noResults) {
+                    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
+            });
+        }
+
         // Menu functionality
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
