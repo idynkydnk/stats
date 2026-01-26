@@ -10,6 +10,7 @@ from database_functions import *
 from stat_functions import *
 from stat_functions import clear_stats_cache
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
 from vollis_functions import *
 from one_v_one_functions import *
 from other_functions import *
@@ -178,6 +179,18 @@ def log_user_action(user, action, details=None):
         ''', (user, action, details))
         conn.commit()
         conn.close()
+
+def get_user_now():
+    """Get the current datetime in the user's timezone (from session).
+    Falls back to server local time if no timezone is set."""
+    user_tz = session.get('timezone')
+    if user_tz:
+        try:
+            tz = ZoneInfo(user_tz)
+            return datetime.now(tz).replace(tzinfo=None)  # Return naive datetime for DB storage
+        except Exception:
+            pass
+    return datetime.now()
 
 def get_unread_notifications():
     """Get all unread notifications"""
@@ -555,8 +568,8 @@ def add_game():
                 if player_name and not get_player_by_name(player_name):
                     add_new_player(player_name)
 
-            add_game_stats([datetime.now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
-                winner_score, loser_score, datetime.now(), comments])
+            add_game_stats([get_user_now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
+                winner_score, loser_score, get_user_now(), comments])
             
             # Clear stats cache after adding a game
             clear_stats_cache()
@@ -635,7 +648,7 @@ def update(id):
         else:
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
-            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, datetime.now(), comment, game_id)
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id)
             
             # Clear stats cache after editing a game
             clear_stats_cache()
@@ -767,7 +780,7 @@ def add_vollis_game():
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            add_vollis_stats([datetime.now(), winner, loser, winner_score, loser_score, datetime.now()])
+            add_vollis_stats([get_user_now(), winner, loser, winner_score, loser_score, get_user_now()])
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -822,7 +835,7 @@ def update_vollis_game(id):
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, get_user_now(), game_id)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -923,7 +936,7 @@ def add_one_v_one_game():
         if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            add_one_v_one_stats([datetime.now(), game_type, game_name, winner, loser, winner_score, loser_score, datetime.now()])
+            add_one_v_one_stats([get_user_now(), game_type, game_name, winner, loser, winner_score, loser_score, get_user_now()])
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -997,7 +1010,7 @@ def update_one_v_one_game(id):
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            edit_one_v_one_game(game_id, game[1], game[2], game[3], winner, winner_score, loser, loser_score, datetime.now(), game_id)
+            edit_one_v_one_game(game_id, game[1], game[2], game[3], winner, winner_score, loser, loser_score, get_user_now(), game_id)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
@@ -1554,7 +1567,7 @@ def add_other_game():
             flash('Some fields missing!')
         else:
             add_other_stats(
-                datetime.now(),
+                get_user_now(),
                 game_type,
                 game_name,
                 winners,
@@ -1562,7 +1575,7 @@ def add_other_game():
                 losers,
                 loser_scores,
                 comment,
-                datetime.now(),
+                get_user_now(),
                 team_winner_score,
                 team_loser_score
             )
@@ -1689,7 +1702,7 @@ def update_other_game(id):
                     + [aggregate_winner_score]
                     + (losers + [""] * 15)[:15]
                     + [(int(score) if score not in ("", None) else None) for score in (loser_scores + [None] * 15)[:15]]
-                    + [aggregate_loser_score, comment, datetime.now(), game_id]
+                    + [aggregate_loser_score, comment, get_user_now(), game_id]
                 )
                 database_update_other_game(conn, game_data)
             
@@ -1927,6 +1940,15 @@ def deploy():
         return 'Deployment successful', 200
     except Exception as e:
         return f'Deployment failed: {str(e)}', 500
+
+@app.route('/api/set_timezone', methods=['POST'])
+def set_timezone():
+    """Store the user's timezone in the session (detected from browser)"""
+    data = request.get_json()
+    if data and 'timezone' in data:
+        session['timezone'] = data['timezone']
+        return jsonify({'status': 'ok', 'timezone': data['timezone']})
+    return jsonify({'status': 'error', 'message': 'No timezone provided'}), 400
 
 @app.route('/api/one_v_one_game_type/<game_name>')
 def get_one_v_one_game_type(game_name):

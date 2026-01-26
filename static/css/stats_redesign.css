@@ -48,7 +48,7 @@
 
 /* Header Section */
 .sr-header {
-    padding: 32px 0 24px;
+    padding: 24px 0 16px;
     position: relative;
     z-index: 1;
 }
@@ -81,6 +81,8 @@
 /* Search Box */
 .sr-search-wrap {
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .sr-search {
@@ -90,7 +92,8 @@
     padding: 10px 14px 10px 38px;
     color: var(--sr-text);
     font-size: 14px;
-    width: 220px;
+    width: 100%;
+    box-sizing: border-box;
     transition: all 0.2s;
 }
 
@@ -114,37 +117,49 @@
     pointer-events: none;
 }
 
-/* Year Pills */
-.sr-year-pills {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+/* Year Dropdown */
+.sr-year-select-wrap {
+    position: relative;
+    display: inline-block;
 }
 
-.sr-pill {
+.sr-year-select {
+    appearance: none;
     background: var(--sr-panel);
     border: 1px solid var(--sr-line);
-    border-radius: 20px;
-    padding: 8px 16px;
-    color: var(--sr-muted);
-    font-size: 13px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.sr-pill:hover {
-    background: var(--sr-panel-hover);
+    border-radius: 8px;
+    padding: 8px 36px 8px 14px;
     color: var(--sr-text);
-    border-color: rgba(255, 255, 255, 0.15);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.sr-pill.active {
-    background: var(--sr-accent);
-    color: #0b0f14;
+.sr-year-select:hover {
     border-color: var(--sr-accent);
-    font-weight: 600;
+}
+
+.sr-year-select:focus {
+    outline: none;
+    border-color: var(--sr-accent);
+    box-shadow: 0 0 0 3px var(--sr-accent-dim);
+}
+
+.sr-year-select option {
+    background: var(--sr-panel);
+    color: var(--sr-text);
+}
+
+.sr-year-select-wrap::after {
+    content: '▼';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sr-muted);
+    font-size: 10px;
+    pointer-events: none;
 }
 
 /* Cards */
@@ -276,7 +291,8 @@
 
 .sr-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-variant-numeric: tabular-nums;
 }
 
@@ -342,8 +358,51 @@
     background: var(--sr-accent-dim);
 }
 
+/* Sticky first two columns (rank and player) */
+.sr-table td:nth-child(1),
+.sr-table th:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--sr-panel);
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    padding-left: 8px;
+    padding-right: 4px;
+}
+
+.sr-table td:nth-child(2),
+.sr-table th:nth-child(2) {
+    position: sticky;
+    left: 28px;
+    z-index: 3;
+    background: var(--sr-panel);
+    min-width: 90px;
+    padding-left: 6px;
+    box-shadow: 4px 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.sr-table th:nth-child(1),
+.sr-table th:nth-child(2) {
+    z-index: 12;
+    background: rgba(15, 22, 32, 0.98);
+}
+
+/* Zebra striping backgrounds for sticky columns */
+.sr-table tbody tr:nth-child(even) td:nth-child(1),
+.sr-table tbody tr:nth-child(even) td:nth-child(2) {
+    background: #0d1219;
+}
+
+/* Hover backgrounds for sticky columns */
+.sr-table tbody tr:hover td:nth-child(1),
+.sr-table tbody tr:hover td:nth-child(2) {
+    background: var(--sr-accent-dim);
+}
+
+/* Rank styling */
 .sr-table .sr-rank {
-    width: 50px;
     text-align: center;
     font-weight: 700;
     color: var(--sr-muted);
@@ -353,6 +412,7 @@
 .sr-table .sr-rank-2 { color: #c0c0c0; }
 .sr-table .sr-rank-3 { color: #cd7f32; }
 
+/* Player styling */
 .sr-table .sr-player {
     font-weight: 500;
 }
@@ -447,13 +507,13 @@
 }
 
 @media (max-width: 768px) {
+    .sr-container {
+        padding: 0 12px;
+    }
+    
     .sr-header-top {
         flex-direction: column;
         align-items: stretch;
-    }
-    
-    .sr-search {
-        width: 100%;
     }
     
     .sr-tiles {
@@ -477,11 +537,15 @@
         width: 100%;
         overflow-x: auto;
     }
+    
+    .sr-scroll-hint {
+        display: inline-flex;
+    }
 }
 
 @media (max-width: 480px) {
     .sr-container {
-        padding: 0 12px;
+        padding: 0 8px;
     }
     
     .sr-tiles {
@@ -498,7 +562,17 @@
     }
     
     .sr-card {
-        padding: 16px;
+        padding: 12px;
+        border-radius: 10px;
+    }
+    
+    .sr-search {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .sr-search-wrap {
+        width: 100%;
     }
 }
 

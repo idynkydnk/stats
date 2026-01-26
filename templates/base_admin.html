@@ -354,6 +354,16 @@
         // Check notifications on page load
         document.addEventListener('DOMContentLoaded', function() {
             checkNotifications();
+            
+            // Detect and send user's timezone to server
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (userTimezone) {
+                fetch('/api/set_timezone', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({timezone: userTimezone})
+                }).catch(err => console.log('Could not set timezone:', err));
+            }
         });
         
         // Refresh notifications when returning from notifications page
