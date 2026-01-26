@@ -573,11 +573,21 @@ def add_game_redesign():
             flash('All fields required!')
         elif int(winner_score) <= int(loser_score):
             flash("Winner's score must be higher than loser's score!")
+        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+            flash('Two names are the same!')
         else:
-            add_stats([get_user_now(), winner1, winner2, loser1, loser2, winner_score, loser_score, get_user_now(), comments])
+            from player_functions import get_player_by_name, add_new_player
+            for player_name in [winner1, winner2, loser1, loser2]:
+                if player_name and not get_player_by_name(player_name):
+                    add_new_player(player_name)
+            
+            add_game_stats([get_user_now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
+                winner_score, loser_score, get_user_now(), comments])
+            clear_stats_cache()
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
+            update_kobs()
         return redirect(url_for('add_game_redesign'))
     
     all_games = year_games('All years')
