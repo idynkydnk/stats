@@ -161,7 +161,7 @@
         }
         .sr-btn-primary:hover { opacity: 0.9; }
 
-        /* Sticky first column for player list */
+        /* Sticky first column for player list - override base CSS */
         .sr-table-wrap {
             overflow-x: auto;
             position: relative;
@@ -171,6 +171,17 @@
             border-spacing: 0;
             width: max-content;
             min-width: 100%;
+        }
+        /* Override: only first column is sticky, NOT second */
+        #player-table th:nth-child(2),
+        #player-table td:nth-child(2) {
+            position: static !important;
+            left: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        #player-table tbody tr:nth-child(even) td:nth-child(2) {
+            background: rgba(255, 255, 255, 0.02) !important;
         }
         #player-table th:first-child,
         #player-table td:first-child {
