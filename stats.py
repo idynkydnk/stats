@@ -2348,6 +2348,55 @@ def get_other_game_info(game_name):
         'score_type': score_type
     }
 
+@app.route('/api/delete_games', methods=['POST'])
+@login_required
+def api_delete_games():
+    """API endpoint to delete multiple games at once"""
+    data = request.get_json()
+    game_ids = data.get('game_ids', [])
+    game_type = data.get('game_type', 'doubles')  # doubles, vollis, or other
+    
+    if not game_ids:
+        return {'success': False, 'error': 'No game IDs provided'}, 400
+    
+    deleted = 0
+    user = session.get('username', 'unknown')
+    
+    for game_id in game_ids:
+        try:
+            if game_type == 'doubles':
+                game = find_game(game_id)
+                if game and len(game) > 0:
+                    game_data = game[0]
+                    details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]}"
+                    log_user_action(user, 'Deleted doubles game (bulk)', details)
+                    remove_game(game_id)
+                    deleted += 1
+            elif game_type == 'vollis':
+                game = find_vollis_game(game_id)
+                if game and len(game) > 0:
+                    details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]}"
+                    log_user_action(user, 'Deleted vollis game (bulk)', details)
+                    remove_vollis_game(game_id)
+                    deleted += 1
+            elif game_type == 'other':
+                game = find_other_game(game_id)
+                if game:
+                    details = f"Game ID {game_id}"
+                    log_user_action(user, 'Deleted other game (bulk)', details)
+                    remove_other_game(game_id)
+                    deleted += 1
+        except Exception as e:
+            print(f"Error deleting game {game_id}: {e}")
+    
+    # Clear caches and update KOBs
+    if deleted > 0:
+        clear_stats_cache()
+        if game_type == 'doubles':
+            update_kobs()
+    
+    return {'success': True, 'deleted': deleted}
+
 @app.route('/manage_player_names/', methods=['GET', 'POST'])
 @login_required
 def manage_player_names():

@@ -306,12 +306,20 @@ function deleteSelectedGames() {
     if (!ids.length) { alert('Select at least one game.'); return; }
     if (!confirm(`Are you sure you want to delete ${ids.length} game(s)? This cannot be undone.`)) return;
     
-    // Delete games one by one via fetch
-    Promise.all(ids.map(id => 
-        fetch(`/delete_game/${id}?from_redesign=true`, { method: 'POST', body: new URLSearchParams({ from_redesign: 'true' }) })
-    )).then(() => {
-        window.location.reload();
-    }).catch(err => {
+    fetch('/api/delete_games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_ids: ids, game_type: 'doubles' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete games'));
+        }
+    })
+    .catch(err => {
         alert('Error deleting games: ' + err.message);
     });
 }
