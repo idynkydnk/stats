@@ -559,9 +559,27 @@ def edit_other_games_redesign(year):
 @login_required
 def add_game_redesign():
     """Redesigned add doubles game page."""
-    if request.method == 'POST':
-        return add_game()
     year = str(date.today().year)
+    if request.method == 'POST':
+        winner1 = request.form['winner1'].strip()
+        winner2 = request.form['winner2'].strip()
+        loser1 = request.form['loser1'].strip()
+        loser2 = request.form['loser2'].strip()
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+        comments = request.form.get('comments', '').strip()
+
+        if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
+            flash('All fields required!')
+        elif int(winner_score) <= int(loser_score):
+            flash("Winner's score must be higher than loser's score!")
+        else:
+            add_stats([get_user_now(), winner1, winner2, loser1, loser2, winner_score, loser_score, get_user_now(), comments])
+            user = session.get('username', 'unknown')
+            details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
+            log_user_action(user, 'Added doubles game', details)
+        return redirect(url_for('add_game_redesign'))
+    
     all_games = year_games('All years')
     players = all_players(all_games)
     games = todays_games()
@@ -574,9 +592,22 @@ def add_game_redesign():
 @login_required
 def add_vollis_game_redesign():
     """Redesigned add vollis game page."""
-    if request.method == 'POST':
-        return add_vollis_game()
     year = str(date.today().year)
+    if request.method == 'POST':
+        winner = request.form['winner'].strip()
+        loser = request.form['loser'].strip()
+        winner_score = request.form['winner_score']
+        loser_score = request.form['loser_score']
+
+        if not winner or not loser or not winner_score or not loser_score:
+            flash('All fields required!')
+        else:
+            add_vollis_stats([get_user_now(), winner, loser, winner_score, loser_score, get_user_now()])
+            user = session.get('username', 'unknown')
+            details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
+            log_user_action(user, 'Added vollis game', details)
+        return redirect(url_for('add_vollis_game_redesign'))
+    
     all_games = vollis_year_games('All years')
     players = all_vollis_players(all_games)
     games = todays_vollis_games()
@@ -590,10 +621,57 @@ def add_vollis_game_redesign():
 @login_required
 def add_other_game_redesign():
     """Redesigned add other game page."""
-    if request.method == 'POST':
-        return add_other_game()
-    year = str(date.today().year)
     from other_functions import all_combined_players
+    year = str(date.today().year)
+    
+    if request.method == 'POST':
+        game_type = request.form.get('game_type', '')
+        game_name = request.form.get('game_name', '')
+        score_type = request.form.get('score_type', 'individual') or 'individual'
+        winners = []
+        winner_scores = []
+        losers = []
+        loser_scores = []
+        team_winner_score = None
+        team_loser_score = None
+
+        for i in range(1, 16):
+            winner_name = request.form.get(f'winner{i}', '').strip()
+            if winner_name:
+                winners.append(winner_name)
+                if score_type == 'individual':
+                    winner_scores.append(request.form.get(f'winner{i}_score', '').strip())
+                else:
+                    winner_scores.append('')
+
+        for i in range(1, 16):
+            loser_name = request.form.get(f'loser{i}', '').strip()
+            if loser_name:
+                losers.append(loser_name)
+                if score_type == 'individual':
+                    loser_scores.append(request.form.get(f'loser{i}_score', '').strip())
+                else:
+                    loser_scores.append('')
+
+        if score_type == 'team':
+            team_winner_score = request.form.get('winner_score', '').strip()
+            team_loser_score = request.form.get('loser_score', '').strip()
+
+        comment = request.form.get('comment', '')
+
+        if not game_type or not game_name or not winners or not losers:
+            flash('Some fields missing!')
+        else:
+            add_other_stats(
+                get_user_now(), game_type, game_name, winners, winner_scores,
+                losers, loser_scores, comment, get_user_now(),
+                team_winner_score, team_loser_score
+            )
+            user = session.get('username', 'unknown')
+            details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
+            log_user_action(user, 'Added other game', details)
+        return redirect(url_for('add_other_game_redesign'))
+    
     players = all_combined_players()
     games_dict = other_year_games('All years')
     game_names = other_game_names(games_dict)
