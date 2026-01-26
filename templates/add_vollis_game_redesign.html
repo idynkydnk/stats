@@ -154,7 +154,7 @@
                 <div class="sr-game-header">
                     <div class="sr-game-actions">
                         <a href="{{ url_for('update_vollis_game', id=game[0]) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
-                        <a href="{{ url_for('delete_vollis_game', id=game[0], from_add_game='true') }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
+                        <a href="{{ url_for('delete_vollis_game', id=game[0], from_redesign='true') }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
                     </div>
                     <span class="sr-game-date">{{ game[1][9:17] if game[1]|length > 8 else game[1] }}</span>
                 </div>

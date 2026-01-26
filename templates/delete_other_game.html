@@ -11,12 +11,13 @@
             <div class="confirmation-actions">
                 <form action='' method="post" class="delete-form">
                     <input type="hidden" name="from_add_game" value="{{ from_add_game }}">
+                    <input type="hidden" name="from_redesign" value="{{ from_redesign }}">
                     <button type="submit" class="delete-button">
                         <i class="fas fa-trash"></i>
                         Delete Game
                     </button>
                 </form>
-                <a href="{% if from_add_game == 'true' %}{{ url_for('add_other_game') }}{% else %}/edit_other_games{% endif %}" class="cancel-button">
+                <a href="{% if from_redesign == 'true' %}{{ url_for('add_other_game_redesign') }}{% elif from_add_game == 'true' %}{{ url_for('add_other_game') }}{% else %}/edit_other_games{% endif %}" class="cancel-button">
                     <i class="fas fa-times"></i>
                     Cancel
                 </a>

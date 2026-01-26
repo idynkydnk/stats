@@ -1056,6 +1056,7 @@ def delete_game(id):
     game_id = id
     game = find_game(id)
     from_add_game = request.args.get('from_add_game', 'false')
+    from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
         # Log the action for notifications before deleting
         if game and len(game) > 0 and len(game[0]) >= 8:
@@ -1072,12 +1073,14 @@ def delete_game(id):
         # Update KOBs after deleting game
         update_kobs()
         
-        # Redirect back to add_game if that's where we came from
+        # Redirect back to appropriate page
+        if request.form.get('from_redesign') == 'true':
+            return redirect(url_for('add_game_redesign'))
         if request.form.get('from_add_game') == 'true':
             return redirect(url_for('add_game'))
         return redirect(url_for('edit_games'))
  
-    return render_template('delete_game.html', game=game, from_add_game=from_add_game)
+    return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/advanced_stats/')
 def advanced_stats():
@@ -1215,6 +1218,7 @@ def delete_vollis_game(id):
     game_id = id
     game = find_vollis_game(id)
     from_add_game = request.args.get('from_add_game', 'false')
+    from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
         # Log the action for notifications before deleting
         user = session.get('username', 'unknown')
@@ -1223,12 +1227,14 @@ def delete_vollis_game(id):
         
         remove_vollis_game(game_id)
         
-        # Redirect back to add_vollis_game if that's where we came from
+        # Redirect back to appropriate page
+        if request.form.get('from_redesign') == 'true':
+            return redirect(url_for('add_vollis_game_redesign'))
         if request.form.get('from_add_game') == 'true':
             return redirect(url_for('add_vollis_game'))
         return redirect(url_for('edit_vollis_games'))
  
-    return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game)
+    return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/vollis_player/<year>/<name>')
 def vollis_player_stats(year, name):
@@ -2084,6 +2090,7 @@ def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
     from_add_game = request.args.get('from_add_game', 'false')
+    from_redesign = request.args.get('from_redesign', 'false')
     if not game:
         flash('Game not found!')
         return redirect(url_for('edit_other_games'))
@@ -2097,12 +2104,14 @@ def delete_other_game(id):
         
         remove_other_game(game_id)
         
-        # Redirect back to add_other_game if that's where we came from
+        # Redirect back to appropriate page
+        if request.form.get('from_redesign') == 'true':
+            return redirect(url_for('add_other_game_redesign'))
         if request.form.get('from_add_game') == 'true':
             return redirect(url_for('add_other_game'))
         return redirect(url_for('edit_other_games'))
  
-    return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game)
+    return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/other_player/<year>/<name>')
 def other_player_stats(year, name):
