@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }} Doubles Games</title>
+    <title>{{ year }} {% if game_name %}{{ game_name }}{% else %}Other{% endif %} Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
 </head>
 <body class="sr-page">
-    <!-- Menu Overlay -->
     <div class="menu-overlay" id="menu-overlay"></div>
     
-    <!-- Menu Sidebar -->
     <div class="menu-sidebar" id="menu-sidebar">
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
@@ -24,25 +22,10 @@
             {% else %}
                 <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
             {% endif %}
-            {% if session.username == 'kyle' %}
-            <li style="border-top: 1px solid var(--sr-line); margin-top: 12px; padding-top: 12px;"><span style="color: var(--sr-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">New Style Pages</span></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-            <li><a href="{{ url_for('vollis_games_redesign_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Games</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-            <li><a href="{{ url_for('other_games_redesign_default') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-            <li><a href="{{ url_for('add_game_redesign') }}"><i class="fas fa-plus"></i> Add Doubles</a></li>
-            <li><a href="{{ url_for('add_vollis_game_redesign') }}"><i class="fas fa-plus"></i> Add Vollis</a></li>
-            <li><a href="{{ url_for('add_other_game_redesign') }}"><i class="fas fa-plus"></i> Add Other</a></li>
-            <li><a href="{{ url_for('edit_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Doubles</a></li>
-            <li><a href="{{ url_for('edit_vollis_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Vollis</a></li>
-            <li><a href="{{ url_for('edit_other_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Other</a></li>
-            <li><a href="{{ url_for('player_list_redesign') }}"><i class="fas fa-users"></i> Players</a></li>
-            {% endif %}
         </ul>
     </div>
 
     <style>
-        /* Menu styles for this standalone page */
         .menu-toggle {
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -120,7 +103,6 @@
         }
         .menu-list a i { margin-right: 10px; width: 16px; }
         
-        /* Add/Edit dropdown */
         .sr-dropdown {
             position: relative;
             display: inline-block;
@@ -175,21 +157,7 @@
         .sr-dropdown:hover .sr-dropdown-content {
             display: block;
         }
-        @media (max-width: 480px) {
-            .sr-dropdown-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .sr-dropdown-content {
-                min-width: 120px;
-            }
-            .sr-dropdown-content a {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-        }
 
-        /* Game card grid */
         .sr-games-grid {
             display: flex;
             flex-direction: column;
@@ -208,118 +176,126 @@
             border-color: rgba(255, 255, 255, 0.15);
         }
 
-        .sr-game-row {
-            display: grid;
-            grid-template-columns: 90px 1fr auto 1fr;
-            align-items: center;
+        .sr-game-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
             gap: 12px;
         }
 
-        .sr-game-date {
-            font-size: 12px;
-            color: var(--sr-muted);
-            line-height: 1.4;
+        .sr-game-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--sr-text);
+            margin: 0;
         }
 
-        .sr-game-team {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-
-        .sr-game-team.winners {
-            background: rgba(74, 222, 128, 0.1);
-            border-left: 3px solid var(--sr-win);
-            justify-content: flex-start;
-        }
-
-        .sr-game-team.losers {
-            background: rgba(248, 113, 113, 0.1);
-            border-left: 3px solid var(--sr-loss);
-            justify-content: flex-start;
-        }
-
-        .sr-team-score {
-            font-size: 20px;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            min-width: 28px;
-            text-align: center;
-        }
-
-        .sr-game-team.winners .sr-team-score {
-            color: var(--sr-win);
-        }
-
-        .sr-game-team.losers .sr-team-score {
-            color: var(--sr-loss);
-        }
-
-        .sr-team-players {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .sr-game-player {
-            font-size: 14px;
-        }
-
-        .sr-game-player a {
+        .sr-game-name a {
             color: var(--sr-text);
             text-decoration: none;
             transition: color 0.2s;
         }
 
-        .sr-game-player a:hover {
+        .sr-game-name a:hover {
             color: var(--sr-accent);
         }
 
-        .sr-vs {
-            color: var(--sr-muted);
+        .sr-game-date {
             font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            color: var(--sr-muted);
+            text-align: right;
+            white-space: nowrap;
         }
 
-        /* Responsive */
-        @media (max-width: 700px) {
-            .sr-game-row {
-                grid-template-columns: 1fr 1fr;
+        .sr-game-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .sr-team-block {
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .sr-team-block.winners {
+            background: rgba(74, 222, 128, 0.1);
+            border-left: 3px solid var(--sr-win);
+        }
+
+        .sr-team-block.losers {
+            background: rgba(248, 113, 113, 0.1);
+            border-left: 3px solid var(--sr-loss);
+        }
+
+        .sr-team-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sr-players-list {
+            flex: 1;
+        }
+
+        .sr-player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+        }
+
+        .sr-player-row a {
+            color: var(--sr-text);
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.2s;
+        }
+
+        .sr-player-row a:hover {
+            color: var(--sr-accent);
+        }
+
+        .sr-player-score {
+            font-weight: 600;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .sr-team-block.winners .sr-player-score {
+            color: var(--sr-win);
+        }
+
+        .sr-team-block.losers .sr-player-score {
+            color: var(--sr-loss);
+        }
+
+        .sr-team-score {
+            font-size: 18px;
+            font-weight: 700;
+            margin-left: 12px;
+        }
+
+        .sr-team-block.winners .sr-team-score {
+            color: var(--sr-win);
+        }
+
+        .sr-team-block.losers .sr-team-score {
+            color: var(--sr-loss);
+        }
+
+        @media (max-width: 600px) {
+            .sr-game-body {
+                grid-template-columns: 1fr;
                 gap: 8px;
-            }
-
-            .sr-game-date {
-                grid-column: 1 / -1;
-                text-align: center;
-                padding-bottom: 4px;
-                border-bottom: 1px solid var(--sr-line);
-                margin-bottom: 4px;
-            }
-
-            .sr-vs {
-                display: none;
-            }
-
-            .sr-game-team {
-                flex-direction: column;
-                text-align: center;
-                gap: 6px;
-            }
-
-            .sr-team-players {
-                align-items: center;
             }
         }
     </style>
 
     <div class="sr-container">
-        <!-- Header Section -->
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Games</h1>
+            <h1 class="sr-title">{{ year }} {% if game_name %}{{ game_name }}{% else %}Other{% endif %} Games</h1>
             <div class="sr-header-actions">
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
@@ -336,13 +312,13 @@
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('stats_redesign', year=year) }}" class="sr-link-btn">
+                <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn">
                     <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('other_games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -352,7 +328,6 @@
             </div>
         </header>
 
-        <!-- Games List -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 {% if games %}
@@ -360,24 +335,46 @@
                 <div class="sr-games-grid">
                     {% for game in games %}
                     <div class="sr-game-card">
-                        <div class="sr-game-row">
+                        <div class="sr-game-card-header">
+                            <h3 class="sr-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
                             <div class="sr-game-date">
-                                {{ game[1][0:10] }}
-                                {% if game[1]|length > 14 %}<br>{{ game[1][11:19] }}{% endif %}
+                                {{ game['game_date_only'] }}
+                                {% if game['game_time'] %}<br>{{ game['game_time'] }}{% endif %}
                             </div>
-                            <div class="sr-game-team winners">
-                                <span class="sr-team-score">{{ game[4] }}</span>
-                                <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
+                        </div>
+                        <div class="sr-game-body">
+                            <div class="sr-team-block winners">
+                                <div class="sr-team-content">
+                                    <div class="sr-players-list">
+                                        {% for winner in game['winners'] %}
+                                        <div class="sr-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                            {% if winner.score is not none and game['game_name'] != "Matterhorn" %}
+                                            <span class="sr-player-score">{{ winner.score }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                                    <span class="sr-team-score">{{ game['winner_score'] }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <span class="sr-vs">vs</span>
-                            <div class="sr-game-team losers">
-                                <span class="sr-team-score">{{ game[7] }}</span>
-                                <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
+                            <div class="sr-team-block losers">
+                                <div class="sr-team-content">
+                                    <div class="sr-players-list">
+                                        {% for loser in game['losers'] %}
+                                        <div class="sr-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                            {% if loser.score is not none and game['game_name'] != "Matterhorn" %}
+                                            <span class="sr-player-score">{{ loser.score }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                                    <span class="sr-team-score">{{ game['loser_score'] }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -386,8 +383,8 @@
                 </div>
                 {% else %}
                 <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
-                    <p class="sr-empty-text">No games recorded for {{ year }} yet.</p>
+                    <div class="sr-empty-icon"><i class="fas fa-dice"></i></div>
+                    <p class="sr-empty-text">No other games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>
@@ -395,7 +392,6 @@
     </div>
 
     <script>
-        // Menu functionality
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
         const menuSidebar = document.getElementById('menu-sidebar');

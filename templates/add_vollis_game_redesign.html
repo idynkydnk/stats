@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Vollis Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close">✕</button>
+        <ul class="menu-list">
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('stats_redesign_default') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
+            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
+            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+            {% if session.logged_in %}
+                <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <style>
+        .menu-toggle { background: var(--sr-panel); border: 1px solid var(--sr-line); color: var(--sr-muted); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; }
+        .menu-toggle:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .menu-overlay.active { opacity: 1; visibility: visible; }
+        .menu-sidebar { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: #0f1620; z-index: 1000; transition: right 0.3s ease; padding: 20px; visibility: hidden; overflow-y: auto; }
+        .menu-sidebar.active { right: 0; visibility: visible; }
+        .menu-close { background: none; border: none; color: var(--sr-text); font-size: 20px; cursor: pointer; float: right; padding: 5px; margin-bottom: 20px; }
+        .menu-list { list-style: none; padding: 0; margin: 0; clear: both; }
+        .menu-list li { margin: 10px 0; }
+        .menu-list a { display: block; padding: 12px 15px; color: var(--sr-text); text-decoration: none; border-radius: 8px; transition: all 0.2s; font-size: 14px; }
+        .menu-list a:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .menu-list a i { margin-right: 10px; width: 16px; }
+
+        .sr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .sr-form-group { margin-bottom: 16px; }
+        .sr-form-label { display: block; font-size: 13px; color: var(--sr-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sr-form-input { width: 100%; padding: 12px 14px; background: var(--sr-bg); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 15px; box-sizing: border-box; transition: all 0.2s; }
+        .sr-form-input:focus { outline: none; border-color: var(--sr-accent); box-shadow: 0 0 0 3px var(--sr-accent-dim); }
+        
+        .sr-team-section { padding: 16px; border-radius: 10px; margin-bottom: 16px; }
+        .sr-team-section.winners { background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); }
+        .sr-team-section.losers { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
+        .sr-team-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+        .sr-team-section.winners .sr-team-title { color: var(--sr-win); }
+        .sr-team-section.losers .sr-team-title { color: var(--sr-loss); }
+        
+        .sr-submit-btn { background: var(--sr-accent); border: none; color: #0b0f14; border-radius: 8px; padding: 14px 28px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%; }
+        .sr-submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .sr-games-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .sr-game-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; padding: 12px 14px; }
+        .sr-game-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .sr-game-date { font-size: 12px; color: var(--sr-muted); }
+        .sr-game-body { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+        .sr-game-team { padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        .sr-game-team.winners { background: rgba(74, 222, 128, 0.1); border-left: 3px solid var(--sr-win); }
+        .sr-game-team.losers { background: rgba(248, 113, 113, 0.1); border-left: 3px solid var(--sr-loss); }
+        .sr-game-player { font-size: 14px; }
+        .sr-game-player a { color: var(--sr-text); text-decoration: none; }
+        .sr-game-player a:hover { color: var(--sr-accent); }
+        .sr-game-score { font-size: 18px; font-weight: 700; }
+        .sr-game-team.winners .sr-game-score { color: var(--sr-win); }
+        .sr-game-team.losers .sr-game-score { color: var(--sr-loss); }
+        .sr-vs { color: var(--sr-muted); font-size: 12px; }
+        
+        @media (max-width: 600px) {
+            .sr-form-grid { grid-template-columns: 1fr; }
+            .sr-game-body { grid-template-columns: 1fr 1fr; } .sr-vs { display: none; }
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <h1 class="sr-title">Add Vollis Game</h1>
+            <div class="sr-header-actions">
+                <a href="{{ url_for('vollis_stats_redesign', year=year) }}" class="sr-link-btn">
+                    <i class="fas fa-arrow-left"></i> Stats
+                </a>
+                <button class="menu-toggle" id="menu-toggle"><i class="fas fa-bars"></i> Menu</button>
+            </div>
+        </header>
+
+        <section class="sr-table-section">
+            <div class="sr-card" style="padding: 20px;">
+                <form method="post" action="{{ url_for('add_vollis_game') }}">
+                    <div class="sr-form-grid">
+                        <div class="sr-team-section winners">
+                            <div class="sr-team-title"><i class="fas fa-trophy"></i> Winner</div>
+                            <div class="sr-form-group">
+                                <label class="sr-form-label">Player</label>
+                                <input type="text" name="winner" class="sr-form-input" list="players" placeholder="Winner" required autocomplete="off">
+                            </div>
+                            <div class="sr-form-group" style="margin-bottom: 0;">
+                                <label class="sr-form-label">Score</label>
+                                <select name="winner_score" class="sr-form-input" required>
+                                    {% for score in winning_scores %}
+                                    <option value="{{ score }}">{{ score }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="sr-team-section losers">
+                            <div class="sr-team-title"><i class="fas fa-times-circle"></i> Loser</div>
+                            <div class="sr-form-group">
+                                <label class="sr-form-label">Player</label>
+                                <input type="text" name="loser" class="sr-form-input" list="players" placeholder="Loser" required autocomplete="off">
+                            </div>
+                            <div class="sr-form-group" style="margin-bottom: 0;">
+                                <label class="sr-form-label">Score</label>
+                                <select name="loser_score" class="sr-form-input" required>
+                                    {% for score in losing_scores %}
+                                    <option value="{{ score }}">{{ score }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="sr-submit-btn">
+                        <i class="fas fa-plus"></i> Add Game
+                    </button>
+                </form>
+
+                <datalist id="players">
+                    {% for player in players %}
+                    <option value="{{ player }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+        </section>
+
+        {% if games %}
+        <section class="sr-table-section">
+            <div class="sr-card sr-card-compact">
+                <p class="sr-section-label">Today's Games ({{ games|length }})</p>
+                <div class="sr-games-grid">
+                    {% for game in games %}
+                    <div class="sr-game-card">
+                        <div class="sr-game-header">
+                            <span class="sr-game-date">{{ game[1][9:17] if game[1]|length > 8 else game[1] }}</span>
+                        </div>
+                        <div class="sr-game-body">
+                            <div class="sr-game-team winners">
+                                <span class="sr-game-score">{{ game[3] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                            </div>
+                            <span class="sr-vs">vs</span>
+                            <div class="sr-game-team losers">
+                                <span class="sr-game-score">{{ game[5] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4]) }}">{{ game[4] }}</a></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
+    <script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const menuSidebar = document.getElementById('menu-sidebar');
+        const menuClose = document.getElementById('menu-close');
+        function openMenu() { menuOverlay.classList.add('active'); menuSidebar.classList.add('active'); }
+        function closeMenu() { menuOverlay.classList.remove('active'); menuSidebar.classList.remove('active'); }
+        menuToggle.addEventListener('click', openMenu);
+        menuOverlay.addEventListener('click', closeMenu);
+        menuClose.addEventListener('click', closeMenu);
+    </script>
+</body>
+</html>

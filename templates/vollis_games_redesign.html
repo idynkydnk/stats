@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }} Doubles Games</title>
+    <title>{{ year }} Vollis Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
 </head>
 <body class="sr-page">
-    <!-- Menu Overlay -->
     <div class="menu-overlay" id="menu-overlay"></div>
     
-    <!-- Menu Sidebar -->
     <div class="menu-sidebar" id="menu-sidebar">
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
@@ -24,25 +22,10 @@
             {% else %}
                 <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
             {% endif %}
-            {% if session.username == 'kyle' %}
-            <li style="border-top: 1px solid var(--sr-line); margin-top: 12px; padding-top: 12px;"><span style="color: var(--sr-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">New Style Pages</span></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-            <li><a href="{{ url_for('vollis_games_redesign_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Games</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-            <li><a href="{{ url_for('other_games_redesign_default') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-            <li><a href="{{ url_for('add_game_redesign') }}"><i class="fas fa-plus"></i> Add Doubles</a></li>
-            <li><a href="{{ url_for('add_vollis_game_redesign') }}"><i class="fas fa-plus"></i> Add Vollis</a></li>
-            <li><a href="{{ url_for('add_other_game_redesign') }}"><i class="fas fa-plus"></i> Add Other</a></li>
-            <li><a href="{{ url_for('edit_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Doubles</a></li>
-            <li><a href="{{ url_for('edit_vollis_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Vollis</a></li>
-            <li><a href="{{ url_for('edit_other_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Other</a></li>
-            <li><a href="{{ url_for('player_list_redesign') }}"><i class="fas fa-users"></i> Players</a></li>
-            {% endif %}
         </ul>
     </div>
 
     <style>
-        /* Menu styles for this standalone page */
         .menu-toggle {
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -120,7 +103,6 @@
         }
         .menu-list a i { margin-right: 10px; width: 16px; }
         
-        /* Add/Edit dropdown */
         .sr-dropdown {
             position: relative;
             display: inline-block;
@@ -175,21 +157,7 @@
         .sr-dropdown:hover .sr-dropdown-content {
             display: block;
         }
-        @media (max-width: 480px) {
-            .sr-dropdown-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .sr-dropdown-content {
-                min-width: 120px;
-            }
-            .sr-dropdown-content a {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-        }
 
-        /* Game card grid */
         .sr-games-grid {
             display: flex;
             flex-direction: column;
@@ -232,13 +200,11 @@
         .sr-game-team.winners {
             background: rgba(74, 222, 128, 0.1);
             border-left: 3px solid var(--sr-win);
-            justify-content: flex-start;
         }
 
         .sr-game-team.losers {
             background: rgba(248, 113, 113, 0.1);
             border-left: 3px solid var(--sr-loss);
-            justify-content: flex-start;
         }
 
         .sr-team-score {
@@ -255,12 +221,6 @@
 
         .sr-game-team.losers .sr-team-score {
             color: var(--sr-loss);
-        }
-
-        .sr-team-players {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
         }
 
         .sr-game-player {
@@ -285,8 +245,7 @@
             letter-spacing: 1px;
         }
 
-        /* Responsive */
-        @media (max-width: 700px) {
+        @media (max-width: 600px) {
             .sr-game-row {
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
@@ -309,17 +268,12 @@
                 text-align: center;
                 gap: 6px;
             }
-
-            .sr-team-players {
-                align-items: center;
-            }
         }
     </style>
 
     <div class="sr-container">
-        <!-- Header Section -->
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Games</h1>
+            <h1 class="sr-title">{{ year }} Vollis Games</h1>
             <div class="sr-header-actions">
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
@@ -336,13 +290,13 @@
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('stats_redesign', year=year) }}" class="sr-link-btn">
+                <a href="{{ url_for('vollis_stats_redesign', year=year) }}" class="sr-link-btn">
                     <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('vollis_games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -352,7 +306,6 @@
             </div>
         </header>
 
-        <!-- Games List -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 {% if games %}
@@ -362,23 +315,17 @@
                     <div class="sr-game-card">
                         <div class="sr-game-row">
                             <div class="sr-game-date">
-                                {{ game[1][0:10] }}
-                                {% if game[1]|length > 14 %}<br>{{ game[1][11:19] }}{% endif %}
+                                {{ game[1][0:8] }}
+                                {% if game[1]|length > 8 %}<br>{{ game[1][9:17] }}{% endif %}
                             </div>
                             <div class="sr-game-team winners">
-                                <span class="sr-team-score">{{ game[4] }}</span>
-                                <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
-                                </div>
+                                <span class="sr-team-score">{{ game[3] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
                             </div>
                             <span class="sr-vs">vs</span>
                             <div class="sr-game-team losers">
-                                <span class="sr-team-score">{{ game[7] }}</span>
-                                <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
-                                </div>
+                                <span class="sr-team-score">{{ game[5] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4]) }}">{{ game[4] }}</a></div>
                             </div>
                         </div>
                     </div>
@@ -386,8 +333,8 @@
                 </div>
                 {% else %}
                 <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
-                    <p class="sr-empty-text">No games recorded for {{ year }} yet.</p>
+                    <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
+                    <p class="sr-empty-text">No vollis games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>
@@ -395,7 +342,6 @@
     </div>
 
     <script>
-        // Menu functionality
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
         const menuSidebar = document.getElementById('menu-sidebar');

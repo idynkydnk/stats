@@ -399,6 +399,172 @@ def games_redesign(year):
     return render_template('games_redesign.html', games=games, year=year, all_years=all_years)
 
 
+# ============================================
+# REDESIGNED VOLLIS ROUTES
+# ============================================
+
+@app.route('/vollis_stats_redesign/')
+def vollis_stats_redesign_default():
+    return vollis_stats_redesign(str(date.today().year))
+
+@app.route('/vollis_stats_redesign/<year>/')
+def vollis_stats_redesign(year):
+    """Redesigned vollis stats page."""
+    all_years = all_vollis_years()
+    stats = vollis_stats_per_year(year, 0)
+    return render_template('vollis_stats_redesign.html', stats=stats, all_years=all_years, year=year)
+
+@app.route('/vollis_games_redesign/')
+def vollis_games_redesign_default():
+    return vollis_games_redesign(str(date.today().year))
+
+@app.route('/vollis_games_redesign/<year>/')
+def vollis_games_redesign(year):
+    """Redesigned vollis games page."""
+    all_years = all_vollis_years()
+    games = vollis_year_games(year)
+    return render_template('vollis_games_redesign.html', games=games, all_years=all_years, year=year)
+
+
+# ============================================
+# REDESIGNED OTHER ROUTES
+# ============================================
+
+@app.route('/other_stats_redesign/')
+def other_stats_redesign_default():
+    return other_stats_redesign(str(date.today().year))
+
+@app.route('/other_stats_redesign/<year>/')
+def other_stats_redesign(year):
+    """Redesigned other stats page."""
+    all_years = all_other_years()
+    games = other_year_games(year)
+    if games:
+        if len(games) < 30:
+            minimum_games = 1
+        else:
+            minimum_games = len(games) // 30
+    else:
+        minimum_games = 1
+    stats = other_stats_per_year(year, minimum_games)
+    rare_stats = rare_other_stats_per_year(year, minimum_games)
+    game_cards = build_other_game_cards(year)
+    return render_template('other_stats_redesign.html', stats=stats, rare_stats=rare_stats,
+        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
+
+@app.route('/other_games_redesign/')
+def other_games_redesign_default():
+    return other_games_redesign(str(date.today().year))
+
+@app.route('/other_games_redesign/<year>/')
+def other_games_redesign(year):
+    """Redesigned other games page."""
+    all_years = all_other_years()
+    games = other_year_games(year)
+    return render_template('other_games_redesign.html', games=games, all_years=all_years, year=year)
+
+
+# ============================================
+# REDESIGNED EDIT ROUTES
+# ============================================
+
+@app.route('/edit_games_redesign/')
+def edit_games_redesign_default():
+    return edit_games_redesign(str(date.today().year))
+
+@app.route('/edit_games_redesign/<year>/')
+def edit_games_redesign(year):
+    """Redesigned edit doubles games page."""
+    all_years = grab_all_years()
+    games = year_games(year)
+    return render_template('edit_games_redesign.html', games=games, year=year, all_years=all_years)
+
+@app.route('/edit_vollis_games_redesign/')
+def edit_vollis_games_redesign_default():
+    return edit_vollis_games_redesign(str(date.today().year))
+
+@app.route('/edit_vollis_games_redesign/<year>/')
+def edit_vollis_games_redesign(year):
+    """Redesigned edit vollis games page."""
+    all_years = all_vollis_years()
+    games = vollis_year_games(year)
+    return render_template('edit_vollis_games_redesign.html', games=games, year=year, all_years=all_years)
+
+@app.route('/edit_other_games_redesign/')
+def edit_other_games_redesign_default():
+    return edit_other_games_redesign(str(date.today().year))
+
+@app.route('/edit_other_games_redesign/<year>/')
+def edit_other_games_redesign(year):
+    """Redesigned edit other games page."""
+    all_years = all_other_years()
+    games = other_year_games(year)
+    return render_template('edit_other_games_redesign.html', games=games, year=year, all_years=all_years)
+
+
+# ============================================
+# REDESIGNED ADD GAME ROUTES
+# ============================================
+
+@app.route('/add_game_redesign/', methods=['GET', 'POST'])
+@login_required
+def add_game_redesign():
+    """Redesigned add doubles game page."""
+    if request.method == 'POST':
+        # Redirect to the existing add_game POST handler
+        return add_game()
+    year = str(date.today().year)
+    all_games = year_games('All years')
+    players = all_players(all_games)
+    games = todays_games()
+    l_scores = list(range(0, 21))
+    return render_template('add_game_redesign.html', players=players, games=games, year=year, l_scores=l_scores)
+
+@app.route('/add_vollis_game_redesign/', methods=['GET', 'POST'])
+@login_required
+def add_vollis_game_redesign():
+    """Redesigned add vollis game page."""
+    if request.method == 'POST':
+        return add_vollis_game()
+    year = str(date.today().year)
+    all_games = vollis_year_games('All years')
+    players = all_vollis_players(all_games)
+    games = todays_vollis_games()
+    winning_scores = list(range(11, 27))
+    losing_scores = list(range(0, 26))
+    return render_template('add_vollis_game_redesign.html', players=players, games=games, year=year,
+        winning_scores=winning_scores, losing_scores=losing_scores)
+
+@app.route('/add_other_game_redesign/', methods=['GET', 'POST'])
+@login_required
+def add_other_game_redesign():
+    """Redesigned add other game page."""
+    if request.method == 'POST':
+        return add_other_game()
+    year = str(date.today().year)
+    from other_functions import all_combined_players
+    players = all_combined_players()
+    games_dict = other_year_games('All years')
+    game_names = other_game_names(games_dict)
+    game_types = other_game_types(games_dict)
+    games = todays_other_games()
+    return render_template('add_other_game_redesign.html', players=players, games=games, year=year,
+        game_names=game_names, game_types=game_types)
+
+
+# ============================================
+# REDESIGNED PLAYER LIST ROUTE
+# ============================================
+
+@app.route('/player_list_redesign/')
+@login_required
+def player_list_redesign():
+    """Redesigned player list page."""
+    from player_functions import get_all_players
+    players = get_all_players()
+    return render_template('player_list_redesign.html', players=players)
+
+
 def calculate_tile_stats(year, stats, games):
     """Calculate stats for the tile cards."""
     tiles = {

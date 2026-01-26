@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }} Doubles Stats</title>
+    <title>{{ year }} Vollis Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
 </head>
@@ -24,25 +24,10 @@
             {% else %}
                 <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
             {% endif %}
-            {% if session.username == 'kyle' %}
-            <li style="border-top: 1px solid var(--sr-line); margin-top: 12px; padding-top: 12px;"><span style="color: var(--sr-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">New Style Pages</span></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-            <li><a href="{{ url_for('vollis_games_redesign_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Games</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-            <li><a href="{{ url_for('other_games_redesign_default') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-            <li><a href="{{ url_for('add_game_redesign') }}"><i class="fas fa-plus"></i> Add Doubles</a></li>
-            <li><a href="{{ url_for('add_vollis_game_redesign') }}"><i class="fas fa-plus"></i> Add Vollis</a></li>
-            <li><a href="{{ url_for('add_other_game_redesign') }}"><i class="fas fa-plus"></i> Add Other</a></li>
-            <li><a href="{{ url_for('edit_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Doubles</a></li>
-            <li><a href="{{ url_for('edit_vollis_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Vollis</a></li>
-            <li><a href="{{ url_for('edit_other_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Other</a></li>
-            <li><a href="{{ url_for('player_list_redesign') }}"><i class="fas fa-users"></i> Players</a></li>
-            {% endif %}
         </ul>
     </div>
 
     <style>
-        /* Menu styles for this standalone page */
         .menu-toggle {
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -120,7 +105,6 @@
         }
         .menu-list a i { margin-right: 10px; width: 16px; }
         
-        /* Add/Edit dropdown */
         .sr-dropdown {
             position: relative;
             display: inline-block;
@@ -175,25 +159,11 @@
         .sr-dropdown:hover .sr-dropdown-content {
             display: block;
         }
-        @media (max-width: 480px) {
-            .sr-dropdown-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .sr-dropdown-content {
-                min-width: 120px;
-            }
-            .sr-dropdown-content a {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-        }
     </style>
 
     <div class="sr-container">
-        <!-- Header Section -->
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Stats</h1>
+            <h1 class="sr-title">{{ year }} Vollis Stats</h1>
             <div class="sr-header-actions">
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
@@ -210,13 +180,13 @@
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('games_redesign', year=year) }}" class="sr-link-btn">
+                <a href="{{ url_for('vollis_games_redesign', year=year) }}" class="sr-link-btn">
                     <i class="fas fa-list-alt"></i> Games
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('stats_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('vollis_stats_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -226,7 +196,6 @@
             </div>
         </header>
 
-        <!-- Leaderboard Table -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <div class="sr-search-wrap">
@@ -248,7 +217,6 @@
                             <tr>
                                 <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
@@ -259,8 +227,7 @@
                             {% for player in stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
+                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
@@ -277,54 +244,16 @@
                 </div>
                 {% else %}
                 <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
-                    <p class="sr-empty-text">No games recorded for {{ year }} yet.</p>
+                    <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
+                    <p class="sr-empty-text">No vollis games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>
         </section>
-        
-        {% if rare_stats %}
-        <!-- Players with fewer games -->
-        <section class="sr-table-section">
-            <div class="sr-card sr-card-compact">
-                <p class="sr-section-label">Fewer than {{ minimum_games }} games</p>
-                <div class="sr-table-wrap">
-                    <table class="sr-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Player</th>
-                                <th class="sr-numeric">Rating</th>
-                                <th class="sr-numeric">W</th>
-                                <th class="sr-numeric">L</th>
-                                <th class="sr-numeric">Win%</th>
-                                <th class="sr-numeric">Games</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in rare_stats %}
-                            <tr>
-                                <td class="sr-rank">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating">{{ player[4] }}</td>
-                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric">{{ player[1] + player[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        {% endif %}
     </div>
 
     <script src="{{ url_for('static', filename='js/stats_redesign.js') }}"></script>
     <script>
-        // Menu functionality
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
         const menuSidebar = document.getElementById('menu-sidebar');
