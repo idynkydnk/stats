@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }} Doubles Stats</title>
+    <title>{{ year }} Doubles Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
 </head>
@@ -105,20 +105,146 @@
             color: var(--sr-accent);
         }
         .menu-list a i { margin-right: 10px; width: 16px; }
+
+        /* Game card grid */
+        .sr-games-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sr-game-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.2s;
+        }
+
+        .sr-game-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .sr-game-row {
+            display: grid;
+            grid-template-columns: 90px 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sr-game-date {
+            font-size: 12px;
+            color: var(--sr-muted);
+            line-height: 1.4;
+        }
+
+        .sr-game-team {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .sr-game-team.winners {
+            background: rgba(74, 222, 128, 0.1);
+            border-left: 3px solid var(--sr-win);
+            justify-content: flex-start;
+        }
+
+        .sr-game-team.losers {
+            background: rgba(248, 113, 113, 0.1);
+            border-left: 3px solid var(--sr-loss);
+            justify-content: flex-start;
+        }
+
+        .sr-team-score {
+            font-size: 20px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .sr-game-team.winners .sr-team-score {
+            color: var(--sr-win);
+        }
+
+        .sr-game-team.losers .sr-team-score {
+            color: var(--sr-loss);
+        }
+
+        .sr-team-players {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sr-game-player {
+            font-size: 14px;
+        }
+
+        .sr-game-player a {
+            color: var(--sr-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .sr-game-player a:hover {
+            color: var(--sr-accent);
+        }
+
+        .sr-vs {
+            color: var(--sr-muted);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .sr-game-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .sr-game-date {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding-bottom: 4px;
+                border-bottom: 1px solid var(--sr-line);
+                margin-bottom: 4px;
+            }
+
+            .sr-vs {
+                display: none;
+            }
+
+            .sr-game-team {
+                flex-direction: column;
+                text-align: center;
+                gap: 6px;
+            }
+
+            .sr-team-players {
+                align-items: center;
+            }
+        }
     </style>
 
     <div class="sr-container">
         <!-- Header Section -->
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Stats</h1>
+            <h1 class="sr-title">{{ year }} Doubles Games</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('games_redesign', year=year) }}" class="sr-link-btn">
-                    <i class="fas fa-list-alt"></i> Games
+                <a href="{{ url_for('stats_redesign', year=year) }}" class="sr-link-btn">
+                    <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('stats_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -128,54 +254,37 @@
             </div>
         </header>
 
-        <!-- Leaderboard Table -->
+        <!-- Games List -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
-                <div class="sr-search-wrap">
-                    <i class="fas fa-search sr-search-icon"></i>
-                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
-                </div>
-                
-                <div id="sr-filter-active" class="sr-filter-active">
-                    <div id="sr-filter-chip" class="sr-filter-chip">
-                        <span class="sr-filter-text"></span>
-                        <span id="sr-filter-chip-close" class="sr-filter-chip-close">✕</span>
+                {% if games %}
+                <p class="sr-section-label">{{ games|length }} games</p>
+                <div class="sr-games-grid">
+                    {% for game in games %}
+                    <div class="sr-game-card">
+                        <div class="sr-game-row">
+                            <div class="sr-game-date">
+                                {{ game[1][0:10] }}
+                                {% if game[1]|length > 14 %}<br>{{ game[1][11:19] }}{% endif %}
+                            </div>
+                            <div class="sr-game-team winners">
+                                <span class="sr-team-score">{{ game[4] }}</span>
+                                <div class="sr-team-players">
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
+                                </div>
+                            </div>
+                            <span class="sr-vs">vs</span>
+                            <div class="sr-game-team losers">
+                                <span class="sr-team-score">{{ game[7] }}</span>
+                                <div class="sr-team-players">
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                {% if stats %}
-                <div class="sr-table-wrap">
-                    <table class="sr-table" id="sr-table">
-                        <thead>
-                            <tr>
-                                <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in stats %}
-                            <tr>
-                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
-                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div id="sr-no-results" class="sr-no-results">
-                    <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
-                    <p>No players found matching your search.</p>
+                    {% endfor %}
                 </div>
                 {% else %}
                 <div class="sr-empty">
@@ -185,46 +294,8 @@
                 {% endif %}
             </div>
         </section>
-        
-        {% if rare_stats %}
-        <!-- Players with fewer games -->
-        <section class="sr-table-section">
-            <div class="sr-card sr-card-compact">
-                <p class="sr-section-label">Fewer than {{ minimum_games }} games</p>
-                <div class="sr-table-wrap">
-                    <table class="sr-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Player</th>
-                                <th class="sr-numeric">Rating</th>
-                                <th class="sr-numeric">W</th>
-                                <th class="sr-numeric">L</th>
-                                <th class="sr-numeric">Win%</th>
-                                <th class="sr-numeric">Games</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in rare_stats %}
-                            <tr>
-                                <td class="sr-rank">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating">{{ player[4] }}</td>
-                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric">{{ player[1] + player[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        {% endif %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/stats_redesign.js') }}"></script>
     <script>
         // Menu functionality
         const menuToggle = document.getElementById('menu-toggle');

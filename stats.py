@@ -386,6 +386,19 @@ def stats_redesign(year):
         tiles=tiles)
 
 
+@app.route('/games_redesign/')
+def games_redesign_default():
+    return games_redesign(str(date.today().year))
+
+
+@app.route('/games_redesign/<year>/')
+def games_redesign(year):
+    """Steam Charts-inspired doubles games page."""
+    all_years = grab_all_years()
+    games = year_games(year)
+    return render_template('games_redesign.html', games=games, year=year, all_years=all_years)
+
+
 def calculate_tile_stats(year, stats, games):
     """Calculate stats for the tile cards."""
     tiles = {
@@ -2795,9 +2808,14 @@ def edit_player(player_id):
         else:
             old_name = player[1]
             update_player_info(player_id, full_name, email, date_of_birth, height, notes)
+            
+            # Log the action for notifications
+            user = session.get('username', 'unknown')
             if old_name != full_name:
+                log_user_action(user, 'Edited player', f'Renamed "{old_name}" to "{full_name}"')
                 flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.')
             else:
+                log_user_action(user, 'Edited player', f'Updated info for "{full_name}"')
                 flash('Player updated successfully!')
             return redirect(url_for('player_list'))
     
