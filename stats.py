@@ -361,6 +361,10 @@ def stats_redesign_default():
 @app.route('/stats_redesign/<year>/')
 def stats_redesign(year):
     """Steam Charts-inspired doubles stats page."""
+    current_year = str(date.today().year)
+    showing_previous_year = False
+    display_year = year
+    
     games = year_games(year)
     if games:
         if len(games) < 30:
@@ -372,10 +376,22 @@ def stats_redesign(year):
     
     all_years = grab_all_years()
     stats = stats_per_year(year, minimum_games)
-    rare_stats = rare_stats_per_year(year, minimum_games)
+    
+    # If no stats for current year, fall back to previous year
+    if not stats and year == current_year and all_years:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            games = year_games(previous_year)
+            if games:
+                minimum_games = max(1, len(games) // 30)
+            stats = stats_per_year(previous_year, minimum_games)
+            display_year = previous_year
+            showing_previous_year = True
+    
+    rare_stats = rare_stats_per_year(display_year, minimum_games)
     
     # Calculate tile stats
-    tiles = calculate_tile_stats(year, stats, games)
+    tiles = calculate_tile_stats(display_year, stats, games)
     
     return render_template('stats_redesign.html', 
         all_years=all_years, 
@@ -383,6 +399,8 @@ def stats_redesign(year):
         rare_stats=rare_stats, 
         minimum_games=minimum_games, 
         year=year,
+        display_year=display_year,
+        showing_previous_year=showing_previous_year,
         tiles=tiles)
 
 
@@ -410,9 +428,23 @@ def vollis_stats_redesign_default():
 @app.route('/vollis_stats_redesign/<year>/')
 def vollis_stats_redesign(year):
     """Redesigned vollis stats page."""
+    current_year = str(date.today().year)
+    showing_previous_year = False
+    display_year = year
+    
     all_years = all_vollis_years()
     stats = vollis_stats_per_year(year, 0)
-    return render_template('vollis_stats_redesign.html', stats=stats, all_years=all_years, year=year)
+    
+    # If no stats for current year, fall back to previous year
+    if not stats and year == current_year and all_years:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            stats = vollis_stats_per_year(previous_year, 0)
+            display_year = previous_year
+            showing_previous_year = True
+    
+    return render_template('vollis_stats_redesign.html', stats=stats, all_years=all_years, year=year,
+        display_year=display_year, showing_previous_year=showing_previous_year)
 
 @app.route('/vollis_games_redesign/')
 def vollis_games_redesign_default():
@@ -437,6 +469,10 @@ def other_stats_redesign_default():
 @app.route('/other_stats_redesign/<year>/')
 def other_stats_redesign(year):
     """Redesigned other stats page."""
+    current_year = str(date.today().year)
+    showing_previous_year = False
+    display_year = year
+    
     all_years = all_other_years()
     games = other_year_games(year)
     if games:
@@ -447,10 +483,23 @@ def other_stats_redesign(year):
     else:
         minimum_games = 1
     stats = other_stats_per_year(year, minimum_games)
-    rare_stats = rare_other_stats_per_year(year, minimum_games)
-    game_cards = build_other_game_cards(year)
+    
+    # If no stats for current year, fall back to previous year
+    if not stats and year == current_year and all_years:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years:
+            games = other_year_games(previous_year)
+            if games:
+                minimum_games = max(1, len(games) // 30)
+            stats = other_stats_per_year(previous_year, minimum_games)
+            display_year = previous_year
+            showing_previous_year = True
+    
+    rare_stats = rare_other_stats_per_year(display_year, minimum_games)
+    game_cards = build_other_game_cards(display_year)
     return render_template('other_stats_redesign.html', stats=stats, rare_stats=rare_stats,
-        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
+        all_years=all_years, minimum_games=minimum_games, year=year,
+        display_year=display_year, showing_previous_year=showing_previous_year, game_cards=game_cards)
 
 @app.route('/other_games_redesign/')
 def other_games_redesign_default():
