@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ player }} {{ year }} Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <style>
+        .sr-player-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .sr-player-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--sr-accent-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-accent);
+        }
+        .sr-player-info h1 {
+            font-size: 24px;
+            margin: 0 0 4px 0;
+        }
+        .sr-player-subtitle {
+            color: var(--sr-muted);
+            font-size: 14px;
+        }
+        .sr-stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .sr-stat-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+        .sr-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-text);
+        }
+        .sr-stat-value.win { color: var(--sr-win); }
+        .sr-stat-value.loss { color: var(--sr-loss); }
+        .sr-stat-label {
+            font-size: 12px;
+            color: var(--sr-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .sr-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 24px 0 12px 0;
+            color: var(--sr-text);
+        }
+        .sr-mini-table { width: 100%; border-collapse: collapse; }
+        .sr-mini-table th, .sr-mini-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
+        .sr-mini-table th { color: var(--sr-muted); font-size: 11px; text-transform: uppercase; font-weight: 500; }
+        .sr-mini-table td { font-size: 14px; }
+        .sr-mini-table a { color: var(--sr-text); text-decoration: none; }
+        .sr-mini-table a:hover { color: var(--sr-accent); }
+        .sr-mini-table .sr-win { color: var(--sr-win); }
+        .sr-mini-table .sr-loss { color: var(--sr-loss); }
+        .sr-show-more {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: transparent;
+            border: 1px dashed var(--sr-line);
+            border-radius: 8px;
+            color: var(--sr-muted);
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .sr-show-more:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .sr-hidden { display: none; }
+        
+        /* Game cards */
+        .sr-games-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .sr-game-item {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 80px 1fr auto 1fr;
+            align-items: center;
+            gap: 10px;
+        }
+        .sr-game-date { font-size: 11px; color: var(--sr-muted); line-height: 1.4; }
+        .sr-game-team { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; }
+        .sr-game-team.winners { background: rgba(74,222,128,0.1); border-left: 2px solid var(--sr-win); }
+        .sr-game-team.losers { background: rgba(248,113,113,0.1); border-left: 2px solid var(--sr-loss); }
+        .sr-game-score { font-size: 18px; font-weight: 700; min-width: 24px; }
+        .sr-game-team.winners .sr-game-score { color: var(--sr-win); }
+        .sr-game-team.losers .sr-game-score { color: var(--sr-loss); }
+        .sr-game-players { font-size: 13px; }
+        .sr-game-players a { color: var(--sr-text); text-decoration: none; }
+        .sr-game-players a:hover { color: var(--sr-accent); }
+        .sr-vs { color: var(--sr-muted); font-size: 11px; text-align: center; }
+        @media (max-width: 600px) {
+            .sr-game-item { grid-template-columns: 1fr 1fr; }
+            .sr-game-date { grid-column: 1 / -1; text-align: center; border-bottom: 1px solid var(--sr-line); padding-bottom: 6px; margin-bottom: 4px; }
+            .sr-vs { display: none; }
+            .sr-game-team { flex-direction: column; text-align: center; gap: 4px; }
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <a href="{{ url_for('stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <div class="sr-header-actions">
+                <div class="sr-year-select-wrap">
+                    <select class="sr-year-select" onchange="window.location.href=this.value">
+                        {% for yr in all_years %}
+                        <option value="{{ url_for('player_stats_redesign', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <div class="sr-player-header">
+            <div class="sr-player-avatar">{{ player[0] }}</div>
+            <div class="sr-player-info">
+                <h1>{{ player }}</h1>
+                <div class="sr-player-subtitle">{{ year }} Doubles Stats</div>
+            </div>
+        </div>
+
+        {% if stats and stats[0] %}
+        <div class="sr-stat-cards">
+            <div class="sr-stat-card">
+                <div class="sr-stat-value win">{{ stats[0][1] }}</div>
+                <div class="sr-stat-label">Wins</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value loss">{{ stats[0][2] }}</div>
+                <div class="sr-stat-label">Losses</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ "%.0f"|format(stats[0][3] * 100) }}%</div>
+                <div class="sr-stat-label">Win %</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ stats[0][1] + stats[0][2] }}</div>
+                <div class="sr-stat-label">Games</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if partner_stats %}
+        <div class="sr-card">
+            <h3 class="sr-section-title">Stats with Partners</h3>
+            <table class="sr-mini-table">
+                <thead><tr><th>#</th><th>Partner</th><th>W</th><th>L</th><th>%</th></tr></thead>
+                <tbody id="partner-tbody">
+                {% for stat in partner_stats %}
+                <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                    <td>{{ loop.index }}</td>
+                    <td><a href="{{ url_for('player_stats_redesign', year=year, name=stat['partner']) }}">{{ stat['partner'] }}</a></td>
+                    <td class="sr-win">{{ stat['wins'] }}</td>
+                    <td class="sr-loss">{{ stat['losses'] }}</td>
+                    <td>{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if partner_stats|length > 5 %}
+            <button class="sr-show-more" onclick="toggleRows('partner-tbody', this)">Show {{ partner_stats|length - 5 }} more</button>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if opponent_stats %}
+        <div class="sr-card">
+            <h3 class="sr-section-title">Stats vs Opponents</h3>
+            <table class="sr-mini-table">
+                <thead><tr><th>#</th><th>Opponent</th><th>W</th><th>L</th><th>%</th></tr></thead>
+                <tbody id="opponent-tbody">
+                {% for stat in opponent_stats %}
+                <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                    <td>{{ loop.index }}</td>
+                    <td><a href="{{ url_for('player_stats_redesign', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
+                    <td class="sr-win">{{ stat['wins'] }}</td>
+                    <td class="sr-loss">{{ stat['losses'] }}</td>
+                    <td>{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if opponent_stats|length > 5 %}
+            <button class="sr-show-more" onclick="toggleRows('opponent-tbody', this)">Show {{ opponent_stats|length - 5 }} more</button>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if games %}
+        <div class="sr-card">
+            <h3 class="sr-section-title">Games Played ({{ games|length }})</h3>
+            <div class="sr-games-list" id="games-list">
+                {% for game in games %}
+                <div class="sr-game-item {% if loop.index > 5 %}sr-hidden{% endif %}">
+                    <div class="sr-game-date">{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</div>
+                    <div class="sr-game-team winners">
+                        <span class="sr-game-score">{{ game[4] }}</span>
+                        <div class="sr-game-players">
+                            <a href="{{ url_for('player_stats_redesign', year=year, name=game[2]) }}">{{ game[2] }}</a><br>
+                            <a href="{{ url_for('player_stats_redesign', year=year, name=game[3]) }}">{{ game[3] }}</a>
+                        </div>
+                    </div>
+                    <span class="sr-vs">vs</span>
+                    <div class="sr-game-team losers">
+                        <span class="sr-game-score">{{ game[7] }}</span>
+                        <div class="sr-game-players">
+                            <a href="{{ url_for('player_stats_redesign', year=year, name=game[5]) }}">{{ game[5] }}</a><br>
+                            <a href="{{ url_for('player_stats_redesign', year=year, name=game[6]) }}">{{ game[6] }}</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if games|length > 5 %}
+            <button class="sr-show-more" onclick="toggleGames(this)">Show {{ games|length - 5 }} more</button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function toggleRows(tbodyId, btn) {
+            const tbody = document.getElementById(tbodyId);
+            const hidden = tbody.querySelectorAll('.sr-hidden');
+            if (hidden.length > 0) {
+                hidden.forEach(row => row.classList.remove('sr-hidden'));
+                btn.textContent = 'Show less';
+            } else {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach((row, i) => { if (i >= 5) row.classList.add('sr-hidden'); });
+                btn.textContent = `Show ${rows.length - 5} more`;
+            }
+        }
+        function toggleGames(btn) {
+            const list = document.getElementById('games-list');
+            const hidden = list.querySelectorAll('.sr-hidden');
+            if (hidden.length > 0) {
+                hidden.forEach(item => item.classList.remove('sr-hidden'));
+                btn.textContent = 'Show less';
+            } else {
+                const items = list.querySelectorAll('.sr-game-item');
+                items.forEach((item, i) => { if (i >= 5) item.classList.add('sr-hidden'); });
+                btn.textContent = `Show ${items.length - 5} more`;
+            }
+        }
+    </script>
+</body>
+</html>

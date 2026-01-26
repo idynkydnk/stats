@@ -617,6 +617,47 @@ def player_list_redesign():
     return render_template('player_list_redesign.html', players=players)
 
 
+# ============================================
+# REDESIGNED PLAYER STATS ROUTES
+# ============================================
+
+@app.route('/player_redesign/<year>/<name>/')
+def player_stats_redesign(year, name):
+    """Redesigned doubles player stats page."""
+    games = games_from_player_by_year(year, name)
+    if games:
+        minimum_games = max(1, len(games) // 40)
+    else:
+        minimum_games = 1
+    all_years = all_years_player(name)
+    stats = total_stats(games, name)
+    partner_stats = partner_stats_by_year(name, games, minimum_games)
+    opponent_stats = opponent_stats_by_year(name, games, minimum_games)
+    return render_template('player_redesign.html', opponent_stats=opponent_stats,
+        partner_stats=partner_stats, year=year, player=name, 
+        minimum_games=minimum_games, all_years=all_years, stats=stats, games=games)
+
+@app.route('/vollis_player_redesign/<year>/<name>/')
+def vollis_player_stats_redesign(year, name):
+    """Redesigned vollis player stats page."""
+    all_years = all_years_vollis_player(name)
+    games = games_from_vollis_player_by_year(year, name)
+    stats = total_vollis_stats(name, games)
+    opponent_stats = vollis_opponent_stats_by_year(name, games)
+    return render_template('vollis_player_redesign.html', opponent_stats=opponent_stats, 
+        year=year, player=name, all_years=all_years, stats=stats)
+
+@app.route('/other_player_redesign/<year>/<name>/')
+def other_player_stats_redesign(year, name):
+    """Redesigned other player stats page."""
+    all_years = all_years_other_player(name)
+    games = games_from_other_player_by_year(year, name)
+    stats = total_other_stats(name, games)
+    opponent_stats = other_opponent_stats_by_year(name, games)
+    return render_template('other_player_redesign.html', opponent_stats=opponent_stats, 
+        year=year, player=name, all_years=all_years, stats=stats)
+
+
 def calculate_tile_stats(year, stats, games):
     """Calculate stats for the tile cards."""
     tiles = {

@@ -372,16 +372,16 @@
                             <div class="sr-game-team winners">
                                 <span class="sr-team-score">{{ game[4] }}</span>
                                 <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
                                 </div>
                             </div>
                             <span class="sr-vs">vs</span>
                             <div class="sr-game-team losers">
                                 <span class="sr-team-score">{{ game[7] }}</span>
                                 <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
                                 </div>
                             </div>
                         </div>

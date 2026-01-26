@@ -352,7 +352,7 @@
                                     <div class="sr-players-list">
                                         {% for winner in game['winners'] %}
                                         <div class="sr-player-row">
-                                            <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                            <a href="{{ url_for('other_player_stats_redesign', year=year, name=winner.name) }}">{{ winner.name }}</a>
                                             {% if winner.score is not none and game['game_name'] != "Matterhorn" %}
                                             <span class="sr-player-score">{{ winner.score }}</span>
                                             {% endif %}
@@ -369,7 +369,7 @@
                                     <div class="sr-players-list">
                                         {% for loser in game['losers'] %}
                                         <div class="sr-player-row">
-                                            <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                            <a href="{{ url_for('other_player_stats_redesign', year=year, name=loser.name) }}">{{ loser.name }}</a>
                                             {% if loser.score is not none and game['game_name'] != "Matterhorn" %}
                                             <span class="sr-player-score">{{ loser.score }}</span>
                                             {% endif %}
