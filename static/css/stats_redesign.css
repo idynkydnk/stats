@@ -413,7 +413,7 @@
     position: sticky;
     left: 0;
     z-index: 3;
-    background: var(--sr-panel);
+    background: #0b0f14;
     width: 28px;
     min-width: 28px;
     max-width: 28px;
@@ -426,7 +426,7 @@
     position: sticky;
     left: 28px;
     z-index: 3;
-    background: var(--sr-panel);
+    background: #0b0f14;
     min-width: 90px;
     padding-left: 6px;
     box-shadow: 4px 0 8px rgba(0, 0, 0, 0.4);
@@ -435,10 +435,16 @@
 .sr-table th:nth-child(1),
 .sr-table th:nth-child(2) {
     z-index: 12;
-    background: rgba(15, 22, 32, 0.98);
+    background: #0f1620;
 }
 
-/* Zebra striping backgrounds for sticky columns */
+/* Zebra striping backgrounds for sticky columns - odd rows */
+.sr-table tbody tr:nth-child(odd) td:nth-child(1),
+.sr-table tbody tr:nth-child(odd) td:nth-child(2) {
+    background: #0b0f14;
+}
+
+/* Zebra striping backgrounds for sticky columns - even rows */
 .sr-table tbody tr:nth-child(even) td:nth-child(1),
 .sr-table tbody tr:nth-child(even) td:nth-child(2) {
     background: #0d1219;
