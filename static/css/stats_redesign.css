@@ -470,6 +470,7 @@
 /* Player styling */
 .sr-table .sr-player {
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .sr-table .sr-player a {
