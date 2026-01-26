@@ -706,6 +706,9 @@ def delete_game(id):
         
         remove_game(game_id)
         
+        # Clear stats cache after deleting a game
+        clear_stats_cache()
+        
         # Update KOBs after deleting game
         update_kobs()
         
