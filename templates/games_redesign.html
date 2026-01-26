@@ -416,8 +416,8 @@
                 let visibleCount = 0;
                 
                 cards.forEach(card => {
-                    const players = card.dataset.players || '';
-                    const matches = !query || players.includes(query);
+                    const searchData = card.dataset.search || '';
+                    const matches = !query || searchData.includes(query);
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });
