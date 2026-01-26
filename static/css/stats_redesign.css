@@ -377,7 +377,7 @@
 }
 
 .sr-table th.sr-numeric {
-    text-align: right;
+    text-align: center;
 }
 
 .sr-sort-arrow {
@@ -491,7 +491,7 @@
 }
 
 .sr-table .sr-numeric {
-    text-align: right;
+    text-align: center;
 }
 
 .sr-table .sr-rating {
