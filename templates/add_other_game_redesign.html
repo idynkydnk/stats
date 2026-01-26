@@ -152,7 +152,7 @@
         </header>
 
         <div class="sr-form-container">
-            <form method="post" action="{{ url_for('add_other_game') }}">
+            <form method="post" action="{{ url_for('add_other_game_redesign') }}">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 <datalist id="game_names">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
