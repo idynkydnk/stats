@@ -187,7 +187,6 @@
                     <table class="sr-table" id="player-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th class="sr-numeric">Age</th>
@@ -199,7 +198,6 @@
                         <tbody>
                             {% for player in players %}
                             <tr>
-                                <td class="sr-rank">{{ player[0] if player[0] else '-' }}</td>
                                 <td class="sr-player">
                                     {% if player[0] %}
                                         <a href="{{ url_for('edit_player', player_id=player[0]) }}">{{ player[1] }}</a>
@@ -294,8 +292,8 @@
             const rows = document.querySelectorAll('#player-table tbody tr');
             let visible = 0;
             rows.forEach(row => {
-                const name = row.cells[1].textContent.toLowerCase();
-                const email = row.cells[2].textContent.toLowerCase();
+                const name = row.cells[0].textContent.toLowerCase();
+                const email = row.cells[1].textContent.toLowerCase();
                 const match = name.includes(query) || email.includes(query);
                 row.style.display = match ? '' : 'none';
                 if (match) visible++;
