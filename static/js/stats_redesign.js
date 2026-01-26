@@ -14,15 +14,16 @@ function initSearch() {
     const searchInput = document.getElementById('sr-search');
     if (!searchInput) return;
     
-    const table = document.getElementById('sr-table');
-    const tbody = table?.querySelector('tbody');
     const filterActive = document.getElementById('sr-filter-active');
     const filterChip = document.getElementById('sr-filter-chip');
     const noResults = document.getElementById('sr-no-results');
     
+    // Get all sr-table elements on the page
+    const tables = document.querySelectorAll('.sr-table');
+    
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
-        filterTable(query, tbody, filterActive, filterChip, noResults);
+        filterAllTables(query, tables, filterActive, filterChip, noResults);
     });
     
     // Clear filter on chip close click
@@ -30,26 +31,30 @@ function initSearch() {
     if (chipClose) {
         chipClose.addEventListener('click', function() {
             searchInput.value = '';
-            filterTable('', tbody, filterActive, filterChip, noResults);
+            filterAllTables('', tables, filterActive, filterChip, noResults);
         });
     }
 }
 
-function filterTable(query, tbody, filterActive, filterChip, noResults) {
-    if (!tbody) return;
+function filterAllTables(query, tables, filterActive, filterChip, noResults) {
+    let totalVisibleCount = 0;
     
-    const rows = tbody.querySelectorAll('tr');
-    let visibleCount = 0;
-    
-    rows.forEach(row => {
-        const playerCell = row.querySelector('.sr-player');
-        if (!playerCell) return;
+    tables.forEach(table => {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
         
-        const playerName = playerCell.textContent.toLowerCase();
-        const matches = query === '' || playerName.includes(query);
+        const rows = tbody.querySelectorAll('tr');
         
-        row.style.display = matches ? '' : 'none';
-        if (matches) visibleCount++;
+        rows.forEach(row => {
+            const playerCell = row.querySelector('.sr-player');
+            if (!playerCell) return;
+            
+            const playerName = playerCell.textContent.toLowerCase();
+            const matches = query === '' || playerName.includes(query);
+            
+            row.style.display = matches ? '' : 'none';
+            if (matches) totalVisibleCount++;
+        });
     });
     
     // Update filter chip visibility
@@ -64,7 +69,7 @@ function filterTable(query, tbody, filterActive, filterChip, noResults) {
     
     // Show/hide no results message
     if (noResults) {
-        if (visibleCount === 0 && query) {
+        if (totalVisibleCount === 0 && query) {
             noResults.classList.add('visible');
         } else {
             noResults.classList.remove('visible');
