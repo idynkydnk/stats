@@ -310,13 +310,13 @@
             <div class="sr-card sr-card-compact">
                 <div class="sr-search-wrap">
                     <i class="fas fa-search sr-search-icon"></i>
-                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
+                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players or dates...">
                 </div>
                 {% if games %}
                 <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
                 <div class="sr-games-grid" id="games-grid">
                     {% for game in games %}
-                    <div class="sr-game-card" data-players="{{ game[2]|lower }} {{ game[4]|lower }}">
+                    <div class="sr-game-card" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[4]|lower }}">
                         <div class="sr-game-row">
                             <div class="sr-game-date">
                                 {{ game[1][0:8] }}
@@ -363,8 +363,8 @@
                 let visibleCount = 0;
                 
                 cards.forEach(card => {
-                    const players = card.dataset.players || '';
-                    const matches = !query || players.includes(query);
+                    const searchData = card.dataset.search || '';
+                    const matches = !query || searchData.includes(query);
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });

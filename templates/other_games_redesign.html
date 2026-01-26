@@ -338,7 +338,7 @@
                 <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
                 <div class="sr-games-grid" id="games-grid">
                     {% for game in games %}
-                    <div class="sr-game-card" data-players="{{ game['game_name']|lower }} {% for w in game['winners'] %}{{ w.name|lower }} {% endfor %}{% for l in game['losers'] %}{{ l.name|lower }} {% endfor %}">
+                    <div class="sr-game-card" data-search="{{ game['game_date_only'] }} {{ game['game_time'] }} {{ game['game_name']|lower }} {% for w in game['winners'] %}{{ w.name|lower }} {% endfor %}{% for l in game['losers'] %}{{ l.name|lower }} {% endfor %}">
                         <div class="sr-game-card-header">
                             <h3 class="sr-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
                             <div class="sr-game-date">
@@ -413,8 +413,8 @@
                 let visibleCount = 0;
                 
                 cards.forEach(card => {
-                    const players = card.dataset.players || '';
-                    const matches = !query || players.includes(query);
+                    const searchData = card.dataset.search || '';
+                    const matches = !query || searchData.includes(query);
                     card.style.display = matches ? '' : 'none';
                     if (matches) visibleCount++;
                 });
