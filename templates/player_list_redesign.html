@@ -160,6 +160,41 @@
             transition: all 0.2s;
         }
         .sr-btn-primary:hover { opacity: 0.9; }
+
+        /* Sticky first column for player list */
+        .sr-table-wrap {
+            overflow-x: auto;
+        }
+        #player-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        #player-table th:first-child,
+        #player-table td:first-child {
+            position: sticky;
+            left: 0;
+            background: var(--sr-panel);
+            z-index: 1;
+            min-width: 120px;
+        }
+        #player-table th:first-child {
+            z-index: 2;
+        }
+        #player-table th:first-child::after,
+        #player-table td:first-child::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--sr-line);
+        }
+        #player-table th,
+        #player-table td {
+            white-space: nowrap;
+            padding: 10px 14px;
+        }
     </style>
 
     <div class="sr-container">
