@@ -79,6 +79,10 @@
         .sr-games-title { font-size: 16px; font-weight: 600; color: var(--sr-text); }
         .sr-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sr-muted); }
         .sr-select-all input { accent-color: var(--sr-accent); }
+        .sr-delete-selected { background: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; display: none; margin-left: 12px; }
+        .sr-delete-selected:hover { background: #c82333; }
+        .sr-delete-selected.visible { display: inline-block; }
+        .sr-games-header-right { display: flex; align-items: center; }
         .sr-games-grid { display: flex; flex-direction: column; gap: 8px; }
         .sr-game-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; padding: 12px; }
         .sr-game-card.selected { border-color: var(--sr-accent); background: var(--sr-accent-dim); }
@@ -172,7 +176,10 @@
         <div class="sr-games-section">
             <div class="sr-games-header">
                 <span class="sr-games-title">Today's Games</span>
-                <label class="sr-select-all"><input type="checkbox" id="select-all" onclick="toggleAllGames()"> Select All</label>
+                <div class="sr-games-header-right">
+                    <label class="sr-select-all"><input type="checkbox" id="select-all" onclick="toggleAllGames()"> Select All</label>
+                    <button class="sr-delete-selected" id="delete-selected-btn" onclick="deleteSelectedGames()"><i class="fas fa-trash"></i> Delete Selected</button>
+                </div>
             </div>
             <div class="sr-games-grid">
             {% for game in games %}
@@ -275,10 +282,38 @@ function toggleAllGames() {
     const checked = document.getElementById('select-all').checked;
     document.querySelectorAll('.game-checkbox').forEach(cb => cb.checked = checked);
     document.querySelectorAll('.sr-game-card').forEach(card => card.classList.toggle('selected', checked));
+    updateDeleteButtonVisibility();
 }
 
 function updateCardSelection(cb) {
     cb.closest('.sr-game-card').classList.toggle('selected', cb.checked);
+    updateDeleteButtonVisibility();
+}
+
+function updateDeleteButtonVisibility() {
+    const selectedCount = document.querySelectorAll('.game-checkbox:checked').length;
+    const btn = document.getElementById('delete-selected-btn');
+    if (selectedCount > 0) {
+        btn.classList.add('visible');
+        btn.innerHTML = `<i class="fas fa-trash"></i> Delete (${selectedCount})`;
+    } else {
+        btn.classList.remove('visible');
+    }
+}
+
+function deleteSelectedGames() {
+    const ids = Array.from(document.querySelectorAll('.game-checkbox:checked')).map(cb => cb.dataset.gameId);
+    if (!ids.length) { alert('Select at least one game.'); return; }
+    if (!confirm(`Are you sure you want to delete ${ids.length} game(s)? This cannot be undone.`)) return;
+    
+    // Delete games one by one via fetch
+    Promise.all(ids.map(id => 
+        fetch(`/delete_game/${id}?from_redesign=true`, { method: 'POST', body: new URLSearchParams({ from_redesign: 'true' }) })
+    )).then(() => {
+        window.location.reload();
+    }).catch(err => {
+        alert('Error deleting games: ' + err.message);
+    });
 }
 
 function generateAndEmailSummary() {
