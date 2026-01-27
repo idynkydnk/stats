@@ -4535,7 +4535,7 @@ def preview_ai_summary():
     can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
 
     return render_template(
-        'preview_ai_summary.html',
+        'preview_ai_summary_redesign.html',
         game_type='doubles',
         header_title="Doubles AI Summary Preview",
         subject=payload['subject'],
@@ -4659,6 +4659,54 @@ def add_player_email():
     log_user_action(user, 'Updated player email', f'{player_name} -> {email}')
 
     return jsonify({'success': True, 'email': email})
+
+
+@app.route('/api/update_player_info', methods=['POST'])
+@login_required
+def api_update_player_info():
+    """Update player info (email, birthday, height) from AI summary preview."""
+    data = request.get_json() or {}
+    player_name = (data.get('player_name') or '').strip()
+    email = (data.get('email') or '').strip() or None
+    birthday = (data.get('birthday') or '').strip() or None
+    height = (data.get('height') or '').strip() or None
+
+    if not player_name:
+        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    if email and not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({'success': False, 'error': 'Invalid email address.'}), 400
+
+    from player_functions import get_player_by_name, add_new_player, update_player_info
+
+    player_record = get_player_by_name(player_name)
+    if player_record:
+        player_id = player_record[0]
+        existing_full_name = player_record[1]
+        # Use new values if provided, otherwise keep existing
+        new_email = email if email else player_record[2]
+        new_birthday = birthday if birthday else player_record[3]
+        new_height = height if height else player_record[4]
+        notes = player_record[5]
+        update_player_info(player_id, existing_full_name, email=new_email,
+                           date_of_birth=new_birthday, height=new_height, notes=notes)
+    else:
+        add_new_player(player_name, email=email)
+        # If we just created the player, update with birthday/height if provided
+        if birthday or height:
+            player_record = get_player_by_name(player_name)
+            if player_record:
+                update_player_info(player_record[0], player_record[1], 
+                                   email=email, date_of_birth=birthday, height=height, notes=None)
+
+    user = session.get('username', 'unknown')
+    updates = []
+    if email: updates.append(f'email={email}')
+    if birthday: updates.append(f'birthday={birthday}')
+    if height: updates.append(f'height={height}')
+    log_user_action(user, 'Updated player info', f'{player_name}: {", ".join(updates)}')
+
+    return jsonify({'success': True})
 
 
 @app.route('/opt_in_ai_emails')
