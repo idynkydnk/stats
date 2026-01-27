@@ -215,8 +215,8 @@
         <div class="sr-card">
             <h3 class="sr-section-title">Games Played ({{ games|length }})</h3>
             <div class="sr-games-list" id="games-list">
-                {% for game in games %}
-                <div class="sr-game-item {% if loop.index > 5 %}sr-hidden{% endif %}">
+                {% for game in games|reverse %}
+                <div class="sr-game-item" {% if loop.index > 5 %}style="display:none" data-hidden="true"{% endif %}>
                     <div class="sr-game-date">{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</div>
                     <div class="sr-game-team winners">
                         <span class="sr-game-score">{{ game[4] }}</span>
@@ -258,14 +258,14 @@
         }
         function toggleGames(btn) {
             const list = document.getElementById('games-list');
-            const hidden = list.querySelectorAll('.sr-hidden');
-            if (hidden.length > 0) {
-                hidden.forEach(item => item.classList.remove('sr-hidden'));
+            const hidden = list.querySelectorAll('[data-hidden="true"]');
+            const isHidden = hidden.length > 0 && hidden[0].style.display === 'none';
+            if (isHidden) {
+                hidden.forEach(item => item.style.display = '');
                 btn.textContent = 'Show less';
             } else {
-                const items = list.querySelectorAll('.sr-game-item');
-                items.forEach((item, i) => { if (i >= 5) item.classList.add('sr-hidden'); });
-                btn.textContent = `Show ${items.length - 5} more`;
+                hidden.forEach(item => item.style.display = 'none');
+                btn.textContent = `Show ${hidden.length} more`;
             }
         }
     </script>
