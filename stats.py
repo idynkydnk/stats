@@ -4782,7 +4782,11 @@ def opt_in_ai_emails():
     """Handle opt-in link from AI summary emails"""
     email = request.args.get('email', '').strip()
     
-    if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+    # Handle case where user clicked link in preview (placeholder not replaced)
+    if not email or email == '{{EMAIL_PLACEHOLDER}}' or 'EMAIL_PLACEHOLDER' in email:
+        return render_template('opt_in_error.html', error='This link only works from the actual email. When you receive the AI summary email, the link will be personalized for you.')
+    
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
         return render_template('opt_in_error.html', error='Invalid email address.')
     
     # Store opt-in preference - add note to player with this email
