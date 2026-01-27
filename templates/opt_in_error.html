@@ -1,17 +1,74 @@
-{% extends 'base.html' %}
-
-{% block title %}Opt-In Error{% endblock %}
-
-{% block content %}
-<div style="max-width: 600px; margin: 50px auto; padding: 30px; text-align: center;">
-    <h1 style="color: #ff8686; margin-bottom: 20px;">❌ Error</h1>
-    <p style="color: #ffffff; font-size: 18px; margin-bottom: 30px;">
-        {{ error }}
-    </p>
-    <a href="https://idynkydnk.pythonanywhere.com/dashboard/" 
-       style="display: inline-block; background-color: rgba(174, 238, 152, 0.9); color: #102436; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: bold;">
-        Go to Dashboard
-    </a>
-</div>
-{% endblock %}
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opt-In Error</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1d23 0%, #2d3748 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #e2e8f0;
+        }
+        .card {
+            background: rgba(45, 55, 72, 0.8);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #ff8686;
+        }
+        h1 {
+            color: #ff8686;
+            font-size: 28px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .message {
+            color: #e2e8f0;
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #aeee98 0%, #8ed47a 100%);
+            color: #1a1d23;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(174, 238, 152, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon"><i class="fas fa-exclamation-circle"></i></div>
+        <h1>Oops!</h1>
+        <p class="message">{{ error }}</p>
+        <a href="https://idynkydnk.pythonanywhere.com/" class="btn">
+            <i class="fas fa-chart-bar"></i> View Stats
+        </a>
+    </div>
+</body>
+</html>
