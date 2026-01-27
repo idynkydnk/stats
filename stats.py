@@ -520,6 +520,13 @@ def edit_other_games_redesign(year):
 # REDESIGNED ADD GAME ROUTES
 # ============================================
 
+@app.route('/ai_summary_redesign/')
+@login_required
+def ai_summary_redesign():
+    """Redesigned AI summary page for selecting games to summarize."""
+    games = recent_games(50)  # Get last 50 games
+    return render_template('ai_summary_redesign.html', games=games)
+
 @app.route('/add_game_redesign/', methods=['GET', 'POST'])
 @login_required
 def add_game_redesign():

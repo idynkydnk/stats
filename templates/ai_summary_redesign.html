@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Summary - Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    
+    <!-- Menu Sidebar -->
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close">✕</button>
+        <ul class="menu-list">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
+            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            {% if session.logged_in %}
+            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <style>
+        .menu-toggle {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .menu-toggle:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active { opacity: 1; visibility: visible; }
+        .menu-sidebar {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100%;
+            background: #0f1620;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            padding: 20px;
+            visibility: hidden;
+            overflow-y: auto;
+        }
+        .menu-sidebar.active { right: 0; visibility: visible; }
+        .menu-close {
+            background: none;
+            border: none;
+            color: var(--sr-text);
+            font-size: 20px;
+            cursor: pointer;
+            float: right;
+            margin-bottom: 20px;
+        }
+        .menu-list { list-style: none; padding: 0; margin: 0; clear: both; }
+        .menu-list li { margin: 10px 0; }
+        .menu-list a {
+            display: block;
+            padding: 12px 15px;
+            color: var(--sr-text);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .menu-list a:hover {
+            background: var(--sr-accent-dim);
+            color: var(--sr-accent);
+        }
+        .menu-list a i { margin-right: 10px; width: 16px; }
+
+        .sr-selection-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .sr-select-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .sr-select-btn {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sr-select-btn:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .sr-selected-count {
+            color: var(--sr-accent);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .sr-game-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sr-game-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .sr-game-card.selected {
+            border-color: var(--sr-accent);
+            background: var(--sr-accent-dim);
+        }
+        .sr-game-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--sr-accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .sr-game-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .sr-game-date {
+            font-size: 12px;
+            color: var(--sr-muted);
+            margin-bottom: 4px;
+        }
+        .sr-game-players {
+            font-size: 14px;
+            color: var(--sr-text);
+        }
+        .sr-game-winners {
+            color: var(--sr-win);
+        }
+        .sr-game-losers {
+            color: var(--sr-loss);
+        }
+        .sr-game-score {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sr-text);
+            white-space: nowrap;
+        }
+        .sr-expand-btn {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .sr-expand-btn:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .sr-generate-btn {
+            background: var(--sr-accent);
+            border: none;
+            color: #0b0f14;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sr-generate-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .sr-generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .sr-action-bar {
+            position: sticky;
+            bottom: 0;
+            background: linear-gradient(to top, var(--sr-bg) 80%, transparent);
+            padding: 20px 0;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .sr-hidden-game {
+            display: none;
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <h1 class="sr-title"><i class="fas fa-robot" style="margin-right: 10px; color: var(--sr-accent);"></i>AI Summary</h1>
+            <div class="sr-header-actions">
+                <a href="{{ url_for('index') }}" class="sr-link-btn">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+                <button class="menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i> Menu
+                </button>
+            </div>
+        </header>
+
+        <div class="sr-card">
+            <div class="sr-card-header">
+                <h2 class="sr-card-title">Select Games for AI Summary</h2>
+                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select the games you want included in the AI-generated email summary</p>
+            </div>
+
+            <div class="sr-selection-header">
+                <div class="sr-select-actions">
+                    <button class="sr-select-btn" onclick="selectAll()">Select All</button>
+                    <button class="sr-select-btn" onclick="selectNone()">Clear</button>
+                </div>
+                <span class="sr-selected-count" id="selected-count">0 games selected</span>
+            </div>
+
+            <form id="summary-form" method="POST" action="{{ url_for('preview_ai_summary') }}">
+                <div id="games-container">
+                    {% for game in games %}
+                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                         data-game-id="{{ game[0] }}" 
+                         onclick="toggleGame(this, event)">
+                        <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()">
+                        <div class="sr-game-info">
+                            <div class="sr-game-date">{{ game[1] }}</div>
+                            <div class="sr-game-players">
+                                <span class="sr-game-winners">{{ game[2] }} & {{ game[3] }}</span>
+                                <span style="color: var(--sr-muted);"> vs </span>
+                                <span class="sr-game-losers">{{ game[4] }} & {{ game[5] }}</span>
+                            </div>
+                        </div>
+                        <div class="sr-game-score">{{ game[6] }}-{{ game[7] }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if games|length > 10 %}
+                <button type="button" class="sr-expand-btn" id="expand-btn" onclick="toggleExpand()">
+                    <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                    Show {{ games|length - 10 }} More Games
+                </button>
+                {% endif %}
+
+                <div class="sr-action-bar">
+                    <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                        Generate & Preview Summary
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const totalGames = {{ games|length }};
+        let expanded = false;
+
+        function updateSelectedCount() {
+            const checked = document.querySelectorAll('.sr-game-checkbox:checked').length;
+            document.getElementById('selected-count').textContent = checked + ' game' + (checked !== 1 ? 's' : '') + ' selected';
+            document.getElementById('generate-btn').disabled = checked === 0;
+        }
+
+        function toggleGame(card, event) {
+            if (event.target.type === 'checkbox') return;
+            const checkbox = card.querySelector('.sr-game-checkbox');
+            checkbox.checked = !checkbox.checked;
+            card.classList.toggle('selected', checkbox.checked);
+            updateSelectedCount();
+        }
+
+        function selectAll() {
+            const visibleCards = document.querySelectorAll('.sr-game-card:not(.sr-hidden-game)');
+            visibleCards.forEach(card => {
+                const checkbox = card.querySelector('.sr-game-checkbox');
+                checkbox.checked = true;
+                card.classList.add('selected');
+            });
+            updateSelectedCount();
+        }
+
+        function selectNone() {
+            document.querySelectorAll('.sr-game-card').forEach(card => {
+                const checkbox = card.querySelector('.sr-game-checkbox');
+                checkbox.checked = false;
+                card.classList.remove('selected');
+            });
+            updateSelectedCount();
+        }
+
+        function toggleExpand() {
+            const hiddenGames = document.querySelectorAll('.sr-game-card.sr-hidden-game');
+            const btn = document.getElementById('expand-btn');
+            
+            if (!expanded) {
+                document.querySelectorAll('.sr-game-card').forEach(card => {
+                    card.classList.remove('sr-hidden-game');
+                });
+                btn.innerHTML = '<i class="fas fa-chevron-up" style="margin-right: 6px;"></i>Show Less';
+                expanded = true;
+            } else {
+                document.querySelectorAll('.sr-game-card').forEach((card, index) => {
+                    if (index >= 10) {
+                        card.classList.add('sr-hidden-game');
+                    }
+                });
+                btn.innerHTML = '<i class="fas fa-chevron-down" style="margin-right: 6px;"></i>Show ' + (totalGames - 10) + ' More Games';
+                expanded = false;
+            }
+        }
+
+        // Sync checkbox visual state with card selection
+        document.querySelectorAll('.sr-game-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                this.closest('.sr-game-card').classList.toggle('selected', this.checked);
+                updateSelectedCount();
+            });
+        });
+
+        // Menu toggle
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.add('active');
+            document.getElementById('menu-overlay').classList.add('active');
+        });
+        document.getElementById('menu-close').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.remove('active');
+            document.getElementById('menu-overlay').classList.remove('active');
+        });
+        document.getElementById('menu-overlay').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.remove('active');
+            document.getElementById('menu-overlay').classList.remove('active');
+        });
+    </script>
+</body>
+</html>
