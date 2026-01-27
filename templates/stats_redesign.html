@@ -15,29 +15,9 @@
     <div class="menu-sidebar" id="menu-sidebar">
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
-            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
-            <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-            <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-            {% if session.logged_in %}
-                <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-            {% else %}
-                <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-            {% endif %}
-            {% if session.username == 'kyle' %}
-            <li style="border-top: 1px solid var(--sr-line); margin-top: 12px; padding-top: 12px;"><span style="color: var(--sr-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">New Style Pages</span></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-            <li><a href="{{ url_for('vollis_games_redesign_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Games</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-            <li><a href="{{ url_for('other_games_redesign_default') }}"><i class="fas fa-dice"></i> Other Games</a></li>
-            <li><a href="{{ url_for('add_game_redesign') }}"><i class="fas fa-plus"></i> Add Doubles</a></li>
-            <li><a href="{{ url_for('add_vollis_game_redesign') }}"><i class="fas fa-plus"></i> Add Vollis</a></li>
-            <li><a href="{{ url_for('add_other_game_redesign') }}"><i class="fas fa-plus"></i> Add Other</a></li>
-            <li><a href="{{ url_for('edit_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Doubles</a></li>
-            <li><a href="{{ url_for('edit_vollis_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Vollis</a></li>
-            <li><a href="{{ url_for('edit_other_games_redesign_default') }}"><i class="fas fa-edit"></i> Edit Other</a></li>
-            <li><a href="{{ url_for('player_list_redesign') }}"><i class="fas fa-users"></i> Players</a></li>
-            {% endif %}
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
+            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
         </ul>
     </div>
 
