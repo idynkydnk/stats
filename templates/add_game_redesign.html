@@ -329,7 +329,7 @@ function generateAndEmailSummary() {
     if (!ids.length) { alert('Select at least one game.'); return; }
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/preview_ai_summary';
+    form.action = '/select_ai_prompt/';
     ids.forEach(id => {
         const input = document.createElement('input');
         input.type = 'hidden';

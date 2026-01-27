@@ -877,7 +877,7 @@ function generateAndEmailSummary() {
 
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/preview_ai_summary';
+    form.action = '/select_ai_prompt/';
 
     selectedGameIds.forEach(id => {
         const input = document.createElement('input');
