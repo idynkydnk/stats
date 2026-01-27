@@ -509,6 +509,7 @@
     <script>
         const selectedGameIds = JSON.parse('{{ selected_game_ids_json | safe }}');
         const emailHtml = {{ email_html | tojson | safe }};
+        const emailSubject = {{ subject | tojson | safe }};
         const gameType = {{ game_type | tojson }};
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -683,7 +684,13 @@
             fetch('{{ send_url }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game_ids: selectedGameIds, additional_emails: additionalEmails, selected_emails: selectedEmails })
+                body: JSON.stringify({ 
+                    game_ids: selectedGameIds, 
+                    additional_emails: additionalEmails, 
+                    selected_emails: selectedEmails,
+                    email_html: emailHtml,
+                    subject: emailSubject
+                })
             })
             .then(response => response.json())
             .then(data => {

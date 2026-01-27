@@ -4475,81 +4475,59 @@ Tell the story:"""
 
 @app.route('/generate_and_email_today', methods=['POST'])
 def generate_and_email_today():
-    """Generate AI summary for today's games and email to all players who played"""
+    """Send AI summary email - uses provided HTML from preview instead of regenerating"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
     
     try:
         if request.is_json:
             data = request.get_json() or {}
-            selected_game_ids = data.get('game_ids', [])
             additional_emails = data.get('additional_emails', [])
-            selected_emails = data.get('selected_emails', None)  # None means all
+            selected_emails = data.get('selected_emails', [])
+            provided_html = data.get('email_html', None)
+            provided_subject = data.get('subject', None)
         else:
-            form_ids = request.form.getlist('game_ids')
-            if not form_ids:
-                raw_ids = request.form.get('game_ids', '')
-                form_ids = [gid for gid in raw_ids.split(',') if gid]
-            selected_game_ids = form_ids
             raw_additional = request.form.get('additional_emails', '')
             additional_emails = raw_additional.split(',') if raw_additional else []
-            selected_emails = None
+            selected_emails = []
+            provided_html = None
+            provided_subject = None
 
-        payload = build_doubles_email_payload(selected_game_ids)
+        # Use provided HTML from preview (don't regenerate!)
+        if not provided_html or not provided_subject:
+            return jsonify({'success': False, 'error': 'Missing email content. Please go back and preview again.'}), 400
+
+        # Build list of all recipient emails
+        all_emails = list(selected_emails) if selected_emails else []
         
-        # Filter to only selected emails if specified
-        if selected_emails is not None:
-            payload['all_emails'] = [e for e in payload['all_emails'] if e in selected_emails]
-    except ValueError as ve:
-        message = str(ve)
-        status_code = 404 if 'not found' in message.lower() else 400
-        return jsonify({'success': False, 'error': message}), status_code
+        # Append any additional email addresses provided by the user
+        if additional_emails:
+            for email in additional_emails:
+                if isinstance(email, str):
+                    email = email.strip()
+                    if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) and email not in all_emails:
+                        all_emails.append(email)
+
+        if not all_emails:
+            return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
+
     except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to generate summary: {str(e)}'}), 500
-
-    players = payload['players']
-    players_without_email = payload['players_without_email']
-
-    if not payload['all_emails'] and not additional_emails:
-        error_msg = 'No players with email addresses found in selected games.'
-        if players_without_email:
-            error_msg += f" Players without emails: {', '.join(players_without_email)}"
-        return jsonify({'success': False, 'error': error_msg}), 404
-
-    # Append any additional email addresses provided by the user
-    if additional_emails:
-        extra_cleaned = []
-        for email in additional_emails:
-            if isinstance(email, str):
-                email = email.strip()
-                if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
-                    extra_cleaned.append(email)
-        if extra_cleaned:
-            combined = payload['all_emails'] + extra_cleaned
-            # Remove duplicates while preserving order
-            seen = set()
-            deduped = []
-            for addr in combined:
-                if addr not in seen:
-                    seen.add(addr)
-                    deduped.append(addr)
-            payload['all_emails'] = deduped
+        return jsonify({'success': False, 'error': f'Failed to process request: {str(e)}'}), 500
 
     try:
         # Set sender with display name
         sender_email = app.config['MAIL_DEFAULT_SENDER']
         if '@' in sender_email and not '<' in sender_email:
-            # Format as "Name <email>" if not already formatted
             sender = f"KT Vball Summary <{sender_email}>"
         else:
             sender = sender_email
+        
         # Send individual emails to each recipient with personalized opt-in link
-        # Also BCC idynkydnk@gmail.com to all emails
-        for recipient_email in payload['all_emails']:
+        for recipient_email in all_emails:
             # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
+            html_body_personalized = provided_html.replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
-            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
+            msg = Message(subject=provided_subject, recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
             msg.html = html_body_personalized
             mail.send(msg)
     except Exception as e:
@@ -4557,86 +4535,64 @@ def generate_and_email_today():
 
     return jsonify({
         'success': True,
-        'emails_sent': len(payload['all_emails']),
-        'summary_preview': payload['summary_preview']
+        'emails_sent': len(all_emails)
     })
 
 @app.route('/generate_and_email_today_1v1', methods=['POST'])
 def generate_and_email_today_1v1():
-    """Generate AI summary for today's 1v1 games and email to all players who played"""
+    """Send 1v1 AI summary email - uses provided HTML from preview instead of regenerating"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
     
     try:
         if request.is_json:
             data = request.get_json() or {}
-            selected_game_ids = data.get('game_ids', [])
             additional_emails = data.get('additional_emails', [])
-            selected_emails = data.get('selected_emails', None)  # None means all
+            selected_emails = data.get('selected_emails', [])
+            provided_html = data.get('email_html', None)
+            provided_subject = data.get('subject', None)
         else:
-            form_ids = request.form.getlist('game_ids')
-            if not form_ids:
-                raw_ids = request.form.get('game_ids', '')
-                form_ids = [gid for gid in raw_ids.split(',') if gid]
-            selected_game_ids = form_ids
             raw_additional = request.form.get('additional_emails', '')
             additional_emails = raw_additional.split(',') if raw_additional else []
-            selected_emails = None
+            selected_emails = []
+            provided_html = None
+            provided_subject = None
 
-        payload = build_one_v_one_email_payload(selected_game_ids)
+        # Use provided HTML from preview (don't regenerate!)
+        if not provided_html or not provided_subject:
+            return jsonify({'success': False, 'error': 'Missing email content. Please go back and preview again.'}), 400
+
+        # Build list of all recipient emails
+        all_emails = list(selected_emails) if selected_emails else []
         
-        # Filter to only selected emails if specified
-        if selected_emails is not None:
-            payload['all_emails'] = [e for e in payload['all_emails'] if e in selected_emails]
-    except ValueError as ve:
-        message = str(ve)
-        status_code = 404 if 'not found' in message.lower() else 400
-        return jsonify({'success': False, 'error': message}), status_code
+        # Append any additional email addresses provided by the user
+        if additional_emails:
+            for email in additional_emails:
+                if isinstance(email, str):
+                    email = email.strip()
+                    if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) and email not in all_emails:
+                        all_emails.append(email)
+
+        if not all_emails:
+            return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
+
     except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to generate summary: {str(e)}'}), 500
-
-    players = payload['players']
-    players_without_email = payload['players_without_email']
-
-    if not players and not additional_emails:
-        error_msg = 'No players with email addresses found in selected games.'
-        if players_without_email:
-            error_msg += f" Players without emails: {', '.join(players_without_email)}"
-        return jsonify({'success': False, 'error': error_msg}), 404
-
-    if additional_emails:
-        extra_cleaned = []
-        for email in additional_emails:
-            if isinstance(email, str):
-                email = email.strip()
-                if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
-                    extra_cleaned.append(email)
-        if extra_cleaned:
-            combined = payload['all_emails'] + extra_cleaned
-            seen = set()
-            deduped = []
-            for addr in combined:
-                if addr not in seen:
-                    seen.add(addr)
-                    deduped.append(addr)
-            payload['all_emails'] = deduped
+        return jsonify({'success': False, 'error': f'Failed to process request: {str(e)}'}), 500
 
     try:
         # Set sender with display name
         sender_email = app.config['MAIL_DEFAULT_SENDER']
         if '@' in sender_email and not '<' in sender_email:
-            # Format as "Name <email>" if not already formatted
             sender = f"KT Vball Summary <{sender_email}>"
         else:
             sender = sender_email
         
         # Send individual emails to each recipient with personalized opt-in link
-        # Also BCC idynkydnk@gmail.com to all emails
-        for recipient_email in payload['all_emails']:
+        for recipient_email in all_emails:
             # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
+            html_body_personalized = provided_html.replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
-            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
+            msg = Message(subject=provided_subject, recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
             msg.html = html_body_personalized
             mail.send(msg)
     except Exception as e:
@@ -4644,8 +4600,7 @@ def generate_and_email_today_1v1():
 
     return jsonify({
         'success': True,
-        'emails_sent': len(payload['all_emails']),
-        'summary_preview': payload['summary_preview']
+        'emails_sent': len(all_emails)
     })
 
 
