@@ -543,13 +543,14 @@ def preview_ai_summary_with_prompt():
     """Generate AI summary with selected prompt style."""
     selected_game_ids = request.form.getlist('game_ids')
     prompt_style = request.form.get('prompt_style', 'announcer')
+    custom_prompt = request.form.get('custom_prompt', '')
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary_redesign'))
 
     try:
-        payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style)
+        payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
     except ValueError as ve:
         flash(str(ve), 'error')
         return redirect(url_for('ai_summary_redesign'))
@@ -4007,7 +4008,7 @@ def create_one_v_one_email_html(summary, stats, games):
     return html_body
 
 
-def build_doubles_email_payload(selected_game_ids, prompt_style='announcer'):
+def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
     import google.generativeai as genai
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
@@ -4038,12 +4039,6 @@ Find the humor in the games - funny moments, ironic outcomes, playful observatio
 Keep it lighthearted and fun. Everyone should laugh, including those being teased.
 Keep it to 2-3 compact paragraphs.""",
 
-        'coach': """You are a supportive team coach writing an encouraging recap email.
-Highlight improvements, great teamwork, and effort regardless of outcomes.
-Be motivational and constructive. Celebrate wins AND good effort in losses.
-Build team morale and camaraderie. Make everyone feel valued and motivated to play again.
-Keep it to 2-3 compact paragraphs.""",
-
         'roast': """You are a brutal roast comedian writing a savage recap email.
 Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
 Mock the winners for barely winning, demolish the losers for their failures.
@@ -4051,12 +4046,6 @@ Be creative with your insults - reference specific plays, scores, and failures.
 This is all in good fun but don't hold back. Make it hurt (but funny).
 Keep it to 2-3 compact paragraphs.""",
 
-        'shakespeare': """You are William Shakespeare writing a dramatic theatrical recap email.
-Write in Elizabethan English with thee, thou, hath, doth, wherefore, and other period language.
-Make it dramatic like a Shakespeare play - with heroes, villains, triumph, and tragedy.
-Use poetic flourishes, dramatic declarations, and theatrical flair.
-Reference the games as epic battles and the players as noble warriors or tragic figures.
-Keep it to 2-3 compact paragraphs."""
     }
 
     api_key = os.environ.get('GEMINI_API_KEY')
@@ -4170,7 +4159,10 @@ Keep it to 2-3 compact paragraphs."""
     model = genai.GenerativeModel('models/gemini-flash-latest')
 
     # Get the prompt style instructions
-    style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
+    if prompt_style == 'custom' and custom_prompt.strip():
+        style_instructions = custom_prompt.strip() + "\nKeep it to 2-3 compact paragraphs."
+    else:
+        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
     
     prompt = f"""{style_instructions}
 
