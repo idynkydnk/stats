@@ -18,6 +18,11 @@
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
             <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
             <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            {% if session.logged_in %}
+            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            {% endif %}
         </ul>
     </div>
 
