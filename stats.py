@@ -4083,6 +4083,72 @@ Keep it to 2-3 compact paragraphs.""",
     
     context = f"Date: {date_str}\n"
     context += f"Total Games: {len(games)}\n\n"
+    
+    # Helper to parse height string like "5'10"" or "6'2"" to inches
+    def parse_height_to_inches(height_str):
+        if not height_str:
+            return None
+        try:
+            # Handle formats like 5'10" or 5'10
+            height_str = height_str.replace('"', '').replace("'", ' ').strip()
+            parts = height_str.split()
+            if len(parts) >= 2:
+                feet = int(parts[0])
+                inches = int(parts[1])
+                return feet * 12 + inches
+            elif len(parts) == 1:
+                return int(parts[0]) * 12  # Just feet
+        except:
+            pass
+        return None
+    
+    # Helper to calculate actual age (accounting for whether birthday has passed)
+    def calculate_age(birth_date_str):
+        try:
+            birth_date = datetime.strptime(birth_date_str[:10], '%Y-%m-%d')
+            today = datetime.now()
+            age = today.year - birth_date.year
+            # Subtract 1 if birthday hasn't occurred yet this year
+            if (today.month, today.day) < (birth_date.month, birth_date.day):
+                age -= 1
+            return age
+        except:
+            return None
+    
+    # First pass: collect all player heights and ages to find outliers
+    player_heights = {}
+    player_ages = {}
+    for stat in stats[:10]:
+        player_name = stat[0]
+        player_info = get_player_by_name(player_name)
+        if player_info:
+            if player_info[4]:
+                height_inches = parse_height_to_inches(player_info[4])
+                if height_inches:
+                    player_heights[player_name] = (height_inches, player_info[4])
+            if player_info[3]:
+                age = calculate_age(player_info[3])
+                if age:
+                    player_ages[player_name] = age
+    
+    # Only mention height if there's a significant outlier (4+ inches from average)
+    height_outliers = set()
+    if len(player_heights) >= 2:
+        heights = [h[0] for h in player_heights.values()]
+        avg_height = sum(heights) / len(heights)
+        for player_name, (height_inches, _) in player_heights.items():
+            if abs(height_inches - avg_height) >= 4:
+                height_outliers.add(player_name)
+    
+    # Only mention age if there's a significant outlier (10+ years from average)
+    age_outliers = set()
+    if len(player_ages) >= 2:
+        ages = list(player_ages.values())
+        avg_age = sum(ages) / len(ages)
+        for player_name, age in player_ages.items():
+            if abs(age - avg_age) >= 10:
+                age_outliers.add(player_name)
+    
     context += "Player Stats (with details & streaks):\n"
     for stat in stats[:10]:
         player_name = stat[0]
@@ -4095,14 +4161,11 @@ Keep it to 2-3 compact paragraphs.""",
         age_str = ""
         height_str = ""
         if player_info:
-            if player_info[3]:
-                try:
-                    birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
-                    age = datetime.now().year - birth_date.year
-                    age_str = f", Age: {age}"
-                except Exception:
-                    pass
-            if player_info[4]:
+            # Only include age if this player is a notable outlier (10+ years from avg)
+            if player_name in age_outliers and player_name in player_ages:
+                age_str = f", Age: {player_ages[player_name]}"
+            # Only include height if this player is a notable outlier (4+ inches from avg)
+            if player_name in height_outliers and player_info[4]:
                 height_str = f", Height: {player_info[4]}"
 
         streak_str = ""
