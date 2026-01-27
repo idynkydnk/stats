@@ -286,7 +286,7 @@
                             {% for player in stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
@@ -330,7 +330,7 @@
                             {% for player in rare_stats %}
                             <tr>
                                 <td class="sr-rank">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
@@ -375,9 +375,9 @@
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
                                 {% if card.is_consolidated %}
-                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=year, name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% else %}
-                                <td class="sr-player"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('player_game_stats', year=display_year|default(year), game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% endif %}
                                 <td class="sr-numeric sr-win">{{ stat[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ stat[2] }}</td>
