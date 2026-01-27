@@ -255,48 +255,13 @@ def login_required(f):
 
 @app.route('/')
 def index():
-    from datetime import datetime
-    
-    games = year_games(str(date.today().year))
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    all_years = grab_all_years()
-    t_stats = todays_stats()
-    games = todays_games()
-    stats = stats_per_year(str(date.today().year), minimum_games)
-    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
-    
-    # Add navigation data for today
-    today = datetime.now().strftime('%Y-%m-%d')
-    previous_date = get_previous_date(today)
-    next_date = get_next_date(today)
-    has_previous = has_games_on_date(previous_date)
-    has_next = has_games_on_date(next_date)
-    
-    return render_template('stats.html', todays_stats=t_stats, stats=stats, games=games, rare_stats=rare_stats, 
-        minimum_games=minimum_games, year=str(date.today().year), all_years=all_years,
-        current_date=today, display_date="Today", previous_date=previous_date, next_date=next_date,
-        has_previous=has_previous, has_next=has_next)
+    """Redirect to the redesigned stats page."""
+    return stats_redesign(str(date.today().year))
 
 @app.route('/stats/<year>/')
 def stats(year):
-    games = year_games(year)
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    all_years = grab_all_years()
-    stats = stats_per_year(year, minimum_games)
-    rare_stats = rare_stats_per_year(year, minimum_games)
-    return render_template('stats.html', all_years=all_years, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games, year=year)
+    """Redirect to the redesigned stats page for the given year."""
+    return stats_redesign(year)
 
 @app.route('/stats/<year>/<date>/')
 def stats_by_date(year, date):
