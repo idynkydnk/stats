@@ -527,6 +527,54 @@ def ai_summary_redesign():
     games = recent_games(50)  # Get last 50 games
     return render_template('ai_summary_redesign.html', games=games)
 
+@app.route('/select_ai_prompt/', methods=['POST'])
+@login_required
+def select_ai_prompt():
+    """Show prompt selection page after selecting games."""
+    selected_game_ids = request.form.getlist('game_ids')
+    if not selected_game_ids:
+        flash('Please select at least one game.', 'error')
+        return redirect(url_for('ai_summary_redesign'))
+    return render_template('select_prompt_redesign.html', game_ids=selected_game_ids)
+
+@app.route('/preview_ai_summary_with_prompt/', methods=['POST'])
+@login_required
+def preview_ai_summary_with_prompt():
+    """Generate AI summary with selected prompt style."""
+    selected_game_ids = request.form.getlist('game_ids')
+    prompt_style = request.form.get('prompt_style', 'announcer')
+    
+    if not selected_game_ids:
+        flash('Please select at least one game.', 'error')
+        return redirect(url_for('ai_summary_redesign'))
+
+    try:
+        payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style)
+    except ValueError as ve:
+        flash(str(ve), 'error')
+        return redirect(url_for('ai_summary_redesign'))
+    except Exception as e:
+        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
+        return redirect(url_for('ai_summary_redesign'))
+
+    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
+    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
+
+    return render_template(
+        'preview_ai_summary_redesign.html',
+        game_type='doubles',
+        header_title="Doubles AI Summary Preview",
+        subject=payload['subject'],
+        email_html=payload['html_body'],
+        players=payload['players'],
+        players_without_email=payload['players_without_email'],
+        selected_game_ids_json=selected_game_ids_json,
+        selected_game_ids=selected_game_ids,
+        send_url=url_for('generate_and_email_today'),
+        back_url=url_for('ai_summary_redesign'),
+        can_send=can_send
+    )
+
 @app.route('/add_game_redesign/', methods=['GET', 'POST'])
 @login_required
 def add_game_redesign():
@@ -3959,10 +4007,43 @@ def create_one_v_one_email_html(summary, stats, games):
     return html_body
 
 
-def build_doubles_email_payload(selected_game_ids):
+def build_doubles_email_payload(selected_game_ids, prompt_style='announcer'):
     import google.generativeai as genai
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
+
+    # Define different prompt styles
+    PROMPT_STYLES = {
+        'announcer': """You are an energetic sports announcer writing an exciting recap email.
+Use dramatic language, exciting calls, and hype up big plays and close games.
+Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
+Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
+Keep it to 2-3 compact paragraphs.""",
+
+        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
+Focus on the numbers: win percentages, point differentials, streaks, and trends.
+Draw insights from the statistics and explain what they mean for each player's performance.
+Be precise and factual, but still engaging. Reference specific stats to back up your observations.
+Keep it to 2-3 compact paragraphs.""",
+
+        'storyteller': """You are a sports storyteller writing a narrative recap email.
+Weave the games into an engaging story with character development and dramatic tension.
+Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
+Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
+Keep it to 2-3 compact paragraphs.""",
+
+        'comedian': """You are a comedy writer doing a sports recap email.
+Be playful, witty, and don't be afraid to gently roast players (in good fun).
+Find the humor in the games - funny moments, ironic outcomes, playful observations.
+Keep it lighthearted and fun. Everyone should laugh, including those being teased.
+Keep it to 2-3 compact paragraphs.""",
+
+        'coach': """You are a supportive team coach writing an encouraging recap email.
+Highlight improvements, great teamwork, and effort regardless of outcomes.
+Be motivational and constructive. Celebrate wins AND good effort in losses.
+Build team morale and camaraderie. Make everyone feel valued and motivated to play again.
+Keep it to 2-3 compact paragraphs."""
+    }
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -4074,16 +4155,20 @@ def build_doubles_email_payload(selected_game_ids):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('models/gemini-flash-latest')
 
-    prompt = f"""You are writing a single daily recap email for a group of volleyball players.
- Highlight key results, standout performances, surprising statistics, and any notable streaks or historical context.
- Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks. 
- Only quote a comment if it is already in the data enclosed in quotation marks.
- Weave any comments smoothly into the narrative.
- Keep the tone energetic, friendly, and easy to read in 2-3 compact paragraphs.
+    # Get the prompt style instructions
+    style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
+    
+    prompt = f"""{style_instructions}
+
+Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
+Only quote a comment if it is already in the data enclosed in quotation marks.
+Weave any comments smoothly into the narrative.
+
+Here is the game data:
 
 {context}
 
-Daily recap:"""
+Write the recap:"""
     response = model.generate_content(prompt)
     summary = getattr(response, 'text', '') or ''
 

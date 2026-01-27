@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select AI Style - Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    
+    <!-- Menu Sidebar -->
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close">✕</button>
+        <ul class="menu-list">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
+            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            {% if session.logged_in %}
+            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <style>
+        .menu-toggle {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .menu-toggle:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active { opacity: 1; visibility: visible; }
+        .menu-sidebar {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100%;
+            background: #0f1620;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            padding: 20px;
+            visibility: hidden;
+            overflow-y: auto;
+        }
+        .menu-sidebar.active { right: 0; visibility: visible; }
+        .menu-close {
+            background: none;
+            border: none;
+            color: var(--sr-text);
+            font-size: 20px;
+            cursor: pointer;
+            float: right;
+            margin-bottom: 20px;
+        }
+        .menu-list { list-style: none; padding: 0; margin: 0; clear: both; }
+        .menu-list li { margin: 10px 0; }
+        .menu-list a {
+            display: block;
+            padding: 12px 15px;
+            color: var(--sr-text);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .menu-list a:hover {
+            background: var(--sr-accent-dim);
+            color: var(--sr-accent);
+        }
+        .menu-list a i { margin-right: 10px; width: 16px; }
+
+        .sr-prompt-card {
+            background: var(--sr-panel);
+            border: 2px solid var(--sr-line);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sr-prompt-card:hover {
+            border-color: rgba(102, 217, 239, 0.3);
+            background: rgba(102, 217, 239, 0.05);
+        }
+        .sr-prompt-card.selected {
+            border-color: var(--sr-accent);
+            background: var(--sr-accent-dim);
+        }
+        .sr-prompt-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .sr-prompt-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .sr-prompt-icon.announcer { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .sr-prompt-icon.analyst { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .sr-prompt-icon.storyteller { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .sr-prompt-icon.comedian { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+        .sr-prompt-icon.coach { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .sr-prompt-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--sr-text);
+        }
+        .sr-prompt-subtitle {
+            font-size: 12px;
+            color: var(--sr-muted);
+        }
+        .sr-prompt-description {
+            font-size: 13px;
+            color: var(--sr-muted);
+            line-height: 1.5;
+        }
+        .sr-prompt-example {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--sr-text);
+            font-style: italic;
+            line-height: 1.5;
+            border-left: 3px solid var(--sr-accent);
+        }
+        .sr-generate-btn {
+            background: var(--sr-accent);
+            border: none;
+            color: #0b0f14;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .sr-generate-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .sr-generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .sr-back-btn {
+            background: transparent;
+            border: 1px solid var(--sr-line);
+            color: var(--sr-text);
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-left: 12px;
+        }
+        .sr-back-btn:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .sr-action-bar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .sr-games-info {
+            background: var(--sr-accent-dim);
+            border: 1px solid rgba(102, 217, 239, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--sr-accent);
+        }
+        .sr-games-info i {
+            font-size: 16px;
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <h1 class="sr-title"><i class="fas fa-magic" style="margin-right: 10px; color: var(--sr-accent);"></i>Choose AI Style</h1>
+            <div class="sr-header-actions">
+                <button class="menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i> Menu
+                </button>
+            </div>
+        </header>
+
+        <div class="sr-card">
+            <div class="sr-games-info">
+                <i class="fas fa-gamepad"></i>
+                <span>{{ game_ids|length }} game{{ 's' if game_ids|length != 1 else '' }} selected</span>
+            </div>
+
+            <h2 class="sr-card-title">Select Writing Style</h2>
+            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Choose how you want the AI to write your email summary</p>
+
+            <div id="prompt-options">
+                <div class="sr-prompt-card" data-prompt="announcer" onclick="selectPrompt('announcer')">
+                    <div class="sr-prompt-header">
+                        <div class="sr-prompt-icon announcer"><i class="fas fa-microphone-alt"></i></div>
+                        <div>
+                            <div class="sr-prompt-title">Sports Announcer</div>
+                            <div class="sr-prompt-subtitle">Energetic play-by-play style</div>
+                        </div>
+                    </div>
+                    <div class="sr-prompt-description">High-energy commentary like you're hearing it live on ESPN. Dramatic moments, exciting calls, and hype for big plays.</div>
+                    <div class="sr-prompt-example">"And DOWN goes the championship point! Kyle and Dan have done it again, folks! What a SPECTACULAR showing from these two..."</div>
+                </div>
+
+                <div class="sr-prompt-card" data-prompt="analyst" onclick="selectPrompt('analyst')">
+                    <div class="sr-prompt-header">
+                        <div class="sr-prompt-icon analyst"><i class="fas fa-chart-line"></i></div>
+                        <div>
+                            <div class="sr-prompt-title">Stats Analyst</div>
+                            <div class="sr-prompt-subtitle">Data-driven breakdown</div>
+                        </div>
+                    </div>
+                    <div class="sr-prompt-description">Deep dive into the numbers. Win percentages, point differentials, streaks, and statistical trends that tell the real story.</div>
+                    <div class="sr-prompt-example">"The data doesn't lie: with a +12 point differential and 75% win rate, James has been statistically dominant this session..."</div>
+                </div>
+
+                <div class="sr-prompt-card" data-prompt="storyteller" onclick="selectPrompt('storyteller')">
+                    <div class="sr-prompt-header">
+                        <div class="sr-prompt-icon storyteller"><i class="fas fa-book-open"></i></div>
+                        <div>
+                            <div class="sr-prompt-title">Storyteller</div>
+                            <div class="sr-prompt-subtitle">Narrative-driven recap</div>
+                        </div>
+                    </div>
+                    <div class="sr-prompt-description">Weaves the games into an engaging story with character arcs, rivalries, and dramatic tension. Like reading a sports novel.</div>
+                    <div class="sr-prompt-example">"It was a tale of redemption. After last week's crushing defeat, the unlikely duo stepped onto the court with something to prove..."</div>
+                </div>
+
+                <div class="sr-prompt-card" data-prompt="comedian" onclick="selectPrompt('comedian')">
+                    <div class="sr-prompt-header">
+                        <div class="sr-prompt-icon comedian"><i class="fas fa-laugh-beam"></i></div>
+                        <div>
+                            <div class="sr-prompt-title">Comedy Writer</div>
+                            <div class="sr-prompt-subtitle">Funny and lighthearted</div>
+                        </div>
+                    </div>
+                    <div class="sr-prompt-description">Playful roasts, witty observations, and good-natured jokes about the day's action. Nobody is safe from a gentle ribbing.</div>
+                    <div class="sr-prompt-example">"In what can only be described as a masterclass in 'how not to serve,' the losing team somehow invented three new ways to hit the net..."</div>
+                </div>
+
+                <div class="sr-prompt-card" data-prompt="coach" onclick="selectPrompt('coach')">
+                    <div class="sr-prompt-header">
+                        <div class="sr-prompt-icon coach"><i class="fas fa-clipboard"></i></div>
+                        <div>
+                            <div class="sr-prompt-title">Team Coach</div>
+                            <div class="sr-prompt-subtitle">Motivational and constructive</div>
+                        </div>
+                    </div>
+                    <div class="sr-prompt-description">Encouraging tone highlighting improvements, teamwork, and areas of growth. Celebrates effort and builds team morale.</div>
+                    <div class="sr-prompt-example">"Great hustle out there today, team! I saw real improvement in communication and court coverage. Keep building on that energy..."</div>
+                </div>
+            </div>
+
+            <form id="generate-form" method="POST" action="{{ url_for('preview_ai_summary_with_prompt') }}">
+                {% for gid in game_ids %}
+                <input type="hidden" name="game_ids" value="{{ gid }}">
+                {% endfor %}
+                <input type="hidden" name="prompt_style" id="selected-prompt" value="">
+                
+                <div class="sr-action-bar">
+                    <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
+                        <i class="fas fa-magic"></i> Generate Summary
+                    </button>
+                    <a href="{{ url_for('ai_summary_redesign') }}" class="sr-back-btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let selectedPrompt = null;
+
+        function selectPrompt(promptId) {
+            // Remove selection from all cards
+            document.querySelectorAll('.sr-prompt-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Select the clicked card
+            const card = document.querySelector(`.sr-prompt-card[data-prompt="${promptId}"]`);
+            if (card) {
+                card.classList.add('selected');
+            }
+            
+            selectedPrompt = promptId;
+            document.getElementById('selected-prompt').value = promptId;
+            document.getElementById('generate-btn').disabled = false;
+        }
+
+        // Menu toggle
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.add('active');
+            document.getElementById('menu-overlay').classList.add('active');
+        });
+        document.getElementById('menu-close').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.remove('active');
+            document.getElementById('menu-overlay').classList.remove('active');
+        });
+        document.getElementById('menu-overlay').addEventListener('click', function() {
+            document.getElementById('menu-sidebar').classList.remove('active');
+            document.getElementById('menu-overlay').classList.remove('active');
+        });
+    </script>
+</body>
+</html>

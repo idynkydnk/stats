@@ -291,7 +291,7 @@
                 <span class="sr-selected-count" id="selected-count">0 games selected</span>
             </div>
 
-            <form id="summary-form" method="POST" action="{{ url_for('preview_ai_summary') }}">
+            <form id="summary-form" method="POST" action="{{ url_for('select_ai_prompt') }}">
                 <div id="games-container">
                     {% for game in games %}
                     <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
