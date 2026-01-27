@@ -4171,7 +4171,9 @@ Keep it to 2-3 compact paragraphs.""",
         streak_str = ""
         if player_name in streaks_dict:
             streak_info = streaks_dict[player_name]
-            streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
+            # Only mention streaks of 3+ games - shorter isn't interesting
+            if streak_info['length'] >= 3:
+                streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
 
         context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
 
