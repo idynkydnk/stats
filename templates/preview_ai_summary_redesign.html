@@ -109,6 +109,8 @@
             border-radius: 10px;
             padding: 12px 16px;
             margin-bottom: 8px;
+        }
+        .sr-recipient-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -126,9 +128,40 @@
             font-size: 13px;
             color: var(--sr-muted);
         }
+        .sr-recipient-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .sr-recipient-check {
             color: var(--sr-win);
             font-size: 16px;
+        }
+        .sr-edit-btn {
+            background: transparent;
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .sr-edit-btn:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .sr-recipient-form {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--sr-line);
+        }
+        .sr-recipient-form.show {
+            display: block;
         }
         .sr-missing-card {
             background: var(--sr-panel);
@@ -352,12 +385,41 @@
             {% if players %}
             <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email ({{ players|length }})</p>
             {% for player in players %}
-            <div class="sr-recipient-card">
-                <div class="sr-recipient-info">
-                    <div class="sr-recipient-name">{{ player.name }}</div>
-                    <div class="sr-recipient-email">{{ player.email }}</div>
+            <div class="sr-recipient-card" id="recipient-card-{{ loop.index0 }}">
+                <div class="sr-recipient-header">
+                    <div class="sr-recipient-info">
+                        <div class="sr-recipient-name">{{ player.name }}</div>
+                        <div class="sr-recipient-email" id="recipient-email-display-{{ loop.index0 }}">{{ player.email }}</div>
+                    </div>
+                    <div class="sr-recipient-actions">
+                        <button class="sr-edit-btn" onclick="toggleRecipientEdit({{ loop.index0 }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <i class="fas fa-check-circle sr-recipient-check"></i>
+                    </div>
                 </div>
-                <i class="fas fa-check-circle sr-recipient-check"></i>
+                <div class="sr-recipient-form" id="recipient-form-{{ loop.index0 }}">
+                    <div class="sr-player-form">
+                        <div class="sr-form-field wide">
+                            <label>Email Address</label>
+                            <input type="email" id="recipient-email-{{ loop.index0 }}" value="{{ player.email }}" placeholder="player@example.com">
+                        </div>
+                        <div class="sr-form-field">
+                            <label>Birthday</label>
+                            <input type="date" id="recipient-birthday-{{ loop.index0 }}">
+                        </div>
+                        <div class="sr-form-field">
+                            <label>Height</label>
+                            <input type="text" id="recipient-height-{{ loop.index0 }}" placeholder="5'10&quot;">
+                        </div>
+                    </div>
+                    <button class="sr-save-btn" onclick="saveRecipient('{{ player.name }}', {{ loop.index0 }})">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <div class="sr-saved-indicator" id="recipient-saved-{{ loop.index0 }}">
+                        <i class="fas fa-check-circle"></i> Saved!
+                    </div>
+                </div>
             </div>
             {% endfor %}
             {% else %}
@@ -444,6 +506,60 @@
 
         function refreshPreview() {
             document.getElementById('refresh-form').submit();
+        }
+
+        function toggleRecipientEdit(index) {
+            const form = document.getElementById('recipient-form-' + index);
+            form.classList.toggle('show');
+        }
+
+        function saveRecipient(playerName, index) {
+            const email = document.getElementById('recipient-email-' + index).value.trim();
+            const birthday = document.getElementById('recipient-birthday-' + index).value;
+            const height = document.getElementById('recipient-height-' + index).value.trim();
+
+            if (!email) {
+                alert('Email is required for recipients.');
+                return;
+            }
+
+            const btn = event.target.closest('.sr-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            fetch('{{ url_for("api_update_player_info") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    player_name: playerName,
+                    email: email,
+                    birthday: birthday || null,
+                    height: height || null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('recipient-saved-' + index).classList.add('show');
+                    document.getElementById('recipient-email-display-' + index).textContent = email;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+                    setTimeout(() => {
+                        document.getElementById('recipient-form-' + index).classList.remove('show');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                        document.getElementById('recipient-saved-' + index).classList.remove('show');
+                    }, 1500);
+                } else {
+                    alert('Error: ' + (data.error || 'Unable to save.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+            });
         }
 
         function savePlayer(playerName, index) {
