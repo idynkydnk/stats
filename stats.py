@@ -853,66 +853,7 @@ def games_by_year(year):
 @app.route('/add_game/', methods=('GET', 'POST'))
 @login_required
 def add_game():
-    games = year_games(str(date.today().year))
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    stats = stats_per_year(str(date.today().year), minimum_games)
-    rare_stats = rare_stats_per_year(str(date.today().year), minimum_games)
-
-    w_scores = winners_scores()
-    l_scores = losers_scores()
-    games = year_games('All years')
-    players = all_players(games)
-    t_stats = todays_stats()
-    games = todays_games()
-    year = str(date.today().year)
-    if request.method == 'POST':
-        winner1 = request.form['winner1'].strip()
-        winner2 = request.form['winner2'].strip()
-        loser1 = request.form['loser1'].strip()
-        loser2 = request.form['loser2'].strip()
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-        comments = request.form.get('comments', '').strip()
-
-        if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
-            flash('All fields required!')
-        elif int(winner_score) <= int(loser_score):
-            flash('Winner score is less than loser score!')
-        elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
-            flash('Two names are the same!')
-        else:
-            # Ensure each player exists in the database
-            from player_functions import get_player_by_name, add_new_player
-            for player_name in [winner1, winner2, loser1, loser2]:
-                if player_name and not get_player_by_name(player_name):
-                    add_new_player(player_name)
-
-            add_game_stats([get_user_now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
-                winner_score, loser_score, get_user_now(), comments])
-            
-            # Clear stats cache after adding a game
-            clear_stats_cache()
-            
-            # Log the action for notifications
-            user = session.get('username', 'unknown')
-            details = f"Winners: {winner1.strip()}, {winner2.strip()}; Losers: {loser1.strip()}, {loser2.strip()}; Score: {winner_score}-{loser_score}"
-            log_user_action(user, 'Added doubles game', details)
-            
-            # Update KOBs after adding game
-            update_kobs()
-            
-            return redirect(url_for('add_game'))
-
-    recent = recent_games(10)
-    return render_template('add_game.html', todays_stats=t_stats, games=games, players=players, 
-        w_scores=w_scores, l_scores=l_scores, year=year, stats=stats, rare_stats=rare_stats, minimum_games=minimum_games,
-        recent_games=recent)
+    return add_game_redesign()
 
 
 @app.route('/edit_games/')
@@ -1095,34 +1036,7 @@ def vollis():
 @app.route('/add_vollis_game/', methods=('GET', 'POST'))
 @login_required
 def add_vollis_game():
-    games = vollis_year_games('All years')
-    players = all_vollis_players(games)
-    stats = todays_vollis_stats()
-    games = todays_vollis_games()
-    year = str(date.today().year)
-    winning_scores = vollis_winning_scores()
-    losing_scores = vollis_losing_scores()
-    if request.method == 'POST':
-        winner = request.form['winner']
-        loser = request.form['loser']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-
-        if not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
-        else:
-            add_vollis_stats([get_user_now(), winner, loser, winner_score, loser_score, get_user_now()])
-            
-            # Log the action for notifications
-            user = session.get('username', 'unknown')
-            details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
-            log_user_action(user, 'Added vollis game', details)
-            
-            return redirect(url_for('add_vollis_game'))
-
-    recent = recent_vollis_games(10)
-    return render_template('add_vollis_game.html', year=year, players=players, todays_stats=stats, games=games,
-        winning_scores=winning_scores, losing_scores=losing_scores, recent_games=recent)
+    return add_vollis_game_redesign()
 
 
 @app.route('/edit_vollis_games/')
@@ -1846,86 +1760,7 @@ def volleyball_player_stats(year, name):
 @app.route('/add_other_game/', methods=('GET', 'POST'))
 @login_required
 def add_other_game():
-    from other_functions import convert_other_ampm, all_combined_players
-    
-    # Get helper data using the old format
-    games_dict = other_year_games('All years')
-    game_types = other_game_types(games_dict)
-    game_names = other_game_names(games_dict)
-    players = all_combined_players()
-    stats = todays_other_stats()
-    games = todays_other_games()  # Today's games for display
-    year = str(date.today().year)
-    winning_scores = other_winning_scores()
-    losing_scores = other_losing_scores()
-    if request.method == 'POST':
-        game_type = request.form.get('game_type', '')
-        game_name = request.form.get('game_name', '')
-        score_type = request.form.get('score_type', 'individual') or 'individual'
-        winners = []
-        winner_scores = []
-        losers = []
-        loser_scores = []
-        team_winner_score = None
-        team_loser_score = None
-
-        # Collect player names
-        for i in range(1, 16):
-            winner_name = request.form.get(f'winner{i}', '').strip()
-            if winner_name:
-                winners.append(winner_name)
-                if score_type == 'individual':
-                    winner_score_value = request.form.get(f'winner{i}_score', '').strip()
-                    winner_scores.append(winner_score_value)
-                else:
-                    winner_scores.append('')  # Empty individual scores for team games
-
-        for i in range(1, 16):
-            loser_name = request.form.get(f'loser{i}', '').strip()
-            if loser_name:
-                losers.append(loser_name)
-                if score_type == 'individual':
-                    loser_score_value = request.form.get(f'loser{i}_score', '').strip()
-                    loser_scores.append(loser_score_value)
-                else:
-                    loser_scores.append('')  # Empty individual scores for team games
-
-        # Get team scores if team mode
-        if score_type == 'team':
-            team_winner_score = request.form.get('winner_score', '').strip()
-            team_loser_score = request.form.get('loser_score', '').strip()
-
-        comment = request.form.get('comment', '')
-
-        if not game_type or not game_name or not winners or not losers:
-            flash('Some fields missing!')
-        else:
-            add_other_stats(
-                get_user_now(),
-                game_type,
-                game_name,
-                winners,
-                winner_scores,
-                losers,
-                loser_scores,
-                comment,
-                get_user_now(),
-                team_winner_score,
-                team_loser_score
-            )
-            
-            # Log the action for notifications
-            user = session.get('username', 'unknown')
-            winners_str = ', '.join(winners)
-            losers_str = ', '.join(losers)
-            details = f"Game: {game_type} - {game_name}; Winners: {winners_str}; Losers: {losers_str}"
-            log_user_action(user, 'Added other game', details)
-            
-            return redirect(url_for('add_other_game'))
-
-    recent = recent_other_games(10)
-    return render_template('add_other_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
-        winning_scores=winning_scores, losing_scores=losing_scores, recent_games=recent)
+    return add_other_game_redesign()
 
 
 @app.route('/edit_other_games/')
