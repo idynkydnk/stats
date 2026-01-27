@@ -246,10 +246,8 @@ def login_required(f):
                 # Invalid or expired token, clear the cookie
                 response = make_response(redirect(url_for('login', next=request.url)))
                 response.set_cookie('remember_token', '', expires=0)
-                flash('Please log in to access this page.', 'error')
                 return response
         
-        flash('Please log in to access this page.', 'error')
         return redirect(url_for('login', next=request.url))
     return decorated_function
 
