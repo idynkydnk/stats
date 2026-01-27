@@ -4175,7 +4175,9 @@ Keep it to 2-3 compact paragraphs.""",
             if streak_info['length'] >= 3:
                 streak_str = f", Current Streak: {streak_info['length']} {streak_info['type']}s"
 
-        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
+        # Only show point differential if it's significant (+/- 5 or more)
+        diff_str = f", Point Diff: {differential:+d}" if abs(differential) >= 5 else ""
+        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%){diff_str}{age_str}{height_str}{streak_str}\n"
 
     # Get earliest game date for historical queries
     earliest_game_date = min(raw_game[1] for raw_game in raw_games)
@@ -4203,7 +4205,9 @@ Keep it to 2-3 compact paragraphs.""",
                   team1[0], team1[1], team1[1], team1[0], earliest_game_date))
         team2_wins = cur.fetchone()[0]
 
-        if team1_wins > 0 or team2_wins > 0:
+        # Only mention historical record if teams have played 3+ times
+        total_games = team1_wins + team2_wins
+        if total_games >= 3:
             context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
 
     context += "\nGames Played (in chronological order):\n"
@@ -4211,13 +4215,10 @@ Keep it to 2-3 compact paragraphs.""",
         winners = f"{game[2]} & {game[3]}"
         losers = f"{game[5]} & {game[6]}"
         score = f"{game[4]}-{game[7]}"
-        time_str = ""
-        if len(game[1]) > 10:
-            time_str = f" ({game[1][11:19]})"
         comment_str = ""
         if len(game) > 9 and game[9]:
             comment_str = f" - Comment: {game[9]}"
-        context += f"- {winners} def. {losers} ({score}){time_str}{comment_str}\n"
+        context += f"- {winners} def. {losers} ({score}){comment_str}\n"
 
     import google.generativeai as genai
     genai.configure(api_key=api_key)
