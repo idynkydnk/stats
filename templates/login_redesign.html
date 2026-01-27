@@ -134,6 +134,9 @@
             </div>
             
             <form method="POST" class="sr-login-form">
+                {% if request.args.get('next') %}
+                <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+                {% endif %}
                 <div class="sr-form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required autofocus placeholder="Enter username">

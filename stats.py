@@ -244,13 +244,13 @@ def login_required(f):
                 return f(*args, **kwargs)
             else:
                 # Invalid or expired token, clear the cookie
-                response = make_response(redirect(url_for('login')))
+                response = make_response(redirect(url_for('login', next=request.url)))
                 response.set_cookie('remember_token', '', expires=0)
                 flash('Please log in to access this page.', 'error')
                 return response
         
         flash('Please log in to access this page.', 'error')
-        return redirect(url_for('login'))
+        return redirect(url_for('login', next=request.url))
     return decorated_function
 
 @app.route('/')
@@ -2045,6 +2045,9 @@ def player_game_stats(year, game_name, player_name):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Get the 'next' parameter for redirect after login
+    next_url = request.args.get('next')
+    
     # Check if user is already logged in via remember me cookie
     if not session.get('logged_in'):
         auth_token = request.cookies.get('remember_token')
@@ -2055,12 +2058,14 @@ def login():
                 session['logged_in'] = True
                 session['username'] = username
                 flash(f'Welcome back, {username}!', 'success')
-                return redirect(url_for('index'))
+                # Redirect to next_url if provided, otherwise index
+                return redirect(next_url if next_url else url_for('index'))
     
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         remember_me = request.form.get('remember_me') == 'on'
+        next_url = request.form.get('next')  # Get from hidden form field
         
         if username in USERS and USERS[username] == password:
             session['logged_in'] = True
@@ -2073,7 +2078,9 @@ def login():
                 if notifications:
                     flash(f'You have {len(notifications)} unread notification(s) from other users. Check the notifications menu.', 'info')
             
-            response = make_response(redirect(url_for('index')))
+            # Redirect to next_url if provided, otherwise index
+            redirect_url = next_url if next_url else url_for('index')
+            response = make_response(redirect(redirect_url))
             
             # Set remember me cookie if requested
             if remember_me:
