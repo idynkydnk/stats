@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }} Doubles Stats</title>
+    <title>{{ display_year|default(year) }} Doubles Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
 </head>
@@ -193,7 +193,7 @@
     <div class="sr-container">
         <!-- Header Section -->
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Stats</h1>
+            <h1 class="sr-title">{{ display_year|default(year) }} Doubles Stats</h1>
             <div class="sr-header-actions">
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
@@ -215,11 +215,8 @@
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
-                        {% if showing_previous_year %}
-                        <option value="{{ url_for('stats_redesign', year=year) }}" selected>{{ year }}</option>
-                        {% endif %}
                         {% for yr in all_years %}
-                        <option value="{{ url_for('stats_redesign', year=yr) }}" {% if yr|string == year|string and not showing_previous_year %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('stats_redesign', year=yr) }}" {% if yr|string == (display_year|default(year))|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
