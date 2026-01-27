@@ -4508,16 +4508,16 @@ def preview_ai_summary():
 
     if not selected_game_ids:
         flash('Please select at least one game to preview the AI summary.', 'error')
-        return redirect(url_for('add_game'))
+        return redirect(url_for('ai_summary_redesign'))
 
     try:
         payload = build_doubles_email_payload(selected_game_ids)
     except ValueError as ve:
         flash(str(ve), 'error')
-        return redirect(url_for('add_game'))
+        return redirect(url_for('ai_summary_redesign'))
     except Exception as e:
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
-        return redirect(url_for('add_game'))
+        return redirect(url_for('ai_summary_redesign'))
 
     selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
 
@@ -4534,7 +4534,7 @@ def preview_ai_summary():
         selected_game_ids_json=selected_game_ids_json,
         selected_game_ids=selected_game_ids,
         send_url=url_for('generate_and_email_today'),
-        back_url=url_for('add_game'),
+        back_url=url_for('ai_summary_redesign'),
         can_send=can_send,
         formatted_date=payload['formatted_date']
     )
