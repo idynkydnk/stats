@@ -3327,228 +3327,205 @@ def format_name_for_email(name):
 
 def create_doubles_email_html(summary, stats, games, date_obj):
     summary_html = summary.replace(chr(10), '<br>') if summary else ''
+    formatted_date = date_obj.strftime('%m/%d/%Y')
 
     html_body = f"""
             <html>
             <head>
                 <style>
                     body {{ 
-                        font-family: 'Open Sans', Arial, Helvetica, sans-serif;
-                        background-color: #1d2025;
-                        color: #ffffff;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                        background-color: #0b0f14;
+                        color: #e4e8eb;
                         padding: 20px;
                         line-height: 1.6;
+                        margin: 0;
                     }}
                     .container {{
                         max-width: 600px;
                         margin: 0 auto;
                     }}
                     h1 {{
-                        color: #aeee98;
+                        color: #66d9ef;
                         text-align: center;
-                        margin-bottom: 30px;
+                        margin-bottom: 24px;
+                        font-size: 22px;
+                        font-weight: 600;
                     }}
                     .card {{
-                        background: linear-gradient(140deg, rgba(34, 52, 70, 0.95), rgba(18, 28, 40, 0.95));
-                        border-radius: 20px;
-                        padding: 24px;
-                        margin-bottom: 22px;
-                        border: 1px solid rgba(174, 238, 152, 0.32);
-                        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+                        background: #131a24;
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin-bottom: 16px;
+                        border: 1px solid rgba(255, 255, 255, 0.08);
                     }}
                     .card h2 {{
                         margin-top: 0;
-                        padding-bottom: 10px;
-                        text-align: center;
-                        font-size: 18px;
-                        font-weight: bold;
-                        margin-bottom: 18px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.6px;
-                        color: #aeee98;
-                        border-bottom: 2px solid rgba(174, 238, 152, 0.45);
-                    }}
-                    .summary-text {{
-                        background: rgba(12, 18, 25, 0.6);
-                        border-radius: 18px;
-                        padding: 16px;
-                        border: 1px solid rgba(174, 238, 152, 0.25);
-                        color: #ffffff;
-                        line-height: 1.7;
-                    }}
-                    .table-wrapper {{
-                        background: rgba(12, 18, 25, 0.6);
-                        border-radius: 18px;
-                        padding: 16px;
-                    }}
-                    .today-stats-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        color: #ffffff;
+                        padding-bottom: 12px;
                         font-size: 14px;
-                        background: rgba(17, 22, 28, 0.6);
-                        border-radius: 18px;
-                        overflow: hidden;
-                        margin-top: 10px;
-                    }}
-                    .today-stats-table thead {{
-                        background: rgba(36, 56, 76, 0.85);
-                    }}
-                    .today-stats-table th {{
-                        padding: 12px 10px;
-                        text-align: center;
-                        font-size: 12px;
-                        font-weight: 700;
+                        font-weight: 600;
+                        margin-bottom: 16px;
                         text-transform: uppercase;
                         letter-spacing: 1px;
-                        color: #dbe2ea;
+                        color: #66d9ef;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                     }}
-                    .today-stats-table td {{
-                        padding: 14px 12px;
+                    .summary-text {{
+                        background: rgba(11, 15, 20, 0.5);
+                        border-radius: 8px;
+                        padding: 16px;
+                        border: 1px solid rgba(255, 255, 255, 0.06);
+                        color: #e4e8eb;
+                        line-height: 1.7;
+                        font-size: 14px;
+                    }}
+                    .stats-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        color: #e4e8eb;
+                        font-size: 13px;
+                    }}
+                    .stats-table thead {{
+                        background: rgba(255, 255, 255, 0.03);
+                    }}
+                    .stats-table th {{
+                        padding: 10px 8px;
                         text-align: center;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                        vertical-align: middle;
+                        font-size: 11px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        color: #8b949e;
                     }}
-                    .today-stats-table tbody tr:last-child td {{
+                    .stats-table td {{
+                        padding: 10px 8px;
+                        text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    }}
+                    .stats-table tbody tr:last-child td {{
                         border-bottom: none;
                     }}
-                    .today-stats-table tbody tr:nth-child(even) {{
-                        background: rgba(36, 56, 76, 0.35);
+                    .stats-table tbody tr:nth-child(odd) {{
+                        background: rgba(255, 255, 255, 0.02);
                     }}
-                    .today-games-table tbody tr:nth-child(even) {{
-                        background: rgba(36, 56, 76, 0.25);
-                    }}
-                    .stats-player-cell {{
-                        text-align: center;
+                    .stats-rank {{
+                        width: 30px;
                         font-weight: 600;
-                        white-space: nowrap;
+                        color: #66d9ef;
                     }}
-                    .stats-player-cell div {{
-                        display: inline-block;
-                        text-align: center;
-                    }}
-                    .stats-rank-cell {{
-                        width: 40px;
-                        font-weight: 700;
-                        color: #aeee98;
-                    }}
-                    .stats-diff-cell {{
-                        font-weight: 600;
+                    .stats-player {{
+                        text-align: left !important;
+                        font-weight: 500;
                     }}
                     .diff-positive {{
-                        color: #aeee98;
+                        color: #4ade80;
                         font-weight: 600;
                     }}
                     .diff-negative {{
-                        color: #ff8686;
+                        color: #f87171;
                         font-weight: 600;
                     }}
-                    .game-item {{
-                        padding: 12px;
-                        border-radius: 8px;
-                        border-left: 4px solid #aeee98;
-                        background-color: rgba(174, 238, 152, 0.05);
-                        margin-bottom: 8px;
-                        color: #ffffff;
-                    }}
-                    .game-item:last-child {{
-                        margin-bottom: 0;
-                    }}
-                    .footer {{
-                        text-align: center;
-                        margin-top: 30px;
-                    }}
-                    .link-button {{
-                        display: inline-block;
-                        background-color: rgba(174, 238, 152, 0.9);
-                        color: #102436;
-                        padding: 12px 24px;
-                        border-radius: 12px;
-                        text-decoration: none;
-                        font-weight: bold;
-                        margin: 5px;
-                        box-shadow: 0 6px 15px rgba(174, 238, 152, 0.25);
-                    }}
-                    .link-button:hover {{
-                        background-color: #c0f7a0;
-                    }}
-                    .today-games-table {{
+                    .games-table {{
                         width: 100%;
                         border-collapse: collapse;
-                        color: #ffffff;
-                        font-size: 14px;
-                        background: rgba(17, 22, 28, 0.6);
-                        border-radius: 18px;
-                        overflow: hidden;
+                        color: #e4e8eb;
+                        font-size: 13px;
                     }}
-                    .today-games-table thead {{
-                        background: rgba(36, 56, 76, 0.85);
+                    .games-table thead {{
+                        background: rgba(255, 255, 255, 0.03);
                     }}
-                    .today-games-table th {{
-                        padding: 12px 10px;
+                    .games-table th {{
+                        padding: 10px 6px;
                         text-align: center;
-                        font-size: 12px;
-                        font-weight: 700;
+                        font-size: 11px;
+                        font-weight: 600;
                         text-transform: uppercase;
-                        letter-spacing: 1px;
-                        color: #dbe2ea;
+                        letter-spacing: 0.5px;
+                        color: #8b949e;
                     }}
-                    .today-games-table td {{
-                        padding: 14px 10px;
+                    .games-table td {{
+                        padding: 10px 6px;
                         text-align: center;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                         vertical-align: middle;
                     }}
-                    .today-games-table tbody tr:last-child td {{
+                    .games-table tbody tr:last-child td {{
                         border-bottom: none;
                     }}
-                    .today-games-table tbody tr:nth-child(even) {{
-                        background: rgba(36, 56, 76, 0.25);
+                    .games-table tbody tr:nth-child(odd) {{
+                        background: rgba(255, 255, 255, 0.02);
                     }}
                     .time-cell {{
-                        font-weight: 600;
-                        color: #aeee98;
-                        font-size: 14px;
+                        font-size: 12px;
+                        color: #8b949e;
                     }}
                     .team-cell {{
                         text-align: center;
                     }}
-                    .player-line {{
+                    .winner-team {{
+                        color: #4ade80;
+                    }}
+                    .loser-team {{
+                        color: #f87171;
+                    }}
+                    .player-name {{
                         font-size: 13px;
-                        font-weight: 600;
-                        color: #ffffff;
-                        margin: 2px 0;
-                        white-space: nowrap;
-                        display: inline-block;
-                        text-align: center;
+                        font-weight: 500;
+                        display: block;
+                        line-height: 1.4;
                     }}
-                    .score-cell {{
-                        width: 42px;
-                    }}
-                    .score-pill {{
-                        display: inline-block;
-                        min-width: 34px;
-                        padding: 6px 10px;
-                        border-radius: 10px;
-                        font-size: 14px;
+                    .score-winner {{
+                        color: #4ade80;
                         font-weight: 700;
-                        letter-spacing: 0.5px;
+                        font-size: 15px;
                     }}
-                    .score-pill.winner {{
-                        background: rgba(76, 175, 80, 0.18);
-                        color: #aeee98;
-                        box-shadow: inset 0 0 0 1px rgba(174, 238, 152, 0.45);
+                    .score-loser {{
+                        color: #f87171;
+                        font-weight: 700;
+                        font-size: 15px;
                     }}
-                    .score-pill.loser {{
-                        background: rgba(244, 67, 54, 0.18);
-                        color: #ff8686;
-                        box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
+                    .footer {{
+                        text-align: center;
+                        margin-top: 24px;
+                        padding-top: 20px;
+                        border-top: 1px solid rgba(255, 255, 255, 0.08);
+                    }}
+                    .link-button {{
+                        display: inline-block;
+                        background-color: #66d9ef;
+                        color: #0b0f14;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        text-decoration: none;
+                        font-weight: 600;
+                        font-size: 14px;
+                    }}
+                    .opt-in-section {{
+                        margin-top: 16px;
+                        padding-top: 16px;
+                        border-top: 1px solid rgba(255, 255, 255, 0.05);
+                    }}
+                    .opt-in-text {{
+                        color: #8b949e;
+                        font-size: 13px;
+                        margin-bottom: 10px;
+                    }}
+                    .opt-in-button {{
+                        display: inline-block;
+                        background-color: rgba(102, 217, 239, 0.15);
+                        color: #66d9ef;
+                        padding: 10px 20px;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        font-weight: 500;
+                        font-size: 13px;
+                        border: 1px solid rgba(102, 217, 239, 0.3);
                     }}
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>🏐 Today's Volleyball Recap</h1>
+                    <h1>Volleyball Recap - {formatted_date}</h1>
                     
                     <div class="card">
                         <h2>AI Summary</h2>
@@ -3559,14 +3536,13 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                     
                     <div class="card">
                         <h2>Player Stats</h2>
-                        <div class="table-wrapper">
-                        <table class="today-stats-table">
+                        <table class="stats-table">
                             <thead>
                                 <tr>
                                     <th>#</th>
                                     <th>Player</th>
-                                    <th>Wins</th>
-                                    <th>Losses</th>
+                                    <th>W</th>
+                                    <th>L</th>
                                     <th>Win %</th>
                                     <th>+/-</th>
                                 </tr>
@@ -3588,36 +3564,33 @@ def create_doubles_email_html(summary, stats, games, date_obj):
             diff_class = "diff-negative"
         else:
             diff_class = ""
-        diff_class_attr = f" {diff_class}" if diff_class else ""
 
         html_body += f"""
                                 <tr>
-                                    <td class="stats-rank-cell">{index}</td>
-                                    <td class="stats-player-cell">{format_name_for_email(player_name)}</td>
+                                    <td class="stats-rank">{index}</td>
+                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
-                                    <td>{win_pct:.1f}%</td>
-                                    <td class="stats-diff-cell{diff_class_attr}">{diff_sign}{differential}</td>
+                                    <td>{win_pct:.0f}%</td>
+                                    <td class="{diff_class}">{diff_sign}{differential}</td>
                                 </tr>
                 """
 
     html_body += """
                             </tbody>
                         </table>
-                        </div>
                     </div>
                     
                     <div class="card">
-                        <h2>Today's Games (""" + str(len(games)) + """)</h2>
-                        <div class="table-wrapper">
-                        <table class="today-games-table">
+                        <h2>Games (""" + str(len(games)) + """)</h2>
+                        <table class="games-table">
                             <thead>
                                 <tr>
                                     <th>Time</th>
                                     <th>Winners</th>
-                                    <th>Score</th>
+                                    <th></th>
                                     <th>Losers</th>
-                                    <th>Score</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3633,45 +3606,41 @@ def create_doubles_email_html(summary, stats, games, date_obj):
             elif parts:
                 time_display = parts[0]
         if not time_display:
-            time_display = "&nbsp;"
+            time_display = "-"
 
-        winner_lines = "".join(
-            f"<div class=\"player-line\">{format_name_for_email(name)}</div>" for name in [game[2], game[3]] if name
-        )
-        loser_lines = "".join(
-            f"<div class=\"player-line\">{format_name_for_email(name)}</div>" for name in [game[5], game[6]] if name
-        )
+        winner1 = format_name_for_email(game[2]) if game[2] else ""
+        winner2 = format_name_for_email(game[3]) if game[3] else ""
+        loser1 = format_name_for_email(game[5]) if game[5] else ""
+        loser2 = format_name_for_email(game[6]) if game[6] else ""
 
         winner_score = game[4] if len(game) > 4 and game[4] is not None else ""
         loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
 
         html_body += f"""
                                 <tr>
-                                    <td class=\"time-cell\">{time_display}</td>
-                                    <td class=\"team-cell\">{winner_lines}</td>
-                                    <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
-                                    <td class=\"team-cell\">{loser_lines}</td>
-                                    <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
+                                    <td class="time-cell">{time_display}</td>
+                                    <td class="team-cell winner-team"><span class="player-name">{winner1}</span><span class="player-name">{winner2}</span></td>
+                                    <td class="score-winner">{winner_score}</td>
+                                    <td class="team-cell loser-team"><span class="player-name">{loser1}</span><span class="player-name">{loser2}</span></td>
+                                    <td class="score-loser">{loser_score}</td>
                                 </tr>
                 """
 
     html_body += """
                             </tbody>
                         </table>
-                        </div>
                     </div>
             """
 
-    url_date = date_obj.strftime('%Y-%m-%d')
     stats_year = date_obj.year
 
     html_body += f"""
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/stats/{stats_year}/" class="link-button">View {stats_year} Doubles Stats</a>
-                    </div>
-                    <div class="footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                        <p style="color: #aeee98; font-size: 14px; margin-bottom: 10px;">Want all future AI summaries?</p>
-                        <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="link-button" style="background-color: rgba(174, 238, 152, 0.7); font-size: 13px; padding: 10px 20px;">Yes, include me</a>
+                        <a href="https://idynkydnk.pythonanywhere.com/stats/{stats_year}/" class="link-button">View {stats_year} Stats</a>
+                        <div class="opt-in-section">
+                            <p class="opt-in-text">Want all future AI summaries?</p>
+                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                        </div>
                     </div>
                 </div>
             </body>
