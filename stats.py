@@ -4538,7 +4538,7 @@ def generate_and_email_today():
             # Replace email placeholder with actual recipient email for personalized opt-in link
             html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
-            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
+            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
             msg.html = html_body_personalized
             mail.send(msg)
     except Exception as e:
@@ -4619,7 +4619,7 @@ def generate_and_email_today_1v1():
             # Replace email placeholder with actual recipient email for personalized opt-in link
             html_body_personalized = payload['html_body'].replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
             
-            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com'])
+            msg = Message(subject=payload['subject'], recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
             msg.html = html_body_personalized
             mail.send(msg)
     except Exception as e:
