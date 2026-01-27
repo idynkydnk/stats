@@ -137,6 +137,19 @@
             color: var(--sr-win);
             font-size: 16px;
         }
+        .sr-recipient-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--sr-win);
+        }
+        .sr-recipient-card.excluded {
+            opacity: 0.5;
+            border-color: var(--sr-line);
+        }
+        .sr-recipient-card.excluded .sr-recipient-check {
+            display: none;
+        }
         .sr-edit-btn {
             background: transparent;
             border: 1px solid var(--sr-line);
@@ -383,10 +396,11 @@
             <h2 class="sr-card-title">Recipients</h2>
             
             {% if players %}
-            <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email ({{ players|length }})</p>
+            <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email (<span id="recipient-count">{{ players|length }}</span>)</p>
             {% for player in players %}
             <div class="sr-recipient-card" id="recipient-card-{{ loop.index0 }}">
                 <div class="sr-recipient-header">
+                    <input type="checkbox" class="sr-recipient-checkbox" id="recipient-checkbox-{{ loop.index0 }}" data-email="{{ player.email }}" checked onchange="toggleRecipientIncluded({{ loop.index0 }})">
                     <div class="sr-recipient-info">
                         <div class="sr-recipient-name">{{ player.name }}</div>
                         <div class="sr-recipient-email" id="recipient-email-display-{{ loop.index0 }}">{{ player.email }}</div>
@@ -513,6 +527,33 @@
             form.classList.toggle('show');
         }
 
+        function toggleRecipientIncluded(index) {
+            const checkbox = document.getElementById('recipient-checkbox-' + index);
+            const card = document.getElementById('recipient-card-' + index);
+            if (checkbox.checked) {
+                card.classList.remove('excluded');
+            } else {
+                card.classList.add('excluded');
+            }
+            updateRecipientCount();
+        }
+
+        function updateRecipientCount() {
+            const checkboxes = document.querySelectorAll('.sr-recipient-checkbox:checked');
+            const countLabel = document.getElementById('recipient-count');
+            if (countLabel) {
+                countLabel.textContent = checkboxes.length;
+            }
+            // Update send button state
+            const sendBtn = document.getElementById('send-btn');
+            const additionalEmails = document.getElementById('additional-emails').value.trim();
+            if (checkboxes.length === 0 && !additionalEmails) {
+                sendBtn.disabled = true;
+            } else {
+                sendBtn.disabled = false;
+            }
+        }
+
         function saveRecipient(playerName, index) {
             const email = document.getElementById('recipient-email-' + index).value.trim();
             const birthday = document.getElementById('recipient-birthday-' + index).value;
@@ -613,7 +654,11 @@
             const btn = document.getElementById('send-btn');
             if (btn.disabled) return;
 
-            if (!confirm('Send this AI summary email to the listed recipients?')) return;
+            // Get selected recipient emails
+            const selectedEmails = [];
+            document.querySelectorAll('.sr-recipient-checkbox:checked').forEach(cb => {
+                selectedEmails.push(cb.dataset.email);
+            });
 
             const additionalField = document.getElementById('additional-emails');
             let additionalEmails = [];
@@ -624,13 +669,21 @@
                     .filter(e => e.length > 0);
             }
 
+            const totalRecipients = selectedEmails.length + additionalEmails.length;
+            if (totalRecipients === 0) {
+                alert('Please select at least one recipient.');
+                return;
+            }
+
+            if (!confirm('Send this AI summary email to ' + totalRecipients + ' recipient(s)?')) return;
+
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
             fetch('{{ send_url }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game_ids: selectedGameIds, additional_emails: additionalEmails })
+                body: JSON.stringify({ game_ids: selectedGameIds, additional_emails: additionalEmails, selected_emails: selectedEmails })
             })
             .then(response => response.json())
             .then(data => {

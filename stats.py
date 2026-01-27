@@ -4484,6 +4484,7 @@ def generate_and_email_today():
             data = request.get_json() or {}
             selected_game_ids = data.get('game_ids', [])
             additional_emails = data.get('additional_emails', [])
+            selected_emails = data.get('selected_emails', None)  # None means all
         else:
             form_ids = request.form.getlist('game_ids')
             if not form_ids:
@@ -4492,8 +4493,13 @@ def generate_and_email_today():
             selected_game_ids = form_ids
             raw_additional = request.form.get('additional_emails', '')
             additional_emails = raw_additional.split(',') if raw_additional else []
+            selected_emails = None
 
         payload = build_doubles_email_payload(selected_game_ids)
+        
+        # Filter to only selected emails if specified
+        if selected_emails is not None:
+            payload['all_emails'] = [e for e in payload['all_emails'] if e in selected_emails]
     except ValueError as ve:
         message = str(ve)
         status_code = 404 if 'not found' in message.lower() else 400
@@ -4504,7 +4510,7 @@ def generate_and_email_today():
     players = payload['players']
     players_without_email = payload['players_without_email']
 
-    if not players:
+    if not payload['all_emails'] and not additional_emails:
         error_msg = 'No players with email addresses found in selected games.'
         if players_without_email:
             error_msg += f" Players without emails: {', '.join(players_without_email)}"
@@ -4566,6 +4572,7 @@ def generate_and_email_today_1v1():
             data = request.get_json() or {}
             selected_game_ids = data.get('game_ids', [])
             additional_emails = data.get('additional_emails', [])
+            selected_emails = data.get('selected_emails', None)  # None means all
         else:
             form_ids = request.form.getlist('game_ids')
             if not form_ids:
@@ -4574,8 +4581,13 @@ def generate_and_email_today_1v1():
             selected_game_ids = form_ids
             raw_additional = request.form.get('additional_emails', '')
             additional_emails = raw_additional.split(',') if raw_additional else []
+            selected_emails = None
 
         payload = build_one_v_one_email_payload(selected_game_ids)
+        
+        # Filter to only selected emails if specified
+        if selected_emails is not None:
+            payload['all_emails'] = [e for e in payload['all_emails'] if e in selected_emails]
     except ValueError as ve:
         message = str(ve)
         status_code = 404 if 'not found' in message.lower() else 400
@@ -4586,7 +4598,7 @@ def generate_and_email_today_1v1():
     players = payload['players']
     players_without_email = payload['players_without_email']
 
-    if not players:
+    if not players and not additional_emails:
         error_msg = 'No players with email addresses found in selected games.'
         if players_without_email:
             error_msg += f" Players without emails: {', '.join(players_without_email)}"
