@@ -238,9 +238,33 @@
         .sr-hidden-game {
             display: none;
         }
+        .sr-flash {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .sr-flash.error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid var(--sr-loss);
+            color: var(--sr-loss);
+        }
+        .sr-flash.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid var(--sr-win);
+            color: var(--sr-win);
+        }
     </style>
 
     <div class="sr-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="sr-flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title"><i class="fas fa-robot" style="margin-right: 10px; color: var(--sr-accent);"></i>AI Summary</h1>
             <div class="sr-header-actions">
