@@ -3992,7 +3992,7 @@ def create_one_v_one_email_html(summary, stats, games):
 
 def build_doubles_email_payload(selected_game_ids):
     import google.generativeai as genai
-    from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days
+    from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
 
     api_key = os.environ.get('GEMINI_API_KEY')
@@ -4002,25 +4002,33 @@ def build_doubles_email_payload(selected_game_ids):
     if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
         raise ValueError('Email not configured.')
 
-    today = date.today().strftime('%Y-%m-%d')
-    stats, all_games = specific_date_stats(today)
+    if not selected_game_ids:
+        raise ValueError('No games selected.')
 
-    if not all_games:
-        raise ValueError(f'No games found for today ({today})')
-
-    selected_ids_set = set(str(gid) for gid in selected_game_ids if gid)
-    if selected_ids_set:
-        games = [game for game in all_games if str(game[0]) in selected_ids_set]
-        if not games:
-            raise ValueError('None of the selected games were found.')
-        stats = calculate_stats_from_games(games)
-    else:
-        games = all_games
+    # Fetch selected games by ID
+    cur = set_cur()
+    placeholders = ','.join('?' * len(selected_game_ids))
+    cur.execute(f"SELECT * FROM games WHERE id IN ({placeholders}) ORDER BY game_date DESC", 
+                [int(gid) for gid in selected_game_ids])
+    raw_games = cur.fetchall()
+    
+    if not raw_games:
+        raise ValueError('None of the selected games were found.')
+    
+    games = convert_ampm(raw_games)
+    stats = calculate_stats_from_games(games)
 
     all_streaks = get_current_streaks_last_365_days()
     streaks_dict = {streak[0]: {'length': streak[1], 'type': streak[2], 'max': streak[3]} for streak in all_streaks}
 
-    context = f"Date: {today}\n"
+    # Get date range from selected games
+    game_dates = sorted(set(game[1].split(' ')[0] for game in games))
+    if len(game_dates) == 1:
+        date_str = game_dates[0]
+    else:
+        date_str = f"{game_dates[0]} to {game_dates[-1]}"
+    
+    context = f"Date: {date_str}\n"
     context += f"Total Games: {len(games)}\n\n"
     context += "Player Stats (with details & streaks):\n"
     for stat in stats[:10]:
@@ -4051,8 +4059,10 @@ def build_doubles_email_payload(selected_game_ids):
 
         context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}{streak_str}\n"
 
+    # Get earliest game date for historical queries
+    earliest_game_date = min(raw_game[1] for raw_game in raw_games)
+    
     context += "\nHistorical Context:\n"
-    cur = set_cur()
     for game in games[:5]:
         team1 = (game[2], game[3])
         team2 = (game[5], game[6])
@@ -4063,7 +4073,7 @@ def build_doubles_email_payload(selected_game_ids):
                   AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
                   AND game_date < ?
             """, (team1[0], team1[1], team1[1], team1[0], 
-                  team2[0], team2[1], team2[1], team2[0], today))
+                  team2[0], team2[1], team2[1], team2[0], earliest_game_date))
         team1_wins = cur.fetchone()[0]
 
         cur.execute("""
@@ -4072,13 +4082,13 @@ def build_doubles_email_payload(selected_game_ids):
                   AND ((loser1 = ? AND loser2 = ?) OR (loser1 = ? AND loser2 = ?))
                   AND game_date < ?
             """, (team2[0], team2[1], team2[1], team2[0],
-                  team1[0], team1[1], team1[1], team1[0], today))
+                  team1[0], team1[1], team1[1], team1[0], earliest_game_date))
         team2_wins = cur.fetchone()[0]
 
         if team1_wins > 0 or team2_wins > 0:
             context += f"- {team1[0]} & {team1[1]} vs {team2[0]} & {team2[1]}: Historical record {team1_wins}-{team2_wins}\n"
 
-    context += "\nGames Played Today (in chronological order):\n"
+    context += "\nGames Played (in chronological order):\n"
     for game in reversed(games[:10]):
         winners = f"{game[2]} & {game[3]}"
         losers = f"{game[5]} & {game[6]}"
@@ -4134,7 +4144,8 @@ Daily recap:"""
         if opt_in_email and opt_in_email not in all_emails:
             all_emails.append(opt_in_email)
 
-    date_obj = datetime.strptime(today, '%Y-%m-%d')
+    # Parse earliest game date for email subject
+    date_obj = datetime.strptime(earliest_game_date[:10], '%Y-%m-%d')
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     html_body = create_doubles_email_html(summary, stats, games, date_obj)
@@ -4143,7 +4154,7 @@ Daily recap:"""
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
     return {
-        'today': today,
+        'date': date_str,
         'games': games,
         'stats': stats,
         'summary': summary,
