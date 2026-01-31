@@ -228,6 +228,53 @@
         </div>
         {% endif %}
 
+        <!-- Today's Stats Card -->
+        <section class="sr-table-section">
+            <div class="sr-card sr-card-compact">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <p class="sr-section-label" style="margin: 0;">
+                        <i class="fas fa-calendar-day" style="margin-right: 6px;"></i>Today's Stats
+                    </p>
+                    <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
+                </div>
+                {% if today_stats %}
+                <div class="sr-table-wrap">
+                    <table class="sr-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Player</th>
+                                <th class="sr-numeric">W</th>
+                                <th class="sr-numeric">L</th>
+                                <th class="sr-numeric">Win%</th>
+                                <th class="sr-numeric">+/-</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in today_stats %}
+                            <tr>
+                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
+                                <td class="sr-player"><a href="{{ url_for('player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
+                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
+                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
+                                    {% if player[4] > 0 %}+{% endif %}{{ player[4] }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="sr-empty" style="padding: 30px 20px;">
+                    <div class="sr-empty-icon" style="font-size: 32px;"><i class="fas fa-moon"></i></div>
+                    <p class="sr-empty-text" style="font-size: 14px;">No games played today yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
         <!-- Leaderboard Table -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">

@@ -356,6 +356,10 @@ def stats_redesign(year):
     # Calculate tile stats
     tiles = calculate_tile_stats(display_year, stats, games)
     
+    # Get today's stats
+    today_stats = todays_stats()
+    today_games = todays_games()
+    
     return render_template('stats_redesign.html', 
         all_years=all_years, 
         stats=stats, 
@@ -364,7 +368,9 @@ def stats_redesign(year):
         year=year,
         display_year=display_year,
         showing_previous_year=showing_previous_year,
-        tiles=tiles)
+        tiles=tiles,
+        today_stats=today_stats,
+        today_games=today_games)
 
 
 @app.route('/games_redesign/')
