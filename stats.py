@@ -23,6 +23,8 @@ import hashlib
 import json
 import re
 import threading
+import time
+import random
 
 # Load environment variables from .env file if it exists (optional, for local development)
 # Only load if dotenv is available - not required on PythonAnywhere where env vars are set in WSGI file
@@ -3345,24 +3347,26 @@ def api_balloono_start_game():
         room = _balloono_rooms[room_code]
         if room['game'] is not None:
             return jsonify({'error': 'Game already in progress'}), 400
-        if len(room['players']) < 2:
-            return jsonify({'error': 'Need 2 players to start'}), 400
+        if len(room['players']) < 1:
+            return jsonify({'error': 'Need at least 1 player to start'}), 400
         # Initialize game state (Bomberman-style)
         GRID_W, GRID_H = 15, 11
         CELL = 40
-        p1, p2 = room['players'][0], room['players'][1]
+        players_data = [
+            {'id': room['players'][0]['id'], 'username': room['players'][0]['username'], 'x': 1, 'y': 1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
+        ]
+        if len(room['players']) >= 2:
+            players_data.append({'id': room['players'][1]['id'], 'username': room['players'][1]['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
         room['game'] = {
             'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
-            'players': [
-                {'id': p1['id'], 'username': p1['username'], 'x': 1, 'y': 1, 'alive': True, 'bombs': 1, 'range': 2, 'speed': 1},
-                {'id': p2['id'], 'username': p2['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'bombs': 1, 'range': 2, 'speed': 1},
-            ],
+            'players': players_data,
             'bombs': [],
             'explosions': [],
             'powerups': [],
-            'walls': [],  # Destructible
-            'blocks': set(),  # Indestructible: (x,y) tuples
+            'walls': [],
+            'blocks': set(),
             'last_tick': datetime.now().isoformat(),
+            'last_powerup_spawn': 0,
         }
         # Add indestructible blocks (border + grid pattern)
         blocks = set()
@@ -3396,32 +3400,77 @@ def api_balloono_game_action():
         player = next((p for p in game['players'] if p['id'] == player_id), None)
         if not player or not player.get('alive', True):
             return jsonify({'error': 'Invalid player'}), 400
+        blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
+        bombs_list = game.get('bombs', [])
+        powerups_list = game.get('powerups', [])
+
         if action in ('up', 'down', 'left', 'right'):
             dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
-            nx, ny = player['x'] + dx, player['y'] + dy
-            blocks_set = set(tuple(b) for b in game['blocks'])
-            if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
-                if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in game.get('bombs', [])):
-                    other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
-                    if other and other['x'] == nx and other['y'] == ny:
-                        pass  # Can't move through other player (or allow?)
-                    else:
+            speed_level = min(3, player.get('speed_level', 0))
+            steps = 1 + speed_level
+            for _ in range(steps):
+                nx, ny = player['x'] + dx, player['y'] + dy
+                if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
+                    if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
+                        other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
+                        if other and other['x'] == nx and other['y'] == ny:
+                            break
                         player['x'], player['y'] = nx, ny
+                        picked_up = False
+                        for i, pu in enumerate(powerups_list):
+                            if pu['x'] == nx and pu['y'] == ny:
+                                powerups_list.pop(i)
+                                pu_type = pu.get('type', 'blast')
+                                if pu_type == 'blast':
+                                    player['blast_level'] = min(3, player.get('blast_level', 0) + 1)
+                                elif pu_type == 'bombs':
+                                    player['bombs_level'] = min(3, player.get('bombs_level', 0) + 1)
+                                elif pu_type == 'speed':
+                                    player['speed_level'] = min(3, player.get('speed_level', 0) + 1)
+                                picked_up = True
+                                break
+                        if picked_up:
+                            break
+                    else:
+                        break
+                else:
+                    break
         elif action == 'bomb':
-            placed = sum(1 for b in game.get('bombs', []) if b.get('owner') == player_id)
-            if placed < player.get('bombs', 1):
+            placed = sum(1 for b in bombs_list if b.get('owner') == player_id)
+            max_bombs = 1 + min(3, player.get('bombs_level', 0))
+            if placed < max_bombs:
+                bomb_range = 2 + min(3, player.get('blast_level', 0))
                 game.setdefault('bombs', []).append({
                     'x': player['x'], 'y': player['y'], 'owner': player_id,
-                    'range': player.get('range', 2), 'placed_at': datetime.now().isoformat(),
+                    'range': bomb_range, 'placed_at': datetime.now().isoformat(),
                 })
     return jsonify({'ok': True})
 
 def _balloono_tick(game):
-    """Process bombs, explosions, player deaths. Mutates game in place."""
+    """Process bombs, explosions, player deaths, powerup spawning. Mutates game in place."""
     blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
     now = datetime.now()
+    now_ts = time.time()
     bombs = game.get('bombs', [])
     explosions = game.get('explosions', [])
+    powerups = game.setdefault('powerups', [])
+
+    # Spawn random powerups every 8-12 seconds
+    last_spawn = game.get('last_powerup_spawn', 0)
+    if now_ts - last_spawn >= random.uniform(8, 12):
+        game['last_powerup_spawn'] = now_ts
+        occupied = blocks_set | {(b['x'], b['y']) for b in bombs}
+        occupied |= {(p['x'], p['y']) for p in game['players'] if p.get('alive')}
+        occupied |= {(pu['x'], pu['y']) for pu in powerups}
+        empty = []
+        for x in range(1, game['grid_w'] - 1):
+            for y in range(1, game['grid_h'] - 1):
+                if (x, y) not in occupied:
+                    empty.append((x, y))
+        if empty and len(powerups) < 6:
+            x, y = random.choice(empty)
+            pu_type = random.choice(['blast', 'bombs', 'speed'])
+            powerups.append({'x': x, 'y': y, 'type': pu_type})
 
     # Remove expired explosions (0.4s display)
     explosions[:] = [e for e in explosions if (now - datetime.fromisoformat(e['at'])).total_seconds() < 0.4]
@@ -3474,6 +3523,7 @@ def api_balloono_game_state(room_code):
         g['players'] = [p.copy() for p in g['players']]
         g['bombs'] = list(g.get('bombs', []))
         g['explosions'] = list(g.get('explosions', []))
+        g['powerups'] = list(g.get('powerups', []))
     return jsonify({'game': g})
 
 @app.route('/benchmarks')

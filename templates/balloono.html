@@ -3,7 +3,7 @@
 {% block content %}
 <div id="balloono-app" class="balloono-container">
   <div id="step-username" class="balloono-step">
-    <h1>🦊 Balloono</h1>
+    <h1>🐵 Balloono</h1>
     <p class="balloono-sub">Enter your username to play</p>
     <form id="username-form" onsubmit="return handleUsernameSubmit(event)">
       <input type="text" id="username-input" placeholder="Your name" maxlength="20" required autofocus />
@@ -12,7 +12,7 @@
   </div>
 
   <div id="step-join" class="balloono-step" style="display:none">
-    <h1>🦊 Balloono</h1>
+    <h1>🐵 Balloono</h1>
     <p>Welcome, <strong id="display-username"></strong>!</p>
     <div class="join-options">
       <div class="join-card">
@@ -48,14 +48,25 @@
       <span id="game-status"></span>
       <span id="game-scores"></span>
     </div>
-    <canvas id="game-canvas"></canvas>
+    <div class="game-layout">
+      <div id="player-panels" class="player-panels"></div>
+      <div class="game-main">
+        <canvas id="game-canvas"></canvas>
+        <div class="powerup-legend">
+          <span class="legend-title">Power-ups (collect to level up, max 3):</span>
+          <span class="legend-item pu-blast"><span class="pu-icon">💥</span> Bigger blast</span>
+          <span class="legend-item pu-bombs"><span class="pu-icon">💣</span> More bombs</span>
+          <span class="legend-item pu-speed"><span class="pu-icon">⚡</span> Move faster</span>
+        </div>
+      </div>
+    </div>
     <p class="game-controls">Arrow keys to move · Space to drop bomb</p>
     <button id="btn-back-lobby" onclick="backToLobby()" style="display:none">Back to Lobby</button>
   </div>
 </div>
 
 <style>
-.balloono-container { max-width: 700px; margin: 0 auto; padding: 20px; text-align: center; }
+.balloono-container { max-width: 950px; margin: 0 auto; padding: 20px; text-align: center; }
 .balloono-step h1 { font-size: 28px; margin-bottom: 8px; }
 .balloono-sub { color: var(--caption); margin-bottom: 20px; }
 #username-form input, #room-code-input, #chat-input {
@@ -82,7 +93,31 @@
 .btn-start { width: 100%; padding: 14px !important; font-size: 18px !important; }
 .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
 .game-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-#game-canvas { display: block; margin: 0 auto; background: #1a2a3a; border-radius: 8px; }
+.game-layout { display: flex; align-items: flex-start; gap: 16px; justify-content: center; flex-wrap: wrap; max-width: 900px; margin: 0 auto; }
+.player-panels { display: flex; flex-direction: column; gap: 12px; min-width: 140px; }
+.player-panel { background: var(--table-bg); border-radius: 12px; padding: 12px; border: 2px solid var(--button-border-1); text-align: left; }
+.player-panel.you { border-color: var(--button-bg-1); }
+.player-panel .player-name { font-weight: bold; margin-bottom: 8px; font-size: 14px; }
+.player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #8B4513; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
+.player-panel.dead .player-letter { opacity: 0.5; }
+.player-panel .powerups { margin-top: 8px; font-size: 12px; color: var(--caption); }
+.player-panel .powerup-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.player-panel .pu-level { display: inline-flex; gap: 2px; }
+.player-panel .pu-dot { width: 6px; height: 6px; border-radius: 50%; }
+.player-panel .pu-dot.filled { background: currentColor; }
+.player-panel .pu-dot.empty { background: rgba(255,255,255,0.2); }
+.pu-icon { font-size: 14px; }
+.pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #ff6b35; }
+.pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #4ecdc4; }
+.pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
+.player-panel .pu-blast .pu-dot.filled { background: #ff6b35; }
+.player-panel .pu-bombs .pu-dot.filled { background: #4ecdc4; }
+.player-panel .pu-speed .pu-dot.filled { background: #ffe66d; }
+.game-main { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
+.powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.powerup-legend .legend-title { font-weight: 600; }
+.legend-item .pu-icon { margin-right: 4px; }
 .game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
 .sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
 .player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
@@ -96,7 +131,7 @@
   let pollInterval = null;
   let keys = {};
   let lastActionAt = 0;
-  const ACTION_COOLDOWN = 80;
+  let renderRAF = null;
 
   window.handleUsernameSubmit = function(e) {
     e.preventDefault();
@@ -189,6 +224,7 @@
       ).join('');
 
       const btn = document.getElementById('btn-start');
+      btn.disabled = players.length < 1;
       if (data.game) {
         clearInterval(pollInterval);
         pollInterval = null;
@@ -197,7 +233,7 @@
         initGame(data.game);
         startGamePoll();
       } else {
-        btn.disabled = players.length < 2;
+        btn.disabled = players.length < 1;
       }
     })
     .catch(() => {});
@@ -257,6 +293,7 @@
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+    updatePlayerPanels();
   }
 
   function onKeyDown(e) {
@@ -265,10 +302,35 @@
   }
   function onKeyUp(e) { keys[e.key] = false; }
 
+  function getActionCooldown() {
+    if (!gameState || !gameState.players) return 80;
+    const me = gameState.players.find(p => p.id === playerId);
+    const speed = me ? Math.min(3, me.speed_level || 0) : 0;
+    return Math.max(50, 120 - speed * 25);
+  }
   function sendAction(action) {
     const now = Date.now();
-    if (now - lastActionAt < ACTION_COOLDOWN) return;
+    if (now - lastActionAt < getActionCooldown()) return;
     lastActionAt = now;
+    if (gameState && gameState.players) {
+      const me = gameState.players.find(p => p.id === playerId);
+      if (me && me.alive) {
+        const blocks = new Set((gameState.blocks || []).map(b => b[0]+','+b[1]));
+        const bombs = gameState.bombs || [];
+        const powerups = gameState.powerups || [];
+        const blocked = (x,y) => blocks.has(x+','+y) || bombs.some(b => b.x===x&&b.y===y);
+        const hasPowerup = (x,y) => powerups.some(p => p.x===x&&p.y===y);
+        const steps = 1 + Math.min(3, me.speed_level || 0);
+        const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+        const [dx,dy] = dirs[action] || [0,0];
+        for (let s = 0; s < steps; s++) {
+          const nx = me.x + dx, ny = me.y + dy;
+          if (blocked(nx, ny)) break;
+          me.x = nx; me.y = ny;
+          if (hasPowerup(nx, ny)) break;
+        }
+      }
+    }
     fetch('/api/balloono/game_action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -276,22 +338,28 @@
     }).catch(() => {});
   }
 
+  function gameLoop() {
+    if (gameState && ctx) {
+      renderGame();
+      updatePlayerPanels();
+      if (keys['ArrowUp']) sendAction('up');
+      else if (keys['ArrowDown']) sendAction('down');
+      else if (keys['ArrowLeft']) sendAction('left');
+      else if (keys['ArrowRight']) sendAction('right');
+      else if (keys[' ']) sendAction('bomb');
+    }
+    renderRAF = requestAnimationFrame(gameLoop);
+  }
   function startGamePoll() {
     if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    renderRAF = requestAnimationFrame(gameLoop);
     pollInterval = setInterval(function() {
       fetch('/api/balloono/game_state/' + roomCode)
       .then(r => r.json())
       .then(data => {
         if (data.error) return;
-        if (data.game) {
-          gameState = data.game;
-          renderGame();
-          if (keys['ArrowUp']) sendAction('up');
-          else if (keys['ArrowDown']) sendAction('down');
-          else if (keys['ArrowLeft']) sendAction('left');
-          else if (keys['ArrowRight']) sendAction('right');
-          if (keys[' ']) sendAction('bomb');
-        }
+        if (data.game) gameState = data.game;
         const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
         const winner = alive.length === 1 ? alive[0] : null;
         if (winner) {
@@ -302,7 +370,7 @@
           document.getElementById('btn-back-lobby').style.display = 'block';
         }
       });
-    }, 80);
+    }, 100);
   }
 
   function renderGame() {
@@ -331,25 +399,90 @@
       ctx.fillRect(e.x * cell, e.y * cell, cell, cell);
     });
 
-    const colors = ['#66bb6a', '#42a5f5'];
-    (gameState.players || []).forEach((p, i) => {
-      if (!p.alive) return;
-      ctx.fillStyle = colors[i % 2];
+    const puIcons = { blast: '💥', bombs: '💣', speed: '⚡' };
+    const puColors = { blast: '#ff6b35', bombs: '#4ecdc4', speed: '#ffe66d' };
+    (gameState.powerups || []).forEach(pu => {
+      const cx = pu.x * cell + cell/2, cy = pu.y * cell + cell/2;
+      ctx.fillStyle = puColors[pu.type] || '#ffd700';
       ctx.beginPath();
-      ctx.arc(p.x * cell + cell/2, p.y * cell + cell/2, cell/2 - 4, 0, Math.PI*2);
+      ctx.arc(cx, cy, cell/4, 0, Math.PI*2);
       ctx.fill();
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = '#333';
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px sans-serif';
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = (cell/3) + 'px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(p.username.slice(0,6), p.x * cell + cell/2, p.y * cell + cell/2 + 4);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(puIcons[pu.type] || '?', cx, cy);
     });
+
+    const monkeyColors = ['#8B4513', '#A0522D', '#CD853F'];
+    (gameState.players || []).forEach((p, i) => {
+      if (!p.alive) return;
+      const cx = p.x * cell + cell/2, cy = p.y * cell + cell/2;
+      const r = cell/2 - 3;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = monkeyColors[i % 3];
+      ctx.beginPath();
+      ctx.ellipse(0, 4, r * 0.85, r * 1.05, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#5D3A1A';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#D2691E';
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.4, r * 0.55, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#8B4513';
+      ctx.stroke();
+      ctx.fillStyle = '#2C1810';
+      ctx.beginPath();
+      ctx.arc(-r*0.22, -r*0.5, 4, 0, Math.PI*2);
+      ctx.arc(r*0.22, -r*0.5, 4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + Math.round(cell/2.8) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const letter = (p.username || '?').charAt(0).toUpperCase();
+      ctx.fillText(letter, 0, 2);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+  }
+
+  function levelDots(level) {
+    let s = '<span class="pu-level">';
+    for (let i = 0; i < 3; i++) s += '<span class="pu-dot ' + (i < level ? 'filled' : 'empty') + '"></span>';
+    return s + '</span>';
+  }
+  function updatePlayerPanels() {
+    const el = document.getElementById('player-panels');
+    if (!el || !gameState || !gameState.players) return;
+    el.innerHTML = gameState.players.map(p => {
+      const letter = (p.username || '?').charAt(0).toUpperCase();
+      const isYou = p.id === playerId;
+      const blast = Math.min(3, p.blast_level || 0);
+      const bombs = Math.min(3, p.bombs_level || 0);
+      const speed = Math.min(3, p.speed_level || 0);
+      const hasAny = blast || bombs || speed;
+      return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
+        '<div class="player-name"><span class="player-letter">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
+        '<div class="powerups">' +
+        '<div class="powerup-row pu-blast"><span class="pu-icon">💥</span>' + levelDots(blast) + '</div>' +
+        '<div class="powerup-row pu-bombs"><span class="pu-icon">💣</span>' + levelDots(bombs) + '</div>' +
+        '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelDots(speed) + '</div>' +
+        '</div></div>';
+    }).join('');
   }
 
   window.backToLobby = function() {
     if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('keyup', onKeyUp);
     fetch('/api/balloono/reset_game', {
