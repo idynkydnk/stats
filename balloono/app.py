@@ -456,6 +456,22 @@ def api_balloono_start_game():
             for y in range(2, GRID_H - 2, 2):
                 blocks.add((x, y))
         room['game']['blocks'] = list(blocks)
+        # Dense destructible boxes; only each player's current cell stays clear so board looks full
+        spawn_clear = set()
+        for p in room['players']:
+            spawn_clear.add((p.get('x', 1), p.get('y', 1)))
+        box_cells = []
+        for x in range(1, GRID_W - 1):
+            for y in range(1, GRID_H - 1):
+                if (x, y) in blocks or (x, y) in spawn_clear:
+                    continue
+                box_cells.append((x, y))
+        pu_types = ['blast', 'bombs', 'speed']
+        boxes = []
+        for (x, y) in box_cells:
+            powerup = random.choice(pu_types + [None, None, None])  # ~25% of boxes have a powerup
+            boxes.append({'x': x, 'y': y, 'powerup': powerup})
+        room['game']['boxes'] = boxes
         room['messages'].append({'type': 'system', 'text': 'Game started!'})
     return jsonify({'ok': True, 'game': room['game']})
 
@@ -477,6 +493,7 @@ def api_balloono_game_action():
         if not player or not player.get('alive', True):
             return jsonify({'error': 'Invalid player'}), 400
         blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
+        boxes_set = set((b['x'], b['y']) for b in game.get('boxes', []))
         bombs_list = game.get('bombs', [])
         powerups_list = game.get('powerups', [])
 
@@ -490,7 +507,7 @@ def api_balloono_game_action():
             dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
             nx, ny = player['x'] + dx, player['y'] + dy
             if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
-                if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
+                if (nx, ny) not in blocks_set and (nx, ny) not in boxes_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
                     other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
                     if not (other and other['x'] == nx and other['y'] == ny):
                         player['x'], player['y'] = nx, ny
@@ -519,30 +536,13 @@ def api_balloono_game_action():
 
 def _balloono_tick(game):
     blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
+    boxes_list = game.setdefault('boxes', [])
     now = datetime.now()
     now_ts = time.time()
     bombs = game.get('bombs', [])
     explosions = game.get('explosions', [])
     powerups = game.setdefault('powerups', [])
-
-    game_start = game.get('game_started_at', now_ts)
-    elapsed = now_ts - game_start
-    interval = max(5.0, 10.0 - (elapsed // 45))
-    last_spawn = game.get('last_powerup_spawn', 0)
-    if now_ts - last_spawn >= interval:
-        game['last_powerup_spawn'] = now_ts
-        occupied = blocks_set | {(b['x'], b['y']) for b in bombs}
-        occupied |= {(p['x'], p['y']) for p in game['players'] if p.get('alive')}
-        occupied |= {(pu['x'], pu['y']) for pu in powerups}
-        empty = []
-        for x in range(1, game['grid_w'] - 1):
-            for y in range(1, game['grid_h'] - 1):
-                if (x, y) not in occupied:
-                    empty.append((x, y))
-        if empty:
-            x, y = random.choice(empty)
-            pu_type = random.choice(['blast', 'bombs', 'speed'])
-            powerups.append({'x': x, 'y': y, 'type': pu_type})
+    # Power-ups are only revealed when boxes are destroyed, not spawned randomly
 
     explosions[:] = [e for e in explosions if (now - datetime.fromisoformat(e['at'])).total_seconds() < 0.4]
 
@@ -570,6 +570,13 @@ def _balloono_tick(game):
             for d in range(1, r + 1):
                 nx, ny = cx + dx * d, cy + dy * d
                 if (nx, ny) in blocks_set:
+                    break
+                box = next((bb for bb in boxes_list if bb['x'] == nx and bb['y'] == ny), None)
+                if box:
+                    cells.append((nx, ny))
+                    boxes_list.remove(box)
+                    if box.get('powerup'):
+                        powerups.append({'x': nx, 'y': ny, 'type': box['powerup']})
                     break
                 cells.append((nx, ny))
         for x, y in cells:

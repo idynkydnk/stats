@@ -674,14 +674,54 @@
     if (!ctx || !gameState) return;
     const cell = gameState.cell || 40;
     const W = gameState.grid_w, H = gameState.grid_h;
-    ctx.fillStyle = '#1a2a3a';
-    ctx.fillRect(0, 0, W * cell, H * cell);
+    const lightGreen = '#6b8e6b';
+    const darkGreen = '#5a7a5a';
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? lightGreen : darkGreen;
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
 
-    const blocks = new Set((gameState.blocks || []).map(b => b.join(',')));
-    ctx.fillStyle = '#4a5a6a';
+    const blocks = new Set((gameState.blocks || []).map(b => (Array.isArray(b) ? b : [b[0], b[1]]).join(',')));
+    const pad = 2;
+    const rad = 6;
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.fill();
+      ctx.stroke();
+    }
     blocks.forEach(k => {
-      const [x, y] = k.split(',').map(Number);
-      ctx.fillRect(x * cell + 2, y * cell + 2, cell - 4, cell - 4);
+      const [bx, by] = k.split(',').map(Number);
+      const isBorder = bx === 0 || bx === W - 1 || by === 0 || by === H - 1;
+      ctx.fillStyle = isBorder ? '#2d5a2d' : '#7a8a9a';
+      ctx.strokeStyle = isBorder ? '#1e421e' : '#5a6570';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 2;
+      roundRect(bx * cell + pad, by * cell + pad, cell - pad * 2, cell - pad * 2, rad);
+    });
+    ctx.shadowBlur = 0;
+
+    (gameState.boxes || []).forEach(box => {
+      const x = box.x != null ? box.x : box[0], y = box.y != null ? box.y : box[1];
+      const px = x * cell + 3, py = y * cell + 3, size = cell - 6;
+      ctx.fillStyle = '#c9962c';
+      ctx.strokeStyle = '#8b6914';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 2;
+      roundRect(px, py, size, size, 5);
+      ctx.shadowBlur = 0;
     });
 
     (gameState.bombs || []).forEach(b => {
