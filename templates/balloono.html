@@ -58,18 +58,19 @@
         <div id="player-panels" class="player-panels"></div>
         <div class="game-canvas-wrap">
           <canvas id="game-canvas"></canvas>
-          <div id="game-waiting-overlay" class="waiting-overlay">
-            <h2>Room <code id="room-code-display"></code></h2>
-            <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
-            <div id="player-list" class="lobby-players"></div>
-            <div class="game-waiting-actions">
-              <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
-              <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
-            </div>
-          </div>
         </div>
       </div>
-      <div class="game-below">
+      <div id="game-lobby-section" class="game-lobby-section" style="display:none">
+        <h2>Room <code id="room-code-display"></code></h2>
+        <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
+        <div id="player-list" class="lobby-players"></div>
+        <p class="game-controls lobby-controls">Arrow keys to move around the board</p>
+        <div class="game-waiting-actions">
+          <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+          <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
+        </div>
+      </div>
+      <div id="game-below" class="game-below" style="display:none">
         <div class="powerup-legend">
             <span class="legend-title">Power-ups:</span>
             <span class="legend-item"><span class="pu-icon">💧</span> Bigger splash</span>
@@ -129,9 +130,10 @@
 .game-row .game-canvas-wrap { flex: 0 0 auto; order: 2; }
 .game-canvas-wrap { position: relative; display: inline-block; background: #1a2a3a; border-radius: 8px; }
 .game-canvas-wrap canvas { display: block; vertical-align: top; }
-.waiting-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26, 42, 58, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; border-radius: 8px; }
-.waiting-overlay.hidden { display: none; }
-.game-below { order: 2; padding: 12px 0; }
+.game-lobby-section { order: 2; padding: 16px 0; text-align: center; background: var(--table-bg); border-radius: 12px; margin-top: 12px; border: 2px solid var(--button-border-1); }
+.game-lobby-section h2 { margin: 0 0 8px 0; font-size: 18px; }
+.game-lobby-section .lobby-controls { font-size: 12px; color: var(--caption); margin: 8px 0; }
+.game-below { order: 3; padding: 12px 0; }
 .game-controls { order: 3; }
 .chat-area.chat-bottom { order: 4; margin-top: 8px; }
 .game-waiting-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
@@ -374,8 +376,8 @@
     document.getElementById('step-game').style.display = 'block';
     document.getElementById('room-code-display').textContent = roomCode;
     document.getElementById('room-code-copy').textContent = roomCode;
-    const overlay = document.getElementById('game-waiting-overlay');
-    if (overlay) overlay.classList.remove('hidden');
+    document.getElementById('game-lobby-section').style.display = 'block';
+    document.getElementById('game-below').style.display = 'none';
     document.getElementById('game-controls').style.display = 'none';
     canvas = document.getElementById('game-canvas');
     if (canvas && !ctx) {
@@ -383,6 +385,8 @@
       canvas.height = 440;
       ctx = canvas.getContext('2d');
     }
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
   }
 
   function startRoomPoll() {
@@ -417,11 +421,22 @@
       if (data.game) {
         clearInterval(pollInterval);
         pollInterval = null;
-        const overlay = document.getElementById('game-waiting-overlay');
-        if (overlay) overlay.classList.add('hidden');
+        document.getElementById('game-lobby-section').style.display = 'none';
+        document.getElementById('game-below').style.display = 'block';
         document.getElementById('game-controls').style.display = 'block';
         initGame(data.game);
         startGamePoll();
+      } else if (data.lobby_game) {
+        gameState = data.lobby_game;
+        document.getElementById('game-lobby-section').style.display = 'block';
+        document.getElementById('game-below').style.display = 'none';
+        document.getElementById('game-controls').style.display = 'none';
+        canvas = document.getElementById('game-canvas');
+        const cell = data.lobby_game.cell || 40;
+        canvas.width = data.lobby_game.grid_w * cell;
+        canvas.height = data.lobby_game.grid_h * cell;
+        if (!ctx) ctx = canvas.getContext('2d');
+        if (!renderRAF) renderRAF = requestAnimationFrame(gameLoop);
       }
     })
     .catch(() => {});
@@ -478,10 +493,22 @@
     canvas.width = g.grid_w * cell;
     canvas.height = g.grid_h * cell;
     ctx = canvas.getContext('2d');
-
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
     updatePlayerPanels();
+  }
+
+  function isLobbyMode() {
+    return gameState && !gameState.hasOwnProperty('game_started_at');
+  }
+
+  function sendLobbyAction(action) {
+    const now = Date.now();
+    if (now - lastMoveAt < 120) return;
+    lastMoveAt = now;
+    fetch('/api/balloono/lobby_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, action })
+    }).catch(() => {});
   }
 
   function onKeyDown(e) {
@@ -494,7 +521,7 @@
     if (!gameState || !gameState.players) return 120;
     const me = gameState.players.find(p => p.id === playerId);
     const speed = me ? (me.speed_level || 0) : 0;
-    return Math.max(80, 120 - speed * 20);
+    return Math.max(60, 120 - speed * 20);
   }
   const BOMB_COOLDOWN = 200;
   function sendAction(action) {
@@ -528,11 +555,18 @@
       renderGame();
       updatePlayerPanels();
       if (!gameOver) {
-        if (keys['ArrowUp']) sendAction('up');
-        if (keys['ArrowDown']) sendAction('down');
-        if (keys['ArrowLeft']) sendAction('left');
-        if (keys['ArrowRight']) sendAction('right');
-        if (keys[' ']) sendAction('bomb');
+        if (isLobbyMode()) {
+          if (keys['ArrowUp']) sendLobbyAction('up');
+          if (keys['ArrowDown']) sendLobbyAction('down');
+          if (keys['ArrowLeft']) sendLobbyAction('left');
+          if (keys['ArrowRight']) sendLobbyAction('right');
+        } else {
+          if (keys['ArrowUp']) sendAction('up');
+          if (keys['ArrowDown']) sendAction('down');
+          if (keys['ArrowLeft']) sendAction('left');
+          if (keys['ArrowRight']) sendAction('right');
+          if (keys[' ']) sendAction('bomb');
+        }
       }
     }
     renderRAF = requestAnimationFrame(gameLoop);
@@ -705,6 +739,7 @@
   function updatePlayerPanels() {
     const el = document.getElementById('player-panels');
     if (!el || !gameState || !gameState.players) return;
+    const showPowerups = !isLobbyMode();
     el.innerHTML = gameState.players.map((p, i) => {
       const letter = (p.username || '?').charAt(0).toUpperCase();
       const isYou = p.id === playerId;
@@ -715,14 +750,18 @@
       const wins = p.balloono_wins != null ? p.balloono_wins : 0;
       const losses = p.balloono_losses != null ? p.balloono_losses : 0;
       const recordHtml = (wins > 0 || losses > 0) ? '<div class="player-record">Balloono: ' + wins + '-' + losses + '</div>' : '';
-      return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
-        '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
-        recordHtml +
+      const powerupsHtml = showPowerups ? (
         '<div class="powerups">' +
         '<div class="powerup-row pu-blast"><span class="pu-icon">💧</span>' + levelIcons(blast, '💧') + '</div>' +
         '<div class="powerup-row pu-bombs"><span class="pu-icon">🎈</span>' + levelIcons(bombs, '🎈') + '</div>' +
         '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelIcons(speed, '⚡') + '</div>' +
-        '</div></div>';
+        '</div>'
+      ) : '';
+      return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
+        '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
+        recordHtml +
+        powerupsHtml +
+        '</div>';
     }).join('');
   }
 
@@ -738,8 +777,8 @@
     }).catch(() => {});
     document.getElementById('game-over-banner').style.display = 'none';
     document.getElementById('game-status').textContent = '';
-    const overlay = document.getElementById('game-waiting-overlay');
-    if (overlay) overlay.classList.remove('hidden');
+    document.getElementById('game-lobby-section').style.display = 'block';
+    document.getElementById('game-below').style.display = 'none';
     document.getElementById('game-controls').style.display = 'none';
     startRoomPoll();
   };

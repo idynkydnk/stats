@@ -3302,6 +3302,37 @@ _balloono_lock = threading.Lock()
 _ACTIVE_ROOM_SEC = 60  # Rooms with no activity for this long are excluded from list
 _ROOM_IDLE_DELETE_SEC = 300  # Delete rooms idle this long
 
+GRID_W, GRID_H = 15, 11
+CELL = 40
+
+def _balloono_lobby_game(players_list):
+    """Build lobby game state (board + player positions, no bombs/powerups)."""
+    blocks = set()
+    for x in range(GRID_W):
+        blocks.add((x, 0))
+        blocks.add((x, GRID_H - 1))
+    for y in range(GRID_H):
+        blocks.add((0, y))
+        blocks.add((GRID_W - 1, y))
+    for x in range(2, GRID_W - 2, 2):
+        for y in range(2, GRID_H - 2, 2):
+            blocks.add((x, y))
+    players_data = []
+    for i, p in enumerate(players_list):
+        if i == 0:
+            x, y = 1, 1
+        else:
+            x, y = GRID_W - 2, GRID_H - 2
+        players_data.append({
+            'id': p['id'], 'user_id': p.get('user_id'), 'username': p['username'],
+            'x': x, 'y': y, 'alive': True,
+        })
+    return {
+        'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
+        'players': players_data,
+        'blocks': list(blocks),
+    }
+
 def _balloono_token_cookie():
     return request.cookies.get('balloono_token', '')
 
@@ -3432,6 +3463,7 @@ def api_balloono_create_room():
             'players': [{'id': player_id, 'user_id': user_id, 'username': username, 'ready': False}],
             'messages': [{'type': 'system', 'text': f'{username} created the room.'}],
             'game': None,
+            'lobby_game': _balloono_lobby_game([{'id': player_id, 'user_id': user_id, 'username': username}]),
             'created': now.isoformat(),
             'last_activity': time.time(),
         }
@@ -3455,7 +3487,12 @@ def api_balloono_leave_room():
         if len(room['players']) == 0:
             del _balloono_rooms[room_code]
         else:
+            if room.get('lobby_game') and room['lobby_game'].get('players'):
+                room['lobby_game']['players'] = [p for p in room['lobby_game']['players'] if p['id'] != player_id]
             room['messages'].append({'type': 'system', 'text': 'A player left.'})
+            if room.get('game') is not None and 'game_over_message' not in room['game']:
+                room['game']['game_over_title'] = 'Game Over'
+                room['game']['game_over_message'] = 'A player left. No winner.'
     return jsonify({'ok': True})
 
 @app.route('/api/balloono/rooms')
@@ -3508,6 +3545,7 @@ def api_balloono_join_room():
             return jsonify({'error': 'Room is full'}), 400
         player_id = secrets.token_hex(8)
         room['players'].append({'id': player_id, 'user_id': user_id, 'username': username, 'ready': False})
+        room['lobby_game'] = _balloono_lobby_game(room['players'])
         room['messages'].append({'type': 'system', 'text': f'{username} joined the room.'})
         room['last_activity'] = time.time()
     return jsonify({
@@ -3638,8 +3676,10 @@ def api_balloono_game_action():
         powerups_list = game.get('powerups', [])
 
         if action in ('up', 'down', 'left', 'right'):
+            speed = player.get('speed_level', 0)
+            cooldown = max(0.06, 0.12 - speed * 0.02)
             last_move = player.get('_last_move_at', 0)
-            if time.time() - last_move < 0.1:
+            if time.time() - last_move < cooldown:
                 return jsonify({'ok': True})
             player['_last_move_at'] = time.time()
             dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
@@ -3669,6 +3709,41 @@ def api_balloono_game_action():
                     'x': player['x'], 'y': player['y'], 'owner': player_id,
                     'range': bomb_range, 'placed_at': datetime.now().isoformat(),
                 })
+    return jsonify({'ok': True})
+
+@app.route('/api/balloono/lobby_action', methods=['POST'])
+def api_balloono_lobby_action():
+    """Move only while in lobby (no game started). Updates lobby_game player position."""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    action = data.get('action')  # 'up','down','left','right' only
+    if action not in ('up', 'down', 'left', 'right'):
+        return jsonify({'ok': True})
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room.get('game') is not None:
+            return jsonify({'error': 'Game in progress'}), 400
+        lobby = room.get('lobby_game')
+        if not lobby or not lobby.get('players'):
+            return jsonify({'error': 'No lobby state'}), 400
+        player = next((p for p in lobby['players'] if p['id'] == player_id), None)
+        if not player:
+            return jsonify({'error': 'Invalid player'}), 400
+        blocks_set = set((b[0], b[1]) for b in lobby.get('blocks', []))
+        last_move = player.get('_last_move_at', 0)
+        if time.time() - last_move < 0.12:
+            return jsonify({'ok': True})
+        player['_last_move_at'] = time.time()
+        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
+        nx, ny = player['x'] + dx, player['y'] + dy
+        if 1 <= nx < lobby['grid_w'] - 1 and 1 <= ny < lobby['grid_h'] - 1:
+            if (nx, ny) not in blocks_set:
+                other = next((p for p in lobby['players'] if p['id'] != player_id), None)
+                if not (other and other['x'] == nx and other['y'] == ny):
+                    player['x'], player['y'] = nx, ny
     return jsonify({'ok': True})
 
 def _balloono_tick(game):
