@@ -48,38 +48,44 @@
         <button onclick="backToLobby()">Back to Lobby</button>
       </div>
     </div>
-    <div class="game-header">
-      <span id="game-status"></span>
-      <span id="game-scores"></span>
-      <a href="#" onclick="leaveRoomAndReturn(); return false" class="game-leave-link">Leave Room</a>
-    </div>
-    <div id="game-waiting" class="game-waiting" style="display:none">
-      <h2>Room <code id="room-code-display"></code></h2>
-      <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
-      <div id="player-list" class="lobby-players"></div>
-      <div class="game-waiting-actions">
-        <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
-        <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
+    <div class="game-unified">
+      <div class="game-header">
+        <span id="game-status"></span>
+        <span id="game-scores"></span>
+        <a href="#" onclick="leaveRoomAndReturn(); return false" class="game-leave-link">Leave Room</a>
       </div>
-    </div>
-    <div class="game-layout" id="game-layout" style="display:none">
-      <div id="player-panels" class="player-panels"></div>
-      <div class="game-main">
-        <canvas id="game-canvas"></canvas>
-        <div class="powerup-legend">
-          <span class="legend-title">Power-ups:</span>
-          <span class="legend-item"><span class="pu-icon">💥</span> Bigger blast</span>
-          <span class="legend-item"><span class="pu-icon">💣</span> More bombs</span>
-          <span class="legend-item"><span class="pu-icon">⚡</span> Faster moves</span>
+      <div class="game-top">
+        <div class="game-canvas-wrap">
+          <canvas id="game-canvas"></canvas>
+          <div id="game-waiting-overlay" class="waiting-overlay">
+            <h2>Room <code id="room-code-display"></code></h2>
+            <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
+            <div id="player-list" class="lobby-players"></div>
+            <div class="game-waiting-actions">
+              <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+              <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    <p class="game-controls" id="game-controls" style="display:none">Arrow keys to move · Space to drop bomb</p>
-    <div class="chat-area chat-bottom">
-      <div id="chat-messages"></div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" />
-        <button id="btn-send" onclick="sendMessage()">Send</button>
+      <div id="game-below" class="game-below">
+        <div id="player-panels" class="player-panels"></div>
+        <div class="game-main-inline">
+          <div class="powerup-legend">
+            <span class="legend-title">Power-ups:</span>
+            <span class="legend-item"><span class="pu-icon">💥</span> Bigger blast</span>
+            <span class="legend-item"><span class="pu-icon">💣</span> More bombs</span>
+            <span class="legend-item"><span class="pu-icon">⚡</span> Faster moves</span>
+          </div>
+        </div>
+      </div>
+      <p class="game-controls" id="game-controls" style="display:none">Arrow keys to move · Space to drop bomb</p>
+      <div class="chat-area chat-bottom">
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" />
+          <button id="btn-send" onclick="sendMessage()">Send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -114,7 +120,17 @@
 .lobby-players { margin: 16px 0; min-height: 60px; }
 .chat-area { background: var(--table-bg); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: left; }
 .chat-bottom { margin-top: 16px; }
-.game-waiting { padding: 20px; }
+.game-unified { display: flex; flex-direction: column; gap: 0; max-width: 900px; margin: 0 auto; text-align: left; }
+.game-top { order: 1; }
+.game-canvas-wrap { position: relative; display: inline-block; background: #1a2a3a; border-radius: 8px; }
+.game-canvas-wrap canvas { display: block; vertical-align: top; }
+.waiting-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26, 42, 58, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; border-radius: 8px; }
+.waiting-overlay.hidden { display: none; }
+.game-below { order: 2; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 16px 0; }
+.game-below .player-panels { flex: 0 0 auto; }
+.game-below .game-main-inline { flex: 1; min-width: 200px; }
+.game-controls { order: 3; }
+.chat-area.chat-bottom { order: 4; margin-top: 8px; }
 .game-waiting-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
 .btn-leave-room { padding: 10px 18px; font-size: 14px; border-radius: 10px; background: rgba(248, 113, 113, 0.2); border: 2px solid #e74c3c; color: #e74c3c; cursor: pointer; font-weight: 600; }
 .btn-leave-room:hover { background: rgba(248, 113, 113, 0.3); opacity: 0.9; }
@@ -126,11 +142,11 @@
 .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
 .game-leave-link { font-size: 12px; color: var(--caption); text-decoration: none; }
 .game-leave-link:hover { color: #e74c3c; }
-.game-layout { display: flex; align-items: flex-start; gap: 16px; justify-content: center; flex-wrap: wrap; max-width: 900px; margin: 0 auto; }
 .player-panels { display: flex; flex-direction: column; gap: 12px; min-width: 140px; }
 .player-panel { background: var(--table-bg); border-radius: 12px; padding: 12px; border: 2px solid var(--button-border-1); text-align: left; }
 .player-panel.you { border-color: var(--button-bg-1); }
-.player-panel .player-name { font-weight: bold; margin-bottom: 8px; font-size: 14px; }
+.player-panel .player-name { font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+.player-panel .player-record { font-size: 11px; color: var(--caption); margin-bottom: 6px; }
 .player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #2ecc71; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
 .player-panel.dead .player-letter { opacity: 0.5; }
 .player-panel .powerups { margin-top: 8px; font-size: 12px; color: var(--caption); }
@@ -141,7 +157,6 @@
 .pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #ff6b35; }
 .pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #4ecdc4; }
 .pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
-.game-main { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 #game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
 .powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
 .powerup-legend .legend-title { font-weight: 600; }
@@ -360,9 +375,15 @@
     document.getElementById('step-game').style.display = 'block';
     document.getElementById('room-code-display').textContent = roomCode;
     document.getElementById('room-code-copy').textContent = roomCode;
-    document.getElementById('game-waiting').style.display = 'block';
-    document.getElementById('game-layout').style.display = 'none';
+    const overlay = document.getElementById('game-waiting-overlay');
+    if (overlay) overlay.classList.remove('hidden');
     document.getElementById('game-controls').style.display = 'none';
+    canvas = document.getElementById('game-canvas');
+    if (canvas && !ctx) {
+      canvas.width = 600;
+      canvas.height = 440;
+      ctx = canvas.getContext('2d');
+    }
   }
 
   function startRoomPoll() {
@@ -386,16 +407,19 @@
       renderChat(data.messages || []);
       const players = data.players || [];
       const listEl = document.getElementById('player-list');
-      if (listEl) listEl.innerHTML = players.map(p =>
-        `<span class="player-badge">${escapeHtml(p.username)}</span>`
-      ).join('');
+      if (listEl) listEl.innerHTML = players.map(p => {
+        const wins = p.balloono_wins != null ? p.balloono_wins : 0;
+        const losses = p.balloono_losses != null ? p.balloono_losses : 0;
+        const rec = (wins > 0 || losses > 0) ? ` (${wins}-${losses})` : '';
+        return `<span class="player-badge">${escapeHtml(p.username)}${rec}</span>`;
+      }).join('');
       const btn = document.getElementById('btn-start');
       if (btn) btn.disabled = players.length < 1;
       if (data.game) {
         clearInterval(pollInterval);
         pollInterval = null;
-        document.getElementById('game-waiting').style.display = 'none';
-        document.getElementById('game-layout').style.display = 'flex';
+        const overlay = document.getElementById('game-waiting-overlay');
+        if (overlay) overlay.classList.add('hidden');
         document.getElementById('game-controls').style.display = 'block';
         initGame(data.game);
         startGamePoll();
@@ -434,7 +458,7 @@
     .then(r => r.json())
     .then(data => {
       if (data.error) alert(data.error);
-      else pollLobby();
+      else pollRoom();
     });
   };
 
@@ -658,8 +682,12 @@
       const blast = p.blast_level || 0;
       const bombs = p.bombs_level || 0;
       const speed = p.speed_level || 0;
+      const wins = p.balloono_wins != null ? p.balloono_wins : 0;
+      const losses = p.balloono_losses != null ? p.balloono_losses : 0;
+      const recordHtml = (wins > 0 || losses > 0) ? '<div class="player-record">Balloono: ' + wins + '-' + losses + '</div>' : '';
       return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
         '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
+        recordHtml +
         '<div class="powerups">' +
         '<div class="powerup-row pu-blast"><span class="pu-icon">💥</span>' + levelIcons(blast, '💥') + '</div>' +
         '<div class="powerup-row pu-bombs"><span class="pu-icon">💣</span>' + levelIcons(bombs, '💣') + '</div>' +
@@ -680,8 +708,8 @@
     }).catch(() => {});
     document.getElementById('game-overlay').style.display = 'none';
     document.getElementById('game-status').textContent = '';
-    document.getElementById('game-waiting').style.display = 'block';
-    document.getElementById('game-layout').style.display = 'none';
+    const overlay = document.getElementById('game-waiting-overlay');
+    if (overlay) overlay.classList.remove('hidden');
     document.getElementById('game-controls').style.display = 'none';
     startRoomPoll();
   };

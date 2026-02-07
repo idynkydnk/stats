@@ -3526,7 +3526,25 @@ def api_balloono_get_room(room_code):
         room = _balloono_rooms[room_code]
         room['last_activity'] = time.time()
         room = room.copy()
-        room['players'] = list(room['players'])
+        # Add Balloono stats to lobby players
+        try:
+            conn = sqlite3.connect('stats.db')
+            cur = conn.cursor()
+            out_players = []
+            for p in room['players']:
+                pl = dict(p)
+                uid = p.get('user_id')
+                if uid:
+                    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (uid,))
+                    row = cur.fetchone()
+                    if row:
+                        pl['balloono_wins'] = row[0]
+                        pl['balloono_losses'] = row[1]
+                out_players.append(pl)
+            conn.close()
+            room['players'] = out_players
+        except Exception:
+            room['players'] = list(room['players'])
         room['messages'] = list(room['messages'])[-50:]
     return jsonify(room)
 
@@ -3581,6 +3599,7 @@ def api_balloono_start_game():
             'blocks': set(),
             'last_tick': datetime.now().isoformat(),
             'last_powerup_spawn': 0,
+            'game_started_at': time.time(),
         }
         # Add indestructible blocks (border + grid pattern)
         blocks = set()
@@ -3661,9 +3680,12 @@ def _balloono_tick(game):
     explosions = game.get('explosions', [])
     powerups = game.setdefault('powerups', [])
 
-    # Spawn random powerups every 20 seconds
+    # Spawn powerups: base 10 sec, faster as game goes on (every 45s reduce by 1s, min 5s)
+    game_start = game.get('game_started_at', now_ts)
+    elapsed = now_ts - game_start
+    interval = max(5.0, 10.0 - (elapsed // 45))
     last_spawn = game.get('last_powerup_spawn', 0)
-    if now_ts - last_spawn >= 20:
+    if now_ts - last_spawn >= interval:
         game['last_powerup_spawn'] = now_ts
         occupied = blocks_set | {(b['x'], b['y']) for b in bombs}
         occupied |= {(p['x'], p['y']) for p in game['players'] if p.get('alive')}
@@ -3769,7 +3791,25 @@ def api_balloono_game_state(room_code):
             return jsonify({'game': None, 'players': room['players']})
         _balloono_tick(room['game'])
         g = room['game'].copy()
-        g['players'] = [{k: v for k, v in p.items() if not k.startswith('_')} for p in g['players']]
+        # Serialize players with Balloono stats (wins/losses from balloono_users)
+        try:
+            conn = sqlite3.connect('stats.db')
+            cur = conn.cursor()
+            out_players = []
+            for p in g['players']:
+                pl = {k: v for k, v in p.items() if not k.startswith('_')}
+                uid = p.get('user_id')
+                if uid:
+                    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (uid,))
+                    row = cur.fetchone()
+                    if row:
+                        pl['balloono_wins'] = row[0]
+                        pl['balloono_losses'] = row[1]
+                out_players.append(pl)
+            conn.close()
+            g['players'] = out_players
+        except Exception:
+            g['players'] = [{k: v for k, v in p.items() if not k.startswith('_')} for p in g['players']]
         g['bombs'] = list(g.get('bombs', []))
         g['explosions'] = list(g.get('explosions', []))
         g['powerups'] = list(g.get('powerups', []))
