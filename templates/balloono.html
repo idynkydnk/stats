@@ -51,12 +51,16 @@
     <div class="game-header">
       <span id="game-status"></span>
       <span id="game-scores"></span>
+      <a href="#" onclick="leaveRoomAndReturn(); return false" class="game-leave-link">Leave Room</a>
     </div>
     <div id="game-waiting" class="game-waiting" style="display:none">
       <h2>Room <code id="room-code-display"></code></h2>
       <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
       <div id="player-list" class="lobby-players"></div>
-      <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+      <div class="game-waiting-actions">
+        <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+        <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
+      </div>
     </div>
     <div class="game-layout" id="game-layout" style="display:none">
       <div id="player-panels" class="player-panels"></div>
@@ -111,12 +115,17 @@
 .chat-area { background: var(--table-bg); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: left; }
 .chat-bottom { margin-top: 16px; }
 .game-waiting { padding: 20px; }
+.game-waiting-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.btn-leave-room { padding: 10px 18px; font-size: 14px; border-radius: 10px; background: rgba(248, 113, 113, 0.2); border: 2px solid #e74c3c; color: #e74c3c; cursor: pointer; font-weight: 600; }
+.btn-leave-room:hover { background: rgba(248, 113, 113, 0.3); opacity: 0.9; }
 #chat-messages { height: 180px; overflow-y: auto; margin-bottom: 12px; font-size: 14px; }
 .chat-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
 .chat-input-row input { flex: 1; }
 .btn-start { width: 100%; padding: 14px !important; font-size: 18px !important; }
 .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
-.game-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+.game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
+.game-leave-link { font-size: 12px; color: var(--caption); text-decoration: none; }
+.game-leave-link:hover { color: #e74c3c; }
 .game-layout { display: flex; align-items: flex-start; gap: 16px; justify-content: center; flex-wrap: wrap; max-width: 900px; margin: 0 auto; }
 .player-panels { display: flex; flex-direction: column; gap: 12px; min-width: 140px; }
 .player-panel { background: var(--table-bg); border-radius: 12px; padding: 12px; border: 2px solid var(--button-border-1); text-align: left; }
@@ -235,6 +244,29 @@
   }
   window.addEventListener('beforeunload', leaveRoomIfInRoom);
   window.addEventListener('pagehide', leaveRoomIfInRoom);
+
+  window.leaveRoomAndReturn = function() {
+    if (!roomCode || !playerId) { goBackToJoin(); return; }
+    fetch('/api/balloono/leave_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId }),
+      credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(() => goBackToJoin())
+    .catch(() => goBackToJoin());
+  };
+  function goBackToJoin() {
+    if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    roomCode = '';
+    playerId = '';
+    document.getElementById('step-game').style.display = 'none';
+    document.getElementById('step-join').style.display = 'block';
+    loadRoomList();
+    roomListInterval = setInterval(loadRoomList, 3000);
+  }
 
   fetch('/api/balloono/me', { credentials: 'same-origin' })
   .then(r => r.json())

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close">✕</button>
+        <ul class="menu-list">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
+            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            {% if session.logged_in %}
+            <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
+            {% if session.username == 'kyle' %}
+            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
+            {% endif %}
+            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <style>
+        .menu-toggle, .menu-overlay, .menu-sidebar { /* Inherit from other pages */ }
+        .menu-toggle { background: var(--sr-panel); border: 1px solid var(--sr-line); color: var(--sr-muted); border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; }
+        .menu-toggle:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .menu-overlay.active { opacity: 1; visibility: visible; }
+        .menu-sidebar { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: #0f1620; z-index: 1000; transition: right 0.3s; padding: 20px; visibility: hidden; overflow-y: auto; }
+        .menu-sidebar.active { right: 0; visibility: visible; }
+        .menu-close { background: none; border: none; color: var(--sr-text); font-size: 20px; cursor: pointer; float: right; }
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-list li { margin: 10px 0; }
+        .menu-list a { display: block; padding: 12px 15px; color: var(--sr-text); text-decoration: none; border-radius: 8px; }
+        .menu-list a:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .menu-list a i { margin-right: 10px; width: 16px; }
+
+        .edit-stats-hub { max-width: 600px; margin: 40px auto; padding: 20px; }
+        .edit-stats-hub h1 { font-size: 24px; margin-bottom: 8px; }
+        .edit-stats-hub p { color: var(--sr-muted); margin-bottom: 24px; font-size: 14px; }
+        .edit-stats-cards { display: flex; flex-direction: column; gap: 12px; }
+        .edit-stats-card {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-decoration: none;
+            color: var(--sr-text);
+            transition: all 0.2s;
+        }
+        .edit-stats-card:hover { border-color: var(--sr-accent); background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .edit-stats-card i { font-size: 20px; margin-right: 14px; opacity: 0.8; }
+        .edit-stats-card span { flex: 1; font-weight: 500; }
+        .edit-stats-card .fa-chevron-right { margin-right: 0; opacity: 0.5; font-size: 14px; }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <h1 class="sr-title">Edit Stats</h1>
+            <div class="sr-header-actions">
+                <button class="menu-toggle" id="menu-toggle"><i class="fas fa-bars"></i> Menu</button>
+            </div>
+        </header>
+
+        <div class="edit-stats-hub">
+            <h1>Remove or edit games</h1>
+            <p>Select a game type to view games and delete ones that shouldn't count towards stats.</p>
+            <div class="edit-stats-cards">
+                <a href="{{ url_for('edit_games_redesign_default') }}" class="edit-stats-card">
+                    <i class="fas fa-users"></i>
+                    <span>Doubles</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                <a href="{{ url_for('edit_vollis_games_redesign_default') }}" class="edit-stats-card">
+                    <i class="fas fa-volleyball-ball"></i>
+                    <span>Vollis</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                <a href="{{ url_for('edit_one_v_one_games') }}" class="edit-stats-card">
+                    <i class="fas fa-user-friends"></i>
+                    <span>1v1</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                <a href="{{ url_for('edit_other_games_redesign_default') }}" class="edit-stats-card">
+                    <i class="fas fa-gamepad"></i>
+                    <span>Other games</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const menuToggle = document.getElementById('menu-toggle');
+            const menuOverlay = document.getElementById('menu-overlay');
+            const menuSidebar = document.getElementById('menu-sidebar');
+            const menuClose = document.getElementById('menu-close');
+            function openMenu() { menuOverlay.classList.add('active'); menuSidebar.classList.add('active'); }
+            function closeMenu() { menuOverlay.classList.remove('active'); menuSidebar.classList.remove('active'); }
+            menuToggle && menuToggle.addEventListener('click', openMenu);
+            menuOverlay && menuOverlay.addEventListener('click', closeMenu);
+            menuClose && menuClose.addEventListener('click', closeMenu);
+        })();
+    </script>
+</body>
+</html>

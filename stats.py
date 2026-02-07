@@ -534,11 +534,19 @@ def other_games_by_name_redesign(year, game_name):
 # REDESIGNED EDIT ROUTES
 # ============================================
 
+@app.route('/edit_stats_redesign/')
+@login_required
+def edit_stats_redesign():
+    """Hub page linking to all edit game pages"""
+    return render_template('edit_stats_redesign.html')
+
 @app.route('/edit_games_redesign/')
+@login_required
 def edit_games_redesign_default():
     return edit_games_redesign(str(date.today().year))
 
 @app.route('/edit_games_redesign/<year>/')
+@login_required
 def edit_games_redesign(year):
     """Redesigned edit doubles games page."""
     all_years = grab_all_years()
@@ -546,10 +554,12 @@ def edit_games_redesign(year):
     return render_template('edit_games_redesign.html', games=games, year=year, all_years=all_years)
 
 @app.route('/edit_vollis_games_redesign/')
+@login_required
 def edit_vollis_games_redesign_default():
     return edit_vollis_games_redesign(str(date.today().year))
 
 @app.route('/edit_vollis_games_redesign/<year>/')
+@login_required
 def edit_vollis_games_redesign(year):
     """Redesigned edit vollis games page."""
     all_years = all_vollis_years()
@@ -557,10 +567,12 @@ def edit_vollis_games_redesign(year):
     return render_template('edit_vollis_games_redesign.html', games=games, year=year, all_years=all_years)
 
 @app.route('/edit_other_games_redesign/')
+@login_required
 def edit_other_games_redesign_default():
     return edit_other_games_redesign(str(date.today().year))
 
 @app.route('/edit_other_games_redesign/<year>/')
+@login_required
 def edit_other_games_redesign(year):
     """Redesigned edit other games page."""
     all_years = all_other_years()
@@ -1307,12 +1319,14 @@ def add_one_v_one_game():
 
 
 @app.route('/edit_one_v_one_games/')
+@login_required
 def edit_one_v_one_games():
     all_years = all_one_v_one_years()
     games = one_v_one_year_games(str(date.today().year))
     return render_template('edit_one_v_one_games.html', games=games, all_years=all_years, year=str(date.today().year))
 
 @app.route('/edit_past_year_one_v_one_games/<year>')
+@login_required
 def edit_one_v_one_games_by_year(year):
     all_years = all_one_v_one_years()
     games = one_v_one_year_games(year)
@@ -2400,6 +2414,13 @@ def api_delete_games():
                     details = f"Game ID {game_id}"
                     log_user_action(user, 'Deleted other game (bulk)', details)
                     remove_other_game(game_id)
+                    deleted += 1
+            elif game_type == 'one_v_one':
+                game = find_one_v_one_game(game_id)
+                if game and len(game) > 0:
+                    details = f"Game ID {game_id}: {game[0][4]} vs {game[0][6]}"
+                    log_user_action(user, 'Deleted 1v1 game (bulk)', details)
+                    remove_one_v_one_game(game_id)
                     deleted += 1
         except Exception as e:
             print(f"Error deleting game {game_id}: {e}")
@@ -3705,11 +3726,11 @@ def _balloono_tick(game):
         idx = hash(w_name + l_name) % len(TAUNTS)
         game['game_over_title'] = winner['username'] + ' Wins!'
         game['game_over_message'] = TAUNTS[idx](w_name, l_name) if l_name else game['game_over_title']
-        # Update stats
+        # Update stats (only when beating another player, not solo)
         try:
             conn = sqlite3.connect('stats.db')
             cur = conn.cursor()
-            if winner.get('user_id'):
+            if loser and winner.get('user_id'):
                 cur.execute('UPDATE balloono_users SET wins = wins + 1 WHERE id = ?', (winner['user_id'],))
             if loser and loser.get('user_id'):
                 cur.execute('UPDATE balloono_users SET losses = losses + 1 WHERE id = ?', (loser['user_id'],))
