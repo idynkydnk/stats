@@ -19,10 +19,10 @@
         <h3>Create Room</h3>
         <button id="btn-create" onclick="createRoom()">Create New Room</button>
       </div>
-      <div class="join-card">
-        <h3>Join Room</h3>
-        <input type="text" id="room-code-input" placeholder="Room code" maxlength="6" style="text-transform:uppercase" />
-        <button id="btn-join" onclick="joinRoom()">Join</button>
+      <div class="join-card join-card-rooms">
+        <h3>Available Rooms</h3>
+        <div id="room-list" class="room-list"></div>
+        <button id="btn-refresh-rooms" onclick="refreshRoomList()">Refresh</button>
       </div>
     </div>
   </div>
@@ -74,7 +74,7 @@
   border: 2px solid var(--button-bg-1); background: var(--table-bg);
   color: var(--text); margin-right: 8px; margin-bottom: 10px;
 }
-#username-form button, .join-card button, #btn-send, #btn-start, #btn-create, #btn-join {
+#username-form button, .join-card button, .btn-join-room, #btn-send, #btn-start, #btn-create, #btn-refresh-rooms {
   padding: 12px 20px; font-size: 16px; border-radius: 10px;
   background: var(--button-bg-1); color: var(--button-text-1);
   border: 2px solid var(--button-border-1); cursor: pointer; font-weight: 600;
@@ -82,6 +82,12 @@
 #username-form button:hover, .join-card button:hover, #btn-send:hover, #btn-start:hover { opacity: 0.9; }
 .join-options { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
 .join-card { background: var(--table-bg); border-radius: 16px; padding: 24px; border: 2px solid var(--button-bg-1); min-width: 220px; }
+.join-card-rooms { min-width: 280px; }
+.room-list { max-height: 200px; overflow-y: auto; margin: 12px 0; text-align: left; }
+.room-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 6px 0; background: var(--table-banding); border-radius: 8px; }
+.room-item:hover { background: var(--table-bg); }
+.room-item-info { font-size: 14px; }
+.room-item .btn-join-room { padding: 6px 14px; font-size: 13px; }
 .join-card h3 { margin: 0 0 16px 0; font-size: 18px; }
 .join-card input { width: 100%; margin: 0 0 10px 0; box-sizing: border-box; }
 .share-link { font-size: 14px; color: var(--caption); margin: 10px 0; }
@@ -141,10 +147,14 @@
     document.getElementById('display-username').textContent = username;
     document.getElementById('step-username').style.display = 'none';
     document.getElementById('step-join').style.display = 'block';
+    loadRoomList();
+    roomListInterval = setInterval(loadRoomList, 3000);
     return false;
   };
+  let roomListInterval = null;
 
   window.createRoom = function() {
+    if (roomListInterval) clearInterval(roomListInterval);
     fetch('/api/balloono/create_room', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -164,9 +174,8 @@
     .catch(() => alert('Network error'));
   };
 
-  window.joinRoom = function() {
-    const code = document.getElementById('room-code-input').value.trim().toUpperCase();
-    if (!code) { alert('Enter a room code'); return; }
+  window.joinRoom = function(code) {
+    if (roomListInterval) clearInterval(roomListInterval);
     fetch('/api/balloono/join_room', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -185,6 +194,28 @@
     })
     .catch(() => alert('Network error'));
   };
+
+  window.refreshRoomList = function() { loadRoomList(); };
+  function loadRoomList() {
+    fetch('/api/balloono/rooms')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('room-list');
+      if (!el) return;
+      const rooms = data.rooms || [];
+      if (rooms.length === 0) {
+        el.innerHTML = '<p style="color:var(--caption);font-size:13px;padding:12px">No rooms available. Create one!</p>';
+        return;
+      }
+      el.innerHTML = rooms.map(r =>
+        '<div class="room-item">' +
+        '<span class="room-item-info">' + escapeHtml(r.host) + '\'s room · ' + r.player_count + '/2</span>' +
+        '<button class="btn-join-room" onclick="joinRoom(\'' + r.room_code + '\')">Join</button>' +
+        '</div>'
+      ).join('');
+    })
+    .catch(() => {});
+  }
 
   function showLobby() {
     document.getElementById('step-join').style.display = 'none';

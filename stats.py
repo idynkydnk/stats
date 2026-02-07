@@ -3281,6 +3281,26 @@ def api_balloono_create_room():
         'username': username,
     })
 
+@app.route('/api/balloono/rooms')
+def api_balloono_list_rooms():
+    """List all available rooms (not in game, not full)"""
+    with _balloono_lock:
+        rooms = []
+        for code, room in _balloono_rooms.items():
+            if room.get('game') is not None:
+                continue
+            players = room.get('players', [])
+            if len(players) >= 2:
+                continue
+            host = players[0]['username'] if players else 'Unknown'
+            rooms.append({
+                'room_code': code,
+                'host': host,
+                'player_count': len(players),
+                'max_players': 2,
+            })
+    return jsonify({'rooms': rooms})
+
 @app.route('/api/balloono/join_room', methods=['POST'])
 def api_balloono_join_room():
     """Join an existing Balloono room"""
