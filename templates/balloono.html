@@ -288,13 +288,17 @@
   fetch('/api/balloono/me', { credentials: 'same-origin' })
   .then(r => r.json())
   .then(data => {
-    if (data.logged_in) {
+    if (data && data.logged_in) {
       showJoin(data);
     } else {
-      document.getElementById('step-login').style.display = 'block';
+      const el = document.getElementById('step-login');
+      if (el) el.style.display = 'block';
     }
   })
-  .catch(() => { document.getElementById('step-login').style.display = 'block'; });
+  .catch(() => {
+    const el = document.getElementById('step-login');
+    if (el) el.style.display = 'block';
+  });
 
   window.createRoom = function() {
     if (roomListInterval) clearInterval(roomListInterval);
@@ -422,22 +426,32 @@
       if (data.game) {
         clearInterval(pollInterval);
         pollInterval = null;
-        document.getElementById('game-lobby-section').style.display = 'none';
-        document.getElementById('game-below').style.display = 'block';
-        document.getElementById('game-controls').style.display = 'block';
-        initGame(data.game);
-        startGamePoll();
-      } else if (data.lobby_game) {
+        const lobbyEl = document.getElementById('game-lobby-section');
+        if (lobbyEl) lobbyEl.style.display = 'none';
+        const belowEl = document.getElementById('game-below');
+        if (belowEl) belowEl.style.display = 'block';
+        const ctrlEl = document.getElementById('game-controls');
+        if (ctrlEl) ctrlEl.style.display = 'block';
+        if (data.game && data.game.grid_w) {
+          initGame(data.game);
+          startGamePoll();
+        }
+      } else if (data.lobby_game && data.lobby_game.grid_w) {
         gameState = data.lobby_game;
-        document.getElementById('game-lobby-section').style.display = 'block';
-        document.getElementById('game-below').style.display = 'none';
-        document.getElementById('game-controls').style.display = 'none';
+        const lobbyEl = document.getElementById('game-lobby-section');
+        if (lobbyEl) lobbyEl.style.display = 'block';
+        const belowEl = document.getElementById('game-below');
+        if (belowEl) belowEl.style.display = 'none';
+        const ctrlEl = document.getElementById('game-controls');
+        if (ctrlEl) ctrlEl.style.display = 'none';
         canvas = document.getElementById('game-canvas');
-        const cell = data.lobby_game.cell || 40;
-        canvas.width = data.lobby_game.grid_w * cell;
-        canvas.height = data.lobby_game.grid_h * cell;
-        if (!ctx) ctx = canvas.getContext('2d');
-        if (!renderRAF) renderRAF = requestAnimationFrame(gameLoop);
+        if (canvas) {
+          const cell = data.lobby_game.cell || 40;
+          canvas.width = data.lobby_game.grid_w * cell;
+          canvas.height = data.lobby_game.grid_h * cell;
+          if (!ctx) ctx = canvas.getContext('2d');
+          if (!renderRAF) renderRAF = requestAnimationFrame(gameLoop);
+        }
       }
     })
     .catch(() => {});
@@ -459,7 +473,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('chat-input').addEventListener('keydown', function(e) {
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { sendMessage(); }
     });
   });
@@ -487,9 +502,11 @@
   let gameState = null;
 
   function initGame(g) {
+    if (!g || !g.grid_w) return;
     gameOver = false;
     gameState = g;
     canvas = document.getElementById('game-canvas');
+    if (!canvas) return;
     const cell = g.cell || 40;
     canvas.width = g.grid_w * cell;
     canvas.height = g.grid_h * cell;
@@ -785,14 +802,20 @@
     }))
     .then(r => r.json())
     .then(data => {
-      if (data.error) { alert(data.error); return; }
-      document.getElementById('game-over-banner').style.display = 'none';
+      if (data && data.error) { alert(data.error); return; }
+      const banner = document.getElementById('game-over-banner');
+      if (banner) banner.style.display = 'none';
       gameOver = false;
-      document.getElementById('game-lobby-section').style.display = 'none';
-      document.getElementById('game-below').style.display = 'block';
-      document.getElementById('game-controls').style.display = 'block';
-      initGame(data.game);
-      startGamePoll();
+      const lobbyEl = document.getElementById('game-lobby-section');
+      if (lobbyEl) lobbyEl.style.display = 'none';
+      const belowEl = document.getElementById('game-below');
+      if (belowEl) belowEl.style.display = 'block';
+      const ctrlEl = document.getElementById('game-controls');
+      if (ctrlEl) ctrlEl.style.display = 'block';
+      if (data && data.game && data.game.grid_w) {
+        initGame(data.game);
+        startGamePoll();
+      }
     })
     .catch(() => alert('Failed to start new game'));
   };
