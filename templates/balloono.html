@@ -396,7 +396,7 @@
 
   function startRoomPoll() {
     if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(pollRoom, 800);
+    pollInterval = setInterval(pollRoom, LOBBY_POLL_INTERVAL_MS);
     pollRoom();
   }
 
@@ -437,7 +437,9 @@
           startGamePoll();
         }
       } else if (data.lobby_game && data.lobby_game.grid_w) {
+        previousGameState = gameState;
         gameState = data.lobby_game;
+        lastPollTime = Date.now();
         const lobbyEl = document.getElementById('game-lobby-section');
         if (lobbyEl) lobbyEl.style.display = 'block';
         const belowEl = document.getElementById('game-below');
@@ -500,11 +502,17 @@
 
   let canvas, ctx;
   let gameState = null;
+  let previousGameState = null;
+  let lastPollTime = 0;
+  const GAME_POLL_INTERVAL_MS = 50;
+  const LOBBY_POLL_INTERVAL_MS = 200;
 
   function initGame(g) {
     if (!g || !g.grid_w) return;
     gameOver = false;
+    previousGameState = null;
     gameState = g;
+    lastPollTime = Date.now();
     canvas = document.getElementById('game-canvas');
     if (!canvas) return;
     const cell = g.cell || 40;
@@ -600,7 +608,9 @@
       .then(data => {
         if (data.error) return;
         if (data.game) {
+          previousGameState = gameState;
           gameState = data.game;
+          lastPollTime = Date.now();
           renderChat(gameState.messages || []);
           if (!gameState.game_over_message) {
             gameOver = false;
@@ -629,7 +639,7 @@
           document.getElementById('game-over-banner').style.display = 'block';
         }
       });
-    }, 100);
+    }, GAME_POLL_INTERVAL_MS);
   }
 
   function renderGame() {
@@ -694,10 +704,20 @@
       ctx.fillText(puIcons[pu.type] || '?', cx, cy);
     });
 
+    const pollInterval = isLobbyMode() ? LOBBY_POLL_INTERVAL_MS : GAME_POLL_INTERVAL_MS;
+    const alpha = Math.min(1, (Date.now() - lastPollTime) / pollInterval);
     (gameState.players || []).forEach((p, i) => {
+      let drawX = p.x, drawY = p.y;
+      if (previousGameState && previousGameState.players && alpha < 1) {
+        const prev = previousGameState.players.find(function(pp) { return pp.id === p.id; });
+        if (prev != null && (prev.x !== p.x || prev.y !== p.y)) {
+          drawX = prev.x + alpha * (p.x - prev.x);
+          drawY = prev.y + alpha * (p.y - prev.y);
+        }
+      }
       const color = monkeyColors[i % monkeyColors.length];
       const darkColor = '#333';
-      const cx = p.x * cell + cell/2, cy = p.y * cell + cell/2;
+      const cx = drawX * cell + cell/2, cy = drawY * cell + cell/2;
       const r = cell/2 - 3;
       ctx.save();
       ctx.translate(cx, cy);
