@@ -583,7 +583,8 @@ def _balloono_tick(game):
                     queued_for_explosion.add(b2pos)
                     to_explode.append((b2, now - timedelta(seconds=5)))
     alive = [p for p in game['players'] if p.get('alive')]
-    if len(alive) == 1 and 'game_over_message' not in game:
+    # Only declare a winner in multiplayer (2+ players). Solo play never "wins" – game ends only when they die.
+    if len(alive) == 1 and len(game['players']) >= 2 and 'game_over_message' not in game:
         winner = alive[0]
         loser = next((p for p in game['players'] if not p.get('alive')), None)
         w_name, l_name = winner['username'], loser['username'] if loser else ''
@@ -601,9 +602,14 @@ def _balloono_tick(game):
             conn.close()
         except Exception:
             pass
+    # Game over only when at least one player has died (solo: you die; multiplayer: draw when all dead).
     elif len(alive) == 0 and 'game_over_message' not in game:
-        game['game_over_title'] = 'Draw!'
-        game['game_over_message'] = 'Everyone exploded. What a mess.'
+        if len(game['players']) == 1:
+            game['game_over_title'] = 'Game Over'
+            game['game_over_message'] = 'You blew yourself up!'
+        else:
+            game['game_over_title'] = 'Draw!'
+            game['game_over_message'] = 'Everyone exploded. What a mess.'
 
 
 @app.route('/api/balloono/reset_game', methods=['POST'])
