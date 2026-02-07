@@ -41,20 +41,21 @@
   </div>
 
   <div id="step-game" class="balloono-step" style="display:none">
-    <div id="game-overlay" class="game-overlay" style="display:none">
-      <div class="game-over-box">
-        <h2 id="game-over-title"></h2>
-        <p id="game-over-message"></p>
-        <button onclick="backToLobby()">Back to Lobby</button>
-      </div>
-    </div>
     <div class="game-unified">
+      <div id="game-over-banner" class="game-over-banner" style="display:none">
+        <div class="game-over-box">
+          <h2 id="game-over-title"></h2>
+          <p id="game-over-message"></p>
+          <button onclick="backToLobby()">Back to Lobby</button>
+        </div>
+      </div>
       <div class="game-header">
         <span id="game-status"></span>
         <span id="game-scores"></span>
         <a href="#" onclick="leaveRoomAndReturn(); return false" class="game-leave-link">Leave Room</a>
       </div>
-      <div class="game-top">
+      <div class="game-row">
+        <div id="player-panels" class="player-panels"></div>
         <div class="game-canvas-wrap">
           <canvas id="game-canvas"></canvas>
           <div id="game-waiting-overlay" class="waiting-overlay">
@@ -68,18 +69,15 @@
           </div>
         </div>
       </div>
-      <div id="game-below" class="game-below">
-        <div id="player-panels" class="player-panels"></div>
-        <div class="game-main-inline">
-          <div class="powerup-legend">
+      <div class="game-below">
+        <div class="powerup-legend">
             <span class="legend-title">Power-ups:</span>
-            <span class="legend-item"><span class="pu-icon">💥</span> Bigger blast</span>
-            <span class="legend-item"><span class="pu-icon">💣</span> More bombs</span>
+            <span class="legend-item"><span class="pu-icon">💧</span> Bigger splash</span>
+            <span class="legend-item"><span class="pu-icon">🎈</span> More balloons</span>
             <span class="legend-item"><span class="pu-icon">⚡</span> Faster moves</span>
-          </div>
         </div>
       </div>
-      <p class="game-controls" id="game-controls" style="display:none">Arrow keys to move · Space to drop bomb</p>
+      <p class="game-controls" id="game-controls" style="display:none">Arrow keys to move · Space to drop balloon</p>
       <div class="chat-area chat-bottom">
         <div id="chat-messages"></div>
         <div class="chat-input-row">
@@ -120,15 +118,20 @@
 .lobby-players { margin: 16px 0; min-height: 60px; }
 .chat-area { background: var(--table-bg); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: left; }
 .chat-bottom { margin-top: 16px; }
-.game-unified { display: flex; flex-direction: column; gap: 0; max-width: 900px; margin: 0 auto; text-align: left; }
-.game-top { order: 1; }
+.game-unified { display: flex; flex-direction: column; gap: 0; max-width: 950px; margin: 0 auto; text-align: left; }
+.game-over-banner { order: 0; margin-bottom: 12px; }
+.game-over-box { background: var(--table-bg); border: 3px solid var(--button-bg-1); border-radius: 16px; padding: 20px 28px; text-align: center; display: inline-block; }
+.game-over-box h2 { color: var(--button-bg-1); margin: 0 0 8px 0; font-size: 22px; }
+.game-over-box p { color: var(--caption); font-size: 14px; margin: 0 0 16px 0; line-height: 1.4; }
+.game-over-box button { padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 10px; background: var(--button-bg-1); color: var(--button-text-1); border: 2px solid var(--button-border-1); font-weight: 600; }
+.game-row { display: flex; flex-direction: row; gap: 16px; align-items: flex-start; }
+.game-row .player-panels { flex: 0 0 auto; order: 1; }
+.game-row .game-canvas-wrap { flex: 0 0 auto; order: 2; }
 .game-canvas-wrap { position: relative; display: inline-block; background: #1a2a3a; border-radius: 8px; }
 .game-canvas-wrap canvas { display: block; vertical-align: top; }
 .waiting-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26, 42, 58, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; border-radius: 8px; }
 .waiting-overlay.hidden { display: none; }
-.game-below { order: 2; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 16px 0; }
-.game-below .player-panels { flex: 0 0 auto; }
-.game-below .game-main-inline { flex: 1; min-width: 200px; }
+.game-below { order: 2; padding: 12px 0; }
 .game-controls { order: 3; }
 .chat-area.chat-bottom { order: 4; margin-top: 8px; }
 .game-waiting-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
@@ -154,18 +157,14 @@
 .player-panel .pu-level-icons { display: inline-flex; gap: 2px; font-size: 12px; }
 .player-panel .pu-level-icon { opacity: 0.6; }
 .pu-icon { font-size: 14px; }
-.pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #ff6b35; }
-.pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #4ecdc4; }
+.pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #5dade2; }
+.pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #87CEEB; }
 .pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
 #game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
 .powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
 .powerup-legend .legend-title { font-weight: 600; }
 .legend-item .pu-icon { margin-right: 4px; }
 .game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
-.game-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; align-items: center; justify-content: center; }
-.game-over-box { background: var(--table-bg); border: 3px solid var(--button-bg-1); border-radius: 20px; padding: 40px; text-align: center; max-width: 400px; }
-.game-over-box h2 { color: var(--button-bg-1); margin: 0 0 16px 0; font-size: 28px; }
-.game-over-box p { color: var(--caption); font-size: 16px; margin: 0 0 24px 0; line-height: 1.5; }
 .sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
 .player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
 .auth-toggle { margin-top: 12px; font-size: 14px; color: var(--caption); }
@@ -516,6 +515,15 @@
   }
 
   function gameLoop() {
+    if (gameOver) {
+      if (gameState && ctx) {
+        renderGame();
+        updatePlayerPanels();
+      }
+      if (renderRAF) cancelAnimationFrame(renderRAF);
+      renderRAF = null;
+      return;
+    }
     if (gameState && ctx) {
       renderGame();
       updatePlayerPanels();
@@ -547,19 +555,21 @@
         if (winner && !gameOver) {
           gameOver = true;
           if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
           const title = gameState.game_over_title || (winner.username + ' Wins!');
           const msg = gameState.game_over_message || '';
           document.getElementById('game-over-title').textContent = title;
           document.getElementById('game-over-message').textContent = msg;
-          document.getElementById('game-overlay').style.display = 'flex';
+          document.getElementById('game-over-banner').style.display = 'block';
         } else if (alive.length === 0 && !gameOver) {
           gameOver = true;
           if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
           const title = gameState.game_over_title || 'Draw!';
-          const msg = gameState.game_over_message || 'Everyone exploded. What a mess.';
+          const msg = gameState.game_over_message || 'Everyone got splashed!';
           document.getElementById('game-over-title').textContent = title;
           document.getElementById('game-over-message').textContent = msg;
-          document.getElementById('game-overlay').style.display = 'flex';
+          document.getElementById('game-over-banner').style.display = 'block';
         }
       });
     }, 100);
@@ -580,18 +590,37 @@
     });
 
     (gameState.bombs || []).forEach(b => {
-      ctx.fillStyle = '#4dd0e1';
+      const cx = b.x * cell + cell/2, cy = b.y * cell + cell/2;
+      const r = cell/3;
+      ctx.fillStyle = '#87CEEB';
+      ctx.strokeStyle = '#6BB3D0';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(b.x * cell + cell/2, b.y * cell + cell/2, cell/3, 0, Math.PI*2);
+      ctx.ellipse(cx, cy, r * 0.95, r * 1.05, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#5A9FB8';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.9, r * 0.25, r * 0.2, 0, 0, Math.PI*2);
       ctx.fill();
     });
 
     (gameState.explosions || []).forEach(e => {
-      ctx.fillStyle = 'rgba(255, 100, 50, 0.8)';
-      ctx.fillRect(e.x * cell, e.y * cell, cell, cell);
+      const cx = e.x * cell + cell/2, cy = e.y * cell + cell/2;
+      const r = cell/2;
+      ctx.fillStyle = 'rgba(135, 206, 235, 0.6)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(173, 216, 230, 0.5)';
+      ctx.beginPath();
+      ctx.arc(cx - r*0.3, cy - r*0.2, r*0.4, 0, Math.PI*2);
+      ctx.arc(cx + r*0.25, cy + r*0.15, r*0.35, 0, Math.PI*2);
+      ctx.arc(cx + r*0.1, cy - r*0.35, r*0.3, 0, Math.PI*2);
+      ctx.fill();
     });
 
-    const puIcons = { blast: '💥', bombs: '💣', speed: '⚡' };
+    const puIcons = { blast: '💧', bombs: '🎈', speed: '⚡' };
     (gameState.powerups || []).forEach(pu => {
       const cx = pu.x * cell + cell/2, cy = pu.y * cell + cell/2;
       ctx.fillStyle = '#3a4a5a';
@@ -689,8 +718,8 @@
         '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
         recordHtml +
         '<div class="powerups">' +
-        '<div class="powerup-row pu-blast"><span class="pu-icon">💥</span>' + levelIcons(blast, '💥') + '</div>' +
-        '<div class="powerup-row pu-bombs"><span class="pu-icon">💣</span>' + levelIcons(bombs, '💣') + '</div>' +
+        '<div class="powerup-row pu-blast"><span class="pu-icon">💧</span>' + levelIcons(blast, '💧') + '</div>' +
+        '<div class="powerup-row pu-bombs"><span class="pu-icon">🎈</span>' + levelIcons(bombs, '🎈') + '</div>' +
         '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelIcons(speed, '⚡') + '</div>' +
         '</div></div>';
     }).join('');
@@ -706,7 +735,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ room_code: roomCode })
     }).catch(() => {});
-    document.getElementById('game-overlay').style.display = 'none';
+    document.getElementById('game-over-banner').style.display = 'none';
     document.getElementById('game-status').textContent = '';
     const overlay = document.getElementById('game-waiting-overlay');
     if (overlay) overlay.classList.remove('hidden');
