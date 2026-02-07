@@ -1,0 +1,22 @@
+:root {
+  --bg: #1d2025;
+  --text: #dbe2ea;
+  --button-text-1: #3e526a;
+  --button-bg-1: #aeee98;
+  --button-border-1: #102a43;
+  --table-banding: #455a6d;
+  --table-bg: #2e445b;
+  --caption: #abb4bd;
+}
+
+body {
+  padding: 20px;
+  font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+.content {
+  max-width: 100%;
+}

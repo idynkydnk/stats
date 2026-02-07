@@ -1,0 +1,846 @@
+{% extends "base.html" %}
+{% block title %}Balloono{% endblock %}
+{% block content %}
+<div id="balloono-app" class="balloono-container">
+  <div id="step-login" class="balloono-step" style="display:none">
+    <h1>🐵 Balloono</h1>
+    <p class="balloono-sub">Log in to play</p>
+    <form id="login-form" onsubmit="return handleLogin(event)">
+      <input type="text" id="login-username" placeholder="Username" maxlength="20" required autofocus />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button type="submit">Log in</button>
+    </form>
+    <p class="auth-toggle">Need an account? <a href="#" onclick="showRegister(); return false">Register</a></p>
+  </div>
+
+  <div id="step-register" class="balloono-step" style="display:none">
+    <h1>🐵 Balloono</h1>
+    <p class="balloono-sub">Create your account</p>
+    <form id="register-form" onsubmit="return handleRegister(event)">
+      <input type="text" id="register-username" placeholder="Username (2+ chars)" maxlength="20" required />
+      <input type="password" id="register-password" placeholder="Password (4+ chars)" required />
+      <button type="submit">Create account</button>
+    </form>
+    <p class="auth-toggle">Already have an account? <a href="#" onclick="showLogin(); return false">Log in</a></p>
+  </div>
+
+  <div id="step-join" class="balloono-step" style="display:none">
+    <h1>🐵 Balloono</h1>
+    <p>Welcome, <strong id="display-username"></strong>! <span id="user-stats" class="user-stats"></span> <a href="#" onclick="handleLogout(); return false" class="logout-link">Log out</a></p>
+    <div class="join-options">
+      <div class="join-card">
+        <h3>Create Room</h3>
+        <button id="btn-create" onclick="createRoom()">Create New Room</button>
+      </div>
+      <div class="join-card join-card-rooms">
+        <h3>Available Rooms</h3>
+        <div id="room-list" class="room-list"></div>
+        <button id="btn-refresh-rooms" onclick="refreshRoomList()">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="step-game" class="balloono-step" style="display:none">
+    <div class="game-unified">
+      <div id="game-over-banner" class="game-over-banner" style="display:none">
+        <div class="game-over-box">
+          <h2 id="game-over-title"></h2>
+          <p id="game-over-message"></p>
+          <button onclick="startNewGame()">Play Again</button>
+        </div>
+      </div>
+      <div class="game-header">
+        <span id="game-status"></span>
+        <span id="game-scores"></span>
+        <a href="#" onclick="leaveRoomAndReturn(); return false" class="game-leave-link">Leave Room</a>
+      </div>
+      <div class="game-row">
+        <div id="player-panels" class="player-panels"></div>
+        <div class="game-canvas-wrap">
+          <canvas id="game-canvas"></canvas>
+        </div>
+      </div>
+      <div id="game-lobby-section" class="game-lobby-section" style="display:none">
+        <h2>Room <code id="room-code-display"></code></h2>
+        <p class="share-link">Share with friend: <strong id="room-code-copy"></strong></p>
+        <div id="player-list" class="lobby-players"></div>
+        <p class="game-controls lobby-controls">Arrow keys to move around the board</p>
+        <div class="game-waiting-actions">
+          <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+          <button class="btn-leave-room" onclick="leaveRoomAndReturn()">Leave Room</button>
+        </div>
+      </div>
+      <div id="game-below" class="game-below" style="display:none">
+        <div class="powerup-legend">
+            <span class="legend-title">Power-ups:</span>
+            <span class="legend-item"><span class="pu-icon">💧</span> Bigger splash</span>
+            <span class="legend-item"><span class="pu-icon">🎈</span> More balloons</span>
+            <span class="legend-item"><span class="pu-icon">⚡</span> Faster moves</span>
+        </div>
+      </div>
+      <p class="game-controls" id="game-controls" style="display:none">Arrow keys to move · Space to drop balloon</p>
+      <div class="chat-area chat-bottom">
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" />
+          <button id="btn-send" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.balloono-container { max-width: 950px; margin: 0 auto; padding: 20px; text-align: center; }
+.balloono-step h1 { font-size: 28px; margin-bottom: 8px; }
+.balloono-sub { color: var(--caption); margin-bottom: 20px; }
+#username-form input, #room-code-input, #chat-input {
+  padding: 12px 16px; font-size: 16px; border-radius: 10px;
+  border: 2px solid var(--button-bg-1); background: var(--table-bg);
+  color: var(--text); margin-right: 8px; margin-bottom: 10px;
+}
+#username-form button, .join-card button, .btn-join-room, #btn-send, #btn-start, #btn-create, #btn-refresh-rooms {
+  padding: 12px 20px; font-size: 16px; border-radius: 10px;
+  background: var(--button-bg-1); color: var(--button-text-1);
+  border: 2px solid var(--button-border-1); cursor: pointer; font-weight: 600;
+}
+#username-form button:hover, .join-card button:hover, #btn-send:hover, #btn-start:hover { opacity: 0.9; }
+.join-options { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+.join-card { background: var(--table-bg); border-radius: 16px; padding: 24px; border: 2px solid var(--button-bg-1); min-width: 220px; }
+.join-card-rooms { min-width: 280px; }
+.room-list { max-height: 200px; overflow-y: auto; margin: 12px 0; text-align: left; }
+.room-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 6px 0; background: var(--table-banding); border-radius: 8px; }
+.room-item:hover { background: var(--table-bg); }
+.room-item-info { font-size: 14px; }
+.room-item .btn-join-room { padding: 6px 14px; font-size: 13px; }
+.join-card h3 { margin: 0 0 16px 0; font-size: 18px; }
+.join-card input { width: 100%; margin: 0 0 10px 0; box-sizing: border-box; }
+.share-link { font-size: 14px; color: var(--caption); margin: 10px 0; }
+.lobby-players { margin: 16px 0; min-height: 60px; }
+.chat-area { background: var(--table-bg); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: left; }
+.chat-bottom { margin-top: 16px; }
+.game-unified { display: flex; flex-direction: column; gap: 0; max-width: 950px; margin: 0 auto; text-align: left; }
+.game-over-banner { order: 0; margin-bottom: 12px; }
+.game-over-box { background: var(--table-bg); border: 3px solid var(--button-bg-1); border-radius: 16px; padding: 20px 28px; text-align: center; display: inline-block; }
+.game-over-box h2 { color: var(--button-bg-1); margin: 0 0 8px 0; font-size: 22px; }
+.game-over-box p { color: var(--caption); font-size: 14px; margin: 0 0 16px 0; line-height: 1.4; }
+.game-over-box button { padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 10px; background: var(--button-bg-1); color: var(--button-text-1); border: 2px solid var(--button-border-1); font-weight: 600; }
+.game-row { display: flex; flex-direction: row; gap: 16px; align-items: flex-start; }
+.game-row .player-panels { flex: 0 0 auto; order: 1; }
+.game-row .game-canvas-wrap { flex: 0 0 auto; order: 2; }
+.game-canvas-wrap { position: relative; display: inline-block; background: #1a2a3a; border-radius: 8px; }
+.game-canvas-wrap canvas { display: block; vertical-align: top; }
+.game-lobby-section { order: 2; padding: 16px 0; text-align: center; background: var(--table-bg); border-radius: 12px; margin-top: 12px; border: 2px solid var(--button-border-1); }
+.game-lobby-section h2 { margin: 0 0 8px 0; font-size: 18px; }
+.game-lobby-section .lobby-controls { font-size: 12px; color: var(--caption); margin: 8px 0; }
+.game-below { order: 3; padding: 12px 0; }
+.game-controls { order: 3; }
+.chat-area.chat-bottom { order: 4; margin-top: 8px; }
+.game-waiting-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.btn-leave-room { padding: 10px 18px; font-size: 14px; border-radius: 10px; background: rgba(248, 113, 113, 0.2); border: 2px solid #e74c3c; color: #e74c3c; cursor: pointer; font-weight: 600; }
+.btn-leave-room:hover { background: rgba(248, 113, 113, 0.3); opacity: 0.9; }
+#chat-messages { height: 180px; overflow-y: auto; margin-bottom: 12px; font-size: 14px; }
+.chat-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.chat-input-row input { flex: 1; }
+.btn-start { width: 100%; padding: 14px !important; font-size: 18px !important; }
+.btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
+.game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
+.game-leave-link { font-size: 12px; color: var(--caption); text-decoration: none; }
+.game-leave-link:hover { color: #e74c3c; }
+.player-panels { display: flex; flex-direction: column; gap: 12px; min-width: 140px; }
+.player-panel { background: var(--table-bg); border-radius: 12px; padding: 12px; border: 2px solid var(--button-border-1); text-align: left; }
+.player-panel.you { border-color: var(--button-bg-1); }
+.player-panel .player-name { font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+.player-panel .player-record { font-size: 11px; color: var(--caption); margin-bottom: 6px; }
+.player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #2ecc71; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
+.player-panel.dead .player-letter { opacity: 0.5; }
+.player-panel .powerups { margin-top: 8px; font-size: 12px; color: var(--caption); }
+.player-panel .powerup-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.player-panel .pu-level-icons { display: inline-flex; gap: 3px; font-size: 18px; }
+.player-panel .pu-level-icon { opacity: 0.6; font-size: 18px; }
+.pu-icon { font-size: 20px; }
+.player-panel .pu-icon { font-size: 22px; }
+.pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #5dade2; }
+.pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #87CEEB; }
+.pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
+#game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
+.powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.powerup-legend .legend-title { font-weight: 600; }
+.legend-item .pu-icon { margin-right: 6px; font-size: 18px; }
+.game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
+.sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
+.player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
+.auth-toggle { margin-top: 12px; font-size: 14px; color: var(--caption); }
+.auth-toggle a { color: var(--button-bg-1); }
+.user-stats { font-size: 13px; color: var(--caption); margin-left: 8px; }
+.logout-link { font-size: 13px; margin-left: 12px; }
+#login-form input, #register-form input { display: block; width: 100%; max-width: 240px; margin: 8px auto; box-sizing: border-box; }
+</style>
+
+<script>
+(function() {
+  let username = '';
+  let roomCode = '';
+  let playerId = '';
+  let pollInterval = null;
+  let keys = {};
+  let lastMoveAt = 0;
+  let lastBombAt = 0;
+  let renderRAF = null;
+  let gameOver = false;
+  let roomListInterval = null;
+
+  window.showLogin = function() {
+    document.getElementById('step-register').style.display = 'none';
+    document.getElementById('step-login').style.display = 'block';
+  };
+  window.showRegister = function() {
+    document.getElementById('step-login').style.display = 'none';
+    document.getElementById('step-register').style.display = 'block';
+  };
+  function showJoin(user) {
+    username = user.username;
+    document.getElementById('display-username').textContent = username;
+    const stats = user.wins != null && user.losses != null
+      ? '(W: ' + user.wins + ' L: ' + user.losses + ')'
+      : '';
+    document.getElementById('user-stats').textContent = stats;
+    document.getElementById('step-login').style.display = 'none';
+    document.getElementById('step-register').style.display = 'none';
+    document.getElementById('step-join').style.display = 'block';
+    loadRoomList();
+    roomListInterval = setInterval(loadRoomList, 3000);
+  }
+
+  window.handleLogin = function(e) {
+    e.preventDefault();
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+    fetch('/api/balloono/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) alert(data.error);
+      else location.reload();
+    })
+    .catch(() => alert('Network error'));
+    return false;
+  };
+  window.handleRegister = function(e) {
+    e.preventDefault();
+    const u = document.getElementById('register-username').value.trim();
+    const p = document.getElementById('register-password').value;
+    fetch('/api/balloono/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) alert(data.error);
+      else location.reload();
+    })
+    .catch(() => alert('Network error'));
+    return false;
+  };
+  window.handleLogout = function() {
+    fetch('/api/balloono/logout', { method: 'POST', credentials: 'same-origin' })
+    .then(() => location.reload());
+  };
+
+  function leaveRoomIfInRoom() {
+    if (roomCode && playerId) {
+      const body = JSON.stringify({ room_code: roomCode, player_id: playerId });
+      navigator.sendBeacon('/api/balloono/leave_room', new Blob([body], { type: 'application/json' }));
+      roomCode = '';
+      playerId = '';
+    }
+  }
+  window.addEventListener('beforeunload', leaveRoomIfInRoom);
+  window.addEventListener('pagehide', leaveRoomIfInRoom);
+
+  window.leaveRoomAndReturn = function() {
+    if (!roomCode || !playerId) { goBackToJoin(); return; }
+    fetch('/api/balloono/leave_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId }),
+      credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(() => goBackToJoin())
+    .catch(() => goBackToJoin());
+  };
+  function goBackToJoin() {
+    if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    roomCode = '';
+    playerId = '';
+    document.getElementById('step-game').style.display = 'none';
+    document.getElementById('step-join').style.display = 'block';
+    loadRoomList();
+    roomListInterval = setInterval(loadRoomList, 3000);
+  }
+
+  fetch('/api/balloono/me', { credentials: 'same-origin' })
+  .then(r => r.json())
+  .then(data => {
+    if (data && data.logged_in) {
+      showJoin(data);
+    } else {
+      const el = document.getElementById('step-login');
+      if (el) el.style.display = 'block';
+    }
+  })
+  .catch(() => {
+    const el = document.getElementById('step-login');
+    if (el) el.style.display = 'block';
+  });
+
+  window.createRoom = function() {
+    if (roomListInterval) clearInterval(roomListInterval);
+    fetch('/api/balloono/create_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.room_code) {
+        roomCode = data.room_code;
+        playerId = data.player_id;
+        showGameView();
+        startRoomPoll();
+      } else {
+        alert(data.error || 'Failed to create room');
+      }
+    })
+    .catch(() => alert('Network error'));
+  };
+
+  window.joinRoom = function(code) {
+    if (roomListInterval) clearInterval(roomListInterval);
+    fetch('/api/balloono/join_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: code }),
+      credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.room_code) {
+        roomCode = data.room_code;
+        playerId = data.player_id;
+        showGameView();
+        startRoomPoll();
+      } else {
+        alert(data.error || 'Failed to join room');
+      }
+    })
+    .catch(() => alert('Network error'));
+  };
+
+  window.refreshRoomList = function() { loadRoomList(); };
+  function loadRoomList() {
+    fetch('/api/balloono/rooms')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('room-list');
+      if (!el) return;
+      const rooms = data.rooms || [];
+      if (rooms.length === 0) {
+        el.innerHTML = '<p style="color:var(--caption);font-size:13px;padding:12px">No rooms available. Create one!</p>';
+        return;
+      }
+      el.innerHTML = rooms.map(r =>
+        '<div class="room-item">' +
+        '<span class="room-item-info">' + escapeHtml(r.host) + '\'s room · ' + r.player_count + '/2</span>' +
+        '<button class="btn-join-room" onclick="joinRoom(\'' + r.room_code + '\')">Join</button>' +
+        '</div>'
+      ).join('');
+    })
+    .catch(() => {});
+  }
+
+  function renderChat(messages) {
+    const msgs = document.getElementById('chat-messages');
+    if (!msgs) return;
+    msgs.innerHTML = (messages || []).map(m => {
+      if (m.type === 'system') return `<div class="sys-msg">${escapeHtml(m.text)}</div>`;
+      return `<div><b>${escapeHtml(m.username)}:</b> ${escapeHtml(m.text)}</div>`;
+    }).join('');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function showGameView() {
+    document.getElementById('step-join').style.display = 'none';
+    document.getElementById('step-game').style.display = 'block';
+    document.getElementById('room-code-display').textContent = roomCode;
+    document.getElementById('room-code-copy').textContent = roomCode;
+    document.getElementById('game-lobby-section').style.display = 'block';
+    document.getElementById('game-below').style.display = 'none';
+    document.getElementById('game-controls').style.display = 'none';
+    canvas = document.getElementById('game-canvas');
+    if (canvas && !ctx) {
+      canvas.width = 600;
+      canvas.height = 440;
+      ctx = canvas.getContext('2d');
+    }
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+  }
+
+  function startRoomPoll() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(pollRoom, 800);
+    pollRoom();
+  }
+
+  function pollRoom() {
+    fetch('/api/balloono/room/' + roomCode)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        if (data.error === 'Room not found') {
+          clearInterval(pollInterval);
+          alert('Room was closed');
+          location.reload();
+        }
+        return;
+      }
+      renderChat(data.messages || []);
+      const players = data.players || [];
+      const listEl = document.getElementById('player-list');
+      if (listEl) listEl.innerHTML = players.map(p => {
+        const wins = p.balloono_wins != null ? p.balloono_wins : 0;
+        const losses = p.balloono_losses != null ? p.balloono_losses : 0;
+        const rec = (wins > 0 || losses > 0) ? ` (${wins}-${losses})` : '';
+        return `<span class="player-badge">${escapeHtml(p.username)}${rec}</span>`;
+      }).join('');
+      const btn = document.getElementById('btn-start');
+      if (btn) btn.disabled = players.length < 1;
+      if (data.game && data.game.grid_w) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        const lobbyEl = document.getElementById('game-lobby-section');
+        if (lobbyEl) lobbyEl.style.display = 'none';
+        const belowEl = document.getElementById('game-below');
+        if (belowEl) belowEl.style.display = 'block';
+        const ctrlEl = document.getElementById('game-controls');
+        if (ctrlEl) ctrlEl.style.display = 'block';
+        initGame(data.game);
+        startGamePoll();
+      } else if (data.lobby_game && data.lobby_game.grid_w) {
+        gameState = data.lobby_game;
+        const lobbyEl = document.getElementById('game-lobby-section');
+        if (lobbyEl) lobbyEl.style.display = 'block';
+        const belowEl = document.getElementById('game-below');
+        if (belowEl) belowEl.style.display = 'none';
+        const ctrlEl = document.getElementById('game-controls');
+        if (ctrlEl) ctrlEl.style.display = 'none';
+        canvas = document.getElementById('game-canvas');
+        if (canvas) {
+          const cell = data.lobby_game.cell || 40;
+          canvas.width = data.lobby_game.grid_w * cell;
+          canvas.height = data.lobby_game.grid_h * cell;
+          if (!ctx) ctx = canvas.getContext('2d');
+          if (!renderRAF) renderRAF = requestAnimationFrame(gameLoop);
+        }
+      }
+    })
+    .catch(() => {});
+  }
+
+  window.sendMessage = function() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    fetch('/api/balloono/send_message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, text })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.error) input.value = '';
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { sendMessage(); }
+    });
+  });
+
+  window.startGame = function() {
+    fetch('/api/balloono/start_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) alert(data.error);
+      else pollRoom();
+    });
+  };
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  let canvas, ctx;
+  let gameState = null;
+
+  function initGame(g) {
+    if (!g || !g.grid_w) return;
+    gameOver = false;
+    gameState = g;
+    canvas = document.getElementById('game-canvas');
+    if (!canvas) return;
+    const cell = g.cell || 40;
+    canvas.width = g.grid_w * cell;
+    canvas.height = g.grid_h * cell;
+    ctx = canvas.getContext('2d');
+    updatePlayerPanels();
+  }
+
+  function isLobbyMode() {
+    return gameState && !gameState.hasOwnProperty('game_started_at');
+  }
+
+  function sendLobbyAction(action) {
+    const now = Date.now();
+    if (now - lastMoveAt < 120) return;
+    lastMoveAt = now;
+    fetch('/api/balloono/lobby_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, action })
+    }).catch(() => {});
+  }
+
+  function onKeyDown(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    keys[e.key] = true;
+  }
+  function onKeyUp(e) { keys[e.key] = false; }
+
+  function getMoveCooldown() {
+    if (!gameState || !gameState.players) return 150;
+    const me = gameState.players.find(p => p.id === playerId);
+    const speed = me ? (me.speed_level || 0) : 0;
+    return Math.max(40, 150 - speed * 30);
+  }
+  const BOMB_COOLDOWN = 200;
+  function sendAction(action) {
+    const now = Date.now();
+    const isBomb = action === 'bomb';
+    if (isBomb) {
+      if (now - lastBombAt < BOMB_COOLDOWN) return;
+      lastBombAt = now;
+    } else {
+      if (now - lastMoveAt < getMoveCooldown()) return;
+      lastMoveAt = now;
+    }
+    fetch('/api/balloono/game_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, action })
+    }).catch(() => {});
+  }
+
+  function gameLoop() {
+    if (gameOver) {
+      if (gameState && ctx) {
+        renderGame();
+        updatePlayerPanels();
+      }
+      if (renderRAF) cancelAnimationFrame(renderRAF);
+      renderRAF = null;
+      return;
+    }
+    if (gameState && ctx) {
+      renderGame();
+      updatePlayerPanels();
+      if (!gameOver) {
+        if (isLobbyMode()) {
+          if (keys['ArrowUp']) sendLobbyAction('up');
+          if (keys['ArrowDown']) sendLobbyAction('down');
+          if (keys['ArrowLeft']) sendLobbyAction('left');
+          if (keys['ArrowRight']) sendLobbyAction('right');
+        } else {
+          if (keys['ArrowUp']) sendAction('up');
+          if (keys['ArrowDown']) sendAction('down');
+          if (keys['ArrowLeft']) sendAction('left');
+          if (keys['ArrowRight']) sendAction('right');
+          if (keys[' ']) sendAction('bomb');
+        }
+      }
+    }
+    renderRAF = requestAnimationFrame(gameLoop);
+  }
+  function startGamePoll() {
+    if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    renderRAF = requestAnimationFrame(gameLoop);
+    pollInterval = setInterval(function() {
+      fetch('/api/balloono/game_state/' + roomCode)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) return;
+        if (data.game) {
+          gameState = data.game;
+          renderChat(gameState.messages || []);
+          if (!gameState.game_over_message) {
+            gameOver = false;
+            const banner = document.getElementById('game-over-banner');
+            if (banner) banner.style.display = 'none';
+          }
+        }
+        const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
+        const winner = alive.length === 1 ? alive[0] : null;
+        if (winner && !gameOver) {
+          gameOver = true;
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
+          const title = gameState.game_over_title || (winner.username + ' Wins!');
+          const msg = gameState.game_over_message || '';
+          const titleEl = document.getElementById('game-over-title');
+          const msgEl = document.getElementById('game-over-message');
+          const bannerEl = document.getElementById('game-over-banner');
+          if (titleEl) titleEl.textContent = title;
+          if (msgEl) msgEl.textContent = msg;
+          if (bannerEl) bannerEl.style.display = 'block';
+        } else if (alive.length === 0 && !gameOver) {
+          gameOver = true;
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
+          const title = gameState.game_over_title || 'Draw!';
+          const msg = gameState.game_over_message || 'Everyone got splashed!';
+          const titleEl = document.getElementById('game-over-title');
+          const msgEl = document.getElementById('game-over-message');
+          const bannerEl = document.getElementById('game-over-banner');
+          if (titleEl) titleEl.textContent = title;
+          if (msgEl) msgEl.textContent = msg;
+          if (bannerEl) bannerEl.style.display = 'block';
+        }
+      });
+    }, 100);
+  }
+
+  function renderGame() {
+    if (!ctx || !gameState) return;
+    const cell = gameState.cell || 40;
+    const W = gameState.grid_w, H = gameState.grid_h;
+    ctx.fillStyle = '#1a2a3a';
+    ctx.fillRect(0, 0, W * cell, H * cell);
+
+    const blocks = new Set((gameState.blocks || []).map(b => (Array.isArray(b) ? b : [b[0], b[1]]).join(',')));
+    ctx.fillStyle = '#4a5a6a';
+    blocks.forEach(k => {
+      const [x, y] = k.split(',').map(Number);
+      ctx.fillRect(x * cell + 2, y * cell + 2, cell - 4, cell - 4);
+    });
+
+    (gameState.bombs || []).forEach(b => {
+      const cx = b.x * cell + cell/2, cy = b.y * cell + cell/2;
+      const r = cell/3;
+      ctx.fillStyle = '#87CEEB';
+      ctx.strokeStyle = '#6BB3D0';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 0.95, r * 1.05, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#5A9FB8';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - r * 0.9, r * 0.25, r * 0.2, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    (gameState.explosions || []).forEach(e => {
+      const cx = e.x * cell + cell/2, cy = e.y * cell + cell/2;
+      const r = cell/2;
+      ctx.fillStyle = 'rgba(135, 206, 235, 0.6)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(173, 216, 230, 0.5)';
+      ctx.beginPath();
+      ctx.arc(cx - r*0.3, cy - r*0.2, r*0.4, 0, Math.PI*2);
+      ctx.arc(cx + r*0.25, cy + r*0.15, r*0.35, 0, Math.PI*2);
+      ctx.arc(cx + r*0.1, cy - r*0.35, r*0.3, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    const puIcons = { blast: '💧', bombs: '🎈', speed: '⚡' };
+    (gameState.powerups || []).forEach(pu => {
+      const cx = pu.x * cell + cell/2, cy = pu.y * cell + cell/2;
+      ctx.fillStyle = '#3a4a5a';
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell/3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#5a6a7a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = (cell/2.5) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(puIcons[pu.type] || '?', cx, cy);
+    });
+
+    (gameState.players || []).forEach((p, i) => {
+      const color = monkeyColors[i % monkeyColors.length];
+      const darkColor = '#333';
+      const cx = p.x * cell + cell/2, cy = p.y * cell + cell/2;
+      const r = cell/2 - 3;
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (!p.alive) ctx.globalAlpha = 0.85;
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(0, 3, r * 0.75, r * 0.95, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = darkColor;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.35, r * 0.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = darkColor;
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-r*0.65, -r*0.5, r*0.2, r*0.3, 0, 0, Math.PI*2);
+      ctx.ellipse(r*0.65, -r*0.5, r*0.2, r*0.3, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#E8D4B8';
+      ctx.beginPath();
+      ctx.ellipse(0, -r*0.2, r*0.35, r*0.4, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#2C1810';
+      ctx.beginPath();
+      ctx.arc(-r*0.15, -r*0.25, 3, 0, Math.PI*2);
+      ctx.arc(r*0.15, -r*0.25, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#5D3A1A';
+      ctx.beginPath();
+      ctx.ellipse(r*0.5, r*0.6, r*0.15, r*0.4, 0.3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + Math.round(cell/3) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const letter = (p.username || '?').charAt(0).toUpperCase();
+      ctx.fillText(letter, 0, 0);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    });
+  }
+
+  function levelIcons(level, icon) {
+    if (level <= 0) return '<span class="pu-level-icons">○○</span>';
+    if (level <= 3) {
+      let s = '<span class="pu-level-icons">';
+      for (let i = 0; i < 3; i++) s += '<span class="pu-level-icon">' + (i < level ? icon : '○') + '</span>';
+      return s + '</span>';
+    }
+    return '<span class="pu-level-icons">' + icon + '×' + level + '</span>';
+  }
+  const monkeyColors = ['#2ecc71', '#3498db', '#e74c3c', '#9b59b6', '#f39c12'];
+  function updatePlayerPanels() {
+    const el = document.getElementById('player-panels');
+    if (!el || !gameState || !gameState.players) return;
+    const showPowerups = !isLobbyMode();
+    el.innerHTML = gameState.players.map((p, i) => {
+      const letter = (p.username || '?').charAt(0).toUpperCase();
+      const isYou = p.id === playerId;
+      const color = monkeyColors[i % monkeyColors.length];
+      const blast = p.blast_level || 0;
+      const bombs = p.bombs_level || 0;
+      const speed = p.speed_level || 0;
+      const wins = p.balloono_wins != null ? p.balloono_wins : 0;
+      const losses = p.balloono_losses != null ? p.balloono_losses : 0;
+      const recordHtml = (wins > 0 || losses > 0) ? '<div class="player-record">Balloono: ' + wins + '-' + losses + '</div>' : '';
+      const powerupsHtml = showPowerups ? (
+        '<div class="powerups">' +
+        '<div class="powerup-row pu-blast"><span class="pu-icon">💧</span>' + levelIcons(blast, '💧') + '</div>' +
+        '<div class="powerup-row pu-bombs"><span class="pu-icon">🎈</span>' + levelIcons(bombs, '🎈') + '</div>' +
+        '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelIcons(speed, '⚡') + '</div>' +
+        '</div>'
+      ) : '';
+      return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
+        '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
+        recordHtml +
+        powerupsHtml +
+        '</div>';
+    }).join('');
+  }
+
+  window.startNewGame = function() {
+    fetch('/api/balloono/reset_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode })
+    })
+    .then(() => fetch('/api/balloono/start_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId }),
+      credentials: 'same-origin'
+    }))
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.error) { alert(data.error); return; }
+      const banner = document.getElementById('game-over-banner');
+      if (banner) banner.style.display = 'none';
+      gameOver = false;
+      const lobbyEl = document.getElementById('game-lobby-section');
+      if (lobbyEl) lobbyEl.style.display = 'none';
+      const belowEl = document.getElementById('game-below');
+      if (belowEl) belowEl.style.display = 'block';
+      const ctrlEl = document.getElementById('game-controls');
+      if (ctrlEl) ctrlEl.style.display = 'block';
+      if (data && data.game && data.game.grid_w) {
+        initGame(data.game);
+        startGamePoll();
+      }
+    })
+    .catch(() => alert('Failed to start new game'));
+  };
+
+  window.backToLobby = function() {
+    if (pollInterval) clearInterval(pollInterval);
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('keyup', onKeyUp);
+    const banner = document.getElementById('game-over-banner');
+    if (banner) banner.style.display = 'none';
+    const status = document.getElementById('game-status');
+    if (status) status.textContent = '';
+    const lobbyEl = document.getElementById('game-lobby-section');
+    if (lobbyEl) lobbyEl.style.display = 'block';
+    const belowEl = document.getElementById('game-below');
+    if (belowEl) belowEl.style.display = 'none';
+    const ctrlEl = document.getElementById('game-controls');
+    if (ctrlEl) ctrlEl.style.display = 'none';
+    startRoomPoll();
+  };
+})();
+</script>
+{% endblock %}
