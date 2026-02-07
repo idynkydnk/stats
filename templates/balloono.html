@@ -46,7 +46,7 @@
         <div class="game-over-box">
           <h2 id="game-over-title"></h2>
           <p id="game-over-message"></p>
-          <button onclick="backToLobby()">Play Again</button>
+          <button onclick="startNewGame()">Play Again</button>
         </div>
       </div>
       <div class="game-header">
@@ -155,17 +155,18 @@
 .player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #2ecc71; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
 .player-panel.dead .player-letter { opacity: 0.5; }
 .player-panel .powerups { margin-top: 8px; font-size: 12px; color: var(--caption); }
-.player-panel .powerup-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-.player-panel .pu-level-icons { display: inline-flex; gap: 2px; font-size: 12px; }
-.player-panel .pu-level-icon { opacity: 0.6; }
-.pu-icon { font-size: 14px; }
+.player-panel .powerup-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.player-panel .pu-level-icons { display: inline-flex; gap: 3px; font-size: 18px; }
+.player-panel .pu-level-icon { opacity: 0.6; font-size: 18px; }
+.pu-icon { font-size: 20px; }
+.player-panel .pu-icon { font-size: 22px; }
 .pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #5dade2; }
 .pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #87CEEB; }
 .pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
 #game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
 .powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
 .powerup-legend .legend-title { font-weight: 600; }
-.legend-item .pu-icon { margin-right: 4px; }
+.legend-item .pu-icon { margin-right: 6px; font-size: 18px; }
 .game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
 .sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
 .player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
@@ -518,10 +519,11 @@
   function onKeyUp(e) { keys[e.key] = false; }
 
   function getMoveCooldown() {
-    if (!gameState || !gameState.players) return 120;
+    if (!gameState || !gameState.players) return 150;
     const me = gameState.players.find(p => p.id === playerId);
     const speed = me ? (me.speed_level || 0) : 0;
-    return Math.max(60, 120 - speed * 20);
+    // Match server: 150ms base, -30ms per speed level, min 40ms
+    return Math.max(40, 150 - speed * 30);
   }
   const BOMB_COOLDOWN = 200;
   function sendAction(action) {
@@ -583,6 +585,10 @@
         if (data.game) {
           gameState = data.game;
           renderChat(gameState.messages || []);
+          if (!gameState.game_over_message) {
+            gameOver = false;
+            document.getElementById('game-over-banner').style.display = 'none';
+          }
         }
         const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
         const winner = alive.length === 1 ? alive[0] : null;
@@ -765,16 +771,37 @@
     }).join('');
   }
 
+  window.startNewGame = function() {
+    fetch('/api/balloono/reset_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode })
+    })
+    .then(() => fetch('/api/balloono/start_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId }),
+      credentials: 'same-origin'
+    }))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      document.getElementById('game-over-banner').style.display = 'none';
+      gameOver = false;
+      document.getElementById('game-lobby-section').style.display = 'none';
+      document.getElementById('game-below').style.display = 'block';
+      document.getElementById('game-controls').style.display = 'block';
+      initGame(data.game);
+      startGamePoll();
+    })
+    .catch(() => alert('Failed to start new game'));
+  };
+
   window.backToLobby = function() {
     if (pollInterval) clearInterval(pollInterval);
     if (renderRAF) cancelAnimationFrame(renderRAF);
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('keyup', onKeyUp);
-    fetch('/api/balloono/reset_game', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_code: roomCode })
-    }).catch(() => {});
     document.getElementById('game-over-banner').style.display = 'none';
     document.getElementById('game-status').textContent = '';
     document.getElementById('game-lobby-section').style.display = 'block';

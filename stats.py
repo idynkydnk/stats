@@ -3459,8 +3459,9 @@ def api_balloono_create_room():
             room_code = _generate_room_code()
         player_id = secrets.token_hex(8)
         now = datetime.now()
+        GRID_W, GRID_H = 15, 11
         _balloono_rooms[room_code] = {
-            'players': [{'id': player_id, 'user_id': user_id, 'username': username, 'ready': False}],
+            'players': [{'id': player_id, 'user_id': user_id, 'username': username, 'ready': False, 'x': 1, 'y': 1}],
             'messages': [{'type': 'system', 'text': f'{username} created the room.'}],
             'game': None,
             'lobby_game': _balloono_lobby_game([{'id': player_id, 'user_id': user_id, 'username': username}]),
@@ -3544,7 +3545,8 @@ def api_balloono_join_room():
         if len(room['players']) >= 2:
             return jsonify({'error': 'Room is full'}), 400
         player_id = secrets.token_hex(8)
-        room['players'].append({'id': player_id, 'user_id': user_id, 'username': username, 'ready': False})
+        GRID_W, GRID_H = 15, 11
+        room['players'].append({'id': player_id, 'user_id': user_id, 'username': username, 'ready': False, 'x': GRID_W - 2, 'y': GRID_H - 2})
         room['lobby_game'] = _balloono_lobby_game(room['players'])
         room['messages'].append({'type': 'system', 'text': f'{username} joined the room.'})
         room['last_activity'] = time.time()
@@ -3584,7 +3586,62 @@ def api_balloono_get_room(room_code):
         except Exception:
             room['players'] = list(room['players'])
         room['messages'] = list(room['messages'])[-50:]
+        if room.get('game') is None:
+            GRID_W, GRID_H = 15, 11
+            blocks = set()
+            for x in range(GRID_W):
+                blocks.add((x, 0))
+                blocks.add((x, GRID_H - 1))
+            for y in range(GRID_H):
+                blocks.add((0, y))
+                blocks.add((GRID_W - 1, y))
+            for x in range(2, GRID_W - 2, 2):
+                for y in range(2, GRID_H - 2, 2):
+                    blocks.add((x, y))
+            lobby_players = [{'id': p['id'], 'username': p['username'], 'x': p.get('x', 1), 'y': p.get('y', 1), 'alive': True, 'balloono_wins': p.get('balloono_wins'), 'balloono_losses': p.get('balloono_losses')} for p in room['players']]
+            room['lobby_game'] = {'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': 40, 'blocks': [[a, b] for a, b in blocks], 'players': lobby_players}
+        else:
+            room['lobby_game'] = None
     return jsonify(room)
+
+@app.route('/api/balloono/lobby_action', methods=['POST'])
+def api_balloono_lobby_action():
+    """Move in lobby (before game starts). No bombs or powerups."""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    action = data.get('action')
+    if action not in ('up', 'down', 'left', 'right'):
+        return jsonify({'error': 'Invalid action'}), 400
+    GRID_W, GRID_H = 15, 11
+    blocks = set()
+    for x in range(GRID_W):
+        blocks.add((x, 0))
+        blocks.add((x, GRID_H - 1))
+    for y in range(GRID_H):
+        blocks.add((0, y))
+        blocks.add((GRID_W - 1, y))
+    for x in range(2, GRID_W - 2, 2):
+        for y in range(2, GRID_H - 2, 2):
+            blocks.add((x, y))
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room.get('game') is not None:
+            return jsonify({'error': 'Game already started'}), 400
+        player = next((p for p in room['players'] if p['id'] == player_id), None)
+        if not player:
+            return jsonify({'error': 'Player not in room'}), 400
+        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
+        nx = player.get('x', 1) + dx
+        ny = player.get('y', 1) + dy
+        if 1 <= nx < GRID_W - 1 and 1 <= ny < GRID_H - 1 and (nx, ny) not in blocks:
+            others_at = [(p.get('x'), p.get('y')) for p in room['players'] if p['id'] != player_id]
+            if (nx, ny) not in others_at:
+                player['x'], player['y'] = nx, ny
+        room['last_activity'] = time.time()
+    return jsonify({'ok': True})
 
 @app.route('/api/balloono/send_message', methods=['POST'])
 def api_balloono_send_message():
@@ -3617,16 +3674,18 @@ def api_balloono_start_game():
             return jsonify({'error': 'Game already in progress'}), 400
         if len(room['players']) < 1:
             return jsonify({'error': 'Need at least 1 player to start'}), 400
-        # Initialize game state (Bomberman-style)
+        # Initialize game state - use lobby positions if set
         GRID_W, GRID_H = 15, 11
         CELL = 40
         p0 = room['players'][0]
+        x0, y0 = p0.get('x', 1), p0.get('y', 1)
         players_data = [
-            {'id': p0['id'], 'user_id': p0.get('user_id'), 'username': p0['username'], 'x': 1, 'y': 1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
+            {'id': p0['id'], 'user_id': p0.get('user_id'), 'username': p0['username'], 'x': x0, 'y': y0, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
         ]
         if len(room['players']) >= 2:
             p1 = room['players'][1]
-            players_data.append({'id': p1['id'], 'user_id': p1.get('user_id'), 'username': p1['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
+            x1, y1 = p1.get('x', GRID_W - 2), p1.get('y', GRID_H - 2)
+            players_data.append({'id': p1['id'], 'user_id': p1.get('user_id'), 'username': p1['username'], 'x': x1, 'y': y1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
         room['game'] = {
             'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
             'players': players_data,
@@ -3677,7 +3736,8 @@ def api_balloono_game_action():
 
         if action in ('up', 'down', 'left', 'right'):
             speed = player.get('speed_level', 0)
-            cooldown = max(0.06, 0.12 - speed * 0.02)
+            # Base 150ms, minus 30ms per speed level, min 40ms (so speed really feels faster)
+            cooldown = max(0.04, 0.15 - speed * 0.03)
             last_move = player.get('_last_move_at', 0)
             if time.time() - last_move < cooldown:
                 return jsonify({'ok': True})
