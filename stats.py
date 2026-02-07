@@ -3771,41 +3771,6 @@ def api_balloono_game_action():
                 })
     return jsonify({'ok': True})
 
-@app.route('/api/balloono/lobby_action', methods=['POST'])
-def api_balloono_lobby_action():
-    """Move only while in lobby (no game started). Updates lobby_game player position."""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    action = data.get('action')  # 'up','down','left','right' only
-    if action not in ('up', 'down', 'left', 'right'):
-        return jsonify({'ok': True})
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if room.get('game') is not None:
-            return jsonify({'error': 'Game in progress'}), 400
-        lobby = room.get('lobby_game')
-        if not lobby or not lobby.get('players'):
-            return jsonify({'error': 'No lobby state'}), 400
-        player = next((p for p in lobby['players'] if p['id'] == player_id), None)
-        if not player:
-            return jsonify({'error': 'Invalid player'}), 400
-        blocks_set = set((b[0], b[1]) for b in lobby.get('blocks', []))
-        last_move = player.get('_last_move_at', 0)
-        if time.time() - last_move < 0.12:
-            return jsonify({'ok': True})
-        player['_last_move_at'] = time.time()
-        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
-        nx, ny = player['x'] + dx, player['y'] + dy
-        if 1 <= nx < lobby['grid_w'] - 1 and 1 <= ny < lobby['grid_h'] - 1:
-            if (nx, ny) not in blocks_set:
-                other = next((p for p in lobby['players'] if p['id'] != player_id), None)
-                if not (other and other['x'] == nx and other['y'] == ny):
-                    player['x'], player['y'] = nx, ny
-    return jsonify({'ok': True})
-
 def _balloono_tick(game):
     """Process bombs, explosions, player deaths, powerup spawning. Mutates game in place."""
     blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
