@@ -189,6 +189,7 @@
   let renderRAF = null;
   let gameOver = false;
   let roomListInterval = null;
+  let isLeavingRoom = false;
 
   window.showLogin = function() {
     document.getElementById('step-register').style.display = 'none';
@@ -264,6 +265,11 @@
 
   window.leaveRoomAndReturn = function() {
     if (!roomCode || !playerId) { goBackToJoin(); return; }
+    isLeavingRoom = true;
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = null;
+    if (renderRAF) cancelAnimationFrame(renderRAF);
+    renderRAF = null;
     fetch('/api/balloono/leave_room', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -271,12 +277,14 @@
       credentials: 'same-origin'
     })
     .then(r => r.json())
-    .then(() => goBackToJoin())
-    .catch(() => goBackToJoin());
+    .then(() => { isLeavingRoom = false; goBackToJoin(); })
+    .catch(() => { isLeavingRoom = false; goBackToJoin(); });
   };
   function goBackToJoin() {
     if (pollInterval) clearInterval(pollInterval);
+    pollInterval = null;
     if (renderRAF) cancelAnimationFrame(renderRAF);
+    renderRAF = null;
     roomCode = '';
     playerId = '';
     document.getElementById('step-game').style.display = 'none';
@@ -407,8 +415,11 @@
       if (data.error) {
         if (data.error === 'Room not found') {
           clearInterval(pollInterval);
-          alert('Room was closed');
-          location.reload();
+          pollInterval = null;
+          if (!isLeavingRoom) {
+            alert('Room was closed');
+            location.reload();
+          }
         }
         return;
       }
