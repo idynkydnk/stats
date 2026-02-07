@@ -46,7 +46,7 @@
         <div class="game-over-box">
           <h2 id="game-over-title"></h2>
           <p id="game-over-message"></p>
-          <button onclick="backToLobby()">Back to Lobby</button>
+          <button onclick="backToLobby()">Play Again</button>
         </div>
       </div>
       <div class="game-header">
@@ -640,11 +640,11 @@
     (gameState.players || []).forEach((p, i) => {
       const color = monkeyColors[i % monkeyColors.length];
       const darkColor = '#333';
-      if (!p.alive) return;
       const cx = p.x * cell + cell/2, cy = p.y * cell + cell/2;
       const r = cell/2 - 3;
       ctx.save();
       ctx.translate(cx, cy);
+      if (!p.alive) ctx.globalAlpha = 0.85;
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 6;
       ctx.fillStyle = color;
@@ -687,6 +687,7 @@
       const letter = (p.username || '?').charAt(0).toUpperCase();
       ctx.fillText(letter, 0, 0);
       ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
       ctx.restore();
     });
   }
