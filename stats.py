@@ -22,6 +22,7 @@ import secrets
 import hashlib
 import json
 import re
+import threading
 
 # Load environment variables from .env file if it exists (optional, for local development)
 # Only load if dotenv is available - not required on PythonAnywhere where env vars are set in WSGI file
@@ -466,9 +467,14 @@ def other_stats_redesign(year):
     
     rare_stats = rare_other_stats_per_year(display_year, minimum_games)
     game_cards = build_other_game_cards(display_year)
+    
+    # Get today's stats grouped by game name
+    today_stats_by_game = todays_other_stats_by_game()
+    
     return render_template('other_stats_redesign.html', stats=stats, rare_stats=rare_stats,
         all_years=all_years, minimum_games=minimum_games, year=year,
-        display_year=display_year, showing_previous_year=showing_previous_year, game_cards=game_cards)
+        display_year=display_year, showing_previous_year=showing_previous_year, game_cards=game_cards,
+        today_stats_by_game=today_stats_by_game)
 
 @app.route('/other_games_redesign/')
 def other_games_redesign_default():
@@ -480,6 +486,18 @@ def other_games_redesign(year):
     all_years = all_other_years()
     games = other_year_games(year)
     return render_template('other_games_redesign.html', games=games, all_years=all_years, year=year)
+
+
+@app.route('/other_games_redesign/<year>/<game_name>/')
+def other_games_by_name_redesign(year, game_name):
+    """Redesigned other games page filtered by game name."""
+    from other_functions import total_game_name_stats
+    all_years = all_other_years()
+    all_games = other_year_games(year)
+    # Filter games by game_name
+    games = [g for g in all_games if g.get('game_name') == game_name]
+    stats = total_game_name_stats(games)
+    return render_template('other_games_redesign.html', games=games, all_years=all_years, year=year, game_name=game_name, stats=stats)
 
 
 # ============================================
@@ -727,7 +745,8 @@ def player_list_redesign():
     """Redesigned player list page."""
     from player_functions import get_all_players
     players = get_all_players()
-    return render_template('player_list_redesign.html', players=players)
+    all_unique_players = sorted(get_all_unique_players())
+    return render_template('player_list_redesign.html', players=players, all_unique_players=all_unique_players)
 
 
 # ============================================
@@ -1817,6 +1836,86 @@ def volleyball_player_stats(year, name):
         total_games=total_games)
 
 
+@app.route('/volleyball_player_redesign/<year>/<name>')
+def volleyball_player_stats_redesign(year, name):
+    """Redesigned volleyball stats page for a specific player."""
+    from other_functions import other_year_games, total_game_name_stats, other_game_names, _is_valid_player_name
+    
+    all_years = all_other_years()
+    games = other_year_games(year)
+    
+    # Filter to only volleyball games where this player participated
+    player_volleyball_games = []
+    for game in games:
+        if game.get('game_type') != 'Volleyball':
+            continue
+        for i in range(1, 16):
+            winner = game.get(f'winner{i}')
+            loser = game.get(f'loser{i}')
+            if (winner and _is_valid_player_name(winner) and winner == name) or \
+               (loser and _is_valid_player_name(loser) and loser == name):
+                player_volleyball_games.append(game)
+                break
+    
+    # Calculate overall stats for this player
+    wins, losses = 0, 0
+    for game in player_volleyball_games:
+        for i in range(1, 16):
+            winner = game.get(f'winner{i}')
+            loser = game.get(f'loser{i}')
+            if winner and _is_valid_player_name(winner) and winner == name:
+                wins += 1
+                break
+            if loser and _is_valid_player_name(loser) and loser == name:
+                losses += 1
+                break
+    
+    total_games = wins + losses
+    win_percentage = wins / total_games if total_games > 0 else 0
+    overall_stats = [[name, wins, losses, win_percentage, total_games]]
+    
+    # Build game cards for each volleyball game type this player has played
+    game_cards = []
+    game_names = other_game_names(player_volleyball_games)
+    for game_name in game_names:
+        game_specific = [g for g in player_volleyball_games if g.get('game_name') == game_name]
+        if not game_specific:
+            continue
+        
+        type_wins, type_losses = 0, 0
+        for game in game_specific:
+            for i in range(1, 16):
+                winner = game.get(f'winner{i}')
+                loser = game.get(f'loser{i}')
+                if winner and _is_valid_player_name(winner) and winner == name:
+                    type_wins += 1
+                    break
+                if loser and _is_valid_player_name(loser) and loser == name:
+                    type_losses += 1
+                    break
+        
+        type_total = type_wins + type_losses
+        type_win_pct = type_wins / type_total if type_total > 0 else 0
+        
+        game_cards.append({
+            'game_name': game_name,
+            'wins': type_wins,
+            'losses': type_losses,
+            'win_percentage': type_win_pct,
+            'total_games': type_total
+        })
+    
+    game_cards.sort(key=lambda x: x['total_games'], reverse=True)
+    
+    return render_template('volleyball_player_redesign.html',
+        player=name,
+        year=year,
+        all_years=all_years,
+        stats=overall_stats,
+        game_cards=game_cards,
+        total_games=total_games)
+
+
 @app.route('/add_other_game/', methods=('GET', 'POST'))
 @login_required
 def add_other_game():
@@ -2045,6 +2144,25 @@ def player_game_stats(year, game_name, player_name):
         all_years=all_years,
         stats=stats,
         games=games)
+
+
+@app.route('/player_game_stats_redesign/<year>/<game_name>/<player_name>/')
+def player_game_stats_redesign(year, game_name, player_name):
+    """Redesigned player game stats page for specific game types."""
+    from other_functions import player_game_name_games, player_game_name_stats, game_name_years
+    
+    all_years = game_name_years(game_name)
+    games = player_game_name_games(year, game_name, player_name)
+    stats = player_game_name_stats(games, player_name)
+    
+    return render_template('player_game_stats_redesign.html',
+        player_name=player_name,
+        game_name=game_name,
+        year=year,
+        all_years=all_years,
+        stats=stats,
+        games=games)
+
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -3126,6 +3244,237 @@ def game_hub():
 def work_in_progress():
     """Work in Progress page with links to various features"""
     return render_template('work_in_progress.html')
+
+# Balloono game state (in-memory, room-based)
+_balloono_rooms = {}
+_balloono_lock = threading.Lock()
+
+def _generate_room_code():
+    return ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
+
+@app.route('/balloono')
+def balloono():
+    """Balloono game page. Link in menu is Kyle-only, but page is public so friends can join via URL."""
+    return render_template('balloono.html')
+
+@app.route('/api/balloono/create_room', methods=['POST'])
+def api_balloono_create_room():
+    """Create a new Balloono room"""
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()[:20] or 'Player'
+    with _balloono_lock:
+        room_code = _generate_room_code()
+        while room_code in _balloono_rooms:
+            room_code = _generate_room_code()
+        player_id = secrets.token_hex(8)
+        _balloono_rooms[room_code] = {
+            'players': [{'id': player_id, 'username': username, 'ready': False}],
+            'messages': [{'type': 'system', 'text': f'{username} created the room.'}],
+            'game': None,
+            'created': datetime.now().isoformat(),
+        }
+    return jsonify({
+        'room_code': room_code,
+        'player_id': player_id,
+        'username': username,
+    })
+
+@app.route('/api/balloono/join_room', methods=['POST'])
+def api_balloono_join_room():
+    """Join an existing Balloono room"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    username = (data.get('username') or '').strip()[:20] or 'Player'
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room['game'] is not None:
+            return jsonify({'error': 'Game already in progress'}), 400
+        if len(room['players']) >= 2:
+            return jsonify({'error': 'Room is full'}), 400
+        player_id = secrets.token_hex(8)
+        room['players'].append({'id': player_id, 'username': username, 'ready': False})
+        room['messages'].append({'type': 'system', 'text': f'{username} joined the room.'})
+    return jsonify({
+        'room_code': room_code,
+        'player_id': player_id,
+        'username': username,
+    })
+
+@app.route('/api/balloono/room/<room_code>')
+def api_balloono_get_room(room_code):
+    """Get room state (polling)"""
+    room_code = room_code.upper()
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code].copy()
+        room['players'] = list(room['players'])
+        room['messages'] = list(room['messages'])[-50:]  # Last 50 messages
+    return jsonify(room)
+
+@app.route('/api/balloono/send_message', methods=['POST'])
+def api_balloono_send_message():
+    """Send a chat message"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    text = (data.get('text') or '').strip()[:200]
+    if not text:
+        return jsonify({'error': 'Empty message'}), 400
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room['game'] is not None:
+            return jsonify({'error': 'Cannot chat during game'}), 400
+        username = next((p['username'] for p in room['players'] if p['id'] == player_id), 'Unknown')
+        room['messages'].append({'type': 'chat', 'username': username, 'text': text})
+    return jsonify({'ok': True})
+
+@app.route('/api/balloono/start_game', methods=['POST'])
+def api_balloono_start_game():
+    """Start the Balloono game (both players must be in room)"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room['game'] is not None:
+            return jsonify({'error': 'Game already in progress'}), 400
+        if len(room['players']) < 2:
+            return jsonify({'error': 'Need 2 players to start'}), 400
+        # Initialize game state (Bomberman-style)
+        GRID_W, GRID_H = 15, 11
+        CELL = 40
+        p1, p2 = room['players'][0], room['players'][1]
+        room['game'] = {
+            'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
+            'players': [
+                {'id': p1['id'], 'username': p1['username'], 'x': 1, 'y': 1, 'alive': True, 'bombs': 1, 'range': 2, 'speed': 1},
+                {'id': p2['id'], 'username': p2['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'bombs': 1, 'range': 2, 'speed': 1},
+            ],
+            'bombs': [],
+            'explosions': [],
+            'powerups': [],
+            'walls': [],  # Destructible
+            'blocks': set(),  # Indestructible: (x,y) tuples
+            'last_tick': datetime.now().isoformat(),
+        }
+        # Add indestructible blocks (border + grid pattern)
+        blocks = set()
+        for x in range(GRID_W):
+            blocks.add((x, 0))
+            blocks.add((x, GRID_H - 1))
+        for y in range(GRID_H):
+            blocks.add((0, y))
+            blocks.add((GRID_W - 1, y))
+        for x in range(2, GRID_W - 2, 2):
+            for y in range(2, GRID_H - 2, 2):
+                blocks.add((x, y))
+        room['game']['blocks'] = list(blocks)
+        room['messages'].append({'type': 'system', 'text': 'Game started!'})
+    return jsonify({'ok': True, 'game': room['game']})
+
+@app.route('/api/balloono/game_action', methods=['POST'])
+def api_balloono_game_action():
+    """Player action: move or place bomb"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    action = data.get('action')  # 'up','down','left','right','bomb'
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room['game'] is None:
+            return jsonify({'error': 'No game in progress'}), 400
+        game = room['game']
+        player = next((p for p in game['players'] if p['id'] == player_id), None)
+        if not player or not player.get('alive', True):
+            return jsonify({'error': 'Invalid player'}), 400
+        if action in ('up', 'down', 'left', 'right'):
+            dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
+            nx, ny = player['x'] + dx, player['y'] + dy
+            blocks_set = set(tuple(b) for b in game['blocks'])
+            if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
+                if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in game.get('bombs', [])):
+                    other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
+                    if other and other['x'] == nx and other['y'] == ny:
+                        pass  # Can't move through other player (or allow?)
+                    else:
+                        player['x'], player['y'] = nx, ny
+        elif action == 'bomb':
+            placed = sum(1 for b in game.get('bombs', []) if b.get('owner') == player_id)
+            if placed < player.get('bombs', 1):
+                game.setdefault('bombs', []).append({
+                    'x': player['x'], 'y': player['y'], 'owner': player_id,
+                    'range': player.get('range', 2), 'placed_at': datetime.now().isoformat(),
+                })
+    return jsonify({'ok': True})
+
+def _balloono_tick(game):
+    """Process bombs, explosions, player deaths. Mutates game in place."""
+    blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
+    now = datetime.now()
+    bombs = game.get('bombs', [])
+    explosions = game.get('explosions', [])
+
+    # Remove expired explosions (0.4s display)
+    explosions[:] = [e for e in explosions if (now - datetime.fromisoformat(e['at'])).total_seconds() < 0.4]
+
+    # Check bombs for explosion (2.5s fuse)
+    for b in list(bombs):
+        placed = datetime.fromisoformat(b['placed_at'])
+        if (now - placed).total_seconds() >= 2.5:
+            bombs.remove(b)
+            r = b.get('range', 2)
+            cx, cy = b['x'], b['y']
+            cells = [(cx, cy)]
+            for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
+                for d in range(1, r + 1):
+                    nx, ny = cx + dx * d, cy + dy * d
+                    if (nx, ny) in blocks_set:
+                        break
+                    cells.append((nx, ny))
+            for x, y in cells:
+                explosions.append({'x': x, 'y': y, 'at': now.isoformat()})
+                for p in game['players']:
+                    if p.get('alive') and p['x'] == x and p['y'] == y:
+                        p['alive'] = False
+
+@app.route('/api/balloono/reset_game', methods=['POST'])
+def api_balloono_reset_game():
+    """Reset game so players can start a new round"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        room['game'] = None
+        room['messages'].append({'type': 'system', 'text': 'Game reset. Ready for a new round!'})
+    return jsonify({'ok': True})
+
+@app.route('/api/balloono/game_state/<room_code>')
+def api_balloono_game_state(room_code):
+    """Get current game state (polling during game)"""
+    room_code = room_code.upper()
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'error': 'Room not found'}), 404
+        room = _balloono_rooms[room_code]
+        if room['game'] is None:
+            return jsonify({'game': None, 'players': room['players']})
+        _balloono_tick(room['game'])
+        g = room['game'].copy()
+        g['players'] = [p.copy() for p in g['players']]
+        g['bombs'] = list(g.get('bombs', []))
+        g['explosions'] = list(g.get('explosions', []))
+    return jsonify({'game': g})
 
 @app.route('/benchmarks')
 def benchmarks():
@@ -4728,6 +5077,33 @@ def api_add_player():
     log_user_action(user, 'Added new player', f'{full_name} ({email or "no email"})')
 
     return jsonify({'success': True, 'player_id': player_id})
+
+
+@app.route('/api/rename_player', methods=['POST'])
+@login_required
+def api_rename_player():
+    """Rename a player across all game types via AJAX."""
+    data = request.get_json() or {}
+    old_name = (data.get('old_name') or '').strip()
+    new_name = (data.get('new_name') or '').strip()
+
+    if not old_name or not new_name:
+        return jsonify({'success': False, 'error': 'Both old name and new name are required.'}), 400
+
+    if old_name == new_name:
+        return jsonify({'success': False, 'error': 'New name must be different from the old name.'}), 400
+
+    try:
+        updates_made = update_player_name(old_name, new_name)
+        user = session.get('username', 'unknown')
+        log_user_action(user, 'Renamed player', f'"{old_name}" to "{new_name}" ({updates_made} records)')
+        
+        # Clear caches so stats reflect the new name
+        clear_stats_cache()
+        
+        return jsonify({'success': True, 'updates_made': updates_made, 'message': f'Successfully renamed "{old_name}" to "{new_name}" in {updates_made} records.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/add_player_email', methods=['POST'])

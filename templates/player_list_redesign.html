@@ -16,6 +16,9 @@
             <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
             <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
+            {% if session.username == 'kyle' %}
+            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
+            {% endif %}
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             {% else %}
             <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
@@ -212,9 +215,14 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Player List</h1>
             <div class="sr-header-actions">
+                {% if session.logged_in %}
                 <button class="sr-add-btn" onclick="openAddPlayerModal()">
                     <i class="fas fa-plus"></i> Add Player
                 </button>
+                <button class="sr-link-btn" onclick="openRenamePlayerModal()">
+                    <i class="fas fa-edit"></i> Rename
+                </button>
+                {% endif %}
                 <button class="menu-toggle" id="menu-toggle"><i class="fas fa-bars"></i> Menu</button>
             </div>
         </header>
@@ -322,6 +330,38 @@
         </div>
     </div>
 
+    <!-- Rename Player Modal -->
+    <div id="renamePlayerModal" class="sr-modal">
+        <div class="sr-modal-content">
+            <div class="sr-modal-header">
+                <h2 class="sr-modal-title">Rename Player</h2>
+                <button class="sr-modal-close" onclick="closeRenamePlayerModal()">✕</button>
+            </div>
+            <form id="renamePlayerForm" onsubmit="submitRenamePlayer(event)">
+                <div class="sr-form-group">
+                    <label for="rename-old-name">Select Player *</label>
+                    <input type="text" id="rename-old-name" name="old_name" list="all-unique-players" placeholder="Start typing to search..." required autocomplete="off">
+                    <datalist id="all-unique-players">
+                        {% for player in all_unique_players %}
+                        <option value="{{ player }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="sr-form-group">
+                    <label for="rename-new-name">New Name *</label>
+                    <input type="text" id="rename-new-name" name="new_name" placeholder="Enter new name" required>
+                </div>
+                <p style="font-size: 12px; color: var(--sr-muted); margin-top: 8px;">
+                    <i class="fas fa-info-circle"></i> This will update the player's name across ALL game types (doubles, vollis, 1v1, other).
+                </p>
+                <div class="sr-form-actions">
+                    <button type="button" class="sr-btn-secondary" onclick="closeRenamePlayerModal()">Cancel</button>
+                    <button type="submit" class="sr-btn-primary">Rename Player</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
@@ -392,6 +432,61 @@
                     window.location.reload();
                 } else {
                     alert('Error: ' + (data.error || 'Unable to add player.'));
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        // Rename Player Modal Functions
+        function openRenamePlayerModal() {
+            document.getElementById('renamePlayerModal').classList.add('active');
+            document.getElementById('rename-old-name').focus();
+        }
+
+        function closeRenamePlayerModal() {
+            document.getElementById('renamePlayerModal').classList.remove('active');
+            document.getElementById('renamePlayerForm').reset();
+        }
+
+        document.getElementById('renamePlayerModal').addEventListener('click', function(e) {
+            if (e.target === this) closeRenamePlayerModal();
+        });
+
+        function submitRenamePlayer(event) {
+            event.preventDefault();
+            const form = event.target;
+            const oldName = form.old_name.value.trim();
+            const newName = form.new_name.value.trim();
+
+            if (!oldName || !newName) {
+                alert('Both player name and new name are required.');
+                return;
+            }
+
+            if (oldName === newName) {
+                alert('New name must be different from the current name.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to rename "${oldName}" to "${newName}"?\n\nThis will update the name across ALL games in the database.`)) {
+                return;
+            }
+
+            fetch('{{ url_for("api_rename_player") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_name: oldName, new_name: newName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closeRenamePlayerModal();
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unable to rename player.'));
                 }
             })
             .catch(error => {

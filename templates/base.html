@@ -39,6 +39,7 @@
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
                         {% if session.username == 'kyle' %}
+                            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
                             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
                             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
                             <li><a href="{{ url_for('volleyball_stats_styled_default') }}"><i class="fas fa-volleyball-ball"></i> Volleyball Stats<br><small style="color: #888; font-size: 11px; margin-left: 26px;">vollis, 1v1, coed, etc</small></a></li>

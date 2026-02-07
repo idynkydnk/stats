@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% block title %}Balloono{% endblock %}
+{% block content %}
+<div id="balloono-app" class="balloono-container">
+  <div id="step-username" class="balloono-step">
+    <h1>🦊 Balloono</h1>
+    <p class="balloono-sub">Enter your username to play</p>
+    <form id="username-form" onsubmit="return handleUsernameSubmit(event)">
+      <input type="text" id="username-input" placeholder="Your name" maxlength="20" required autofocus />
+      <button type="submit">Continue</button>
+    </form>
+  </div>
+
+  <div id="step-join" class="balloono-step" style="display:none">
+    <h1>🦊 Balloono</h1>
+    <p>Welcome, <strong id="display-username"></strong>!</p>
+    <div class="join-options">
+      <div class="join-card">
+        <h3>Create Room</h3>
+        <button id="btn-create" onclick="createRoom()">Create New Room</button>
+      </div>
+      <div class="join-card">
+        <h3>Join Room</h3>
+        <input type="text" id="room-code-input" placeholder="Room code" maxlength="6" style="text-transform:uppercase" />
+        <button id="btn-join" onclick="joinRoom()">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="step-lobby" class="balloono-step" style="display:none">
+    <h2>Room <code id="room-code-display"></code></h2>
+    <p class="share-link">Share this code with your friend: <strong id="room-code-copy"></strong></p>
+    <div class="lobby-players">
+      <div id="player-list"></div>
+    </div>
+    <div class="chat-area">
+      <div id="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" />
+        <button id="btn-send" onclick="sendMessage()">Send</button>
+      </div>
+      <button id="btn-start" class="btn-start" onclick="startGame()" disabled>Start Balloono</button>
+    </div>
+  </div>
+
+  <div id="step-game" class="balloono-step" style="display:none">
+    <div class="game-header">
+      <span id="game-status"></span>
+      <span id="game-scores"></span>
+    </div>
+    <canvas id="game-canvas"></canvas>
+    <p class="game-controls">Arrow keys to move · Space to drop bomb</p>
+    <button id="btn-back-lobby" onclick="backToLobby()" style="display:none">Back to Lobby</button>
+  </div>
+</div>
+
+<style>
+.balloono-container { max-width: 700px; margin: 0 auto; padding: 20px; text-align: center; }
+.balloono-step h1 { font-size: 28px; margin-bottom: 8px; }
+.balloono-sub { color: var(--caption); margin-bottom: 20px; }
+#username-form input, #room-code-input, #chat-input {
+  padding: 12px 16px; font-size: 16px; border-radius: 10px;
+  border: 2px solid var(--button-bg-1); background: var(--table-bg);
+  color: var(--text); margin-right: 8px; margin-bottom: 10px;
+}
+#username-form button, .join-card button, #btn-send, #btn-start, #btn-create, #btn-join {
+  padding: 12px 20px; font-size: 16px; border-radius: 10px;
+  background: var(--button-bg-1); color: var(--button-text-1);
+  border: 2px solid var(--button-border-1); cursor: pointer; font-weight: 600;
+}
+#username-form button:hover, .join-card button:hover, #btn-send:hover, #btn-start:hover { opacity: 0.9; }
+.join-options { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+.join-card { background: var(--table-bg); border-radius: 16px; padding: 24px; border: 2px solid var(--button-bg-1); min-width: 220px; }
+.join-card h3 { margin: 0 0 16px 0; font-size: 18px; }
+.join-card input { width: 100%; margin: 0 0 10px 0; box-sizing: border-box; }
+.share-link { font-size: 14px; color: var(--caption); margin: 10px 0; }
+.lobby-players { margin: 16px 0; min-height: 60px; }
+.chat-area { background: var(--table-bg); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: left; }
+#chat-messages { height: 180px; overflow-y: auto; margin-bottom: 12px; font-size: 14px; }
+.chat-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.chat-input-row input { flex: 1; }
+.btn-start { width: 100%; padding: 14px !important; font-size: 18px !important; }
+.btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
+.game-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+#game-canvas { display: block; margin: 0 auto; background: #1a2a3a; border-radius: 8px; }
+.game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
+.sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
+.player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
+</style>
+
+<script>
+(function() {
+  let username = '';
+  let roomCode = '';
+  let playerId = '';
+  let pollInterval = null;
+  let keys = {};
+  let lastActionAt = 0;
+  const ACTION_COOLDOWN = 80;
+
+  window.handleUsernameSubmit = function(e) {
+    e.preventDefault();
+    const v = document.getElementById('username-input').value.trim();
+    if (!v) return false;
+    username = v.slice(0, 20);
+    document.getElementById('display-username').textContent = username;
+    document.getElementById('step-username').style.display = 'none';
+    document.getElementById('step-join').style.display = 'block';
+    return false;
+  };
+
+  window.createRoom = function() {
+    fetch('/api/balloono/create_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.room_code) {
+        roomCode = data.room_code;
+        playerId = data.player_id;
+        showLobby();
+        startLobbyPoll();
+      } else {
+        alert(data.error || 'Failed to create room');
+      }
+    })
+    .catch(() => alert('Network error'));
+  };
+
+  window.joinRoom = function() {
+    const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+    if (!code) { alert('Enter a room code'); return; }
+    fetch('/api/balloono/join_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, room_code: code })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.room_code) {
+        roomCode = data.room_code;
+        playerId = data.player_id;
+        showLobby();
+        startLobbyPoll();
+      } else {
+        alert(data.error || 'Failed to join room');
+      }
+    })
+    .catch(() => alert('Network error'));
+  };
+
+  function showLobby() {
+    document.getElementById('step-join').style.display = 'none';
+    document.getElementById('step-lobby').style.display = 'block';
+    document.getElementById('room-code-display').textContent = roomCode;
+    document.getElementById('room-code-copy').textContent = roomCode;
+  }
+
+  function startLobbyPoll() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(pollLobby, 800);
+    pollLobby();
+  }
+
+  function pollLobby() {
+    fetch('/api/balloono/room/' + roomCode)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        if (data.error === 'Room not found') {
+          clearInterval(pollInterval);
+          alert('Room was closed');
+          location.reload();
+        }
+        return;
+      }
+      const msgs = document.getElementById('chat-messages');
+      msgs.innerHTML = (data.messages || []).map(m => {
+        if (m.type === 'system') return `<div class="sys-msg">${escapeHtml(m.text)}</div>`;
+        return `<div><b>${escapeHtml(m.username)}:</b> ${escapeHtml(m.text)}</div>`;
+      }).join('');
+      msgs.scrollTop = msgs.scrollHeight;
+
+      const players = data.players || [];
+      document.getElementById('player-list').innerHTML = players.map(p =>
+        `<span class="player-badge">${escapeHtml(p.username)}</span>`
+      ).join('');
+
+      const btn = document.getElementById('btn-start');
+      if (data.game) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        document.getElementById('step-lobby').style.display = 'none';
+        document.getElementById('step-game').style.display = 'block';
+        initGame(data.game);
+        startGamePoll();
+      } else {
+        btn.disabled = players.length < 2;
+      }
+    })
+    .catch(() => {});
+  }
+
+  window.sendMessage = function() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    fetch('/api/balloono/send_message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, text })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.error) input.value = '';
+      pollLobby();
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('chat-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { sendMessage(); }
+    });
+  });
+
+  window.startGame = function() {
+    fetch('/api/balloono/start_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) alert(data.error);
+      else pollLobby();
+    });
+  };
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  let canvas, ctx;
+  let gameState = null;
+
+  function initGame(g) {
+    gameState = g;
+    canvas = document.getElementById('game-canvas');
+    const cell = g.cell || 40;
+    canvas.width = g.grid_w * cell;
+    canvas.height = g.grid_h * cell;
+    ctx = canvas.getContext('2d');
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+  }
+
+  function onKeyDown(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    keys[e.key] = true;
+  }
+  function onKeyUp(e) { keys[e.key] = false; }
+
+  function sendAction(action) {
+    const now = Date.now();
+    if (now - lastActionAt < ACTION_COOLDOWN) return;
+    lastActionAt = now;
+    fetch('/api/balloono/game_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode, player_id: playerId, action })
+    }).catch(() => {});
+  }
+
+  function startGamePoll() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(function() {
+      fetch('/api/balloono/game_state/' + roomCode)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) return;
+        if (data.game) {
+          gameState = data.game;
+          renderGame();
+          if (keys['ArrowUp']) sendAction('up');
+          else if (keys['ArrowDown']) sendAction('down');
+          else if (keys['ArrowLeft']) sendAction('left');
+          else if (keys['ArrowRight']) sendAction('right');
+          if (keys[' ']) sendAction('bomb');
+        }
+        const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
+        const winner = alive.length === 1 ? alive[0] : null;
+        if (winner) {
+          document.getElementById('game-status').textContent = 'Winner: ' + winner.username + '!';
+          document.getElementById('btn-back-lobby').style.display = 'block';
+        } else if (alive.length === 0) {
+          document.getElementById('game-status').textContent = 'Draw!';
+          document.getElementById('btn-back-lobby').style.display = 'block';
+        }
+      });
+    }, 80);
+  }
+
+  function renderGame() {
+    if (!ctx || !gameState) return;
+    const cell = gameState.cell || 40;
+    const W = gameState.grid_w, H = gameState.grid_h;
+    ctx.fillStyle = '#1a2a3a';
+    ctx.fillRect(0, 0, W * cell, H * cell);
+
+    const blocks = new Set((gameState.blocks || []).map(b => b.join(',')));
+    ctx.fillStyle = '#4a5a6a';
+    blocks.forEach(k => {
+      const [x, y] = k.split(',').map(Number);
+      ctx.fillRect(x * cell + 2, y * cell + 2, cell - 4, cell - 4);
+    });
+
+    (gameState.bombs || []).forEach(b => {
+      ctx.fillStyle = '#4dd0e1';
+      ctx.beginPath();
+      ctx.arc(b.x * cell + cell/2, b.y * cell + cell/2, cell/3, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    (gameState.explosions || []).forEach(e => {
+      ctx.fillStyle = 'rgba(255, 100, 50, 0.8)';
+      ctx.fillRect(e.x * cell, e.y * cell, cell, cell);
+    });
+
+    const colors = ['#66bb6a', '#42a5f5'];
+    (gameState.players || []).forEach((p, i) => {
+      if (!p.alive) return;
+      ctx.fillStyle = colors[i % 2];
+      ctx.beginPath();
+      ctx.arc(p.x * cell + cell/2, p.y * cell + cell/2, cell/2 - 4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.username.slice(0,6), p.x * cell + cell/2, p.y * cell + cell/2 + 4);
+    });
+  }
+
+  window.backToLobby = function() {
+    if (pollInterval) clearInterval(pollInterval);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('keyup', onKeyUp);
+    fetch('/api/balloono/reset_game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_code: roomCode })
+    }).catch(() => {});
+    document.getElementById('step-game').style.display = 'none';
+    document.getElementById('step-lobby').style.display = 'block';
+    document.getElementById('btn-back-lobby').style.display = 'none';
+    document.getElementById('game-status').textContent = '';
+    startLobbyPoll();
+  };
+})();
+</script>
+{% endblock %}

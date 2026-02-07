@@ -17,6 +17,9 @@
             <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
             <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
+            {% if session.username == 'kyle' %}
+            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
+            {% endif %}
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             {% else %}
             <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
@@ -186,7 +189,10 @@
         }
         
         .sr-game-card-section {
-            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        .sr-game-card-section:first-of-type {
+            margin-top: 0;
         }
         .sr-game-card-title {
             font-size: 18px;
@@ -215,7 +221,7 @@
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
                     <button class="sr-dropdown-btn">
-                        <i class="fas fa-plus"></i> Add
+                        <i class="fas fa-bolt"></i> Actions
                     </button>
                     <div class="sr-dropdown-content">
                         <div class="sr-dropdown-menu">
@@ -251,66 +257,13 @@
         </div>
         {% endif %}
 
-        <!-- Main Stats -->
-        <section class="sr-table-section">
+        <!-- Today's Stats Cards (grouped by game name) -->
+        {% if today_stats_by_game %}
+        {% for game_stats in today_stats_by_game %}
+        <section class="sr-table-section sr-game-card-section">
             <div class="sr-card sr-card-compact">
-                <div class="sr-search-wrap">
-                    <i class="fas fa-search sr-search-icon"></i>
-                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
-                </div>
-                
-                <div id="sr-filter-active" class="sr-filter-active">
-                    <div id="sr-filter-chip" class="sr-filter-chip">
-                        <span class="sr-filter-text"></span>
-                        <span id="sr-filter-chip-close" class="sr-filter-chip-close">✕</span>
-                    </div>
-                </div>
-                
-                {% if stats %}
-                <div class="sr-table-wrap">
-                    <table class="sr-table" id="sr-table">
-                        <thead>
-                            <tr>
-                                <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in stats %}
-                            <tr>
-                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div id="sr-no-results" class="sr-no-results">
-                    <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
-                    <p>No players found matching your search.</p>
-                </div>
-                {% else %}
-                <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-dice"></i></div>
-                    <p class="sr-empty-text">No other games recorded for {{ year }} yet.</p>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-        
-        {% if rare_stats %}
-        <section class="sr-table-section">
-            <div class="sr-card sr-card-compact">
-                <p class="sr-section-label">Fewer than {{ minimum_games }} games</p>
+                <h3 class="sr-game-card-title"><i class="fas fa-calendar-day" style="margin-right: 8px; font-size: 14px;"></i>Today's {{ game_stats.game_name }}</h3>
+                <p class="sr-section-label">{{ game_stats.game_count }} game{{ 's' if game_stats.game_count != 1 else '' }}</p>
                 <div class="sr-table-wrap">
                     <table class="sr-table">
                         <thead>
@@ -320,18 +273,16 @@
                                 <th class="sr-numeric">W</th>
                                 <th class="sr-numeric">L</th>
                                 <th class="sr-numeric">Win%</th>
-                                <th class="sr-numeric">Games</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for player in rare_stats %}
+                            {% for player in game_stats.stats %}
                             <tr>
-                                <td class="sr-rank">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('other_player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
+                                <td class="sr-player"><a href="{{ url_for('player_game_stats_redesign', year=display_year|default(year), game_name=game_stats.game_name, player_name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric">{{ player[1] + player[2] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -339,6 +290,7 @@
                 </div>
             </div>
         </section>
+        {% endfor %}
         {% endif %}
 
         {% if game_cards %}
@@ -351,7 +303,7 @@
                     <i class="fas fa-volleyball-ball"></i> View all {{ card.num_game_types }} volleyball game types
                 </a>
                 {% else %}
-                <a href="{{ url_for('other_games_by_year_and_name', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
+                <a href="{{ url_for('other_games_by_name_redesign', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
                     <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
                 </a>
                 {% endif %}
@@ -372,9 +324,9 @@
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
                                 {% if card.is_consolidated %}
-                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats_redesign', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% else %}
-                                <td class="sr-player"><a href="{{ url_for('player_game_stats', year=display_year|default(year), game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('player_game_stats_redesign', year=display_year|default(year), game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% endif %}
                                 <td class="sr-numeric sr-win">{{ stat[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ stat[2] }}</td>
@@ -388,6 +340,15 @@
             </div>
         </section>
         {% endfor %}
+        {% else %}
+        <section class="sr-table-section">
+            <div class="sr-card sr-card-compact">
+                <div class="sr-empty">
+                    <div class="sr-empty-icon"><i class="fas fa-dice"></i></div>
+                    <p class="sr-empty-text">No other games recorded for {{ year }} yet.</p>
+                </div>
+            </div>
+        </section>
         {% endif %}
     </div>
 

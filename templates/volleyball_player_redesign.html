@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ player }} {{ year }} Volleyball Stats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <style>
+        .sr-player-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .sr-player-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--sr-accent-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-accent);
+        }
+        .sr-player-info h1 {
+            font-size: 24px;
+            margin: 0 0 4px 0;
+        }
+        .sr-player-subtitle {
+            color: var(--sr-muted);
+            font-size: 14px;
+        }
+        .sr-stat-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .sr-stat-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .sr-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-text);
+        }
+        .sr-stat-value.win { color: var(--sr-win); }
+        .sr-stat-value.loss { color: var(--sr-loss); }
+        .sr-stat-label {
+            font-size: 12px;
+            color: var(--sr-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .sr-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--sr-text);
+        }
+        .sr-game-card-section {
+            margin-bottom: 16px;
+        }
+        .sr-game-type-link {
+            font-size: 12px;
+            color: var(--sr-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .sr-game-type-link:hover {
+            color: var(--sr-accent);
+        }
+        @media (max-width: 480px) {
+            .sr-stat-cards { grid-template-columns: repeat(2, 1fr); }
+            .sr-stat-value { font-size: 22px; }
+            .sr-player-avatar { width: 48px; height: 48px; font-size: 20px; }
+            .sr-player-info h1 { font-size: 20px; }
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <div class="sr-header-actions">
+                <div class="sr-year-select-wrap">
+                    <select class="sr-year-select" onchange="window.location.href=this.value">
+                        {% for yr in all_years %}
+                        <option value="{{ url_for('volleyball_player_stats_redesign', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <div class="sr-player-header">
+            <div class="sr-player-avatar">{{ player[0] }}</div>
+            <div class="sr-player-info">
+                <h1>{{ player }}</h1>
+                <div class="sr-player-subtitle">{{ year }} Volleyball Stats</div>
+            </div>
+        </div>
+
+        {% if stats and stats[0] %}
+        <div class="sr-stat-cards">
+            <div class="sr-stat-card">
+                <div class="sr-stat-value win">{{ stats[0][1] }}</div>
+                <div class="sr-stat-label">Wins</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value loss">{{ stats[0][2] }}</div>
+                <div class="sr-stat-label">Losses</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ "%.0f"|format(stats[0][3] * 100) }}%</div>
+                <div class="sr-stat-label">Win %</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ stats[0][4] }}</div>
+                <div class="sr-stat-label">Games</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if game_cards %}
+        {% for card in game_cards %}
+        <section class="sr-table-section sr-game-card-section">
+            <div class="sr-card sr-card-compact">
+                <h3 class="sr-section-title">{{ card.game_name }}</h3>
+                <a href="{{ url_for('other_games_by_name_redesign', year=year, game_name=card.game_name) }}" class="sr-game-type-link">
+                    <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
+                </a>
+                <div class="sr-stat-cards" style="margin-bottom: 0;">
+                    <div class="sr-stat-card">
+                        <div class="sr-stat-value win">{{ card.wins }}</div>
+                        <div class="sr-stat-label">Wins</div>
+                    </div>
+                    <div class="sr-stat-card">
+                        <div class="sr-stat-value loss">{{ card.losses }}</div>
+                        <div class="sr-stat-label">Losses</div>
+                    </div>
+                    <div class="sr-stat-card">
+                        <div class="sr-stat-value">{{ "%.0f"|format(card.win_percentage * 100) }}%</div>
+                        <div class="sr-stat-label">Win %</div>
+                    </div>
+                    <div class="sr-stat-card">
+                        <div class="sr-stat-value">{{ card.total_games }}</div>
+                        <div class="sr-stat-label">Games</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endfor %}
+        {% else %}
+        <div class="sr-card sr-card-compact">
+            <div class="sr-empty">
+                <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
+                <p class="sr-empty-text">No volleyball games found for {{ year }}.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

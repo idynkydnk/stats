@@ -630,6 +630,58 @@ def todays_other_stats():
     return stats
 
 
+def todays_other_stats_by_game():
+    """Get today's other stats grouped by game name."""
+    games = todays_other_games()
+    
+    # Group games by game_name
+    games_by_name = {}
+    for game in games:
+        game_name = game.get('game_name', 'Unknown')
+        if game_name not in games_by_name:
+            games_by_name[game_name] = []
+        games_by_name[game_name].append(game)
+    
+    # Build stats for each game name
+    result = []
+    for game_name, game_list in games_by_name.items():
+        players = all_other_players(game_list)
+        stats = []
+        for player in players:
+            wins, losses = 0, 0
+            for game in game_list:
+                winner_names = []
+                for i in range(1, 16):
+                    val = game.get(f'winner{i}')
+                    if _is_valid_player_name(val):
+                        winner_names.append(val)
+                
+                loser_names = []
+                for i in range(1, 16):
+                    val = game.get(f'loser{i}')
+                    if _is_valid_player_name(val):
+                        loser_names.append(val)
+                
+                if player in winner_names:
+                    wins += 1
+                elif player in loser_names:
+                    losses += 1
+            
+            win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
+            stats.append([player, wins, losses, win_pct])
+        
+        stats.sort(key=lambda x: (-x[3], -x[1]))  # Sort by win%, then wins
+        result.append({
+            'game_name': game_name,
+            'game_count': len(game_list),
+            'stats': stats
+        })
+    
+    # Sort by game count descending
+    result.sort(key=lambda x: -x['game_count'])
+    return result
+
+
 def other_winning_scores():
     scores = [11,12,13]
     return scores

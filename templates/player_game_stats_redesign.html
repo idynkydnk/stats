@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ player_name }} - {{ game_name }} {{ year }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+</head>
+<body class="sr-page">
+    <style>
+        .sr-player-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .sr-player-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--sr-accent-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-accent);
+        }
+        .sr-player-info h1 {
+            font-size: 24px;
+            margin: 0 0 4px 0;
+        }
+        .sr-player-subtitle {
+            color: var(--sr-muted);
+            font-size: 14px;
+        }
+        .sr-stat-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .sr-stat-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .sr-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sr-text);
+        }
+        .sr-stat-value.win { color: var(--sr-win); }
+        .sr-stat-value.loss { color: var(--sr-loss); }
+        .sr-stat-label {
+            font-size: 12px;
+            color: var(--sr-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .sr-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--sr-text);
+        }
+        .sr-result-w { color: var(--sr-win); font-weight: 700; font-size: 15px; }
+        .sr-result-l { color: var(--sr-loss); font-weight: 700; font-size: 15px; }
+        .sr-table td.sr-result-cell { text-align: center; width: 60px; }
+        
+        /* Override sticky columns for this page's table */
+        .sr-table td:nth-child(1),
+        .sr-table th:nth-child(1),
+        .sr-table td:nth-child(2),
+        .sr-table th:nth-child(2) {
+            position: static !important;
+            left: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            z-index: auto !important;
+        }
+        .sr-table tbody tr:nth-child(odd) td:nth-child(1),
+        .sr-table tbody tr:nth-child(odd) td:nth-child(2),
+        .sr-table tbody tr:nth-child(even) td:nth-child(1),
+        .sr-table tbody tr:nth-child(even) td:nth-child(2) {
+            background: transparent !important;
+        }
+        .sr-table tbody tr:hover td:nth-child(1),
+        .sr-table tbody tr:hover td:nth-child(2) {
+            background: transparent !important;
+        }
+        .sr-table th:first-child,
+        .sr-table td:first-child {
+            min-width: auto;
+            width: auto;
+        }
+        .sr-table td:first-child {
+            white-space: nowrap;
+        }
+        @media (max-width: 480px) {
+            .sr-stat-cards { grid-template-columns: repeat(2, 1fr); }
+            .sr-stat-value { font-size: 22px; }
+            .sr-player-avatar { width: 48px; height: 48px; font-size: 20px; }
+            .sr-player-info h1 { font-size: 20px; }
+        }
+    </style>
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <div class="sr-header-actions">
+                <div class="sr-year-select-wrap">
+                    <select class="sr-year-select" onchange="window.location.href=this.value">
+                        {% for yr in all_years %}
+                        <option value="{{ url_for('player_game_stats_redesign', year=yr, game_name=game_name, player_name=player_name) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <div class="sr-player-header">
+            <div class="sr-player-avatar">{{ player_name[0] }}</div>
+            <div class="sr-player-info">
+                <h1>{{ player_name }}</h1>
+                <div class="sr-player-subtitle">{{ year }} {{ game_name }} Stats</div>
+            </div>
+        </div>
+
+        {% if stats %}
+        <div class="sr-stat-cards">
+            <div class="sr-stat-card">
+                <div class="sr-stat-value win">{{ stats.wins }}</div>
+                <div class="sr-stat-label">Wins</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value loss">{{ stats.losses }}</div>
+                <div class="sr-stat-label">Losses</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ "%.0f"|format(stats.win_percentage * 100) }}%</div>
+                <div class="sr-stat-label">Win %</div>
+            </div>
+            <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ stats.total_games }}</div>
+                <div class="sr-stat-label">Games</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if games %}
+        <section class="sr-table-section">
+            <div class="sr-card sr-card-compact">
+                <h3 class="sr-section-title">{{ game_name }} Games</h3>
+                <div class="sr-table-wrap">
+                    <table class="sr-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Result</th>
+                                <th>Winners</th>
+                                <th>Losers</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for game in games %}
+                            <tr>
+                                <td style="white-space: nowrap;">{{ game.game_date_only }}</td>
+                                <td class="sr-result-cell">
+                                    {% set ns = namespace(is_winner=false) %}
+                                    {% for winner in game.winners %}
+                                        {% if winner.name == player_name %}
+                                            {% set ns.is_winner = true %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if ns.is_winner %}
+                                        <span class="sr-result-w">W</span>
+                                    {% else %}
+                                        <span class="sr-result-l">L</span>
+                                    {% endif %}
+                                </td>
+                                <td class="sr-win">
+                                    {% for winner in game.winners %}{{ winner.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                </td>
+                                <td class="sr-loss">
+                                    {% for loser in game.losers %}{{ loser.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        {% else %}
+        <div class="sr-card sr-card-compact">
+            <div class="sr-empty">
+                <div class="sr-empty-icon"><i class="fas fa-dice"></i></div>
+                <p class="sr-empty-text">No {{ game_name }} games found for {{ year }}.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
