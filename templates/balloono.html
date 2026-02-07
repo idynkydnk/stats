@@ -615,14 +615,17 @@
           if (!gameState.game_over_message) {
             gameOver = false;
             document.getElementById('game-over-banner').style.display = 'none';
+            if (gameState.game_started_at) {
+              previousGameState = null;
+              initGame(data.game);
+            }
+            if (!renderRAF) renderRAF = requestAnimationFrame(gameLoop);
           }
         }
         const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
         const winner = alive.length === 1 ? alive[0] : null;
         if (winner && !gameOver) {
           gameOver = true;
-          if (pollInterval) clearInterval(pollInterval);
-          pollInterval = null;
           const title = gameState.game_over_title || (winner.username + ' Wins!');
           const msg = gameState.game_over_message || '';
           document.getElementById('game-over-title').textContent = title;
@@ -630,8 +633,6 @@
           document.getElementById('game-over-banner').style.display = 'block';
         } else if (alive.length === 0 && !gameOver) {
           gameOver = true;
-          if (pollInterval) clearInterval(pollInterval);
-          pollInterval = null;
           const title = gameState.game_over_title || 'Draw!';
           const msg = gameState.game_over_message || 'Everyone got splashed!';
           document.getElementById('game-over-title').textContent = title;
