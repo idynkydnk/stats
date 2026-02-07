@@ -44,6 +44,13 @@
   </div>
 
   <div id="step-game" class="balloono-step" style="display:none">
+    <div id="game-overlay" class="game-overlay" style="display:none">
+      <div class="game-over-box">
+        <h2 id="game-over-title"></h2>
+        <p id="game-over-message"></p>
+        <button onclick="backToLobby()">Back to Lobby</button>
+      </div>
+    </div>
     <div class="game-header">
       <span id="game-status"></span>
       <span id="game-scores"></span>
@@ -53,10 +60,10 @@
       <div class="game-main">
         <canvas id="game-canvas"></canvas>
         <div class="powerup-legend">
-          <span class="legend-title">Power-ups (collect to level up, max 3):</span>
-          <span class="legend-item pu-blast"><span class="pu-icon">💥</span> Bigger blast</span>
-          <span class="legend-item pu-bombs"><span class="pu-icon">💣</span> More bombs</span>
-          <span class="legend-item pu-speed"><span class="pu-icon">⚡</span> Move faster</span>
+          <span class="legend-title">Power-ups (max 2 levels):</span>
+          <span class="legend-item"><span class="pu-icon">💥</span> Bigger blast</span>
+          <span class="legend-item"><span class="pu-icon">💣</span> More bombs</span>
+          <span class="legend-item"><span class="pu-icon">⚡</span> Faster moves</span>
         </div>
       </div>
     </div>
@@ -104,27 +111,26 @@
 .player-panel { background: var(--table-bg); border-radius: 12px; padding: 12px; border: 2px solid var(--button-border-1); text-align: left; }
 .player-panel.you { border-color: var(--button-bg-1); }
 .player-panel .player-name { font-weight: bold; margin-bottom: 8px; font-size: 14px; }
-.player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #8B4513; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
+.player-panel .player-letter { display: inline-block; width: 28px; height: 28px; background: #2ecc71; color: #fff; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; vertical-align: middle; }
 .player-panel.dead .player-letter { opacity: 0.5; }
 .player-panel .powerups { margin-top: 8px; font-size: 12px; color: var(--caption); }
 .player-panel .powerup-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-.player-panel .pu-level { display: inline-flex; gap: 2px; }
-.player-panel .pu-dot { width: 6px; height: 6px; border-radius: 50%; }
-.player-panel .pu-dot.filled { background: currentColor; }
-.player-panel .pu-dot.empty { background: rgba(255,255,255,0.2); }
+.player-panel .pu-level-icons { display: inline-flex; gap: 2px; font-size: 12px; }
+.player-panel .pu-level-icon { opacity: 0.6; }
 .pu-icon { font-size: 14px; }
 .pu-blast .pu-icon, .player-panel .pu-blast .pu-icon { color: #ff6b35; }
 .pu-bombs .pu-icon, .player-panel .pu-bombs .pu-icon { color: #4ecdc4; }
 .pu-speed .pu-icon, .player-panel .pu-speed .pu-icon { color: #ffe66d; }
-.player-panel .pu-blast .pu-dot.filled { background: #ff6b35; }
-.player-panel .pu-bombs .pu-dot.filled { background: #4ecdc4; }
-.player-panel .pu-speed .pu-dot.filled { background: #ffe66d; }
 .game-main { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 #game-canvas { display: block; background: #1a2a3a; border-radius: 8px; }
 .powerup-legend { font-size: 12px; color: var(--caption); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
 .powerup-legend .legend-title { font-weight: 600; }
 .legend-item .pu-icon { margin-right: 4px; }
 .game-controls { font-size: 12px; color: var(--caption); margin-top: 10px; }
+.game-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.game-over-box { background: var(--table-bg); border: 3px solid var(--button-bg-1); border-radius: 20px; padding: 40px; text-align: center; max-width: 400px; }
+.game-over-box h2 { color: var(--button-bg-1); margin: 0 0 16px 0; font-size: 28px; }
+.game-over-box p { color: var(--caption); font-size: 16px; margin: 0 0 24px 0; line-height: 1.5; }
 .sys-msg { color: var(--caption); font-style: italic; margin: 4px 0; }
 .player-badge { display: inline-block; background: var(--button-bg-1); color: var(--button-text-1); padding: 6px 12px; border-radius: 8px; margin: 4px; }
 </style>
@@ -136,8 +142,10 @@
   let playerId = '';
   let pollInterval = null;
   let keys = {};
-  let lastActionAt = 0;
+  let lastMoveAt = 0;
+  let lastBombAt = 0;
   let renderRAF = null;
+  let gameOver = false;
 
   window.handleUsernameSubmit = function(e) {
     e.preventDefault();
@@ -315,6 +323,7 @@
   let gameState = null;
 
   function initGame(g) {
+    gameOver = false;
     gameState = g;
     canvas = document.getElementById('game-canvas');
     const cell = g.cell || 40;
@@ -333,32 +342,36 @@
   }
   function onKeyUp(e) { keys[e.key] = false; }
 
-  function getActionCooldown() {
-    if (!gameState || !gameState.players) return 80;
+  function getMoveCooldown() {
+    if (!gameState || !gameState.players) return 120;
     const me = gameState.players.find(p => p.id === playerId);
-    const speed = me ? Math.min(3, me.speed_level || 0) : 0;
-    return Math.max(50, 120 - speed * 25);
+    const speed = me ? Math.min(2, me.speed_level || 0) : 0;
+    return Math.max(60, 120 - speed * 30);
   }
+  const BOMB_COOLDOWN = 200;
   function sendAction(action) {
     const now = Date.now();
-    if (now - lastActionAt < getActionCooldown()) return;
-    lastActionAt = now;
-    if (gameState && gameState.players) {
-      const me = gameState.players.find(p => p.id === playerId);
-      if (me && me.alive) {
-        const blocks = new Set((gameState.blocks || []).map(b => b[0]+','+b[1]));
-        const bombs = gameState.bombs || [];
-        const powerups = gameState.powerups || [];
+    const isBomb = action === 'bomb';
+    if (isBomb) {
+      if (now - lastBombAt < BOMB_COOLDOWN) return;
+      lastBombAt = now;
+    } else {
+      if (now - lastMoveAt < getMoveCooldown()) return;
+      lastMoveAt = now;
+      if (gameState && gameState.players) {
+        const me = gameState.players.find(p => p.id === playerId);
+        if (me && me.alive) {
+          const blocks = new Set((gameState.blocks || []).map(b => b[0]+','+b[1]));
+          const bombs = gameState.bombs || [];
+          const powerups = gameState.powerups || [];
         const blocked = (x,y) => blocks.has(x+','+y) || bombs.some(b => b.x===x&&b.y===y);
         const hasPowerup = (x,y) => powerups.some(p => p.x===x&&p.y===y);
-        const steps = 1 + Math.min(3, me.speed_level || 0);
         const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
         const [dx,dy] = dirs[action] || [0,0];
-        for (let s = 0; s < steps; s++) {
-          const nx = me.x + dx, ny = me.y + dy;
-          if (blocked(nx, ny)) break;
+        const nx = me.x + dx, ny = me.y + dy;
+        if (!blocked(nx, ny)) {
           me.x = nx; me.y = ny;
-          if (hasPowerup(nx, ny)) break;
+        }
         }
       }
     }
@@ -373,11 +386,13 @@
     if (gameState && ctx) {
       renderGame();
       updatePlayerPanels();
-      if (keys['ArrowUp']) sendAction('up');
-      else if (keys['ArrowDown']) sendAction('down');
-      else if (keys['ArrowLeft']) sendAction('left');
-      else if (keys['ArrowRight']) sendAction('right');
-      else if (keys[' ']) sendAction('bomb');
+      if (!gameOver) {
+        if (keys['ArrowUp']) sendAction('up');
+        if (keys['ArrowDown']) sendAction('down');
+        if (keys['ArrowLeft']) sendAction('left');
+        if (keys['ArrowRight']) sendAction('right');
+        if (keys[' ']) sendAction('bomb');
+      }
     }
     renderRAF = requestAnimationFrame(gameLoop);
   }
@@ -393,12 +408,29 @@
         if (data.game) gameState = data.game;
         const alive = (gameState && gameState.players) ? gameState.players.filter(p => p.alive) : [];
         const winner = alive.length === 1 ? alive[0] : null;
-        if (winner) {
-          document.getElementById('game-status').textContent = 'Winner: ' + winner.username + '!';
-          document.getElementById('btn-back-lobby').style.display = 'block';
-        } else if (alive.length === 0) {
-          document.getElementById('game-status').textContent = 'Draw!';
-          document.getElementById('btn-back-lobby').style.display = 'block';
+        const loser = (gameState && gameState.players) ? gameState.players.find(p => !p.alive) : null;
+        if (winner && !gameOver) {
+          gameOver = true;
+          if (pollInterval) clearInterval(pollInterval);
+          const taunts = [
+            winner.username + ' wins! ' + (loser ? loser.username + ' got absolutely destroyed.' : ''),
+            'GG EZ. ' + (loser ? loser.username + ' never stood a chance against ' + winner.username + '.' : ''),
+            winner.username + ' dominates! ' + (loser ? loser.username + ' might as well uninstall.' : ''),
+            'Pathetic. ' + (loser ? loser.username + ' is no match for ' + winner.username + '.' : ''),
+            winner.username + ' crushed it! ' + (loser ? loser.username + ' should stick to single player.' : ''),
+            'Too easy. ' + (loser ? loser.username + ' got owned by ' + winner.username + '.' : ''),
+            winner.username + ' reigns supreme! ' + (loser ? loser.username + ' folded like a cheap lawn chair.' : ''),
+          ];
+          const msg = taunts[Math.floor(Math.random() * taunts.length)];
+          document.getElementById('game-over-title').textContent = winner.username + ' Wins!';
+          document.getElementById('game-over-message').textContent = msg;
+          document.getElementById('game-overlay').style.display = 'flex';
+        } else if (alive.length === 0 && !gameOver) {
+          gameOver = true;
+          if (pollInterval) clearInterval(pollInterval);
+          document.getElementById('game-over-title').textContent = 'Draw!';
+          document.getElementById('game-over-message').textContent = 'Everyone exploded. What a mess.';
+          document.getElementById('game-overlay').style.display = 'flex';
         }
       });
     }, 100);
@@ -431,25 +463,24 @@
     });
 
     const puIcons = { blast: '💥', bombs: '💣', speed: '⚡' };
-    const puColors = { blast: '#ff6b35', bombs: '#4ecdc4', speed: '#ffe66d' };
     (gameState.powerups || []).forEach(pu => {
       const cx = pu.x * cell + cell/2, cy = pu.y * cell + cell/2;
-      ctx.fillStyle = puColors[pu.type] || '#ffd700';
+      ctx.fillStyle = '#3a4a5a';
       ctx.beginPath();
-      ctx.arc(cx, cy, cell/4, 0, Math.PI*2);
+      ctx.arc(cx, cy, cell/3, 0, Math.PI*2);
       ctx.fill();
-      ctx.strokeStyle = '#333';
+      ctx.strokeStyle = '#5a6a7a';
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.font = (cell/3) + 'px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.font = (cell/2.5) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(puIcons[pu.type] || '?', cx, cy);
     });
 
-    const monkeyColors = ['#8B4513', '#A0522D', '#CD853F'];
     (gameState.players || []).forEach((p, i) => {
+      const color = monkeyColors[i % monkeyColors.length];
       if (!p.alive) return;
       const cx = p.x * cell + cell/2, cy = p.y * cell + cell/2;
       const r = cell/2 - 3;
@@ -457,18 +488,18 @@
       ctx.translate(cx, cy);
       ctx.shadowColor = 'rgba(0,0,0,0.3)';
       ctx.shadowBlur = 4;
-      ctx.fillStyle = monkeyColors[i % 3];
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.ellipse(0, 4, r * 0.85, r * 1.05, 0, 0, Math.PI*2);
       ctx.fill();
       ctx.strokeStyle = '#5D3A1A';
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = '#D2691E';
+      ctx.fillStyle = '#E8D4B8';
       ctx.beginPath();
       ctx.arc(0, -r * 0.4, r * 0.55, 0, Math.PI*2);
       ctx.fill();
-      ctx.strokeStyle = '#8B4513';
+      ctx.strokeStyle = color;
       ctx.stroke();
       ctx.fillStyle = '#2C1810';
       ctx.beginPath();
@@ -486,27 +517,28 @@
     });
   }
 
-  function levelDots(level) {
-    let s = '<span class="pu-level">';
-    for (let i = 0; i < 3; i++) s += '<span class="pu-dot ' + (i < level ? 'filled' : 'empty') + '"></span>';
+  function levelIcons(level, icon) {
+    let s = '<span class="pu-level-icons">';
+    for (let i = 0; i < 2; i++) s += '<span class="pu-level-icon">' + (i < level ? icon : '○') + '</span>';
     return s + '</span>';
   }
+  const monkeyColors = ['#2ecc71', '#3498db', '#e74c3c', '#9b59b6', '#f39c12'];
   function updatePlayerPanels() {
     const el = document.getElementById('player-panels');
     if (!el || !gameState || !gameState.players) return;
-    el.innerHTML = gameState.players.map(p => {
+    el.innerHTML = gameState.players.map((p, i) => {
       const letter = (p.username || '?').charAt(0).toUpperCase();
       const isYou = p.id === playerId;
-      const blast = Math.min(3, p.blast_level || 0);
-      const bombs = Math.min(3, p.bombs_level || 0);
-      const speed = Math.min(3, p.speed_level || 0);
-      const hasAny = blast || bombs || speed;
+      const color = monkeyColors[i % monkeyColors.length];
+      const blast = Math.min(2, p.blast_level || 0);
+      const bombs = Math.min(2, p.bombs_level || 0);
+      const speed = Math.min(2, p.speed_level || 0);
       return '<div class="player-panel' + (isYou ? ' you' : '') + (p.alive ? '' : ' dead') + '">' +
-        '<div class="player-name"><span class="player-letter">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
+        '<div class="player-name"><span class="player-letter" style="background:' + color + '">' + escapeHtml(letter) + '</span>' + escapeHtml(p.username) + (isYou ? ' (you)' : '') + '</div>' +
         '<div class="powerups">' +
-        '<div class="powerup-row pu-blast"><span class="pu-icon">💥</span>' + levelDots(blast) + '</div>' +
-        '<div class="powerup-row pu-bombs"><span class="pu-icon">💣</span>' + levelDots(bombs) + '</div>' +
-        '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelDots(speed) + '</div>' +
+        '<div class="powerup-row pu-blast"><span class="pu-icon">💥</span>' + levelIcons(blast, '💥') + '</div>' +
+        '<div class="powerup-row pu-bombs"><span class="pu-icon">💣</span>' + levelIcons(bombs, '💣') + '</div>' +
+        '<div class="powerup-row pu-speed"><span class="pu-icon">⚡</span>' + levelIcons(speed, '⚡') + '</div>' +
         '</div></div>';
     }).join('');
   }
@@ -524,6 +556,7 @@
     document.getElementById('step-game').style.display = 'none';
     document.getElementById('step-lobby').style.display = 'block';
     document.getElementById('btn-back-lobby').style.display = 'none';
+    document.getElementById('game-overlay').style.display = 'none';
     document.getElementById('game-status').textContent = '';
     startLobbyPoll();
   };

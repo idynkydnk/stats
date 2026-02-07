@@ -3426,40 +3426,28 @@ def api_balloono_game_action():
 
         if action in ('up', 'down', 'left', 'right'):
             dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
-            speed_level = min(3, player.get('speed_level', 0))
-            steps = 1 + speed_level
-            for _ in range(steps):
-                nx, ny = player['x'] + dx, player['y'] + dy
-                if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
-                    if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
-                        other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
-                        if other and other['x'] == nx and other['y'] == ny:
-                            break
+            nx, ny = player['x'] + dx, player['y'] + dy
+            if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
+                if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
+                    other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
+                    if not (other and other['x'] == nx and other['y'] == ny):
                         player['x'], player['y'] = nx, ny
-                        picked_up = False
                         for i, pu in enumerate(powerups_list):
                             if pu['x'] == nx and pu['y'] == ny:
                                 powerups_list.pop(i)
                                 pu_type = pu.get('type', 'blast')
                                 if pu_type == 'blast':
-                                    player['blast_level'] = min(3, player.get('blast_level', 0) + 1)
+                                    player['blast_level'] = min(2, player.get('blast_level', 0) + 1)
                                 elif pu_type == 'bombs':
-                                    player['bombs_level'] = min(3, player.get('bombs_level', 0) + 1)
+                                    player['bombs_level'] = min(2, player.get('bombs_level', 0) + 1)
                                 elif pu_type == 'speed':
-                                    player['speed_level'] = min(3, player.get('speed_level', 0) + 1)
-                                picked_up = True
+                                    player['speed_level'] = min(2, player.get('speed_level', 0) + 1)
                                 break
-                        if picked_up:
-                            break
-                    else:
-                        break
-                else:
-                    break
         elif action == 'bomb':
             placed = sum(1 for b in bombs_list if b.get('owner') == player_id)
-            max_bombs = 1 + min(3, player.get('bombs_level', 0))
+            max_bombs = 1 + min(2, player.get('bombs_level', 0))
             if placed < max_bombs:
-                bomb_range = 2 + min(3, player.get('blast_level', 0))
+                bomb_range = 2 + min(2, player.get('blast_level', 0))
                 game.setdefault('bombs', []).append({
                     'x': player['x'], 'y': player['y'], 'owner': player_id,
                     'range': bomb_range, 'placed_at': datetime.now().isoformat(),
@@ -3475,9 +3463,9 @@ def _balloono_tick(game):
     explosions = game.get('explosions', [])
     powerups = game.setdefault('powerups', [])
 
-    # Spawn random powerups every 8-12 seconds
+    # Spawn random powerups every 20 seconds
     last_spawn = game.get('last_powerup_spawn', 0)
-    if now_ts - last_spawn >= random.uniform(8, 12):
+    if now_ts - last_spawn >= 20:
         game['last_powerup_spawn'] = now_ts
         occupied = blocks_set | {(b['x'], b['y']) for b in bombs}
         occupied |= {(p['x'], p['y']) for p in game['players'] if p.get('alive')}
