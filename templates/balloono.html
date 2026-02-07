@@ -358,22 +358,6 @@
     } else {
       if (now - lastMoveAt < getMoveCooldown()) return;
       lastMoveAt = now;
-      if (gameState && gameState.players) {
-        const me = gameState.players.find(p => p.id === playerId);
-        if (me && me.alive) {
-          const blocks = new Set((gameState.blocks || []).map(b => b[0]+','+b[1]));
-          const bombs = gameState.bombs || [];
-          const powerups = gameState.powerups || [];
-        const blocked = (x,y) => blocks.has(x+','+y) || bombs.some(b => b.x===x&&b.y===y);
-        const hasPowerup = (x,y) => powerups.some(p => p.x===x&&p.y===y);
-        const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
-        const [dx,dy] = dirs[action] || [0,0];
-        const nx = me.x + dx, ny = me.y + dy;
-        if (!blocked(nx, ny)) {
-          me.x = nx; me.y = ny;
-        }
-        }
-      }
     }
     fetch('/api/balloono/game_action', {
       method: 'POST',
