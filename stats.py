@@ -223,9 +223,37 @@ def mark_notifications_read(notification_ids):
         conn.commit()
         conn.close()
 
+def init_balloono_db():
+    """Initialize Balloono users and stats tables"""
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS balloono_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            wins INTEGER DEFAULT 0,
+            losses INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS balloono_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES balloono_users(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 # Initialize database tables
 init_notifications_db()
 init_auth_tokens_db()
+init_balloono_db()
 
 def login_required(f):
     from functools import wraps
@@ -3250,6 +3278,28 @@ def work_in_progress():
 # Balloono game state (in-memory, room-based)
 _balloono_rooms = {}
 _balloono_lock = threading.Lock()
+_ACTIVE_ROOM_SEC = 60  # Rooms with no activity for this long are excluded from list
+_ROOM_IDLE_DELETE_SEC = 300  # Delete rooms idle this long
+
+def _balloono_token_cookie():
+    return request.cookies.get('balloono_token', '')
+
+def _balloono_current_user():
+    """Return (user_id, username) if valid token, else None"""
+    token = _balloono_token_cookie()
+    if not token:
+        return None
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT u.id, u.username FROM balloono_users u
+        JOIN balloono_tokens t ON t.user_id = u.id
+        WHERE t.token_hash = ? AND t.expires_at > ?
+    ''', (token_hash, datetime.now()))
+    row = cur.fetchone()
+    conn.close()
+    return (row[0], row[1]) if row else None
 
 def _generate_room_code():
     return ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
@@ -3259,21 +3309,110 @@ def balloono():
     """Balloono game page. Link in menu is Kyle-only, but page is public so friends can join via URL."""
     return render_template('balloono.html')
 
+@app.route('/api/balloono/me')
+def api_balloono_me():
+    """Return current Balloono user if logged in"""
+    user = _balloono_current_user()
+    if not user:
+        return jsonify({'logged_in': False})
+    user_id, username = user
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return jsonify({
+        'logged_in': True,
+        'user_id': user_id,
+        'username': username,
+        'wins': row[0] if row else 0,
+        'losses': row[1] if row else 0,
+    })
+
+@app.route('/api/balloono/register', methods=['POST'])
+def api_balloono_register():
+    """Register a new Balloono user"""
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()[:20]
+    password = data.get('password', '')
+    if not username or len(username) < 2:
+        return jsonify({'error': 'Username must be at least 2 characters'}), 400
+    if not password or len(password) < 4:
+        return jsonify({'error': 'Password must be at least 4 characters'}), 400
+    pw_hash = hashlib.sha256(password.encode()).hexdigest()
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires = datetime.now() + timedelta(days=90)
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    try:
+        cur.execute('INSERT INTO balloono_users (username, password_hash) VALUES (?, ?)', (username, pw_hash))
+        user_id = cur.lastrowid
+        cur.execute('INSERT INTO balloono_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+                    (user_id, token_hash, expires))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Username already taken'}), 400
+    conn.close()
+    resp = make_response(jsonify({'ok': True, 'username': username, 'user_id': user_id}))
+    resp.set_cookie('balloono_token', token, max_age=90*24*3600, httponly=True, samesite='Lax')
+    return resp
+
+@app.route('/api/balloono/login', methods=['POST'])
+def api_balloono_login():
+    """Login to Balloono"""
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()[:20]
+    password = data.get('password', '')
+    pw_hash = hashlib.sha256(password.encode()).hexdigest()
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM balloono_users WHERE username = ? AND password_hash = ?', (username, pw_hash))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Invalid username or password'}), 401
+    user_id = row[0]
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires = datetime.now() + timedelta(days=90)
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('INSERT INTO balloono_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+                (user_id, token_hash, expires))
+    conn.commit()
+    conn.close()
+    resp = make_response(jsonify({'ok': True, 'username': username, 'user_id': user_id}))
+    resp.set_cookie('balloono_token', token, max_age=90*24*3600, httponly=True, samesite='Lax')
+    return resp
+
+@app.route('/api/balloono/logout', methods=['POST'])
+def api_balloono_logout():
+    """Logout from Balloono"""
+    resp = make_response(jsonify({'ok': True}))
+    resp.set_cookie('balloono_token', '', max_age=0, httponly=True, samesite='Lax')
+    return resp
+
 @app.route('/api/balloono/create_room', methods=['POST'])
 def api_balloono_create_room():
     """Create a new Balloono room"""
-    data = request.get_json() or {}
-    username = (data.get('username') or '').strip()[:20] or 'Player'
+    user = _balloono_current_user()
+    if not user:
+        return jsonify({'error': 'Must be logged in to create a room'}), 401
+    user_id, username = user
     with _balloono_lock:
         room_code = _generate_room_code()
         while room_code in _balloono_rooms:
             room_code = _generate_room_code()
         player_id = secrets.token_hex(8)
+        now = datetime.now()
         _balloono_rooms[room_code] = {
-            'players': [{'id': player_id, 'username': username, 'ready': False}],
+            'players': [{'id': player_id, 'user_id': user_id, 'username': username, 'ready': False}],
             'messages': [{'type': 'system', 'text': f'{username} created the room.'}],
             'game': None,
-            'created': datetime.now().isoformat(),
+            'created': now.isoformat(),
+            'last_activity': time.time(),
         }
     return jsonify({
         'room_code': room_code,
@@ -3281,12 +3420,37 @@ def api_balloono_create_room():
         'username': username,
     })
 
+@app.route('/api/balloono/leave_room', methods=['POST'])
+def api_balloono_leave_room():
+    """Leave a room; removes room if empty"""
+    data = request.get_json() or {}
+    room_code = (data.get('room_code') or '').strip().upper()[:6]
+    player_id = data.get('player_id', '')
+    with _balloono_lock:
+        if room_code not in _balloono_rooms:
+            return jsonify({'ok': True})
+        room = _balloono_rooms[room_code]
+        room['players'] = [p for p in room['players'] if p['id'] != player_id]
+        if len(room['players']) == 0:
+            del _balloono_rooms[room_code]
+        else:
+            room['messages'].append({'type': 'system', 'text': 'A player left.'})
+    return jsonify({'ok': True})
+
 @app.route('/api/balloono/rooms')
 def api_balloono_list_rooms():
-    """List all available rooms (not in game, not full)"""
+    """List available rooms (active, not in game, not full)"""
+    now_ts = time.time()
     with _balloono_lock:
+        # Delete stale rooms
+        to_del = [c for c, r in _balloono_rooms.items()
+                  if now_ts - r.get('last_activity', 0) > _ROOM_IDLE_DELETE_SEC]
+        for c in to_del:
+            del _balloono_rooms[c]
         rooms = []
         for code, room in _balloono_rooms.items():
+            if now_ts - room.get('last_activity', 0) > _ACTIVE_ROOM_SEC:
+                continue
             if room.get('game') is not None:
                 continue
             players = room.get('players', [])
@@ -3304,20 +3468,27 @@ def api_balloono_list_rooms():
 @app.route('/api/balloono/join_room', methods=['POST'])
 def api_balloono_join_room():
     """Join an existing Balloono room"""
+    user = _balloono_current_user()
+    if not user:
+        return jsonify({'error': 'Must be logged in to join a room'}), 401
+    user_id, username = user
     data = request.get_json() or {}
     room_code = (data.get('room_code') or '').strip().upper()[:6]
-    username = (data.get('username') or '').strip()[:20] or 'Player'
     with _balloono_lock:
         if room_code not in _balloono_rooms:
             return jsonify({'error': 'Room not found'}), 404
         room = _balloono_rooms[room_code]
+        if time.time() - room.get('last_activity', 0) > _ACTIVE_ROOM_SEC:
+            del _balloono_rooms[room_code]
+            return jsonify({'error': 'Room expired'}), 404
         if room['game'] is not None:
             return jsonify({'error': 'Game already in progress'}), 400
         if len(room['players']) >= 2:
             return jsonify({'error': 'Room is full'}), 400
         player_id = secrets.token_hex(8)
-        room['players'].append({'id': player_id, 'username': username, 'ready': False})
+        room['players'].append({'id': player_id, 'user_id': user_id, 'username': username, 'ready': False})
         room['messages'].append({'type': 'system', 'text': f'{username} joined the room.'})
+        room['last_activity'] = time.time()
     return jsonify({
         'room_code': room_code,
         'player_id': player_id,
@@ -3331,9 +3502,11 @@ def api_balloono_get_room(room_code):
     with _balloono_lock:
         if room_code not in _balloono_rooms:
             return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code].copy()
+        room = _balloono_rooms[room_code]
+        room['last_activity'] = time.time()
+        room = room.copy()
         room['players'] = list(room['players'])
-        room['messages'] = list(room['messages'])[-50:]  # Last 50 messages
+        room['messages'] = list(room['messages'])[-50:]
     return jsonify(room)
 
 @app.route('/api/balloono/send_message', methods=['POST'])
@@ -3349,8 +3522,6 @@ def api_balloono_send_message():
         if room_code not in _balloono_rooms:
             return jsonify({'error': 'Room not found'}), 404
         room = _balloono_rooms[room_code]
-        if room['game'] is not None:
-            return jsonify({'error': 'Cannot chat during game'}), 400
         username = next((p['username'] for p in room['players'] if p['id'] == player_id), 'Unknown')
         room['messages'].append({'type': 'chat', 'username': username, 'text': text})
     return jsonify({'ok': True})
@@ -3372,11 +3543,13 @@ def api_balloono_start_game():
         # Initialize game state (Bomberman-style)
         GRID_W, GRID_H = 15, 11
         CELL = 40
+        p0 = room['players'][0]
         players_data = [
-            {'id': room['players'][0]['id'], 'username': room['players'][0]['username'], 'x': 1, 'y': 1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
+            {'id': p0['id'], 'user_id': p0.get('user_id'), 'username': p0['username'], 'x': 1, 'y': 1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
         ]
         if len(room['players']) >= 2:
-            players_data.append({'id': room['players'][1]['id'], 'username': room['players'][1]['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
+            p1 = room['players'][1]
+            players_data.append({'id': p1['id'], 'user_id': p1.get('user_id'), 'username': p1['username'], 'x': GRID_W - 2, 'y': GRID_H - 2, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
         room['game'] = {
             'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
             'players': players_data,
@@ -3425,6 +3598,10 @@ def api_balloono_game_action():
         powerups_list = game.get('powerups', [])
 
         if action in ('up', 'down', 'left', 'right'):
+            last_move = player.get('_last_move_at', 0)
+            if time.time() - last_move < 0.1:
+                return jsonify({'ok': True})
+            player['_last_move_at'] = time.time()
             dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
             nx, ny = player['x'] + dx, player['y'] + dy
             if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
@@ -3437,17 +3614,17 @@ def api_balloono_game_action():
                                 powerups_list.pop(i)
                                 pu_type = pu.get('type', 'blast')
                                 if pu_type == 'blast':
-                                    player['blast_level'] = min(2, player.get('blast_level', 0) + 1)
+                                    player['blast_level'] = player.get('blast_level', 0) + 1
                                 elif pu_type == 'bombs':
-                                    player['bombs_level'] = min(2, player.get('bombs_level', 0) + 1)
+                                    player['bombs_level'] = player.get('bombs_level', 0) + 1
                                 elif pu_type == 'speed':
-                                    player['speed_level'] = min(2, player.get('speed_level', 0) + 1)
+                                    player['speed_level'] = player.get('speed_level', 0) + 1
                                 break
         elif action == 'bomb':
             placed = sum(1 for b in bombs_list if b.get('owner') == player_id)
-            max_bombs = 1 + min(2, player.get('bombs_level', 0))
+            max_bombs = 1 + player.get('bombs_level', 0)
             if placed < max_bombs:
-                bomb_range = 2 + min(2, player.get('blast_level', 0))
+                bomb_range = 2 + player.get('blast_level', 0)
                 game.setdefault('bombs', []).append({
                     'x': player['x'], 'y': player['y'], 'owner': player_id,
                     'range': bomb_range, 'placed_at': datetime.now().isoformat(),
@@ -3475,7 +3652,7 @@ def _balloono_tick(game):
             for y in range(1, game['grid_h'] - 1):
                 if (x, y) not in occupied:
                     empty.append((x, y))
-        if empty and len(powerups) < 6:
+        if empty:
             x, y = random.choice(empty)
             pu_type = random.choice(['blast', 'bombs', 'speed'])
             powerups.append({'x': x, 'y': y, 'type': pu_type})
@@ -3483,25 +3660,66 @@ def _balloono_tick(game):
     # Remove expired explosions (0.4s display)
     explosions[:] = [e for e in explosions if (now - datetime.fromisoformat(e['at'])).total_seconds() < 0.4]
 
-    # Check bombs for explosion (2.5s fuse)
-    for b in list(bombs):
-        placed = datetime.fromisoformat(b['placed_at'])
-        if (now - placed).total_seconds() >= 2.5:
+    # Check bombs for explosion (2.5s fuse) with chain reaction
+    TAUNTS = [
+        lambda w, l: f'{w} wins! {l} got absolutely destroyed.',
+        lambda w, l: f'GG EZ. {l} never stood a chance against {w}.',
+        lambda w, l: f'{w} dominates! {l} might as well uninstall.',
+        lambda w, l: f'Pathetic. {l} is no match for {w}.',
+        lambda w, l: f'{w} crushed it! {l} should stick to single player.',
+        lambda w, l: f'Too easy. {l} got owned by {w}.',
+        lambda w, l: f'{w} reigns supreme! {l} folded like a cheap lawn chair.',
+    ]
+    to_explode = [(b, datetime.fromisoformat(b['placed_at'])) for b in list(bombs)]
+    queued_for_explosion = set()
+    while to_explode:
+        b, placed = to_explode.pop(0)
+        if (now - placed).total_seconds() < 2.5:
+            continue
+        if b in bombs:
             bombs.remove(b)
-            r = b.get('range', 2)
-            cx, cy = b['x'], b['y']
-            cells = [(cx, cy)]
-            for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
-                for d in range(1, r + 1):
-                    nx, ny = cx + dx * d, cy + dy * d
-                    if (nx, ny) in blocks_set:
-                        break
-                    cells.append((nx, ny))
-            for x, y in cells:
-                explosions.append({'x': x, 'y': y, 'at': now.isoformat()})
-                for p in game['players']:
-                    if p.get('alive') and p['x'] == x and p['y'] == y:
-                        p['alive'] = False
+        r = b.get('range', 2)
+        cx, cy = b['x'], b['y']
+        cells = [(cx, cy)]
+        for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
+            for d in range(1, r + 1):
+                nx, ny = cx + dx * d, cy + dy * d
+                if (nx, ny) in blocks_set:
+                    break
+                cells.append((nx, ny))
+        for x, y in cells:
+            explosions.append({'x': x, 'y': y, 'at': now.isoformat()})
+            for p in game['players']:
+                if p.get('alive') and p['x'] == x and p['y'] == y:
+                    p['alive'] = False
+            for b2 in list(bombs):
+                b2pos = (b2['x'], b2['y'])
+                if b2['x'] == x and b2['y'] == y and b2pos not in queued_for_explosion:
+                    queued_for_explosion.add(b2pos)
+                    to_explode.append((b2, now - timedelta(seconds=5)))
+    alive = [p for p in game['players'] if p.get('alive')]
+    if len(alive) == 1 and 'game_over_message' not in game:
+        winner = alive[0]
+        loser = next((p for p in game['players'] if not p.get('alive')), None)
+        w_name, l_name = winner['username'], loser['username'] if loser else ''
+        idx = hash(w_name + l_name) % len(TAUNTS)
+        game['game_over_title'] = winner['username'] + ' Wins!'
+        game['game_over_message'] = TAUNTS[idx](w_name, l_name) if l_name else game['game_over_title']
+        # Update stats
+        try:
+            conn = sqlite3.connect('stats.db')
+            cur = conn.cursor()
+            if winner.get('user_id'):
+                cur.execute('UPDATE balloono_users SET wins = wins + 1 WHERE id = ?', (winner['user_id'],))
+            if loser and loser.get('user_id'):
+                cur.execute('UPDATE balloono_users SET losses = losses + 1 WHERE id = ?', (loser['user_id'],))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+    elif len(alive) == 0 and 'game_over_message' not in game:
+        game['game_over_title'] = 'Draw!'
+        game['game_over_message'] = 'Everyone exploded. What a mess.'
 
 @app.route('/api/balloono/reset_game', methods=['POST'])
 def api_balloono_reset_game():
@@ -3521,6 +3739,8 @@ def api_balloono_game_state(room_code):
     """Get current game state (polling during game)"""
     room_code = room_code.upper()
     with _balloono_lock:
+        if room_code in _balloono_rooms:
+            _balloono_rooms[room_code]['last_activity'] = time.time()
         if room_code not in _balloono_rooms:
             return jsonify({'error': 'Room not found'}), 404
         room = _balloono_rooms[room_code]
@@ -3528,10 +3748,11 @@ def api_balloono_game_state(room_code):
             return jsonify({'game': None, 'players': room['players']})
         _balloono_tick(room['game'])
         g = room['game'].copy()
-        g['players'] = [p.copy() for p in g['players']]
+        g['players'] = [{k: v for k, v in p.items() if not k.startswith('_')} for p in g['players']]
         g['bombs'] = list(g.get('bombs', []))
         g['explosions'] = list(g.get('explosions', []))
         g['powerups'] = list(g.get('powerups', []))
+        g['messages'] = list(room.get('messages', []))[-50:]
     return jsonify({'game': g})
 
 @app.route('/benchmarks')
