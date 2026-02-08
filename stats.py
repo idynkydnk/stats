@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response
+from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response, send_from_directory
 # Flask-Caching is optional - the custom caching in stat_functions.py will still work
 try:
     from flask_caching import Cache
@@ -3356,10 +3356,26 @@ def _balloono_current_user():
 def _generate_room_code():
     return ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
 
+TOP10_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'top10')
+
+@app.route('/top10/<path:filename>')
+def top10_file(filename):
+    """Serve image/files from the top10 folder (for Yuriy's Top 10 page)."""
+    return send_from_directory(TOP10_DIR, filename)
+
+TOP10_PHOTOS = [
+    'DSC_2696.jpg', 'DSC_2702.jpg', 'DSC_2783.jpg', 'DSC_2920.jpg', 'DSC_3027.jpg',
+    'DSC_3032.jpg', 'DSC_3235.jpg', 'DSC_3253.jpg', 'DSC_3280.jpg', 'DSC_3282.jpg',
+]
+TOP10_PHOTOS_BIG = [
+    'DSC_2696 copy.jpg', 'DSC_2702 copy.jpg', 'DSC_2783 copy.jpg', 'DSC_2920 copy.jpg', 'DSC_3027 copy.jpg',
+    'DSC_3032 copy.jpg', 'DSC_3235 copy.jpg', 'DSC_3253 copy.jpg', 'DSC_3280 copy.jpg', 'DSC_3282 copy.jpg',
+]
+
 @app.route('/yuriy-top10')
 def yuriy_top10():
     """Yuriy's Top 10 page. Link in hamburger menu is Kyle-only."""
-    return render_template('yuriy_top10.html')
+    return render_template('yuriy_top10.html', photos=TOP10_PHOTOS, photos_big=TOP10_PHOTOS_BIG)
 
 @app.route('/balloono')
 def balloono():

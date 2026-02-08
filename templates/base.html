@@ -38,7 +38,7 @@
                     <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
-                        {% if session.username == 'kyle' %}
+                        {% if session.username and session.username|lower == 'kyle' %}
                             <li><a href="{{ url_for('yuriy_top10') }}"><i class="fas fa-list-ol"></i> Yuriy's Top 10</a></li>
                             <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
                             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
