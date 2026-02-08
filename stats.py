@@ -3356,6 +3356,11 @@ def _balloono_current_user():
 def _generate_room_code():
     return ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
 
+@app.route('/yuriy-top10')
+def yuriy_top10():
+    """Yuriy's Top 10 page. Link in hamburger menu is Kyle-only."""
+    return render_template('yuriy_top10.html')
+
 @app.route('/balloono')
 def balloono():
     """Balloono game page. Link in menu is Kyle-only, but page is public so friends can join via URL."""
