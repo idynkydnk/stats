@@ -3371,11 +3371,28 @@ TOP10_PHOTOS_BIG = [
     'DSC_2696 copy.jpg', 'DSC_2702 copy.jpg', 'DSC_2783 copy.jpg', 'DSC_2920 copy.jpg', 'DSC_3027 copy.jpg',
     'DSC_3032 copy.jpg', 'DSC_3235 copy.jpg', 'DSC_3253 copy.jpg', 'DSC_3280 copy.jpg', 'DSC_3282 copy.jpg',
 ]
+TOP10_REASONS = [
+    'Strong rule of thirds; subject on a power point with clean composition and no clutter.',
+    'Excellent color harmony and vibrancy; horizon level and a single clear focal point.',
+    'Clean visual complexity—one clear subject, minimal distractions, balanced framing.',
+    'Emotional peak moment with high energy; composition supports the story.',
+    'Unique take among similar shots; distinctive light or moment that stands out.',
+    'Symmetry used for impact; color palette complementary and not over-processed.',
+    'Clear subject with shallow visual complexity; horizon aligned, intentional framing.',
+    'Strong storytelling; emotional or unique moment paired with solid composition.',
+    'Balanced aesthetics—rule of thirds, clean background, natural color harmony.',
+    'Diversity pick: chosen over similar frames for the most unique or decisive moment.',
+]
 
 @app.route('/yuriy-top10')
 def yuriy_top10():
     """Yuriy's Top 10 page. Link in hamburger menu is Kyle-only."""
-    return render_template('yuriy_top10.html', photos=TOP10_PHOTOS, photos_big=TOP10_PHOTOS_BIG)
+    return render_template(
+        'yuriy_top10.html',
+        photos=TOP10_PHOTOS,
+        photos_big=TOP10_PHOTOS_BIG,
+        reasons=TOP10_REASONS,
+    )
 
 @app.route('/balloono')
 def balloono():

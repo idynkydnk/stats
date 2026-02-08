@@ -204,6 +204,14 @@
             margin-bottom: 0.75rem;
             letter-spacing: 0.02em;
         }
+        .top10-reason {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.65);
+            line-height: 1.45;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
         .top10-photo-link {
             display: block;
             cursor: pointer;
@@ -309,6 +317,9 @@
                         <img src="{{ url_for('top10_file', filename=photos[i]) }}" alt="Top 10 #{{ i + 1 }}" class="top10-photo">
                         <span class="click-hint">Click to enlarge</span>
                     </a>
+                    {% if reasons and reasons[i] %}
+                    <p class="top10-reason">{{ reasons[i] }}</p>
+                    {% endif %}
                 </li>
                 {% endfor %}
             </ol>
