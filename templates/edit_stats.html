@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <div class="menu-overlay" id="menu-overlay"></div>
@@ -13,10 +13,10 @@
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
-            <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
+            <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
             {% if session.username and session.username|lower == 'kyle' %}
             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
@@ -75,17 +75,17 @@
             <h1>Remove or edit games</h1>
             <p>Select a game type to view games and delete ones that shouldn't count towards stats.</p>
             <div class="edit-stats-cards">
-                <a href="{{ url_for('edit_games_redesign_default') }}" class="edit-stats-card">
+                <a href="{{ url_for('edit_games_default') }}" class="edit-stats-card">
                     <i class="fas fa-users"></i>
                     <span>Doubles</span>
                     <i class="fas fa-chevron-right"></i>
                 </a>
-                <a href="{{ url_for('edit_vollis_games_redesign_default') }}" class="edit-stats-card">
+                <a href="{{ url_for('edit_vollis_games_default') }}" class="edit-stats-card">
                     <i class="fas fa-volleyball-ball"></i>
                     <span>Vollis</span>
                     <i class="fas fa-chevron-right"></i>
                 </a>
-                <a href="{{ url_for('edit_other_games_redesign_default') }}" class="edit-stats-card">
+                <a href="{{ url_for('edit_other_games_default') }}" class="edit-stats-card">
                     <i class="fas fa-gamepad"></i>
                     <span>Other games</span>
                     <i class="fas fa-chevron-right"></i>

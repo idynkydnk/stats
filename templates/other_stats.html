@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ display_year|default(year) }} Other Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <div class="menu-overlay" id="menu-overlay"></div>
@@ -14,10 +14,10 @@
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
-            <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
+            <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
             {% if session.username and session.username|lower == 'kyle' %}
             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
@@ -227,22 +227,22 @@
                     </button>
                     <div class="sr-dropdown-content">
                         <div class="sr-dropdown-menu">
-                            <a href="{{ url_for('add_game_redesign') }}">Doubles</a>
-                            <a href="{{ url_for('add_vollis_game_redesign') }}">Vollis</a>
-                            <a href="{{ url_for('add_other_game_redesign') }}">Other</a>
-                            <a href="{{ url_for('ai_summary_redesign') }}">AI Summary</a>
-                            <a href="{{ url_for('player_list_redesign') }}">Players</a>
+                            <a href="{{ url_for('add_game') }}">Doubles</a>
+                            <a href="{{ url_for('add_vollis_game') }}">Vollis</a>
+                            <a href="{{ url_for('add_other_game') }}">Other</a>
+                            <a href="{{ url_for('ai_summary') }}">AI Summary</a>
+                            <a href="{{ url_for('player_list') }}">Players</a>
                         </div>
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('other_games_redesign', year=display_year|default(year)) }}" class="sr-link-btn">
+                <a href="{{ url_for('other_games', year=display_year|default(year)) }}" class="sr-link-btn">
                     <i class="fas fa-list-alt"></i> Games
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('other_stats_redesign', year=yr) }}" {% if yr|string == (display_year|default(year))|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('other_stats', year=yr) }}" {% if yr|string == (display_year|default(year))|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -281,7 +281,7 @@
                             {% for player in game_stats.stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_game_stats_redesign', year=display_year|default(year), game_name=game_stats.game_name, player_name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('player_game_stats', year=display_year|default(year), game_name=game_stats.game_name, player_name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
@@ -305,7 +305,7 @@
                     <i class="fas fa-volleyball-ball"></i> View all {{ card.num_game_types }} volleyball game types
                 </a>
                 {% else %}
-                <a href="{{ url_for('other_games_by_name_redesign', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
+                <a href="{{ url_for('other_games_by_name', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
                     <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
                 </a>
                 {% endif %}
@@ -326,9 +326,9 @@
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
                                 {% if card.is_consolidated %}
-                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats_redesign', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% else %}
-                                <td class="sr-player"><a href="{{ url_for('player_game_stats_redesign', year=display_year|default(year), game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('player_game_stats', year=display_year|default(year), game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
                                 {% endif %}
                                 <td class="sr-numeric sr-win">{{ stat[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ stat[2] }}</td>
@@ -354,7 +354,7 @@
         {% endif %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/stats_redesign.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
     <script>
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ player_name }} - {{ game_name }} {{ year }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <style>
@@ -110,12 +110,12 @@
 
     <div class="sr-container">
         <header class="sr-header sr-header-compact">
-            <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
             <div class="sr-header-actions">
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('player_game_stats_redesign', year=yr, game_name=game_name, player_name=player_name) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('player_game_stats', year=yr, game_name=game_name, player_name=player_name) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>

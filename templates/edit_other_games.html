@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit {{ year }} Vollis Games</title>
+    <title>Edit {{ year }} Other Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <div class="menu-overlay" id="menu-overlay"></div>
@@ -13,10 +13,10 @@
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
-            <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
+            <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
             {% if session.username and session.username|lower == 'kyle' %}
             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
@@ -46,7 +46,11 @@
         .sr-edit-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; padding: 12px 14px; transition: all 0.2s; }
         .sr-edit-card:hover { border-color: rgba(255, 255, 255, 0.15); }
         .sr-edit-card.selected { border-color: var(--sr-accent); background: var(--sr-accent-dim); }
-        .sr-edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+        .sr-edit-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
+        .sr-edit-title-row { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .sr-edit-game-name { font-size: 15px; font-weight: 600; color: var(--sr-text); margin: 0; }
+        .sr-edit-game-name a { color: var(--sr-text); text-decoration: none; }
+        .sr-edit-game-name a:hover { color: var(--sr-accent); }
         .sr-edit-actions { display: flex; gap: 6px; }
         .sr-action-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--sr-line); color: var(--sr-muted); text-decoration: none; transition: all 0.2s; }
         .sr-action-btn:hover { background: var(--sr-accent-dim); border-color: var(--sr-accent); color: var(--sr-accent); }
@@ -54,37 +58,43 @@
         .sr-edit-meta { display: flex; align-items: center; gap: 10px; }
         .sr-edit-date { font-size: 12px; color: var(--sr-muted); }
         .sr-edit-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--sr-accent); }
-        .sr-edit-body { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
-        .sr-edit-team { padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        .sr-edit-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .sr-edit-team { padding: 8px 12px; border-radius: 8px; }
         .sr-edit-team.winners { background: rgba(74, 222, 128, 0.1); border-left: 3px solid var(--sr-win); }
         .sr-edit-team.losers { background: rgba(248, 113, 113, 0.1); border-left: 3px solid var(--sr-loss); }
-        .sr-edit-player { font-size: 14px; }
-        .sr-edit-player a { color: var(--sr-text); text-decoration: none; }
-        .sr-edit-player a:hover { color: var(--sr-accent); }
-        .sr-edit-score { font-size: 18px; font-weight: 700; }
-        .sr-edit-team.winners .sr-edit-score { color: var(--sr-win); }
-        .sr-edit-team.losers .sr-edit-score { color: var(--sr-loss); }
-        .sr-vs { color: var(--sr-muted); font-size: 12px; font-weight: 500; }
+        .sr-edit-team-content { display: flex; justify-content: space-between; align-items: center; }
+        .sr-edit-players { flex: 1; }
+        .sr-edit-player-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
+        .sr-edit-player-row a { color: var(--sr-text); text-decoration: none; font-size: 13px; }
+        .sr-edit-player-row a:hover { color: var(--sr-accent); }
+        .sr-edit-player-score { font-weight: 600; font-size: 12px; }
+        .sr-edit-team.winners .sr-edit-player-score { color: var(--sr-win); }
+        .sr-edit-team.losers .sr-edit-player-score { color: var(--sr-loss); }
+        .sr-edit-team-score { font-size: 18px; font-weight: 700; margin-left: 12px; }
+        .sr-edit-team.winners .sr-edit-team-score { color: var(--sr-win); }
+        .sr-edit-team.losers .sr-edit-team-score { color: var(--sr-loss); }
+        .sr-edit-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sr-line); }
+        .sr-edit-comment { font-size: 12px; color: var(--sr-muted); font-style: italic; }
         .sr-bulk-actions { display: flex; align-items: center; gap: 12px; }
         .sr-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sr-muted); cursor: pointer; }
         .sr-select-all input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--sr-accent); }
         .sr-delete-btn { background: rgba(248, 113, 113, 0.2); border: 1px solid var(--sr-loss); color: var(--sr-loss); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; opacity: 0.5; }
         .sr-delete-btn:hover { background: rgba(248, 113, 113, 0.3); }
         .sr-delete-btn.active { opacity: 1; }
-        @media (max-width: 600px) { .sr-edit-body { grid-template-columns: 1fr 1fr; gap: 8px; } .sr-vs { display: none; } }
+        @media (max-width: 600px) { .sr-edit-body { grid-template-columns: 1fr; gap: 8px; } }
     </style>
 
     <div class="sr-container">
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">Edit {{ year }} Vollis</h1>
+            <h1 class="sr-title">Edit {{ year }} Other</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('vollis_stats_redesign', year=year) }}" class="sr-link-btn">
+                <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn">
                     <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('edit_vollis_games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('edit_other_games', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -108,35 +118,68 @@
                 {% if games %}
                 <div class="sr-games-grid">
                     {% for game in games %}
-                    <div class="sr-edit-card" data-game-id="{{ game[0] }}">
+                    <div class="sr-edit-card" data-game-id="{{ game['game_id'] }}">
                         <div class="sr-edit-header">
-                            <div class="sr-edit-actions">
-                                <a href="{{ url_for('update_vollis_game', id=game[0]) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
-                                <a href="{{ url_for('delete_vollis_game', id=game[0]) }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
+                            <div class="sr-edit-title-row">
+                                <div class="sr-edit-actions">
+                                    <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                                    <a href="{{ url_for('delete_other_game', id=game['game_id']) }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
+                                </div>
+                                <h3 class="sr-edit-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
                             </div>
                             <div class="sr-edit-meta">
-                                <span class="sr-edit-date">{{ game[1][0:8] }}{% if game[1]|length > 8 %} {{ game[1][9:17] }}{% endif %}</span>
-                                <input type="checkbox" class="sr-edit-checkbox game-checkbox" data-game-id="{{ game[0] }}" onchange="updateCardSelection(this)">
+                                <span class="sr-edit-date">{{ game['game_date_only'] }}{% if game['game_time'] %} {{ game['game_time'] }}{% endif %}</span>
+                                <input type="checkbox" class="sr-edit-checkbox game-checkbox" data-game-id="{{ game['game_id'] }}" onchange="updateCardSelection(this)">
                             </div>
                         </div>
                         <div class="sr-edit-body">
                             <div class="sr-edit-team winners">
-                                <span class="sr-edit-score">{{ game[3] }}</span>
-                                <div class="sr-edit-player"><a href="{{ url_for('vollis_player_stats_redesign', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                                <div class="sr-edit-team-content">
+                                    <div class="sr-edit-players">
+                                        {% for winner in game['winners'] %}
+                                        <div class="sr-edit-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=year, name=winner.name) }}">{{ winner.name }}</a>
+                                            {% if winner.score is not none and game['game_name'] != "Matterhorn" %}
+                                            <span class="sr-edit-player-score">{{ winner.score }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                                    <span class="sr-edit-team-score">{{ game['winner_score'] }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <span class="sr-vs">vs</span>
                             <div class="sr-edit-team losers">
-                                <span class="sr-edit-score">{{ game[5] }}</span>
-                                <div class="sr-edit-player"><a href="{{ url_for('vollis_player_stats_redesign', year=year, name=game[4]) }}">{{ game[4] }}</a></div>
+                                <div class="sr-edit-team-content">
+                                    <div class="sr-edit-players">
+                                        {% for loser in game['losers'] %}
+                                        <div class="sr-edit-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=year, name=loser.name) }}">{{ loser.name }}</a>
+                                            {% if loser.score is not none and game['game_name'] != "Matterhorn" %}
+                                            <span class="sr-edit-player-score">{{ loser.score }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                                    <span class="sr-edit-team-score">{{ game['loser_score'] }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
+                        {% if game['comment'] %}
+                        <div class="sr-edit-footer">
+                            <span class="sr-edit-comment">{{ game['comment'] }}</span>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
                 <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
-                    <p class="sr-empty-text">No vollis games recorded for {{ year }} yet.</p>
+                    <div class="sr-empty-icon"><i class="fas fa-dice"></i></div>
+                    <p class="sr-empty-text">No other games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>
@@ -177,7 +220,7 @@
             if (!confirm(`Delete ${selected.length} game(s)? This cannot be undone.`)) return;
             let done = 0;
             selected.forEach(id => {
-                fetch(`/delete_vollis_game/${id}/`, { method: 'POST' })
+                fetch(`/delete_other_game/${id}/`, { method: 'POST' })
                     .finally(() => { done++; if (done === selected.length) location.reload(); });
             });
         }

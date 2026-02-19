@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ display_year|default(year) }} Vollis Stats</title>
+    <title>{{ year }} Vollis Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
-    <!-- Menu Overlay -->
     <div class="menu-overlay" id="menu-overlay"></div>
     
-    <!-- Menu Sidebar -->
     <div class="menu-sidebar" id="menu-sidebar">
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
-            <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
             {% if session.username and session.username|lower == 'kyle' %}
             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
@@ -163,11 +160,123 @@
         .sr-dropdown:hover .sr-dropdown-content {
             display: block;
         }
+
+        .sr-games-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sr-game-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.2s;
+        }
+
+        .sr-game-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .sr-game-row {
+            display: grid;
+            grid-template-columns: 90px 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sr-game-date {
+            font-size: 12px;
+            color: var(--sr-muted);
+            line-height: 1.4;
+        }
+
+        .sr-game-team {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .sr-game-team.winners {
+            background: rgba(74, 222, 128, 0.1);
+            border-left: 3px solid var(--sr-win);
+        }
+
+        .sr-game-team.losers {
+            background: rgba(248, 113, 113, 0.1);
+            border-left: 3px solid var(--sr-loss);
+        }
+
+        .sr-team-score {
+            font-size: 20px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .sr-game-team.winners .sr-team-score {
+            color: var(--sr-win);
+        }
+
+        .sr-game-team.losers .sr-team-score {
+            color: var(--sr-loss);
+        }
+
+        .sr-game-player {
+            font-size: 14px;
+        }
+
+        .sr-game-player a {
+            color: var(--sr-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .sr-game-player a:hover {
+            color: var(--sr-accent);
+        }
+
+        .sr-vs {
+            color: var(--sr-muted);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 600px) {
+            .sr-game-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .sr-game-date {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding-bottom: 4px;
+                border-bottom: 1px solid var(--sr-line);
+                margin-bottom: 4px;
+            }
+
+            .sr-vs {
+                display: none;
+            }
+
+            .sr-game-team {
+                flex-direction: column;
+                text-align: center;
+                gap: 6px;
+            }
+        }
     </style>
 
     <div class="sr-container">
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ display_year|default(year) }} Vollis Stats</h1>
+            <h1 class="sr-title">{{ year }} Vollis Games</h1>
             <div class="sr-header-actions">
                 {% if session.logged_in %}
                 <div class="sr-dropdown">
@@ -176,22 +285,22 @@
                     </button>
                     <div class="sr-dropdown-content">
                         <div class="sr-dropdown-menu">
-                            <a href="{{ url_for('add_game_redesign') }}">Doubles</a>
-                            <a href="{{ url_for('add_vollis_game_redesign') }}">Vollis</a>
-                            <a href="{{ url_for('add_other_game_redesign') }}">Other</a>
-                            <a href="{{ url_for('ai_summary_redesign') }}">AI Summary</a>
-                            <a href="{{ url_for('player_list_redesign') }}">Players</a>
+                            <a href="{{ url_for('add_game') }}">Doubles</a>
+                            <a href="{{ url_for('add_vollis_game') }}">Vollis</a>
+                            <a href="{{ url_for('add_other_game') }}">Other</a>
+                            <a href="{{ url_for('ai_summary') }}">AI Summary</a>
+                            <a href="{{ url_for('player_list') }}">Players</a>
                         </div>
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('vollis_games_redesign', year=display_year|default(year)) }}" class="sr-link-btn">
-                    <i class="fas fa-list-alt"></i> Games
+                <a href="{{ url_for('vollis_stats', year=year) }}" class="sr-link-btn">
+                    <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('vollis_stats_redesign', year=yr) }}" {% if yr|string == (display_year|default(year))|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('vollis_games', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -201,58 +310,38 @@
             </div>
         </header>
 
-        {% if showing_previous_year %}
-        <div class="sr-notice" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-info-circle" style="color: #fbbf24;"></i>
-            <span style="color: var(--sr-text); font-size: 14px;">No vollis games played in {{ year }} yet. Showing <strong>{{ display_year }}</strong> stats.</span>
-        </div>
-        {% endif %}
-
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <div class="sr-search-wrap">
                     <i class="fas fa-search sr-search-icon"></i>
-                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
+                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players or dates...">
                 </div>
-                
-                <div id="sr-filter-active" class="sr-filter-active">
-                    <div id="sr-filter-chip" class="sr-filter-chip">
-                        <span class="sr-filter-text"></span>
-                        <span id="sr-filter-chip-close" class="sr-filter-chip-close">✕</span>
+                {% if games %}
+                <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
+                <div class="sr-games-grid" id="games-grid">
+                    {% for game in games %}
+                    <div class="sr-game-card" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[4]|lower }}">
+                        <div class="sr-game-row">
+                            <div class="sr-game-date">
+                                {{ game[1][0:8] }}
+                                {% if game[1]|length > 8 %}<br>{{ game[1][9:17] }}{% endif %}
+                            </div>
+                            <div class="sr-game-team winners">
+                                <span class="sr-team-score">{{ game[3] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                            </div>
+                            <span class="sr-vs">vs</span>
+                            <div class="sr-game-team losers">
+                                <span class="sr-team-score">{{ game[5] }}</span>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4]) }}">{{ game[4] }}</a></div>
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-                
-                {% if stats %}
-                <div class="sr-table-wrap">
-                    <table class="sr-table" id="sr-table">
-                        <thead>
-                            <tr>
-                                <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in stats %}
-                            <tr>
-                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats_redesign', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div id="sr-no-results" class="sr-no-results">
+                <div id="sr-no-results" class="sr-no-results" style="display: none;">
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
-                    <p>No players found matching your search.</p>
+                    <p>No games found matching your search.</p>
                 </div>
                 {% else %}
                 <div class="sr-empty">
@@ -264,8 +353,35 @@
         </section>
     </div>
 
-    <script src="{{ url_for('static', filename='js/stats_redesign.js') }}"></script>
     <script>
+        // Search functionality
+        const searchInput = document.getElementById('sr-search');
+        const gamesGrid = document.getElementById('games-grid');
+        const gamesCount = document.getElementById('games-count');
+        const noResults = document.getElementById('sr-no-results');
+        
+        if (searchInput && gamesGrid) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const cards = gamesGrid.querySelectorAll('.sr-game-card');
+                let visibleCount = 0;
+                
+                cards.forEach(card => {
+                    const searchData = card.dataset.search || '';
+                    const matches = !query || searchData.includes(query);
+                    card.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+                
+                if (gamesCount) {
+                    gamesCount.textContent = visibleCount + ' game' + (visibleCount !== 1 ? 's' : '');
+                }
+                if (noResults) {
+                    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+                }
+            });
+        }
+
         const menuToggle = document.getElementById('menu-toggle');
         const menuOverlay = document.getElementById('menu-overlay');
         const menuSidebar = document.getElementById('menu-sidebar');

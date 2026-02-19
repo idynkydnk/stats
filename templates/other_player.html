@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ player }} {{ year }} Other Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <style>
@@ -94,12 +94,12 @@
 
     <div class="sr-container">
         <header class="sr-header sr-header-compact">
-            <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
             <div class="sr-header-actions">
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('other_player_stats_redesign', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('other_player_stats', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -144,7 +144,7 @@
                 {% for stat in opponent_stats %}
                 <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                     <td>{{ loop.index }}</td>
-                    <td><a href="{{ url_for('other_player_stats_redesign', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
+                    <td><a href="{{ url_for('other_player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
                     <td class="sr-win">{{ stat['wins'] }}</td>
                     <td class="sr-loss">{{ stat['losses'] }}</td>
                     <td>{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>

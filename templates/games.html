@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ year }} Doubles Games</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <!-- Menu Overlay -->
@@ -16,8 +16,8 @@
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
+            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
+            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
             {% if session.username and session.username|lower == 'kyle' %}
             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
@@ -317,22 +317,22 @@
                     </button>
                     <div class="sr-dropdown-content">
                         <div class="sr-dropdown-menu">
-                            <a href="{{ url_for('add_game_redesign') }}">Doubles</a>
-                            <a href="{{ url_for('add_vollis_game_redesign') }}">Vollis</a>
-                            <a href="{{ url_for('add_other_game_redesign') }}">Other</a>
-                            <a href="{{ url_for('ai_summary_redesign') }}">AI Summary</a>
-                            <a href="{{ url_for('player_list_redesign') }}">Players</a>
+                            <a href="{{ url_for('add_game') }}">Doubles</a>
+                            <a href="{{ url_for('add_vollis_game') }}">Vollis</a>
+                            <a href="{{ url_for('add_other_game') }}">Other</a>
+                            <a href="{{ url_for('ai_summary') }}">AI Summary</a>
+                            <a href="{{ url_for('player_list') }}">Players</a>
                         </div>
                     </div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('stats_redesign', year=year) }}" class="sr-link-btn">
+                <a href="{{ url_for('stats', year=year) }}" class="sr-link-btn">
                     <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('games_redesign', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('games', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -362,16 +362,16 @@
                             <div class="sr-game-team winners">
                                 <span class="sr-team-score">{{ game[4] }}</span>
                                 <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
                                 </div>
                             </div>
                             <span class="sr-vs">vs</span>
                             <div class="sr-game-team losers">
                                 <span class="sr-team-score">{{ game[7] }}</span>
                                 <div class="sr-team-players">
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
-                                    <div class="sr-game-player"><a href="{{ url_for('player_stats_redesign', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a></div>
+                                    <div class="sr-game-player"><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
                                 </div>
                             </div>
                         </div>

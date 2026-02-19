@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ player }} {{ year }} Volleyball Stats</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats_redesign.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
 </head>
 <body class="sr-page">
     <style>
@@ -92,12 +92,12 @@
 
     <div class="sr-container">
         <header class="sr-header sr-header-compact">
-            <a href="{{ url_for('other_stats_redesign', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
             <div class="sr-header-actions">
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('volleyball_player_stats_redesign', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('volleyball_player_stats', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -138,7 +138,7 @@
         <section class="sr-table-section sr-game-card-section">
             <div class="sr-card sr-card-compact">
                 <h3 class="sr-section-title">{{ card.game_name }}</h3>
-                <a href="{{ url_for('other_games_by_name_redesign', year=year, game_name=card.game_name) }}" class="sr-game-type-link">
+                <a href="{{ url_for('other_games_by_name', year=year, game_name=card.game_name) }}" class="sr-game-type-link">
                     <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
                 </a>
                 <div class="sr-stat-cards" style="margin-bottom: 0;">

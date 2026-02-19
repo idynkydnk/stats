@@ -255,32 +255,27 @@ def login_required(f):
 
 @app.route('/')
 def index():
-    """Redirect to the redesigned stats page."""
-    return stats_redesign(str(date.today().year))
-
-@app.route('/stats/<year>/')
-def stats(year):
-    """Redirect to the redesigned stats page for the given year."""
-    return stats_redesign(year)
+    """Redirect to the main stats page."""
+    return redirect(url_for('stats', year=str(date.today().year)))
 
 @app.route('/stats/<year>/<date>/')
 def stats_by_date(year, date):
-    """Redirect to redesigned stats page for the year."""
-    return redirect(url_for('stats_redesign', year=year))
+    """Redirect to stats page for the year."""
+    return redirect(url_for('stats', year=year))
 
 
 # ============================================
-# REDESIGNED STATS PAGE (Steam Charts-inspired)
+# STATS PAGE (Steam Charts-inspired)
 # ============================================
 
-@app.route('/stats_redesign/')
-def stats_redesign_default():
-    return stats_redesign(str(date.today().year))
+@app.route('/stats/')
+def stats_default():
+    return redirect(url_for('stats', year=str(date.today().year)))
 
 
-@app.route('/stats_redesign/<year>/')
-def stats_redesign(year):
-    """Steam Charts-inspired doubles stats page."""
+@app.route('/stats/<year>/')
+def stats(year):
+    """Doubles stats page."""
     current_year = str(date.today().year)
     showing_previous_year = False
     display_year = year
@@ -317,7 +312,7 @@ def stats_redesign(year):
     today_stats = todays_stats()
     today_games = todays_games()
     
-    return render_template('stats_redesign.html', 
+    return render_template('stats.html', 
         all_years=all_years, 
         stats=stats, 
         rare_stats=rare_stats, 
@@ -330,29 +325,29 @@ def stats_redesign(year):
         today_games=today_games)
 
 
-@app.route('/games_redesign/')
-def games_redesign_default():
-    return games_redesign(str(date.today().year))
+@app.route('/games/')
+def games_default():
+    return redirect(url_for('games', year=str(date.today().year)))
 
 
-@app.route('/games_redesign/<year>/')
-def games_redesign(year):
-    """Steam Charts-inspired doubles games page."""
+@app.route('/games/<year>/')
+def games(year):
+    """Doubles games page."""
     all_years = grab_all_years()
-    games = year_games(year)
-    return render_template('games_redesign.html', games=games, year=year, all_years=all_years)
+    games_list = year_games(year)
+    return render_template('games.html', games=games_list, year=year, all_years=all_years)
 
 
 # ============================================
-# REDESIGNED VOLLIS ROUTES
+# VOLLIS ROUTES
 # ============================================
 
-@app.route('/vollis_stats_redesign/')
-def vollis_stats_redesign_default():
-    return vollis_stats_redesign(str(date.today().year))
+@app.route('/vollis_stats/')
+def vollis_stats_default():
+    return redirect(url_for('vollis_stats', year=str(date.today().year)))
 
-@app.route('/vollis_stats_redesign/<year>/')
-def vollis_stats_redesign(year):
+@app.route('/vollis_stats/<year>/')
+def vollis_stats(year):
     """Redesigned vollis stats page."""
     current_year = str(date.today().year)
     showing_previous_year = False
@@ -369,32 +364,32 @@ def vollis_stats_redesign(year):
             display_year = previous_year
             showing_previous_year = True
     
-    return render_template('vollis_stats_redesign.html', stats=stats, all_years=all_years, year=year,
+    return render_template('vollis_stats.html', stats=stats, all_years=all_years, year=year,
         display_year=display_year, showing_previous_year=showing_previous_year)
 
-@app.route('/vollis_games_redesign/')
-def vollis_games_redesign_default():
-    return vollis_games_redesign(str(date.today().year))
+@app.route('/vollis_games/')
+def vollis_games_default():
+    return redirect(url_for('vollis_games', year=str(date.today().year)))
 
-@app.route('/vollis_games_redesign/<year>/')
-def vollis_games_redesign(year):
+@app.route('/vollis_games/<year>/')
+def vollis_games(year):
     """Redesigned vollis games page."""
     all_years = all_vollis_years()
     games = vollis_year_games(year)
-    return render_template('vollis_games_redesign.html', games=games, all_years=all_years, year=year)
+    return render_template('vollis_games.html', games=games, all_years=all_years, year=year)
 
 
 # ============================================
 # REDESIGNED OTHER ROUTES
 # ============================================
 
-@app.route('/other_stats_redesign/')
-def other_stats_redesign_default():
-    return other_stats_redesign(str(date.today().year))
+@app.route('/other_stats/')
+def other_stats_default():
+    return redirect(url_for('other_stats', year=str(date.today().year)))
 
-@app.route('/other_stats_redesign/<year>/')
-def other_stats_redesign(year):
-    """Redesigned other stats page."""
+@app.route('/other_stats/<year>/')
+def other_stats(year):
+    """Other stats page."""
     current_year = str(date.today().year)
     showing_previous_year = False
     display_year = year
@@ -427,95 +422,95 @@ def other_stats_redesign(year):
     # Get today's stats grouped by game name
     today_stats_by_game = todays_other_stats_by_game()
     
-    return render_template('other_stats_redesign.html', stats=stats, rare_stats=rare_stats,
+    return render_template('other_stats.html', stats=stats, rare_stats=rare_stats,
         all_years=all_years, minimum_games=minimum_games, year=year,
         display_year=display_year, showing_previous_year=showing_previous_year, game_cards=game_cards,
         today_stats_by_game=today_stats_by_game)
 
-@app.route('/other_games_redesign/')
-def other_games_redesign_default():
-    return other_games_redesign(str(date.today().year))
+@app.route('/other_games/')
+def other_games_default():
+    return redirect(url_for('other_games', year=str(date.today().year)))
 
-@app.route('/other_games_redesign/<year>/')
-def other_games_redesign(year):
-    """Redesigned other games page."""
+@app.route('/other_games/<year>/')
+def other_games(year):
+    """Other games page."""
     all_years = all_other_years()
     games = other_year_games(year)
-    return render_template('other_games_redesign.html', games=games, all_years=all_years, year=year)
+    return render_template('other_games.html', games=games, all_years=all_years, year=year)
 
 
-@app.route('/other_games_redesign/<year>/<game_name>/')
-def other_games_by_name_redesign(year, game_name):
-    """Redesigned other games page filtered by game name."""
+@app.route('/other_games/<year>/<game_name>/')
+def other_games_by_name(year, game_name):
+    """Other games page filtered by game name."""
     from other_functions import total_game_name_stats
     all_years = all_other_years()
     all_games = other_year_games(year)
     # Filter games by game_name
     games = [g for g in all_games if g.get('game_name') == game_name]
     stats = total_game_name_stats(games)
-    return render_template('other_games_redesign.html', games=games, all_years=all_years, year=year, game_name=game_name, stats=stats)
+    return render_template('other_games.html', games=games, all_years=all_years, year=year, game_name=game_name, stats=stats)
 
 
 # ============================================
-# REDESIGNED EDIT ROUTES
+# EDIT ROUTES
 # ============================================
 
-@app.route('/edit_stats_redesign/')
+@app.route('/edit_stats/')
 @login_required
-def edit_stats_redesign():
+def edit_stats():
     """Hub page linking to all edit game pages"""
-    return render_template('edit_stats_redesign.html')
+    return render_template('edit_stats.html')
 
-@app.route('/edit_games_redesign/')
+@app.route('/edit_games/')
 @login_required
-def edit_games_redesign_default():
-    return edit_games_redesign(str(date.today().year))
+def edit_games_default():
+    return redirect(url_for('edit_games', year=str(date.today().year)))
 
-@app.route('/edit_games_redesign/<year>/')
+@app.route('/edit_games/<year>/')
 @login_required
-def edit_games_redesign(year):
-    """Redesigned edit doubles games page."""
+def edit_games(year):
+    """Edit doubles games page."""
     all_years = grab_all_years()
     games = year_games(year)
-    return render_template('edit_games_redesign.html', games=games, year=year, all_years=all_years)
+    return render_template('edit_games.html', games=games, year=year, all_years=all_years)
 
-@app.route('/edit_vollis_games_redesign/')
+@app.route('/edit_vollis_games/')
 @login_required
-def edit_vollis_games_redesign_default():
-    return edit_vollis_games_redesign(str(date.today().year))
+def edit_vollis_games_default():
+    return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
 
-@app.route('/edit_vollis_games_redesign/<year>/')
+@app.route('/edit_vollis_games/<year>/')
 @login_required
-def edit_vollis_games_redesign(year):
-    """Redesigned edit vollis games page."""
+def edit_vollis_games(year):
+    """Edit vollis games page."""
     all_years = all_vollis_years()
     games = vollis_year_games(year)
-    return render_template('edit_vollis_games_redesign.html', games=games, year=year, all_years=all_years)
+    return render_template('edit_vollis_games.html', games=games, year=year, all_years=all_years)
 
-@app.route('/edit_other_games_redesign/')
+@app.route('/edit_other_games/')
 @login_required
-def edit_other_games_redesign_default():
-    return edit_other_games_redesign(str(date.today().year))
+def edit_other_games_default():
+    return redirect(url_for('edit_other_games', year=str(date.today().year)))
 
-@app.route('/edit_other_games_redesign/<year>/')
+@app.route('/edit_other_games/<year>/')
 @login_required
-def edit_other_games_redesign(year):
-    """Redesigned edit other games page."""
+def edit_other_games(year):
+    """Edit other games page."""
     all_years = all_other_years()
     games = other_year_games(year)
-    return render_template('edit_other_games_redesign.html', games=games, year=year, all_years=all_years)
+    return render_template('edit_other_games.html', games=games, year=year, all_years=all_years)
 
 
 # ============================================
 # REDESIGNED ADD GAME ROUTES
 # ============================================
 
-@app.route('/ai_summary_redesign/')
+@app.route('/ai_summary/')
 @login_required
-def ai_summary_redesign():
-    """Redesigned AI summary page for selecting games to summarize."""
+def ai_summary():
+    """AI summary page for selecting games to summarize."""
     games = recent_games(50)  # Get last 50 games
-    return render_template('ai_summary_redesign.html', games=games)
+    return render_template('ai_summary.html', games=games)
 
 @app.route('/select_ai_prompt/', methods=['POST'])
 @login_required
@@ -524,8 +519,8 @@ def select_ai_prompt():
     selected_game_ids = request.form.getlist('game_ids')
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
-        return redirect(url_for('ai_summary_redesign'))
-    return render_template('select_prompt_redesign.html', game_ids=selected_game_ids)
+        return redirect(url_for('ai_summary'))
+    return render_template('select_prompt.html', game_ids=selected_game_ids)
 
 @app.route('/preview_ai_summary_with_prompt/', methods=['POST'])
 @login_required
@@ -537,22 +532,22 @@ def preview_ai_summary_with_prompt():
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
-        return redirect(url_for('ai_summary_redesign'))
+        return redirect(url_for('ai_summary'))
 
     try:
         payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
     except ValueError as ve:
         flash(str(ve), 'error')
-        return redirect(url_for('ai_summary_redesign'))
+        return redirect(url_for('ai_summary'))
     except Exception as e:
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
-        return redirect(url_for('ai_summary_redesign'))
+        return redirect(url_for('ai_summary'))
 
     selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
     can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
 
     return render_template(
-        'preview_ai_summary_redesign.html',
+        'preview_ai_summary.html',
         game_type='doubles',
         header_title="Doubles AI Summary Preview",
         subject=payload['subject'],
@@ -562,14 +557,14 @@ def preview_ai_summary_with_prompt():
         selected_game_ids_json=selected_game_ids_json,
         selected_game_ids=selected_game_ids,
         send_url=url_for('generate_and_email_today'),
-        back_url=url_for('ai_summary_redesign'),
+        back_url=url_for('ai_summary'),
         can_send=can_send
     )
 
-@app.route('/add_game_redesign/', methods=['GET', 'POST'])
+@app.route('/add_game/', methods=['GET', 'POST'])
 @login_required
-def add_game_redesign():
-    """Redesigned add doubles game page."""
+def add_game():
+    """Add doubles game page."""
     year = str(date.today().year)
     if request.method == 'POST':
         winner1 = request.form['winner1'].strip()
@@ -601,20 +596,20 @@ def add_game_redesign():
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
             update_kobs()
-        return redirect(url_for('add_game_redesign'))
+        return redirect(url_for('add_game'))
     
     all_games = year_games('All years')
     players = all_players(all_games)
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
-    return render_template('add_game_redesign.html', players=players, games=games, year=year, 
+    return render_template('add_game.html', players=players, games=games, year=year, 
         l_scores=l_scores, todays_stats=todays_stats_data)
 
-@app.route('/add_vollis_game_redesign/', methods=['GET', 'POST'])
+@app.route('/add_vollis_game/', methods=['GET', 'POST'])
 @login_required
-def add_vollis_game_redesign():
-    """Redesigned add vollis game page."""
+def add_vollis_game():
+    """Add vollis game page."""
     year = str(date.today().year)
     if request.method == 'POST':
         winner = request.form['winner'].strip()
@@ -629,7 +624,7 @@ def add_vollis_game_redesign():
             user = session.get('username', 'unknown')
             details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added vollis game', details)
-        return redirect(url_for('add_vollis_game_redesign'))
+        return redirect(url_for('add_vollis_game'))
     
     all_games = vollis_year_games('All years')
     players = all_vollis_players(all_games)
@@ -637,13 +632,13 @@ def add_vollis_game_redesign():
     todays_stats_data = todays_vollis_stats()
     winning_scores = list(range(11, 27))
     losing_scores = list(range(0, 26))
-    return render_template('add_vollis_game_redesign.html', players=players, games=games, year=year,
+    return render_template('add_vollis_game.html', players=players, games=games, year=year,
         winning_scores=winning_scores, losing_scores=losing_scores, todays_stats=todays_stats_data)
 
-@app.route('/add_other_game_redesign/', methods=['GET', 'POST'])
+@app.route('/add_other_game/', methods=['GET', 'POST'])
 @login_required
-def add_other_game_redesign():
-    """Redesigned add other game page."""
+def add_other_game():
+    """Add other game page."""
     from other_functions import all_combined_players
     year = str(date.today().year)
     
@@ -693,7 +688,7 @@ def add_other_game_redesign():
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Added other game', details)
-        return redirect(url_for('add_other_game_redesign'))
+        return redirect(url_for('add_other_game'))
     
     players = all_combined_players()
     games_dict = other_year_games('All years')
@@ -701,31 +696,31 @@ def add_other_game_redesign():
     game_types = other_game_types(games_dict)
     games = todays_other_games()
     todays_stats_data = todays_other_stats()
-    return render_template('add_other_game_redesign.html', players=players, games=games, year=year,
+    return render_template('add_other_game.html', players=players, games=games, year=year,
         game_names=game_names, game_types=game_types, todays_stats=todays_stats_data)
 
 
 # ============================================
-# REDESIGNED PLAYER LIST ROUTE
+# PLAYER LIST ROUTE
 # ============================================
 
-@app.route('/player_list_redesign/')
+@app.route('/player_list/')
 @login_required
-def player_list_redesign():
-    """Redesigned player list page."""
+def player_list():
+    """Player list page."""
     from player_functions import get_all_players
     players = get_all_players()
     all_unique_players = sorted(get_all_unique_players())
-    return render_template('player_list_redesign.html', players=players, all_unique_players=all_unique_players)
+    return render_template('player_list.html', players=players, all_unique_players=all_unique_players)
 
 
 # ============================================
-# REDESIGNED PLAYER STATS ROUTES
+# PLAYER STATS ROUTES
 # ============================================
 
-@app.route('/player_redesign/<year>/<name>/')
-def player_stats_redesign(year, name):
-    """Redesigned doubles player stats page."""
+@app.route('/player/<year>/<name>/')
+def player_stats(year, name):
+    """Doubles player stats page."""
     games = games_from_player_by_year(year, name)
     if games:
         minimum_games = max(1, len(games) // 40)
@@ -735,28 +730,28 @@ def player_stats_redesign(year, name):
     stats = total_stats(games, name)
     partner_stats = partner_stats_by_year(name, games, minimum_games)
     opponent_stats = opponent_stats_by_year(name, games, minimum_games)
-    return render_template('player_redesign.html', opponent_stats=opponent_stats,
+    return render_template('player.html', opponent_stats=opponent_stats,
         partner_stats=partner_stats, year=year, player=name, 
         minimum_games=minimum_games, all_years=all_years, stats=stats, games=games)
 
-@app.route('/vollis_player_redesign/<year>/<name>/')
-def vollis_player_stats_redesign(year, name):
-    """Redesigned vollis player stats page."""
+@app.route('/vollis_player/<year>/<name>/')
+def vollis_player_stats(year, name):
+    """Vollis player stats page."""
     all_years = all_years_vollis_player(name)
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
     opponent_stats = vollis_opponent_stats_by_year(name, games)
-    return render_template('vollis_player_redesign.html', opponent_stats=opponent_stats, 
+    return render_template('vollis_player.html', opponent_stats=opponent_stats, 
         year=year, player=name, all_years=all_years, stats=stats)
 
-@app.route('/other_player_redesign/<year>/<name>/')
-def other_player_stats_redesign(year, name):
-    """Redesigned other player stats page."""
+@app.route('/other_player/<year>/<name>/')
+def other_player_stats(year, name):
+    """Other player stats page."""
     all_years = all_years_other_player(name)
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
     opponent_stats = other_opponent_stats_by_year(name, games)
-    return render_template('other_player_redesign.html', opponent_stats=opponent_stats, 
+    return render_template('other_player.html', opponent_stats=opponent_stats, 
         year=year, player=name, all_years=all_years, stats=stats)
 
 
@@ -844,48 +839,6 @@ def top_teams():
 def top_teams_by_year(year):
     return redirect(url_for('index'))
 
-@app.route('/player/<year>/<name>')
-def player_stats(year, name):
-    games = games_from_player_by_year(year, name)
-    if games:
-        if len(games) < 40:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 40
-    else:
-        minimum_games = 1
-    all_years = all_years_player(name)
-    games = games_from_player_by_year(year, name)
-    stats = total_stats(games, name)
-    partner_stats = partner_stats_by_year(name, games, minimum_games)
-    opponent_stats = opponent_stats_by_year(name, games, minimum_games)
-    rare_partner_stats = rare_partner_stats_by_year(name, games, minimum_games)
-    rare_opponent_stats = rare_opponent_stats_by_year(name, games, minimum_games)
-    return redirect(url_for('player_stats_redesign', year=year, name=name))
-
-@app.route('/games/')
-def games():
-    return redirect(url_for('games_redesign', year=str(date.today().year)))
-
-@app.route('/games/<year>')
-def games_by_year(year):
-    return redirect(url_for('games_redesign', year=year))
-
-@app.route('/add_game/', methods=('GET', 'POST'))
-@login_required
-def add_game():
-    return add_game_redesign()
-
-
-@app.route('/edit_games/')
-def edit_games():
-    return redirect(url_for('edit_games_redesign'))
-
-@app.route('/edit_games/<year>')
-def edit_games_by_year(year):
-    return redirect(url_for('edit_games_redesign', year=year))
-
-
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
 @login_required
 def update(id):
@@ -893,7 +846,7 @@ def update(id):
     x = find_game(id)
     if not x:
         flash('Game not found.')
-        return redirect(url_for('edit_games_redesign'))
+        return redirect(url_for('edit_games', year=str(date.today().year)))
     raw_game = x[0]
     existing_comment = ''
     if len(raw_game) > 9 and raw_game[9]:
@@ -947,11 +900,11 @@ def update(id):
             # Check if user came from add game page
             from_add_game = request.form.get('from_add_game')
             if from_add_game == 'true':
-                return redirect(url_for('add_game_redesign'))
+                return redirect(url_for('add_game'))
             else:
-                return redirect(url_for('edit_games_redesign'))
+                return redirect(url_for('edit_games', year=str(date.today().year)))
  
-    return render_template('edit_game_redesign.html', game=game, players=players, 
+    return render_template('edit_game.html', game=game, players=players, 
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
         from_add_game=request.args.get('from_add_game'))
 
@@ -985,10 +938,10 @@ def delete_game(id):
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':
-            return redirect(url_for('add_game_redesign'))
+            return redirect(url_for('add_game'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_game_redesign'))
-        return redirect(url_for('edit_games_redesign'))
+            return redirect(url_for('add_game'))
+        return redirect(url_for('edit_games', year=str(date.today().year)))
  
     return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
@@ -999,39 +952,6 @@ def advanced_stats():
 
 
 ## VOLLIS ROUTES
-
-
-
-@app.route('/vollis_stats/<year>/')
-def vollis_stats(year):
-    return redirect(url_for('vollis_stats_redesign', year=year))
-
-@app.route('/vollis_stats/')
-def vollis():
-    return redirect(url_for('vollis_stats_redesign_default'))
-
-
-@app.route('/add_vollis_game/', methods=('GET', 'POST'))
-@login_required
-def add_vollis_game():
-    return add_vollis_game_redesign()
-
-
-@app.route('/edit_vollis_games/')
-def edit_vollis_games():
-    return redirect(url_for('edit_vollis_games_redesign'))
-
-@app.route('/edit_past_year_vollis_games/<year>')
-def edit_vollis_games_by_year(year):
-    return redirect(url_for('edit_vollis_games_redesign', year=year))
-
-@app.route('/vollis_games/')
-def vollis_games():
-    return redirect(url_for('vollis_games_redesign_default'))
-
-@app.route('/vollis_games/<year>')
-def vollis_games_by_year(year):
-    return redirect(url_for('vollis_games_redesign', year=year))
 
 
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])
@@ -1057,7 +977,7 @@ def update_vollis_game(id):
             details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited vollis game', details)
             
-            return redirect(url_for('edit_vollis_games_redesign'))
+            return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
  
     return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))
 
@@ -1078,18 +998,12 @@ def delete_vollis_game(id):
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':
-            return redirect(url_for('add_vollis_game_redesign'))
+            return redirect(url_for('add_vollis_game'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_vollis_game_redesign'))
-        return redirect(url_for('edit_vollis_games_redesign'))
+            return redirect(url_for('add_vollis_game'))
+        return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
  
     return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
-
-@app.route('/vollis_player/<year>/<name>')
-def vollis_player_stats(year, name):
-    return redirect(url_for('vollis_player_stats_redesign', year=year, name=name))
-
-
 
 @app.route('/single_game_stats/<game_name>/')
 def single_game_stats(game_name):
@@ -1226,15 +1140,6 @@ def build_volleyball_game_cards(year):
     return game_cards
 
 
-@app.route('/other_stats/<year>/')
-def other_stats(year):
-    return redirect(url_for('other_stats_redesign', year=year))
-
-@app.route('/other_stats/')
-def other():
-    return redirect(url_for('other_stats_redesign_default'))
-
-
 @app.route('/volleyball_stats/')
 def volleyball_stats_default():
     return redirect(url_for('index'))
@@ -1281,12 +1186,7 @@ def volleyball_stats_styled(year):
 
 @app.route('/volleyball_player/<year>/<name>')
 def volleyball_player_stats(year, name):
-    return redirect(url_for('volleyball_player_stats_redesign', year=year, name=name))
-
-
-@app.route('/volleyball_player_redesign/<year>/<name>')
-def volleyball_player_stats_redesign(year, name):
-    """Redesigned volleyball stats page for a specific player."""
+    """Volleyball stats page for a specific player."""
     from other_functions import other_year_games, total_game_name_stats, other_game_names, _is_valid_player_name
     
     all_years = all_other_years()
@@ -1355,7 +1255,7 @@ def volleyball_player_stats_redesign(year, name):
     
     game_cards.sort(key=lambda x: x['total_games'], reverse=True)
     
-    return render_template('volleyball_player_redesign.html',
+    return render_template('volleyball_player.html',
         player=name,
         year=year,
         all_years=all_years,
@@ -1364,39 +1264,13 @@ def volleyball_player_stats_redesign(year, name):
         total_games=total_games)
 
 
-@app.route('/add_other_game/', methods=('GET', 'POST'))
-@login_required
-def add_other_game():
-    return add_other_game_redesign()
-
-
-@app.route('/edit_other_games/')
-def edit_other_games():
-    return redirect(url_for('edit_other_games_redesign'))
-
-@app.route('/edit_past_year_other_games/<year>')
-def edit_other_games_by_year(year):
-    return redirect(url_for('edit_other_games_redesign', year=year))
-
-@app.route('/other_games/')
-def other_games():
-    return redirect(url_for('other_games_redesign_default'))
-
-@app.route('/other_games/<year>')
-def other_games_by_year(year):
-    return redirect(url_for('other_games_redesign', year=year))
-
-@app.route('/other_games/<year>/<game_name>')
-def other_games_by_year_and_name(year, game_name):
-    return redirect(url_for('other_games_by_name_redesign', year=year, game_name=game_name))
-
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
 def update_other_game(id):
     game_id = id
     x = find_other_game(game_id)
     if not x:
         flash('Game not found!')
-        return redirect(url_for('edit_other_games_redesign'))
+        return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
     # Get the full game data (all 20 fields)
     game_row = x[0]
@@ -1471,7 +1345,7 @@ def update_other_game(id):
             details = f"Game ID {game_id}: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Edited other game', details)
             
-            return redirect(url_for('edit_other_games_redesign'))
+            return redirect(url_for('edit_other_games', year=str(date.today().year)))
  
     return render_template('edit_other_game.html', game=game_data_dict, players=players, year=str(date.today().year))
 
@@ -1484,7 +1358,7 @@ def delete_other_game(id):
     from_redesign = request.args.get('from_redesign', 'false')
     if not game:
         flash('Game not found!')
-        return redirect(url_for('edit_other_games_redesign'))
+        return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
     if request.method == 'POST':
         # Log the action for notifications before deleting
@@ -1497,41 +1371,31 @@ def delete_other_game(id):
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':
-            return redirect(url_for('add_other_game_redesign'))
+            return redirect(url_for('add_other_game'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_other_game_redesign'))
-        return redirect(url_for('edit_other_games_redesign'))
+            return redirect(url_for('add_other_game'))
+        return redirect(url_for('edit_other_games', year=str(date.today().year)))
  
     return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
 
-@app.route('/other_player/<year>/<name>')
-def other_player_stats(year, name):
-    return redirect(url_for('other_player_stats_redesign', year=year, name=name))
-
-
 @app.route('/game_name_stats/<game_name>/')
 def game_name_stats(game_name):
-    return redirect(url_for('other_games_by_name_redesign', year=str(date.today().year), game_name=game_name))
+    return redirect(url_for('other_games_by_name', year=str(date.today().year), game_name=game_name))
 
 @app.route('/game_name_stats/<game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
-    return redirect(url_for('other_games_by_name_redesign', year=year, game_name=game_name))
+    return redirect(url_for('other_games_by_name', year=year, game_name=game_name))
 
 @app.route('/player_game_stats/<year>/<game_name>/<player_name>/')
 def player_game_stats(year, game_name, player_name):
-    return redirect(url_for('player_game_stats_redesign', year=year, game_name=game_name, player_name=player_name))
-
-
-@app.route('/player_game_stats_redesign/<year>/<game_name>/<player_name>/')
-def player_game_stats_redesign(year, game_name, player_name):
-    """Redesigned player game stats page for specific game types."""
+    """Player game stats page for specific game types."""
     from other_functions import player_game_name_games, player_game_name_stats, game_name_years
     
     all_years = game_name_years(game_name)
     games = player_game_name_games(year, game_name, player_name)
     stats = player_game_name_stats(games, player_name)
     
-    return render_template('player_game_stats_redesign.html',
+    return render_template('player_game_stats.html',
         player_name=player_name,
         game_name=game_name,
         year=year,
@@ -1594,7 +1458,7 @@ def login():
         else:
             flash('Invalid username or password.', 'error')
     
-    return render_template('login_redesign.html')
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
@@ -1629,7 +1493,7 @@ def notifications():
         return redirect(url_for('index'))
     
     all_notifications = get_unread_notifications()
-    return render_template('notifications_redesign.html', notifications=all_notifications)
+    return render_template('notifications.html', notifications=all_notifications)
 
 @app.route('/mark_notifications_read', methods=['POST'])
 @login_required
@@ -1980,10 +1844,6 @@ def glicko_rankings():
 def trueskill_rankings():
     return redirect(url_for('index'))
 
-@app.route('/player_list/')
-def player_list():
-    return redirect(url_for('player_list_redesign'))
-
 @app.route('/kobs/')
 def kobs():
     return redirect(url_for('index'))
@@ -2001,7 +1861,7 @@ def edit_player(player_id):
     
     if not player:
         flash('Player not found')
-        return redirect(url_for('player_list_redesign'))
+        return redirect(url_for('player_list'))
     
     if request.method == 'POST':
         full_name = request.form['full_name']
@@ -2024,7 +1884,7 @@ def edit_player(player_id):
             else:
                 log_user_action(user, 'Edited player', f'Updated info for "{full_name}"')
                 flash('Player updated successfully!')
-            return redirect(url_for('player_list_redesign'))
+            return redirect(url_for('player_list'))
     
     return render_template('edit_player.html', player=player)
 

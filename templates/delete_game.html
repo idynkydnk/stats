@@ -20,7 +20,7 @@
                 </button>
             </form>
             
-            <a href="{% if from_redesign == 'true' %}{{ url_for('add_game_redesign') }}{% elif from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}/edit_games{% endif %}" class="cancel-button">
+            <a href="{% if from_redesign == 'true' %}{{ url_for('add_game') }}{% elif from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games_default') }}{% endif %}" class="cancel-button">
                 <i class="fas fa-times"></i>
                 Cancel
             </a>
