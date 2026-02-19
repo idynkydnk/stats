@@ -519,11 +519,7 @@ function autoFillGameType(gameType) {
     const gameName = gameNameInput.value.trim();
     
     if (gameName) {
-        const apiUrl = gameType === 'one_v_one' ? 
-            `/api/one_v_one_game_type/${encodeURIComponent(gameName)}` : 
-            `/api/other_game_info/${encodeURIComponent(gameName)}`;
-        
-        fetch(apiUrl)
+        fetch(`/api/other_game_info/${encodeURIComponent(gameName)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.game_type) {

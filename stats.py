@@ -12,7 +12,6 @@ from stat_functions import clear_stats_cache
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from vollis_functions import *
-from one_v_one_functions import *
 from other_functions import *
 from kob_functions import update_kobs
 import os
@@ -223,37 +222,9 @@ def mark_notifications_read(notification_ids):
         conn.commit()
         conn.close()
 
-def init_balloono_db():
-    """Initialize Balloono users and stats tables"""
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS balloono_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            wins INTEGER DEFAULT 0,
-            losses INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS balloono_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            token_hash TEXT NOT NULL,
-            expires_at DATETIME NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES balloono_users(id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
 # Initialize database tables
 init_notifications_db()
 init_auth_tokens_db()
-init_balloono_db()
 
 def login_required(f):
     from functools import wraps
@@ -294,53 +265,8 @@ def stats(year):
 
 @app.route('/stats/<year>/<date>/')
 def stats_by_date(year, date):
-    """Stats page for a specific date with navigation"""
-    from datetime import datetime
-    
-    # Get stats for the specific date
-    date_stats, date_games = specific_date_stats(date)
-    
-    # Get year stats
-    games = year_games(year)
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    all_years = grab_all_years()
-    stats = stats_per_year(year, minimum_games)
-    rare_stats = rare_stats_per_year(year, minimum_games)
-    
-    # Navigation dates
-    previous_date = get_previous_date(date)
-    next_date = get_next_date(date)
-    
-    # Check if there are games on adjacent dates
-    has_previous = has_games_on_date(previous_date)
-    has_next = has_games_on_date(next_date)
-    
-    # Format date for display
-    try:
-        display_date = datetime.strptime(date, '%Y-%m-%d').strftime('%m/%d/%y')
-    except:
-        display_date = date
-    
-    return render_template('stats.html', 
-                         all_years=all_years, 
-                         stats=stats, 
-                         rare_stats=rare_stats, 
-                         minimum_games=minimum_games, 
-                         year=year,
-                         todays_stats=date_stats,
-                         games=date_games,
-                         current_date=date,
-                         display_date=display_date,
-                         previous_date=previous_date,
-                         next_date=next_date,
-                         has_previous=has_previous,
-                         has_next=has_next)
+    """Redirect to redesigned stats page for the year."""
+    return redirect(url_for('stats_redesign', year=year))
 
 
 # ============================================
@@ -910,32 +836,11 @@ def api_stats_hero():
 
 @app.route('/top_teams/')
 def top_teams():
-    all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    year = str(date.today().year)
-    if games:
-        if len(games) < 70:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 70
-    else:
-        minimum_games = 1
-    stats = team_stats_per_year(year, minimum_games, games)
-    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
+    return redirect(url_for('index'))
 
 @app.route('/top_teams/<year>/')
 def top_teams_by_year(year):
-    games = year_games(year)
-    if games:
-        if len(games) < 70:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 70
-    else:
-        minimum_games = 1
-    all_years = grab_all_years()
-    stats = team_stats_per_year(year, minimum_games, games)
-    return render_template('top_teams.html', all_years=all_years, stats=stats, minimum_games=minimum_games, year=year)
+    return redirect(url_for('index'))
 
 @app.route('/player/<year>/<name>')
 def player_stats(year, name):
@@ -954,22 +859,15 @@ def player_stats(year, name):
     opponent_stats = opponent_stats_by_year(name, games, minimum_games)
     rare_partner_stats = rare_partner_stats_by_year(name, games, minimum_games)
     rare_opponent_stats = rare_opponent_stats_by_year(name, games, minimum_games)
-    return render_template('player.html', opponent_stats=opponent_stats, rare_opponent_stats=rare_opponent_stats,
-        partner_stats=partner_stats, rare_partner_stats=rare_partner_stats, 
-        year=year, player=name, minimum_games=minimum_games, all_years=all_years, stats=stats, games=games)
+    return redirect(url_for('player_stats_redesign', year=year, name=name))
 
 @app.route('/games/')
 def games():
-    all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    year = str(date.today().year)
-    return render_template('games.html', games=games, year=year, all_years=all_years)
+    return redirect(url_for('games_redesign', year=str(date.today().year)))
 
 @app.route('/games/<year>')
 def games_by_year(year):
-    all_years = grab_all_years()
-    games = year_games(year)
-    return render_template('games.html', games=games, year=year, all_years=all_years)
+    return redirect(url_for('games_redesign', year=year))
 
 @app.route('/add_game/', methods=('GET', 'POST'))
 @login_required
@@ -979,15 +877,11 @@ def add_game():
 
 @app.route('/edit_games/')
 def edit_games():
-    all_years = grab_all_years()
-    games = year_games(str(date.today().year))
-    return render_template('edit_games.html', games=games, year=str(date.today().year), all_years=all_years)
+    return redirect(url_for('edit_games_redesign'))
 
 @app.route('/edit_games/<year>')
 def edit_games_by_year(year):
-    all_years = grab_all_years()
-    games = year_games(year)
-    return render_template('edit_games.html', games=games, year=year, all_years=all_years)
+    return redirect(url_for('edit_games_redesign', year=year))
 
 
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
@@ -997,7 +891,7 @@ def update(id):
     x = find_game(id)
     if not x:
         flash('Game not found.')
-        return redirect(url_for('edit_games'))
+        return redirect(url_for('edit_games_redesign'))
     raw_game = x[0]
     existing_comment = ''
     if len(raw_game) > 9 and raw_game[9]:
@@ -1053,7 +947,7 @@ def update(id):
             if from_add_game == 'true':
                 return redirect(url_for('add_game'))
             else:
-                return redirect(url_for('edit_games'))
+                return redirect(url_for('edit_games_redesign'))
  
     return render_template('edit_game.html', game=game, players=players, 
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
@@ -1061,20 +955,7 @@ def update(id):
 
 @app.route('/player_trends/')
 def player_trends():
-    """Player trends page showing win/loss statistics for doubles games"""
-    all_players = get_all_players_for_trends()
-    player_name = request.args.get('player_name')
-    
-    if player_name:
-        trends_data = get_player_trends_data(player_name)
-        return render_template('player_trends.html', 
-                             player_name=player_name,
-                             all_players=all_players,
-                             **trends_data)
-    else:
-        return render_template('player_trends.html', 
-                             player_name=None,
-                             all_players=all_players)
+    return redirect(url_for('index'))
 
 
 @app.route('/delete/<int:id>/',methods = ['GET','POST'])
@@ -1104,14 +985,14 @@ def delete_game(id):
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_game_redesign'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_game'))
-        return redirect(url_for('edit_games'))
+            return redirect(url_for('add_game_redesign'))
+        return redirect(url_for('edit_games_redesign'))
  
     return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/advanced_stats/')
 def advanced_stats():
-    return render_template('advanced_stats.html')
+    return redirect(url_for('index'))
 
 
 
@@ -1121,37 +1002,11 @@ def advanced_stats():
 
 @app.route('/vollis_stats/<year>/')
 def vollis_stats(year):
-    all_years = all_vollis_years()
-    minimum_games = 2
-    stats = vollis_stats_per_year(year, minimum_games)
-    return render_template('vollis_stats.html', stats=stats,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+    return redirect(url_for('vollis_stats_redesign', year=year))
 
 @app.route('/vollis_stats/')
 def vollis():
-    all_years = all_vollis_years()
-    current_year = str(date.today().year)
-    year = current_year
-    t_stats = todays_vollis_stats()
-    games = todays_vollis_games()
-    minimum_games = 0
-    stats = vollis_stats_per_year(year, minimum_games)
-    
-    # If no stats for current year, show previous year with a notice
-    showing_previous_year = False
-    if not stats and current_year in all_years:
-        # Remove current year since it has no data, try previous
-        pass
-    if not stats:
-        previous_year = str(int(current_year) - 1)
-        if previous_year in all_years:
-            year = previous_year
-            stats = vollis_stats_per_year(year, minimum_games)
-            showing_previous_year = True
-    
-    return render_template('vollis_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year, 
-        showing_previous_year=showing_previous_year, current_year=current_year)
+    return redirect(url_for('vollis_stats_redesign_default'))
 
 
 @app.route('/add_vollis_game/', methods=('GET', 'POST'))
@@ -1162,27 +1017,19 @@ def add_vollis_game():
 
 @app.route('/edit_vollis_games/')
 def edit_vollis_games():
-    all_years = all_vollis_years()
-    games = vollis_year_games(str(date.today().year))
-    return render_template('edit_vollis_games.html', games=games, all_years=all_years, year=str(date.today().year))
+    return redirect(url_for('edit_vollis_games_redesign'))
 
 @app.route('/edit_past_year_vollis_games/<year>')
 def edit_vollis_games_by_year(year):
-    all_years = all_vollis_years()
-    games = vollis_year_games(year)
-    return render_template('edit_vollis_games.html', all_years=all_years, games=games, year=year)
+    return redirect(url_for('edit_vollis_games_redesign', year=year))
 
 @app.route('/vollis_games/')
 def vollis_games():
-    all_years = all_vollis_years()
-    games = vollis_year_games(str(date.today().year))
-    return render_template('vollis_games.html', games=games, all_years=all_years, year=str(date.today().year))
+    return redirect(url_for('vollis_games_redesign_default'))
 
 @app.route('/vollis_games/<year>')
 def vollis_games_by_year(year):
-    all_years = all_vollis_years()
-    games = vollis_year_games(year)
-    return render_template('vollis_games.html', all_years=all_years, games=games, year=year)
+    return redirect(url_for('vollis_games_redesign', year=year))
 
 
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])
@@ -1208,7 +1055,7 @@ def update_vollis_game(id):
             details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited vollis game', details)
             
-            return redirect(url_for('edit_vollis_games'))
+            return redirect(url_for('edit_vollis_games_redesign'))
  
     return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))
 
@@ -1231,212 +1078,24 @@ def delete_vollis_game(id):
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_vollis_game_redesign'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_vollis_game'))
-        return redirect(url_for('edit_vollis_games'))
+            return redirect(url_for('add_vollis_game_redesign'))
+        return redirect(url_for('edit_vollis_games_redesign'))
  
     return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/vollis_player/<year>/<name>')
 def vollis_player_stats(year, name):
-    all_years = all_years_vollis_player(name)
-    games = games_from_vollis_player_by_year(year, name)
-    stats = total_vollis_stats(name, games)
-    opponent_stats = vollis_opponent_stats_by_year(name, games)
-    return render_template('vollis_player.html', opponent_stats=opponent_stats, 
-        year=year, player=name, all_years=all_years, stats=stats)
-
-
-
-## ONE V ONE ROUTES
-
-
-@app.route('/one_v_one_stats/<year>/')
-def one_v_one_stats(year):
-    all_years = all_one_v_one_years()
-    minimum_games = 1
-    stats = one_v_one_stats_per_year(year, minimum_games)
-    return render_template('one_v_one_stats.html', stats=stats,
-        all_years=all_years, minimum_games=minimum_games, year=year)
-
-@app.route('/one_v_one_stats/')
-def one_v_one():
-    all_years = all_one_v_one_years()
-    current_year = str(date.today().year)
-    year = current_year
-    t_stats = todays_one_v_one_stats()
-    games = todays_one_v_one_games()
-    minimum_games = 0
-    stats = one_v_one_stats_per_year(year, minimum_games)
-    
-    # If no stats for current year, show previous year with a notice
-    showing_previous_year = False
-    if not stats:
-        previous_year = str(int(current_year) - 1)
-        if previous_year in all_years:
-            year = previous_year
-            stats = one_v_one_stats_per_year(year, minimum_games)
-            showing_previous_year = True
-    
-    return render_template('one_v_one_stats.html', stats=stats, todays_stats=t_stats, games=games,
-        all_years=all_years, minimum_games=minimum_games, year=year,
-        showing_previous_year=showing_previous_year, current_year=current_year)
-
-
-@app.route('/add_one_v_one_game/', methods=('GET', 'POST'))
-@login_required
-def add_one_v_one_game():
-    all_games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(all_games)
-    game_names = one_v_one_game_names(all_games)
-    players = all_one_v_one_players(all_games)
-    stats = todays_one_v_one_stats()
-    games = todays_one_v_one_games()
-    year = str(date.today().year)
-    winning_scores = one_v_one_winning_scores()
-    losing_scores = one_v_one_losing_scores()
-    if request.method == 'POST':
-        game_type = request.form['game_type']
-        game_name = request.form['game_name']
-        winner = request.form['winner']
-        loser = request.form['loser']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-
-        if not game_type or not game_name or not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
-        else:
-            add_one_v_one_stats([get_user_now(), game_type, game_name, winner, loser, winner_score, loser_score, get_user_now()])
-            
-            # Log the action for notifications
-            user = session.get('username', 'unknown')
-            details = f"Game: {game_type} - {game_name}; Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
-            log_user_action(user, 'Added 1v1 game', details)
-            
-            return redirect(url_for('add_one_v_one_game'))
-
-    return render_template('add_one_v_one_game.html', year=year, players=players, game_types=game_types, game_names=game_names, todays_stats=stats, games=games,
-        winning_scores=winning_scores, losing_scores=losing_scores)
-
-
-@app.route('/edit_one_v_one_games/')
-@login_required
-def edit_one_v_one_games():
-    all_years = all_one_v_one_years()
-    games = one_v_one_year_games(str(date.today().year))
-    return render_template('edit_one_v_one_games.html', games=games, all_years=all_years, year=str(date.today().year))
-
-@app.route('/edit_past_year_one_v_one_games/<year>')
-@login_required
-def edit_one_v_one_games_by_year(year):
-    all_years = all_one_v_one_years()
-    games = one_v_one_year_games(year)
-    return render_template('edit_one_v_one_games.html', all_years=all_years, games=games, year=year)
-
-@app.route('/one_v_one_games/')
-def one_v_one_games():
-    all_years = all_one_v_one_years()
-    games = one_v_one_year_games(str(date.today().year))
-    all_games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(all_games)
-    return render_template('one_v_one_games.html', games=games, all_years=all_years, year=str(date.today().year), game_types=game_types)
-
-@app.route('/one_v_one_games/<year>')
-def one_v_one_games_by_year(year):
-    all_years = all_one_v_one_years()
-    games = one_v_one_year_games(year)
-    all_games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(all_games)
-    return render_template('one_v_one_games.html', all_years=all_years, games=games, year=year, game_types=game_types)
-
-@app.route('/one_v_one_games/<year>/<game_type>')
-def one_v_one_games_by_year_and_type(year, game_type):
-    all_years = all_one_v_one_years()
-    games = one_v_one_year_and_game_type_games(year, game_type)
-    all_games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(all_games)
-    return render_template('one_v_one_games.html', all_years=all_years, games=games, year=year, game_types=game_types, selected_game_type=game_type)
-
-@app.route('/one_v_one_games_by_type/<game_type>')
-def one_v_one_games_by_type(game_type):
-    all_years = all_one_v_one_years()
-    games = one_v_one_game_type_games(game_type)
-    all_games = one_v_one_year_games('All years')
-    game_types = one_v_one_game_types(all_games)
-    return render_template('one_v_one_games.html', all_years=all_years, games=games, year='All years', game_types=game_types, selected_game_type=game_type)
-
-
-@app.route('/edit_one_v_one_game/<int:id>/',methods = ['GET','POST'])
-def update_one_v_one_game(id):
-    game_id = id
-    x = find_one_v_one_game(game_id)
-    game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6], x[0][7], x[0][8]]
-    games = one_v_one_year_games(str(date.today().year))
-    players = all_one_v_one_players(games)
-    if request.method == 'POST':
-        winner = request.form['winner']
-        loser = request.form['loser']
-        winner_score = request.form['winner_score']
-        loser_score = request.form['loser_score']
-
-        if not winner or not loser or not winner_score or not loser_score:
-            flash('All fields required!')
-        else:
-            edit_one_v_one_game(game_id, game[1], game[2], game[3], winner, winner_score, loser, loser_score, get_user_now(), game_id)
-            
-            # Log the action for notifications
-            user = session.get('username', 'unknown')
-            details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
-            log_user_action(user, 'Edited 1v1 game', details)
-            
-            return redirect(url_for('edit_one_v_one_games'))
- 
-    return render_template('edit_one_v_one_game.html', game=game, players=players, year=str(date.today().year))
-
-
-@app.route('/delete_one_v_one_game/<int:id>/',methods = ['GET','POST'])
-def delete_one_v_one_game(id):
-    game_id = id
-    game = find_one_v_one_game(id)
-    if request.method == 'POST':
-        # Log the action for notifications before deleting
-        user = session.get('username', 'unknown')
-        details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
-        log_user_action(user, 'Deleted 1v1 game', details)
-        
-        remove_one_v_one_game(game_id)
-        return redirect(url_for('edit_one_v_one_games'))
- 
-    return render_template('delete_one_v_one_game.html', game=game)
-
-@app.route('/one_v_one_player/<year>/<name>')
-def one_v_one_player_stats(year, name):
-    all_years = all_years_one_v_one_player(name)
-    games = games_from_one_v_one_player_by_year(year, name)
-    stats = total_one_v_one_stats(name, games)
-    opponent_stats = one_v_one_opponent_stats_by_year(name, games)
-    return render_template('one_v_one_player.html', opponent_stats=opponent_stats, 
-        year=year, player=name, all_years=all_years, stats=stats)
+    return redirect(url_for('vollis_player_stats_redesign', year=year, name=name))
 
 
 
 @app.route('/single_game_stats/<game_name>/')
 def single_game_stats(game_name):
-    all_years = single_game_years(game_name)
-    year = str(date.today().year)
-    games = single_game_games(year, game_name)
-    minimum_games = 0
-    stats = total_single_game_stats(games)
-    return render_template('single_game_stats.html', stats=stats, game_name=game_name,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+    return redirect(url_for('index'))
 
 @app.route('/single_game_stats/<game_name>/<year>/')
 def single_game_stats_with_year(game_name, year):
-    all_years = single_game_years(game_name)
-    games = single_game_games(year, game_name)
-    minimum_games = 0
-    stats = total_single_game_stats(games)
-    return render_template('single_game_stats.html', stats=stats, game_name=game_name,
-        all_years=all_years, minimum_games=minimum_games, year=year)
+    return redirect(url_for('index'))
 
 
 
@@ -1567,187 +1226,43 @@ def build_volleyball_game_cards(year):
 
 @app.route('/other_stats/<year>/')
 def other_stats(year):
-    all_years = all_other_years()
-    # Calculate minimum games using same formula as doubles stats
-    games = other_year_games(year)
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    stats = other_stats_per_year(year, minimum_games)
-    rare_stats = rare_other_stats_per_year(year, minimum_games)
-    game_cards = build_other_game_cards(year)
-    return render_template('other_stats.html', stats=stats, rare_stats=rare_stats,
-        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards)
+    return redirect(url_for('other_stats_redesign', year=year))
 
 @app.route('/other_stats/')
 def other():
-    all_years = all_other_years()
-    current_year = str(date.today().year)
-    year = current_year
-    t_stats = todays_other_stats()
-    todays_games = todays_other_games()
-    
-    # Calculate minimum games using same formula as doubles stats
-    year_games = other_year_games(year)
-    if year_games:
-        if len(year_games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(year_games) // 30
-    else:
-        minimum_games = 1
-    
-    stats = other_stats_per_year(year, minimum_games)
-    rare_stats = rare_other_stats_per_year(year, minimum_games)
-    game_cards = build_other_game_cards(year)
-    
-    # If no stats for current year, show previous year with a notice
-    showing_previous_year = False
-    if not stats and not rare_stats:
-        previous_year = str(int(current_year) - 1)
-        if previous_year in all_years:
-            year = previous_year
-            # Recalculate minimum games for the previous year
-            year_games = other_year_games(year)
-            if year_games:
-                if len(year_games) < 30:
-                    minimum_games = 1
-                else:
-                    minimum_games = len(year_games) // 30
-            else:
-                minimum_games = 1
-            stats = other_stats_per_year(year, minimum_games)
-            rare_stats = rare_other_stats_per_year(year, minimum_games)
-            game_cards = build_other_game_cards(year)
-            showing_previous_year = True
-    
-    return render_template('other_stats.html', stats=stats, rare_stats=rare_stats, 
-        todays_stats=t_stats, games=todays_games,
-        all_years=all_years, minimum_games=minimum_games, year=year, game_cards=game_cards,
-        showing_previous_year=showing_previous_year, current_year=current_year)
+    return redirect(url_for('other_stats_redesign_default'))
 
 
 @app.route('/volleyball_stats/')
 def volleyball_stats_default():
-    return volleyball_stats(str(date.today().year))
-
+    return redirect(url_for('index'))
 
 @app.route('/volleyball_stats/<year>/')
 def volleyball_stats(year):
-    from other_functions import other_year_games, total_game_name_stats
-    
-    all_years = all_other_years()
-    games = other_year_games(year)
-    
-    # Filter to only volleyball games
-    volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
-    
-    # Calculate overall volleyball stats
-    overall_stats = total_game_name_stats(volleyball_games) if volleyball_games else []
-    
-    # Calculate minimum games for qualification
-    if volleyball_games:
-        if len(volleyball_games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(volleyball_games) // 30
-    else:
-        minimum_games = 1
-    
-    # Split into qualified and rare stats
-    qualified_stats = [s for s in overall_stats if (s[1] + s[2]) >= minimum_games]
-    rare_stats = [s for s in overall_stats if (s[1] + s[2]) < minimum_games]
-    
-    # Get individual game cards for each volleyball game type
-    game_cards = build_volleyball_game_cards(year)
-    
-    return render_template('volleyball_stats.html', 
-        stats=qualified_stats,
-        rare_stats=rare_stats,
-        all_years=all_years, 
-        minimum_games=minimum_games, 
-        year=year, 
-        game_cards=game_cards,
-        total_games=len(volleyball_games))
-
-
-def is_1v1_game(game):
-    """Check if a game is 1v1 (exactly 1 player per team)."""
-    from other_functions import _is_valid_player_name
-    
-    # Count winners
-    winner_count = 0
-    for i in range(1, 16):
-        winner = game.get(f'winner{i}')
-        if winner and _is_valid_player_name(winner):
-            winner_count += 1
-    
-    # Count losers
-    loser_count = 0
-    for i in range(1, 16):
-        loser = game.get(f'loser{i}')
-        if loser and _is_valid_player_name(loser):
-            loser_count += 1
-    
-    return winner_count == 1 and loser_count == 1
+    return redirect(url_for('index'))
 
 
 def build_volleyball_game_cards_styled(year):
-    """Build per-game cards for volleyball games, consolidating all 1v1 games into one card."""
-    from other_functions import other_year_games, other_game_names, total_game_name_stats, other_game_type_for_name
+    """Build per-game cards for volleyball games (from other games)."""
+    from other_functions import other_year_games, other_game_names, total_game_name_stats
     
     games = other_year_games(year)
     game_cards = []
-    one_v_one_games = []
-    one_v_one_game_names = set()
     
     if games:
-        # First, identify all volleyball games and classify them as 1v1 or team
         volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
-        
-        for game in volleyball_games:
-            if is_1v1_game(game):
-                one_v_one_games.append(game)
-                one_v_one_game_names.add(game.get('game_name', 'Unknown'))
-        
-        # Get game names that are NOT 1v1 (team games)
         game_names = other_game_names(volleyball_games)
         for game_name in game_names:
-            # Skip if all games of this type are 1v1
             game_specific = [g for g in volleyball_games if g.get('game_name') == game_name]
-            non_1v1_games = [g for g in game_specific if not is_1v1_game(g)]
-            
-            if not non_1v1_games:
-                # All games of this type are 1v1, skip (they'll be in consolidated card)
-                continue
-            
-            stats_for_game = total_game_name_stats(non_1v1_games)
+            stats_for_game = total_game_name_stats(game_specific)
             if not stats_for_game:
                 continue
             game_cards.append({
                 'game_name': game_name,
                 'stats': stats_for_game,
-                'total_games': len(non_1v1_games),
+                'total_games': len(game_specific),
                 'is_consolidated': False
             })
-        
-        # Create consolidated 1v1 card if there are any 1v1 games
-        if one_v_one_games:
-            one_v_one_stats = total_game_name_stats(one_v_one_games)
-            if one_v_one_stats:
-                game_cards.append({
-                    'game_name': '1v1 Volleyball',
-                    'stats': one_v_one_stats,
-                    'total_games': len(one_v_one_games),
-                    'is_consolidated': True,
-                    'included_games': sorted(list(one_v_one_game_names))
-                })
-        
-        # Sort by total games descending
         game_cards.sort(key=lambda x: x['total_games'], reverse=True)
     
     return game_cards
@@ -1755,129 +1270,16 @@ def build_volleyball_game_cards_styled(year):
 
 @app.route('/volleyball_stats_styled/')
 def volleyball_stats_styled_default():
-    return volleyball_stats_styled(str(date.today().year))
-
+    return redirect(url_for('index'))
 
 @app.route('/volleyball_stats_styled/<year>/')
 def volleyball_stats_styled(year):
-    from other_functions import other_year_games, total_game_name_stats
-    
-    all_years = all_other_years()
-    games = other_year_games(year)
-    
-    # Filter to only volleyball games
-    volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
-    
-    # Calculate overall volleyball stats
-    overall_stats = total_game_name_stats(volleyball_games) if volleyball_games else []
-    
-    # Calculate minimum games for qualification
-    if volleyball_games:
-        if len(volleyball_games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(volleyball_games) // 30
-    else:
-        minimum_games = 1
-    
-    # Split into qualified and rare stats
-    qualified_stats = [s for s in overall_stats if (s[1] + s[2]) >= minimum_games]
-    rare_stats = [s for s in overall_stats if (s[1] + s[2]) < minimum_games]
-    
-    # Get game cards with 1v1 consolidation
-    game_cards = build_volleyball_game_cards_styled(year)
-    
-    return render_template('volleyball_stats_styled.html', 
-        stats=qualified_stats,
-        rare_stats=rare_stats,
-        all_years=all_years, 
-        minimum_games=minimum_games, 
-        year=year, 
-        game_cards=game_cards,
-        total_games=len(volleyball_games))
+    return redirect(url_for('index'))
 
 
 @app.route('/volleyball_player/<year>/<name>')
 def volleyball_player_stats(year, name):
-    """Show volleyball stats for a specific player with cards for each game type."""
-    from other_functions import other_year_games, total_game_name_stats, other_game_names, _is_valid_player_name
-    
-    all_years = all_other_years()
-    games = other_year_games(year)
-    
-    # Filter to only volleyball games where this player participated
-    player_volleyball_games = []
-    for game in games:
-        if game.get('game_type') != 'Volleyball':
-            continue
-        # Check if player is in this game
-        for i in range(1, 16):
-            winner = game.get(f'winner{i}')
-            loser = game.get(f'loser{i}')
-            if (winner and _is_valid_player_name(winner) and winner == name) or \
-               (loser and _is_valid_player_name(loser) and loser == name):
-                player_volleyball_games.append(game)
-                break
-    
-    # Calculate overall stats for this player
-    wins, losses = 0, 0
-    for game in player_volleyball_games:
-        for i in range(1, 16):
-            winner = game.get(f'winner{i}')
-            loser = game.get(f'loser{i}')
-            if winner and _is_valid_player_name(winner) and winner == name:
-                wins += 1
-                break
-            if loser and _is_valid_player_name(loser) and loser == name:
-                losses += 1
-                break
-    
-    total_games = wins + losses
-    win_percentage = wins / total_games if total_games > 0 else 0
-    overall_stats = [[name, wins, losses, win_percentage, total_games]]
-    
-    # Build game cards for each volleyball game type this player has played
-    game_cards = []
-    game_names = other_game_names(player_volleyball_games)
-    for game_name in game_names:
-        game_specific = [g for g in player_volleyball_games if g.get('game_name') == game_name]
-        if not game_specific:
-            continue
-        
-        # Calculate player's stats for this specific game type
-        type_wins, type_losses = 0, 0
-        for game in game_specific:
-            for i in range(1, 16):
-                winner = game.get(f'winner{i}')
-                loser = game.get(f'loser{i}')
-                if winner and _is_valid_player_name(winner) and winner == name:
-                    type_wins += 1
-                    break
-                if loser and _is_valid_player_name(loser) and loser == name:
-                    type_losses += 1
-                    break
-        
-        type_total = type_wins + type_losses
-        type_win_pct = type_wins / type_total if type_total > 0 else 0
-        
-        game_cards.append({
-            'game_name': game_name,
-            'wins': type_wins,
-            'losses': type_losses,
-            'win_percentage': type_win_pct,
-            'total_games': type_total
-        })
-    
-    # Sort by total games descending
-    game_cards.sort(key=lambda x: x['total_games'], reverse=True)
-    
-    return render_template('volleyball_player.html',
-        player=name,
-        year=year,
-        all_years=all_years,
-        stats=overall_stats,
-        game_cards=game_cards,
-        total_games=total_games)
+    return redirect(url_for('volleyball_player_stats_redesign', year=year, name=name))
 
 
 @app.route('/volleyball_player_redesign/<year>/<name>')
@@ -1968,39 +1370,23 @@ def add_other_game():
 
 @app.route('/edit_other_games/')
 def edit_other_games():
-    all_years = all_other_years()
-    games = other_year_games(str(date.today().year))
-    return render_template('edit_other_games.html', games=games, all_years=all_years, year=str(date.today().year))
+    return redirect(url_for('edit_other_games_redesign'))
 
 @app.route('/edit_past_year_other_games/<year>')
 def edit_other_games_by_year(year):
-    all_years = all_other_years()
-    games = other_year_games(year)
-    return render_template('edit_other_games.html', all_years=all_years, games=games, year=year)
+    return redirect(url_for('edit_other_games_redesign', year=year))
 
 @app.route('/other_games/')
 def other_games():
-    all_years = all_other_years()
-    games = other_year_games(str(date.today().year))
-    return render_template('other_games.html', games=games, all_years=all_years, year=str(date.today().year))
+    return redirect(url_for('other_games_redesign_default'))
 
 @app.route('/other_games/<year>')
 def other_games_by_year(year):
-    all_years = all_other_years()
-    games = other_year_games(year)
-    return render_template('other_games.html', all_years=all_years, games=games, year=year)
+    return redirect(url_for('other_games_redesign', year=year))
 
 @app.route('/other_games/<year>/<game_name>')
 def other_games_by_year_and_name(year, game_name):
-    from other_functions import total_game_name_stats
-    all_years = all_other_years()
-    all_games = other_year_games(year)
-    # Filter games by game_name
-    games = [g for g in all_games if g.get('game_name') == game_name]
-    # Calculate stats for this game type
-    stats = total_game_name_stats(games)
-    return render_template('other_games.html', all_years=all_years, games=games, year=year, game_name=game_name, stats=stats)
-
+    return redirect(url_for('other_games_by_name_redesign', year=year, game_name=game_name))
 
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
 def update_other_game(id):
@@ -2008,7 +1394,7 @@ def update_other_game(id):
     x = find_other_game(game_id)
     if not x:
         flash('Game not found!')
-        return redirect(url_for('edit_other_games'))
+        return redirect(url_for('edit_other_games_redesign'))
     
     # Get the full game data (all 20 fields)
     game_row = x[0]
@@ -2083,7 +1469,7 @@ def update_other_game(id):
             details = f"Game ID {game_id}: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Edited other game', details)
             
-            return redirect(url_for('edit_other_games'))
+            return redirect(url_for('edit_other_games_redesign'))
  
     return render_template('edit_other_game.html', game=game_data_dict, players=players, year=str(date.today().year))
 
@@ -2096,7 +1482,7 @@ def delete_other_game(id):
     from_redesign = request.args.get('from_redesign', 'false')
     if not game:
         flash('Game not found!')
-        return redirect(url_for('edit_other_games'))
+        return redirect(url_for('edit_other_games_redesign'))
     
     if request.method == 'POST':
         # Log the action for notifications before deleting
@@ -2111,83 +1497,27 @@ def delete_other_game(id):
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_other_game_redesign'))
         if request.form.get('from_add_game') == 'true':
-            return redirect(url_for('add_other_game'))
-        return redirect(url_for('edit_other_games'))
+            return redirect(url_for('add_other_game_redesign'))
+        return redirect(url_for('edit_other_games_redesign'))
  
     return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/other_player/<year>/<name>')
 def other_player_stats(year, name):
-    all_years = all_years_other_player(name)
-    games = games_from_other_player_by_year(year, name)
-    stats = total_other_stats(name, games)
-    opponent_stats = other_opponent_stats_by_year(name, games)
-    return render_template('other_player.html', opponent_stats=opponent_stats, 
-        year=year, player=name, all_years=all_years, stats=stats)
+    return redirect(url_for('other_player_stats_redesign', year=year, name=name))
 
 
 @app.route('/game_name_stats/<game_name>/')
 def game_name_stats(game_name):
-    all_years = game_name_years(game_name)
-    year = str(date.today().year)
-    games = game_name_games(year, game_name)
-    
-    # Get all stats (no minimum)
-    all_stats = total_game_name_stats(games)
-    
-    # Calculate minimum games requirement (at least 5 games to qualify)
-    minimum_games = 5
-    
-    # Filter stats to only include players with minimum games, sorted by win %
-    qualified_stats = [s for s in all_stats if s[4] >= minimum_games]
-    qualified_stats.sort(key=lambda x: x[3], reverse=True)
-    
-    return render_template('game_name_stats.html', 
-        qualified_stats=qualified_stats,
-        all_stats=all_stats, 
-        game_name=game_name,
-        all_years=all_years, 
-        minimum_games=minimum_games, 
-        year=year)
+    return redirect(url_for('other_games_by_name_redesign', year=str(date.today().year), game_name=game_name))
 
 @app.route('/game_name_stats/<game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
-    all_years = game_name_years(game_name)
-    games = game_name_games(year, game_name)
-    
-    # Get all stats (no minimum)
-    all_stats = total_game_name_stats(games)
-    
-    # Calculate minimum games requirement (at least 5 games to qualify)
-    minimum_games = 5
-    
-    # Filter stats to only include players with minimum games, sorted by win %
-    qualified_stats = [s for s in all_stats if s[4] >= minimum_games]
-    qualified_stats.sort(key=lambda x: x[3], reverse=True)
-    
-    return render_template('game_name_stats.html', 
-        qualified_stats=qualified_stats,
-        all_stats=all_stats, 
-        game_name=game_name,
-        all_years=all_years, 
-        minimum_games=minimum_games, 
-        year=year)
+    return redirect(url_for('other_games_by_name_redesign', year=year, game_name=game_name))
 
 @app.route('/player_game_stats/<year>/<game_name>/<player_name>/')
 def player_game_stats(year, game_name, player_name):
-    from other_functions import player_game_name_games, player_game_name_stats, game_name_years
-    
-    all_years = game_name_years(game_name)
-    games = player_game_name_games(year, game_name, player_name)
-    stats = player_game_name_stats(games, player_name)
-    
-    return render_template('player_game_stats.html',
-        player_name=player_name,
-        game_name=game_name,
-        year=year,
-        all_years=all_years,
-        stats=stats,
-        games=games)
+    return redirect(url_for('player_game_stats_redesign', year=year, game_name=game_name, player_name=player_name))
 
 
 @app.route('/player_game_stats_redesign/<year>/<game_name>/<player_name>/')
@@ -2297,7 +1627,7 @@ def notifications():
         return redirect(url_for('index'))
     
     all_notifications = get_unread_notifications()
-    return render_template('notifications.html', notifications=all_notifications)
+    return render_template('notifications_redesign.html', notifications=all_notifications)
 
 @app.route('/mark_notifications_read', methods=['POST'])
 @login_required
@@ -2351,13 +1681,6 @@ def set_timezone():
         return jsonify({'status': 'ok', 'timezone': data['timezone']})
     return jsonify({'status': 'error', 'message': 'No timezone provided'}), 400
 
-@app.route('/api/one_v_one_game_type/<game_name>')
-def get_one_v_one_game_type(game_name):
-    """API endpoint to get game type for a given game name"""
-    games = one_v_one_year_games('All years')
-    game_type = one_v_one_game_type_for_name(games, game_name)
-    return {'game_type': game_type} if game_type else {'game_type': None}
-
 @app.route('/api/other_game_type/<game_name>')
 def get_other_game_type(game_name):
     """API endpoint to get game type for a given game name"""
@@ -2365,16 +1688,41 @@ def get_other_game_type(game_name):
     game_type = other_game_type_for_name(games, game_name)
     return {'game_type': game_type} if game_type else {'game_type': None}
 
+@app.route('/api/other_game_common_scores/<game_name>')
+def get_other_game_common_scores(game_name):
+    """API endpoint to get most common winner/loser scores for a game name (for Coed score dropdowns)."""
+    from other_functions import get_common_scores_for_game
+    data = get_common_scores_for_game(game_name)
+    return jsonify(data)
+
+
+@app.route('/api/other_game_players/<game_name>')
+def get_other_game_players(game_name):
+    """API endpoint to get players ordered for a game: played this game first (by count), then the rest."""
+    from other_functions import get_players_ordered_for_game
+    players = get_players_ordered_for_game(game_name)
+    return jsonify(players)
+
+
 @app.route('/api/other_game_info/<game_name>')
 def get_other_game_info(game_name):
-    """API endpoint to get game type and score type for a given game name"""
-    from other_functions import get_score_type_for_game
+    """API endpoint to get game type, score type, and player counts for a given game name"""
+    from other_functions import get_score_type_for_game, get_players_per_side_for_game
     games = other_year_games('All years')
     game_type = other_game_type_for_name(games, game_name)
     score_type = get_score_type_for_game(game_name)
+    players_per_side = get_players_per_side_for_game(game_name)
+    # Coed with no previous data: default 2v2 team
+    if game_type and game_type.lower() == 'coed' and players_per_side is None:
+        players_per_side = {'winner_count': 2, 'loser_count': 2}
+        score_type = 'team'
+    elif players_per_side is None:
+        players_per_side = {'winner_count': 1, 'loser_count': 1}
     return {
         'game_type': game_type,
-        'score_type': score_type
+        'score_type': score_type,
+        'winner_count': players_per_side['winner_count'],
+        'loser_count': players_per_side['loser_count']
     }
 
 @app.route('/api/delete_games', methods=['POST'])
@@ -2414,13 +1762,6 @@ def api_delete_games():
                     details = f"Game ID {game_id}"
                     log_user_action(user, 'Deleted other game (bulk)', details)
                     remove_other_game(game_id)
-                    deleted += 1
-            elif game_type == 'one_v_one':
-                game = find_one_v_one_game(game_id)
-                if game and len(game) > 0:
-                    details = f"Game ID {game_id}: {game[0][4]} vs {game[0][6]}"
-                    log_user_action(user, 'Deleted 1v1 game (bulk)', details)
-                    remove_one_v_one_game(game_id)
                     deleted += 1
         except Exception as e:
             print(f"Error deleting game {game_id}: {e}")
@@ -2469,139 +1810,15 @@ def manage_player_names():
 @app.route('/date_range_stats/')
 @app.route('/date_range_stats/<start_date>/<end_date>/')
 def date_range_stats(start_date=None, end_date=None):
-    """Page for viewing stats and games within a custom date range"""
-    # Get dates from URL parameters or form
-    if not start_date or not end_date:
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        start_time = request.args.get('start_time', '00:00')
-        end_time = request.args.get('end_time', '23:59')
-    else:
-        # For URL path parameters, default times
-        start_time = '00:00'
-        end_time = '23:59'
-    
-    if start_date and end_date:
-        # Use the provided times
-        start_datetime = f"{start_date} {start_time}:00"
-        end_datetime = f"{end_date} {end_time}:00"
-        
-        # Convert times to 12-hour format for display
-        def format_time_12h(time_24h):
-            hour, minute = time_24h.split(':')
-            hour = int(hour)
-            ampm = 'AM' if hour < 12 else 'PM'
-            hour_12 = hour % 12 or 12
-            return f"{hour_12}:{minute} {ampm}"
-        
-        start_time_display = format_time_12h(start_time)
-        end_time_display = format_time_12h(end_time)
-        
-        stats = get_date_range_stats(start_datetime, end_datetime)
-        games = date_range_games(start_datetime, end_datetime)
-        
-        return render_template('date_range_stats.html', 
-                             stats=stats, 
-                             games=games,
-                             start_date=start_date,
-                             end_date=end_date,
-                             start_time=start_time,
-                             end_time=end_time,
-                             start_time_display=start_time_display,
-                             end_time_display=end_time_display,
-                             has_results=True)
-    
-    return render_template('date_range_stats.html', has_results=False)
+    return redirect(url_for('index'))
 
 @app.route('/dashboard/')
 def dashboard():
-    """Visual dashboard showing key doubles statistics - optimized with lazy loading"""
-    from stat_functions import get_dashboard_data, grab_all_years, specific_date_stats, get_previous_date_with_games, get_next_date_with_games, get_most_recent_date_with_games, has_games_on_date
-    from datetime import datetime
-    
-    # Get selected year from query parameter, default to current year
-    selected_year = request.args.get('year')
-    if not selected_year:
-        selected_year = str(datetime.now().year)
-    
-    # Get date from query parameter, default to today
-    target_date = request.args.get('date')
-    if not target_date:
-        target_date = datetime.now().strftime('%Y-%m-%d')
-    
-    # Get available years
-    available_years = grab_all_years()
-    
-    # Get dashboard data for selected year (fast - cached)
-    dashboard_data = get_dashboard_data(selected_year)
-    dashboard_data['selected_year'] = selected_year
-    dashboard_data['available_years'] = available_years
-    dashboard_data['current_year'] = datetime.now().year
-    
-    # If no games on target date, find the most recent date with games
-    if not has_games_on_date(target_date):
-        most_recent_date = get_most_recent_date_with_games()
-        if most_recent_date:
-            target_date = most_recent_date
-    
-    # Get stats for the specific date
-    date_stats, date_games = specific_date_stats(target_date)
-    
-    # Navigation dates - skip days without games
-    previous_date = get_previous_date_with_games(target_date)
-    next_date = get_next_date_with_games(target_date)
-    
-    # Check if there are previous/next dates with games
-    has_previous = previous_date is not None
-    has_next = next_date is not None
-    
-    # Format date for display
-    try:
-        display_date = datetime.strptime(target_date, '%Y-%m-%d').strftime('%m/%d/%y')
-    except:
-        display_date = target_date
-    
-    # Add date navigation data
-    dashboard_data['today_stats'] = date_stats
-    dashboard_data['current_date'] = target_date
-    dashboard_data['display_date'] = display_date
-    dashboard_data['previous_date'] = previous_date
-    dashboard_data['next_date'] = next_date
-    dashboard_data['has_previous'] = has_previous
-    dashboard_data['has_next'] = has_next
-    dashboard_data['current_month'] = datetime.now().month
-    
-    # These will be lazy-loaded via AJAX - pass empty placeholders
-    dashboard_data['trueskill_rankings'] = []
-    dashboard_data['top_teams'] = []
-    # Note: win_streaks, loss_streaks, best_win_streaks, best_loss_streaks are already in get_dashboard_data
-    # but we'll lazy load them too for faster initial render
-    dashboard_data['lazy_load_enabled'] = True
-    
-    return render_template('dashboard.html', **dashboard_data)
+    return redirect(url_for('index'))
 
 @app.route('/combined_dashboard/')
 def combined_dashboard():
-    """Visual dashboard showing key statistics from 1v1, vollis, and other games"""
-    from stat_functions import get_combined_dashboard_data, get_combined_years
-    from datetime import datetime
-    
-    # Get selected year from query parameter, default to current year
-    selected_year = request.args.get('year')
-    if not selected_year:
-        selected_year = str(datetime.now().year)
-    
-    # Get available years
-    available_years = get_combined_years()
-    
-    # Get dashboard data for selected year
-    dashboard_data = get_combined_dashboard_data(selected_year)
-    dashboard_data['selected_year'] = selected_year
-    dashboard_data['available_years'] = available_years
-    dashboard_data['current_year'] = datetime.now().year
-    dashboard_data['current_month'] = datetime.now().month
-    
-    return render_template('combined_dashboard.html', **dashboard_data)
+    return redirect(url_for('index'))
 
 @app.route('/api/dashboard/today-activity/')
 def dashboard_today_activity():
@@ -2742,489 +1959,36 @@ def dashboard_top_teams():
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/')
 @app.route('/streak_details/<player_name>/<streak_type>/<int:streak_length>/<year>/')
 def streak_details(player_name, streak_type, streak_length, year=None):
-    """Show the games that made up a specific streak"""
-    from stat_functions import get_streak_games
-    
-    # Get the games that made up this streak
-    streak_games = get_streak_games(player_name, streak_type, streak_length, year)
-    
-    return render_template('streak_details.html', 
-                         player_name=player_name,
-                         streak_type=streak_type,
-                         streak_length=streak_length,
-                         year=year,
-                         streak_games=streak_games)
+    return redirect(url_for('index'))
 
 @app.route('/tournaments/')
 def tournaments():
-    """Tournament results page"""
-    from database_functions import create_connection
-    from datetime import datetime
-    
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    
-    if conn is None:
-        return "Database connection error", 500
-    
-    cur = conn.cursor()
-    
-    # Check if tournaments table exists, create it if it doesn't
-    cur.execute("""
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='tournaments'
-    """)
-    table_exists = cur.fetchone()
-    
-    if not table_exists:
-        # Create tournaments table if it doesn't exist
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS tournaments (
-                id integer PRIMARY KEY,
-                tournament_date DATE NOT NULL,
-                place text NOT NULL,
-                team text NOT NULL,
-                location text NOT NULL,
-                tournament_name text NOT NULL
-            )
-        """)
-        conn.commit()
-    
-    # Get all tournaments ordered by date (most recent first)
-    cur.execute("""
-        SELECT tournament_date, place, team, location, tournament_name
-        FROM tournaments
-        ORDER BY tournament_date DESC
-    """)
-    
-    tournaments = cur.fetchall()
-    conn.close()
-    
-    # Format dates for display (YYYY-MM-DD -> MM/DD/YY)
-    formatted_tournaments = []
-    for tourn in tournaments:
-        if len(tourn) >= 5:
-            date_str, place, team, location, tournament_name = tourn
-            try:
-                # Parse YYYY-MM-DD format
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                formatted_date = date_obj.strftime('%m/%d/%y')
-            except Exception as e:
-                # If date parsing fails, use the original date string
-                formatted_date = date_str
-            
-            formatted_tournaments.append({
-                'date': formatted_date,
-                'place': place or '',
-                'team': team or '',
-                'location': location or '',
-                'tournament_name': tournament_name or ''
-            })
-    
-    return render_template('tournaments.html', tournaments=formatted_tournaments)
+    return redirect(url_for('index'))
 
 @app.route('/add_tournament/', methods=('GET', 'POST'))
 @login_required
 def add_tournament():
-    """Add a new tournament"""
-    from database_functions import create_connection
-    from datetime import datetime
-    from player_functions import get_all_players
-    
-    # Get all players for the partner dropdown
-    all_players_full = get_all_players()
-    # Extract first and last name for display, but keep full name for storage
-    all_players = []
-    for player in all_players_full:
-        full_name = player[1] if len(player) > 1 else player  # full_name is at index 1
-        if isinstance(full_name, str):
-            # Extract first and last name (assume format is "First Last" or "First Middle Last")
-            name_parts = full_name.strip().split()
-            if len(name_parts) >= 2:
-                # Take first and last name
-                display_name = f"{name_parts[0]} {name_parts[-1]}"
-            else:
-                # If only one part, use it as is
-                display_name = full_name
-            all_players.append((display_name, full_name))  # (display_name, full_name)
-        else:
-            all_players.append((str(full_name), str(full_name)))
-    
-    # Get unique values from existing tournaments for dropdowns
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    
-    teams = []
-    locations = []
-    tournament_names = []
-    
-    if conn:
-        cur = conn.cursor()
-        # Get unique teams
-        cur.execute("SELECT DISTINCT team FROM tournaments WHERE team IS NOT NULL AND team != '' ORDER BY team")
-        teams = [row[0] for row in cur.fetchall()]
-        
-        # Get unique locations
-        cur.execute("SELECT DISTINCT location FROM tournaments WHERE location IS NOT NULL AND location != '' ORDER BY location")
-        locations = [row[0] for row in cur.fetchall()]
-        
-        # Get unique tournament names
-        cur.execute("SELECT DISTINCT tournament_name FROM tournaments WHERE tournament_name IS NOT NULL AND tournament_name != '' ORDER BY tournament_name")
-        tournament_names = [row[0] for row in cur.fetchall()]
-        conn.close()
-    
-    if request.method == 'POST':
-        tournament_date = request.form.get('tournament_date', '').strip()
-        place = request.form.get('place', '').strip()
-        team = request.form.get('team', '').strip()
-        location = request.form.get('location', '').strip()
-        tournament_name = request.form.get('tournament_name', '').strip()
-        
-        if not tournament_date or not place or not team or not location or not tournament_name:
-            flash('All fields are required!', 'error')
-            # Re-fetch players in case of error
-            all_players_full = get_all_players()
-            all_players = []
-            for player in all_players_full:
-                full_name = player[1] if len(player) > 1 else player
-                if isinstance(full_name, str):
-                    name_parts = full_name.strip().split()
-                    if len(name_parts) >= 2:
-                        display_name = f"{name_parts[0]} {name_parts[-1]}"
-                    else:
-                        display_name = full_name
-                    all_players.append((display_name, full_name))
-                else:
-                    all_players.append((str(full_name), str(full_name)))
-            return render_template('add_tournament.html',
-                                 all_players=all_players,
-                                 teams=teams,
-                                 locations=locations,
-                                 tournament_names=tournament_names)
-        else:
-            # Parse date - accept YYYY-MM-DD or MM/DD/YYYY format
-            try:
-                if '/' in tournament_date:
-                    # MM/DD/YYYY format
-                    date_obj = datetime.strptime(tournament_date, '%m/%d/%Y')
-                else:
-                    # YYYY-MM-DD format
-                    date_obj = datetime.strptime(tournament_date, '%Y-%m-%d')
-                formatted_date = date_obj.strftime('%Y-%m-%d')
-            except ValueError:
-                flash('Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY', 'error')
-                # Re-fetch players in case of error
-                all_players_full = get_all_players()
-                all_players = []
-                for player in all_players_full:
-                    full_name = player[1] if len(player) > 1 else player
-                    if isinstance(full_name, str):
-                        name_parts = full_name.strip().split()
-                        if len(name_parts) >= 2:
-                            display_name = f"{name_parts[0]} {name_parts[-1]}"
-                        else:
-                            display_name = full_name
-                        all_players.append((display_name, full_name))
-                    else:
-                        all_players.append((str(full_name), str(full_name)))
-                return render_template('add_tournament.html',
-                                     all_players=all_players,
-                                     teams=teams,
-                                     locations=locations,
-                                     tournament_names=tournament_names)
-            
-            # Insert tournament into database
-            database = '/home/Idynkydnk/stats/stats.db'
-            conn = create_connection(database)
-            if conn is None:
-                database = r'stats.db'
-                conn = create_connection(database)
-            
-            if conn is None:
-                flash('Database connection error', 'error')
-                # Re-fetch players in case of error
-                all_players_full = get_all_players()
-                all_players = []
-                for player in all_players_full:
-                    full_name = player[1] if len(player) > 1 else player
-                    if isinstance(full_name, str):
-                        name_parts = full_name.strip().split()
-                        if len(name_parts) >= 2:
-                            display_name = f"{name_parts[0]} {name_parts[-1]}"
-                        else:
-                            display_name = full_name
-                        all_players.append((display_name, full_name))
-                    else:
-                        all_players.append((str(full_name), str(full_name)))
-                return render_template('add_tournament.html',
-                                     all_players=all_players,
-                                     teams=teams,
-                                     locations=locations,
-                                     tournament_names=tournament_names)
-            
-            try:
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO tournaments(tournament_date, place, team, location, tournament_name)
-                    VALUES(?, ?, ?, ?, ?)
-                """, (formatted_date, place, team, location, tournament_name))
-                conn.commit()
-                conn.close()
-                
-                # Log the action
-                user = session.get('username', 'unknown')
-                details = f"Tournament: {tournament_name} - {team} ({place}) on {formatted_date}"
-                log_user_action(user, 'Added tournament', details)
-                
-                flash(f'Tournament added successfully!', 'success')
-                return redirect(url_for('tournaments'))
-            except Exception as e:
-                conn.close()
-                flash(f'Error adding tournament: {str(e)}', 'error')
-    
-    return render_template('add_tournament.html', 
-                         all_players=all_players,
-                         teams=teams,
-                         locations=locations,
-                         tournament_names=tournament_names)
+    return redirect(url_for('index'))
 
 @app.route('/glicko_rankings/')
 def glicko_rankings():
-    """Glicko-2 rankings page"""
-    from stat_functions import calculate_glicko_rankings, grab_all_years
-    from datetime import datetime
-    
-    # Get selected year from query parameter, default to current year
-    selected_year = request.args.get('year')
-    if not selected_year:
-        selected_year = str(datetime.now().year)
-    
-    # Get available years
-    available_years = grab_all_years()
-    
-    rankings = calculate_glicko_rankings(selected_year)
-    return render_template('glicko_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
+    return redirect(url_for('index'))
 
 @app.route('/trueskill_rankings/')
 def trueskill_rankings():
-    """TrueSkill rankings page"""
-    from stat_functions import calculate_trueskill_rankings, grab_all_years, year_games
-    from datetime import datetime
-    
-    # Get selected year from query parameter, default to current year
-    selected_year = request.args.get('year')
-    if not selected_year:
-        selected_year = str(datetime.now().year)
-    
-    # Get available years
-    available_years = grab_all_years()
-    
-    # Calculate minimum games requirement
-    if selected_year == 'All years':
-        from stat_functions import all_games
-        games = all_games()
-    else:
-        games = year_games(selected_year)
-    
-    if len(games) < 30:
-        minimum_games = 1
-    else:
-        minimum_games = len(games) // 30
-    
-    # Get all rankings and filter by minimum games
-    all_rankings = calculate_trueskill_rankings(selected_year)
-    rankings = [r for r in all_rankings if r['games_played'] >= minimum_games]
-    
-    return render_template('trueskill_rankings.html', rankings=rankings, selected_year=selected_year, available_years=available_years)
+    return redirect(url_for('index'))
 
 @app.route('/player_list/')
 def player_list():
-    """Player list page showing all players in the database"""
-    from player_functions import get_all_players
-    
-    players = get_all_players()
-    return render_template('player_list.html', players=players)
+    return redirect(url_for('player_list_redesign'))
 
 @app.route('/kobs/')
 def kobs():
-    """KOBs page showing all volleyball KOBs with their games"""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    
-    cur = conn.cursor()
-    
-    # Get KOBs
-    cur.execute("""
-        SELECT session_number, start_time, end_time, total_games, 
-               doubles_games, vollis_games, one_v_one_games, other_games
-        FROM sessions 
-        ORDER BY start_time DESC
-    """)
-    kobs = cur.fetchall()
-    
-    # Get games for each KOB
-    kobs_with_games = []
-    for kob in kobs:
-        session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = kob
-        
-        # Get all games for this KOB (only from games table since KOBs are created from doubles games)
-        all_games = []
-        
-        # Get doubles games
-        try:
-            cur.execute("""
-                SELECT id, game_date, 'doubles' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
-                FROM games 
-                WHERE game_date BETWEEN ? AND ? 
-                ORDER BY game_date
-            """, (start_time, end_time))
-            doubles_games = cur.fetchall()
-            all_games.extend(doubles_games)
-        except:
-            pass
-        
-        # Sort games by date
-        all_games.sort(key=lambda x: x[1])
-        
-        # Get unique players from the games
-        players = set()
-        for game in all_games:
-            players.add(game[3])  # winner1
-            players.add(game[4])  # winner2
-            players.add(game[5])  # loser1
-            players.add(game[6])  # loser2
-        
-        kobs_with_games.append({
-            'kob': kob,
-            'games': all_games,
-            'players': sorted(list(players))
-        })
-    
-    conn.close()
-    
-    return render_template('kobs.html', kobs_with_games=kobs_with_games)
+    return redirect(url_for('index'))
 
 @app.route('/kob/<int:session_number>/')
 def kob_detail(session_number):
-    """Individual KOB detail page with player stats and games"""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    
-    cur = conn.cursor()
-    
-    # Get KOB details
-    cur.execute("""
-        SELECT session_number, start_time, end_time, total_games, 
-               doubles_games, vollis_games, one_v_one_games, other_games
-        FROM sessions 
-        WHERE session_number = ?
-    """, (session_number,))
-    kob = cur.fetchone()
-    
-    if not kob:
-        conn.close()
-        return "KOB not found", 404
-    
-    session_num, start_time, end_time, total_games, doubles, vollis, one_v_one, other = kob
-    
-    # Get all games for this KOB
-    all_games = []
-    
-    # Get doubles games
-    try:
-        cur.execute("""
-            SELECT id, game_date, 'doubles' as game_type, winner1, winner2, loser1, loser2, winner_score, loser_score 
-            FROM games 
-            WHERE game_date BETWEEN ? AND ? 
-            ORDER BY game_date
-        """, (start_time, end_time))
-        doubles_games = cur.fetchall()
-        all_games.extend(doubles_games)
-    except:
-        pass
-    
-    # Sort games by date
-    all_games.sort(key=lambda x: x[1])
-    
-    # Format games with proper time display
-    from datetime import datetime
-    formatted_games = []
-    for game in all_games:
-        game_list = list(game)
-        # Convert time to 12-hour format with AM/PM
-        if game[1] and len(game[1]) > 10:
-            try:
-                dt = datetime.fromisoformat(game[1])
-                # Format as HH:MMAM/PM
-                time_12hr = dt.strftime('%I:%M%p').lstrip('0')
-                game_list.append(time_12hr)
-            except:
-                game_list.append('')
-        else:
-            game_list.append('')
-        formatted_games.append(game_list)
-    all_games = formatted_games
-    
-    # Get unique players from the games
-    players = set()
-    for game in all_games:
-        players.add(game[3])  # winner1
-        players.add(game[4])  # winner2
-        players.add(game[5])  # loser1
-        players.add(game[6])  # loser2
-    
-    # Calculate player stats for this session
-    player_stats = []
-    for player in sorted(players):
-        wins = 0
-        losses = 0
-        plus_minus = 0
-        
-        for game in all_games:
-            if player in [game[3], game[4]]:  # winner
-                wins += 1
-                plus_minus += game[7] - game[8]  # winner_score - loser_score
-            elif player in [game[5], game[6]]:  # loser
-                losses += 1
-                plus_minus += game[8] - game[7]  # loser_score - winner_score
-        
-        total_games = wins + losses
-        win_percentage = (wins / total_games * 100) if total_games > 0 else 0
-        
-        player_stats.append({
-            'player': player,
-            'wins': wins,
-            'losses': losses,
-            'win_percentage': win_percentage,
-            'plus_minus': plus_minus
-        })
-    
-    # Sort by win percentage, then by plus/minus
-    player_stats.sort(key=lambda x: (-x['win_percentage'], -x['plus_minus']))
-    
-    # Determine KOB winner (highest win percentage, then highest plus/minus)
-    kob_winner = player_stats[0] if player_stats else None
-    
-    conn.close()
-    
-    return render_template('kob_detail.html', 
-                         kob=kob,
-                         games=all_games,
-                         players=sorted(players),
-                         player_stats=player_stats,
-                         kob_winner=kob_winner)
+    return redirect(url_for('index'))
 
 @app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
 def edit_player(player_id):
@@ -3235,7 +1999,7 @@ def edit_player(player_id):
     
     if not player:
         flash('Player not found')
-        return redirect(url_for('player_list'))
+        return redirect(url_for('player_list_redesign'))
     
     if request.method == 'POST':
         full_name = request.form['full_name']
@@ -3258,701 +2022,17 @@ def edit_player(player_id):
             else:
                 log_user_action(user, 'Edited player', f'Updated info for "{full_name}"')
                 flash('Player updated successfully!')
-            return redirect(url_for('player_list'))
+            return redirect(url_for('player_list_redesign'))
     
     return render_template('edit_player.html', player=player)
 
 @app.route('/game_hub')
 def game_hub():
-    """Game Hub dashboard showing vollis, 1v1, and other game statistics"""
-    from stat_functions import grab_all_years
-    from vollis_functions import get_vollis_dashboard_data
-    from one_v_one_functions import get_one_v_one_dashboard_data
-    from other_functions import get_other_dashboard_data
-    from datetime import datetime
-    
-    # Get selected year from query parameter, default to All years
-    selected_year = request.args.get('year')
-    if not selected_year:
-        selected_year = 'All years'
-    
-    # Get available years
-    available_years = grab_all_years()
-    
-    # Get dashboard data for each game type
-    vollis_data = get_vollis_dashboard_data(selected_year)
-    one_v_one_data = get_one_v_one_dashboard_data(selected_year)
-    other_data = get_other_dashboard_data(selected_year)
-    
-    return render_template('game_hub.html', 
-                          selected_year=selected_year,
-                          available_years=available_years,
-                          vollis_data=vollis_data,
-                          one_v_one_data=one_v_one_data,
-                          other_data=other_data)
+    return redirect(url_for('index'))
 
 @app.route('/work_in_progress')
 def work_in_progress():
-    """Work in Progress page with links to various features"""
-    return render_template('work_in_progress.html')
-
-# Balloono game state (in-memory, room-based)
-_balloono_rooms = {}
-_balloono_lock = threading.Lock()
-_ACTIVE_ROOM_SEC = 60  # Rooms with no activity for this long are excluded from list
-_ROOM_IDLE_DELETE_SEC = 300  # Delete rooms idle this long
-
-GRID_W, GRID_H = 15, 11
-CELL = 40
-
-def _balloono_lobby_game(players_list):
-    """Build lobby game state (board + player positions, no bombs/powerups)."""
-    blocks = set()
-    for x in range(GRID_W):
-        blocks.add((x, 0))
-        blocks.add((x, GRID_H - 1))
-    for y in range(GRID_H):
-        blocks.add((0, y))
-        blocks.add((GRID_W - 1, y))
-    for x in range(2, GRID_W - 2, 2):
-        for y in range(2, GRID_H - 2, 2):
-            blocks.add((x, y))
-    players_data = []
-    for i, p in enumerate(players_list):
-        if i == 0:
-            x, y = 1, 1
-        else:
-            x, y = GRID_W - 2, GRID_H - 2
-        players_data.append({
-            'id': p['id'], 'user_id': p.get('user_id'), 'username': p['username'],
-            'x': x, 'y': y, 'alive': True,
-        })
-    return {
-        'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
-        'players': players_data,
-        'blocks': list(blocks),
-    }
-
-def _balloono_token_cookie():
-    return request.cookies.get('balloono_token', '')
-
-def _balloono_current_user():
-    """Return (user_id, username) if valid token, else None"""
-    token = _balloono_token_cookie()
-    if not token:
-        return None
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT u.id, u.username FROM balloono_users u
-        JOIN balloono_tokens t ON t.user_id = u.id
-        WHERE t.token_hash = ? AND t.expires_at > ?
-    ''', (token_hash, datetime.now()))
-    row = cur.fetchone()
-    conn.close()
-    return (row[0], row[1]) if row else None
-
-def _generate_room_code():
-    return ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(6))
-
-TOP10_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'top10')
-
-@app.route('/top10/<path:filename>')
-def top10_file(filename):
-    """Serve image/files from the top10 folder (for Yuriy's Top 10 page)."""
-    return send_from_directory(TOP10_DIR, filename)
-
-TOP10_PHOTOS = [
-    'DSC_2696.jpg', 'DSC_2702.jpg', 'DSC_2783.jpg', 'DSC_2920.jpg', 'DSC_3027.jpg',
-    'DSC_3032.jpg', 'DSC_3235.jpg', 'DSC_3253.jpg', 'DSC_3280.jpg', 'DSC_3282.jpg',
-]
-TOP10_PHOTOS_BIG = [
-    'DSC_2696 copy.jpg', 'DSC_2702 copy.jpg', 'DSC_2783 copy.jpg', 'DSC_2920 copy.jpg', 'DSC_3027 copy.jpg',
-    'DSC_3032 copy.jpg', 'DSC_3235 copy.jpg', 'DSC_3253 copy.jpg', 'DSC_3280 copy.jpg', 'DSC_3282 copy.jpg',
-]
-TOP10_REASONS = [
-    'Strong rule of thirds; subject on a power point with clean composition and no clutter.',
-    'Excellent color harmony and vibrancy; horizon level and a single clear focal point.',
-    'Clean visual complexity—one clear subject, minimal distractions, balanced framing.',
-    'Emotional peak moment with high energy; composition supports the story.',
-    'Unique take among similar shots; distinctive light or moment that stands out.',
-    'Symmetry used for impact; color palette complementary and not over-processed.',
-    'Clear subject with shallow visual complexity; horizon aligned, intentional framing.',
-    'Strong storytelling; emotional or unique moment paired with solid composition.',
-    'Balanced aesthetics—rule of thirds, clean background, natural color harmony.',
-    'Diversity pick: chosen over similar frames for the most unique or decisive moment.',
-]
-
-@app.route('/yuriy-top10')
-def yuriy_top10():
-    """Yuriy's Top 10 page. Link in hamburger menu is Kyle-only."""
-    return render_template(
-        'yuriy_top10.html',
-        photos=TOP10_PHOTOS,
-        photos_big=TOP10_PHOTOS_BIG,
-        reasons=TOP10_REASONS,
-    )
-
-@app.route('/balloono')
-def balloono():
-    """Balloono game page. Link in menu is Kyle-only, but page is public so friends can join via URL."""
-    return render_template('balloono.html')
-
-@app.route('/api/balloono/me')
-def api_balloono_me():
-    """Return current Balloono user if logged in"""
-    user = _balloono_current_user()
-    if not user:
-        return jsonify({'logged_in': False})
-    user_id, username = user
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (user_id,))
-    row = cur.fetchone()
-    conn.close()
-    return jsonify({
-        'logged_in': True,
-        'user_id': user_id,
-        'username': username,
-        'wins': row[0] if row else 0,
-        'losses': row[1] if row else 0,
-    })
-
-@app.route('/api/balloono/register', methods=['POST'])
-def api_balloono_register():
-    """Register a new Balloono user"""
-    data = request.get_json() or {}
-    username = (data.get('username') or '').strip()[:20]
-    password = data.get('password', '')
-    if not username or len(username) < 2:
-        return jsonify({'error': 'Username must be at least 2 characters'}), 400
-    if not password or len(password) < 4:
-        return jsonify({'error': 'Password must be at least 4 characters'}), 400
-    pw_hash = hashlib.sha256(password.encode()).hexdigest()
-    token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expires = datetime.now() + timedelta(days=90)
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    try:
-        cur.execute('INSERT INTO balloono_users (username, password_hash) VALUES (?, ?)', (username, pw_hash))
-        user_id = cur.lastrowid
-        cur.execute('INSERT INTO balloono_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
-                    (user_id, token_hash, expires))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        return jsonify({'error': 'Username already taken'}), 400
-    conn.close()
-    resp = make_response(jsonify({'ok': True, 'username': username, 'user_id': user_id}))
-    resp.set_cookie('balloono_token', token, max_age=90*24*3600, httponly=True, samesite='Lax')
-    return resp
-
-@app.route('/api/balloono/login', methods=['POST'])
-def api_balloono_login():
-    """Login to Balloono"""
-    data = request.get_json() or {}
-    username = (data.get('username') or '').strip()[:20]
-    password = data.get('password', '')
-    pw_hash = hashlib.sha256(password.encode()).hexdigest()
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('SELECT id FROM balloono_users WHERE username = ? AND password_hash = ?', (username, pw_hash))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        return jsonify({'error': 'Invalid username or password'}), 401
-    user_id = row[0]
-    token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expires = datetime.now() + timedelta(days=90)
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('INSERT INTO balloono_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
-                (user_id, token_hash, expires))
-    conn.commit()
-    conn.close()
-    resp = make_response(jsonify({'ok': True, 'username': username, 'user_id': user_id}))
-    resp.set_cookie('balloono_token', token, max_age=90*24*3600, httponly=True, samesite='Lax')
-    return resp
-
-@app.route('/api/balloono/logout', methods=['POST'])
-def api_balloono_logout():
-    """Logout from Balloono"""
-    resp = make_response(jsonify({'ok': True}))
-    resp.set_cookie('balloono_token', '', max_age=0, httponly=True, samesite='Lax')
-    return resp
-
-@app.route('/api/balloono/create_room', methods=['POST'])
-def api_balloono_create_room():
-    """Create a new Balloono room"""
-    user = _balloono_current_user()
-    if not user:
-        return jsonify({'error': 'Must be logged in to create a room'}), 401
-    user_id, username = user
-    with _balloono_lock:
-        room_code = _generate_room_code()
-        while room_code in _balloono_rooms:
-            room_code = _generate_room_code()
-        player_id = secrets.token_hex(8)
-        now = datetime.now()
-        GRID_W, GRID_H = 15, 11
-        _balloono_rooms[room_code] = {
-            'players': [{'id': player_id, 'user_id': user_id, 'username': username, 'ready': False, 'x': 1, 'y': 1}],
-            'messages': [{'type': 'system', 'text': f'{username} created the room.'}],
-            'game': None,
-            'lobby_game': _balloono_lobby_game([{'id': player_id, 'user_id': user_id, 'username': username}]),
-            'created': now.isoformat(),
-            'last_activity': time.time(),
-        }
-    return jsonify({
-        'room_code': room_code,
-        'player_id': player_id,
-        'username': username,
-    })
-
-@app.route('/api/balloono/leave_room', methods=['POST'])
-def api_balloono_leave_room():
-    """Leave a room; removes room if empty"""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'ok': True})
-        room = _balloono_rooms[room_code]
-        room['players'] = [p for p in room['players'] if p['id'] != player_id]
-        if len(room['players']) == 0:
-            del _balloono_rooms[room_code]
-        else:
-            if room.get('lobby_game') and room['lobby_game'].get('players'):
-                room['lobby_game']['players'] = [p for p in room['lobby_game']['players'] if p['id'] != player_id]
-            room['messages'].append({'type': 'system', 'text': 'A player left.'})
-            if room.get('game') is not None and 'game_over_message' not in room['game']:
-                room['game']['game_over_title'] = 'Game Over'
-                room['game']['game_over_message'] = 'A player left. No winner.'
-    return jsonify({'ok': True})
-
-@app.route('/api/balloono/rooms')
-def api_balloono_list_rooms():
-    """List available rooms (active, not in game, not full)"""
-    now_ts = time.time()
-    with _balloono_lock:
-        # Delete stale rooms
-        to_del = [c for c, r in _balloono_rooms.items()
-                  if now_ts - r.get('last_activity', 0) > _ROOM_IDLE_DELETE_SEC]
-        for c in to_del:
-            del _balloono_rooms[c]
-        rooms = []
-        for code, room in _balloono_rooms.items():
-            if now_ts - room.get('last_activity', 0) > _ACTIVE_ROOM_SEC:
-                continue
-            if room.get('game') is not None:
-                continue
-            players = room.get('players', [])
-            if len(players) >= 2:
-                continue
-            host = players[0]['username'] if players else 'Unknown'
-            rooms.append({
-                'room_code': code,
-                'host': host,
-                'player_count': len(players),
-                'max_players': 2,
-            })
-    return jsonify({'rooms': rooms})
-
-@app.route('/api/balloono/join_room', methods=['POST'])
-def api_balloono_join_room():
-    """Join an existing Balloono room"""
-    user = _balloono_current_user()
-    if not user:
-        return jsonify({'error': 'Must be logged in to join a room'}), 401
-    user_id, username = user
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if time.time() - room.get('last_activity', 0) > _ACTIVE_ROOM_SEC:
-            del _balloono_rooms[room_code]
-            return jsonify({'error': 'Room expired'}), 404
-        if room['game'] is not None:
-            return jsonify({'error': 'Game already in progress'}), 400
-        if len(room['players']) >= 2:
-            return jsonify({'error': 'Room is full'}), 400
-        player_id = secrets.token_hex(8)
-        GRID_W, GRID_H = 15, 11
-        room['players'].append({'id': player_id, 'user_id': user_id, 'username': username, 'ready': False, 'x': GRID_W - 2, 'y': GRID_H - 2})
-        room['lobby_game'] = _balloono_lobby_game(room['players'])
-        room['messages'].append({'type': 'system', 'text': f'{username} joined the room.'})
-        room['last_activity'] = time.time()
-    return jsonify({
-        'room_code': room_code,
-        'player_id': player_id,
-        'username': username,
-    })
-
-@app.route('/api/balloono/room/<room_code>')
-def api_balloono_get_room(room_code):
-    """Get room state (polling)"""
-    room_code = room_code.upper()
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        room['last_activity'] = time.time()
-        room = room.copy()
-        # Add Balloono stats to lobby players
-        try:
-            conn = sqlite3.connect('stats.db')
-            cur = conn.cursor()
-            out_players = []
-            for p in room['players']:
-                pl = dict(p)
-                uid = p.get('user_id')
-                if uid:
-                    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (uid,))
-                    row = cur.fetchone()
-                    if row:
-                        pl['balloono_wins'] = row[0]
-                        pl['balloono_losses'] = row[1]
-                out_players.append(pl)
-            conn.close()
-            room['players'] = out_players
-        except Exception:
-            room['players'] = list(room['players'])
-        room['messages'] = list(room['messages'])[-50:]
-        if room.get('game') is None:
-            GRID_W, GRID_H = 15, 11
-            blocks = set()
-            for x in range(GRID_W):
-                blocks.add((x, 0))
-                blocks.add((x, GRID_H - 1))
-            for y in range(GRID_H):
-                blocks.add((0, y))
-                blocks.add((GRID_W - 1, y))
-            for x in range(2, GRID_W - 2, 2):
-                for y in range(2, GRID_H - 2, 2):
-                    blocks.add((x, y))
-            lobby_players = [{'id': p['id'], 'username': p['username'], 'x': p.get('x', 1), 'y': p.get('y', 1), 'alive': True, 'balloono_wins': p.get('balloono_wins'), 'balloono_losses': p.get('balloono_losses')} for p in room['players']]
-            room['lobby_game'] = {'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': 40, 'blocks': [[a, b] for a, b in blocks], 'players': lobby_players}
-        else:
-            room['lobby_game'] = None
-    return jsonify(room)
-
-@app.route('/api/balloono/lobby_action', methods=['POST'])
-def api_balloono_lobby_action():
-    """Move in lobby (before game starts). No bombs or powerups."""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    action = data.get('action')
-    if action not in ('up', 'down', 'left', 'right'):
-        return jsonify({'error': 'Invalid action'}), 400
-    GRID_W, GRID_H = 15, 11
-    blocks = set()
-    for x in range(GRID_W):
-        blocks.add((x, 0))
-        blocks.add((x, GRID_H - 1))
-    for y in range(GRID_H):
-        blocks.add((0, y))
-        blocks.add((GRID_W - 1, y))
-    for x in range(2, GRID_W - 2, 2):
-        for y in range(2, GRID_H - 2, 2):
-            blocks.add((x, y))
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if room.get('game') is not None:
-            return jsonify({'error': 'Game already started'}), 400
-        player = next((p for p in room['players'] if p['id'] == player_id), None)
-        if not player:
-            return jsonify({'error': 'Player not in room'}), 400
-        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
-        nx = player.get('x', 1) + dx
-        ny = player.get('y', 1) + dy
-        if 1 <= nx < GRID_W - 1 and 1 <= ny < GRID_H - 1 and (nx, ny) not in blocks:
-            others_at = [(p.get('x'), p.get('y')) for p in room['players'] if p['id'] != player_id]
-            if (nx, ny) not in others_at:
-                player['x'], player['y'] = nx, ny
-        room['last_activity'] = time.time()
-    return jsonify({'ok': True})
-
-@app.route('/api/balloono/send_message', methods=['POST'])
-def api_balloono_send_message():
-    """Send a chat message"""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    text = (data.get('text') or '').strip()[:200]
-    if not text:
-        return jsonify({'error': 'Empty message'}), 400
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        username = next((p['username'] for p in room['players'] if p['id'] == player_id), 'Unknown')
-        room['messages'].append({'type': 'chat', 'username': username, 'text': text})
-    return jsonify({'ok': True})
-
-@app.route('/api/balloono/start_game', methods=['POST'])
-def api_balloono_start_game():
-    """Start the Balloono game (both players must be in room)"""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if room['game'] is not None:
-            return jsonify({'error': 'Game already in progress'}), 400
-        if len(room['players']) < 1:
-            return jsonify({'error': 'Need at least 1 player to start'}), 400
-        # Initialize game state - use lobby positions if set
-        GRID_W, GRID_H = 15, 11
-        CELL = 40
-        p0 = room['players'][0]
-        x0, y0 = p0.get('x', 1), p0.get('y', 1)
-        players_data = [
-            {'id': p0['id'], 'user_id': p0.get('user_id'), 'username': p0['username'], 'x': x0, 'y': y0, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0},
-        ]
-        if len(room['players']) >= 2:
-            p1 = room['players'][1]
-            x1, y1 = p1.get('x', GRID_W - 2), p1.get('y', GRID_H - 2)
-            players_data.append({'id': p1['id'], 'user_id': p1.get('user_id'), 'username': p1['username'], 'x': x1, 'y': y1, 'alive': True, 'blast_level': 0, 'bombs_level': 0, 'speed_level': 0})
-        room['game'] = {
-            'grid_w': GRID_W, 'grid_h': GRID_H, 'cell': CELL,
-            'players': players_data,
-            'bombs': [],
-            'explosions': [],
-            'powerups': [],
-            'walls': [],
-            'blocks': set(),
-            'last_tick': datetime.now().isoformat(),
-            'last_powerup_spawn': 0,
-            'game_started_at': time.time(),
-        }
-        # Add indestructible blocks (border + grid pattern)
-        blocks = set()
-        for x in range(GRID_W):
-            blocks.add((x, 0))
-            blocks.add((x, GRID_H - 1))
-        for y in range(GRID_H):
-            blocks.add((0, y))
-            blocks.add((GRID_W - 1, y))
-        for x in range(2, GRID_W - 2, 2):
-            for y in range(2, GRID_H - 2, 2):
-                blocks.add((x, y))
-        room['game']['blocks'] = list(blocks)
-        room['messages'].append({'type': 'system', 'text': 'Game started!'})
-    return jsonify({'ok': True, 'game': room['game']})
-
-@app.route('/api/balloono/game_action', methods=['POST'])
-def api_balloono_game_action():
-    """Player action: move or place bomb"""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    player_id = data.get('player_id', '')
-    action = data.get('action')  # 'up','down','left','right','bomb'
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if room['game'] is None:
-            return jsonify({'error': 'No game in progress'}), 400
-        game = room['game']
-        player = next((p for p in game['players'] if p['id'] == player_id), None)
-        if not player or not player.get('alive', True):
-            return jsonify({'error': 'Invalid player'}), 400
-        blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
-        bombs_list = game.get('bombs', [])
-        powerups_list = game.get('powerups', [])
-
-        if action in ('up', 'down', 'left', 'right'):
-            speed = player.get('speed_level', 0)
-            # Base 150ms, minus 30ms per speed level, min 40ms (so speed really feels faster)
-            cooldown = max(0.04, 0.15 - speed * 0.03)
-            last_move = player.get('_last_move_at', 0)
-            if time.time() - last_move < cooldown:
-                return jsonify({'ok': True})
-            player['_last_move_at'] = time.time()
-            dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[action]
-            nx, ny = player['x'] + dx, player['y'] + dy
-            if 1 <= nx < game['grid_w'] - 1 and 1 <= ny < game['grid_h'] - 1:
-                if (nx, ny) not in blocks_set and not any(b['x'] == nx and b['y'] == ny for b in bombs_list):
-                    other = next((p for p in game['players'] if p['id'] != player_id and p.get('alive')), None)
-                    if not (other and other['x'] == nx and other['y'] == ny):
-                        player['x'], player['y'] = nx, ny
-                        for i, pu in enumerate(powerups_list):
-                            if pu['x'] == nx and pu['y'] == ny:
-                                powerups_list.pop(i)
-                                pu_type = pu.get('type', 'blast')
-                                if pu_type == 'blast':
-                                    player['blast_level'] = player.get('blast_level', 0) + 1
-                                elif pu_type == 'bombs':
-                                    player['bombs_level'] = player.get('bombs_level', 0) + 1
-                                elif pu_type == 'speed':
-                                    player['speed_level'] = player.get('speed_level', 0) + 1
-                                break
-        elif action == 'bomb':
-            placed = sum(1 for b in bombs_list if b.get('owner') == player_id)
-            max_bombs = 1 + player.get('bombs_level', 0)
-            if placed < max_bombs:
-                bomb_range = 2 + player.get('blast_level', 0)
-                game.setdefault('bombs', []).append({
-                    'x': player['x'], 'y': player['y'], 'owner': player_id,
-                    'range': bomb_range, 'placed_at': datetime.now().isoformat(),
-                })
-    return jsonify({'ok': True})
-
-def _balloono_tick(game):
-    """Process bombs, explosions, player deaths, powerup spawning. Mutates game in place."""
-    blocks_set = set((b[0], b[1]) for b in game.get('blocks', []))
-    now = datetime.now()
-    now_ts = time.time()
-    bombs = game.get('bombs', [])
-    explosions = game.get('explosions', [])
-    powerups = game.setdefault('powerups', [])
-
-    # Spawn powerups: base 10 sec, faster as game goes on (every 45s reduce by 1s, min 5s)
-    game_start = game.get('game_started_at', now_ts)
-    elapsed = now_ts - game_start
-    interval = max(5.0, 10.0 - (elapsed // 45))
-    last_spawn = game.get('last_powerup_spawn', 0)
-    if now_ts - last_spawn >= interval:
-        game['last_powerup_spawn'] = now_ts
-        occupied = blocks_set | {(b['x'], b['y']) for b in bombs}
-        occupied |= {(p['x'], p['y']) for p in game['players'] if p.get('alive')}
-        occupied |= {(pu['x'], pu['y']) for pu in powerups}
-        empty = []
-        for x in range(1, game['grid_w'] - 1):
-            for y in range(1, game['grid_h'] - 1):
-                if (x, y) not in occupied:
-                    empty.append((x, y))
-        if empty:
-            x, y = random.choice(empty)
-            pu_type = random.choice(['blast', 'bombs', 'speed'])
-            powerups.append({'x': x, 'y': y, 'type': pu_type})
-
-    # Remove expired explosions (0.4s display)
-    explosions[:] = [e for e in explosions if (now - datetime.fromisoformat(e['at'])).total_seconds() < 0.4]
-
-    # Check bombs for explosion (2.5s fuse) with chain reaction
-    TAUNTS = [
-        lambda w, l: f'{w} wins! {l} got absolutely destroyed.',
-        lambda w, l: f'GG EZ. {l} never stood a chance against {w}.',
-        lambda w, l: f'{w} dominates! {l} might as well uninstall.',
-        lambda w, l: f'Pathetic. {l} is no match for {w}.',
-        lambda w, l: f'{w} crushed it! {l} should stick to single player.',
-        lambda w, l: f'Too easy. {l} got owned by {w}.',
-        lambda w, l: f'{w} reigns supreme! {l} folded like a cheap lawn chair.',
-    ]
-    to_explode = [(b, datetime.fromisoformat(b['placed_at'])) for b in list(bombs)]
-    queued_for_explosion = set()
-    while to_explode:
-        b, placed = to_explode.pop(0)
-        if (now - placed).total_seconds() < 2.5:
-            continue
-        if b in bombs:
-            bombs.remove(b)
-        r = b.get('range', 2)
-        cx, cy = b['x'], b['y']
-        cells = [(cx, cy)]
-        for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
-            for d in range(1, r + 1):
-                nx, ny = cx + dx * d, cy + dy * d
-                if (nx, ny) in blocks_set:
-                    break
-                cells.append((nx, ny))
-        for x, y in cells:
-            explosions.append({'x': x, 'y': y, 'at': now.isoformat()})
-            for p in game['players']:
-                if p.get('alive') and p['x'] == x and p['y'] == y:
-                    p['alive'] = False
-            for b2 in list(bombs):
-                b2pos = (b2['x'], b2['y'])
-                if b2['x'] == x and b2['y'] == y and b2pos not in queued_for_explosion:
-                    queued_for_explosion.add(b2pos)
-                    to_explode.append((b2, now - timedelta(seconds=5)))
-    alive = [p for p in game['players'] if p.get('alive')]
-    if len(alive) == 1 and 'game_over_message' not in game:
-        winner = alive[0]
-        loser = next((p for p in game['players'] if not p.get('alive')), None)
-        w_name, l_name = winner['username'], loser['username'] if loser else ''
-        idx = hash(w_name + l_name) % len(TAUNTS)
-        game['game_over_title'] = winner['username'] + ' Wins!'
-        game['game_over_message'] = TAUNTS[idx](w_name, l_name) if l_name else game['game_over_title']
-        # Update stats (only when beating another player, not solo)
-        try:
-            conn = sqlite3.connect('stats.db')
-            cur = conn.cursor()
-            if loser and winner.get('user_id'):
-                cur.execute('UPDATE balloono_users SET wins = wins + 1 WHERE id = ?', (winner['user_id'],))
-            if loser and loser.get('user_id'):
-                cur.execute('UPDATE balloono_users SET losses = losses + 1 WHERE id = ?', (loser['user_id'],))
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
-    elif len(alive) == 0 and 'game_over_message' not in game:
-        game['game_over_title'] = 'Draw!'
-        game['game_over_message'] = 'Everyone exploded. What a mess.'
-
-@app.route('/api/balloono/reset_game', methods=['POST'])
-def api_balloono_reset_game():
-    """Reset game so players can start a new round"""
-    data = request.get_json() or {}
-    room_code = (data.get('room_code') or '').strip().upper()[:6]
-    with _balloono_lock:
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        room['game'] = None
-        room['messages'].append({'type': 'system', 'text': 'Game reset. Ready for a new round!'})
-    return jsonify({'ok': True})
-
-@app.route('/api/balloono/game_state/<room_code>')
-def api_balloono_game_state(room_code):
-    """Get current game state (polling during game)"""
-    room_code = room_code.upper()
-    with _balloono_lock:
-        if room_code in _balloono_rooms:
-            _balloono_rooms[room_code]['last_activity'] = time.time()
-        if room_code not in _balloono_rooms:
-            return jsonify({'error': 'Room not found'}), 404
-        room = _balloono_rooms[room_code]
-        if room['game'] is None:
-            return jsonify({'game': None, 'players': room['players']})
-        _balloono_tick(room['game'])
-        g = room['game'].copy()
-        # Serialize players with Balloono stats (wins/losses from balloono_users)
-        try:
-            conn = sqlite3.connect('stats.db')
-            cur = conn.cursor()
-            out_players = []
-            for p in g['players']:
-                pl = {k: v for k, v in p.items() if not k.startswith('_')}
-                uid = p.get('user_id')
-                if uid:
-                    cur.execute('SELECT wins, losses FROM balloono_users WHERE id = ?', (uid,))
-                    row = cur.fetchone()
-                    if row:
-                        pl['balloono_wins'] = row[0]
-                        pl['balloono_losses'] = row[1]
-                out_players.append(pl)
-            conn.close()
-            g['players'] = out_players
-        except Exception:
-            g['players'] = [{k: v for k, v in p.items() if not k.startswith('_')} for p in g['players']]
-        g['bombs'] = list(g.get('bombs', []))
-        g['explosions'] = list(g.get('explosions', []))
-        g['powerups'] = list(g.get('powerups', []))
-        g['messages'] = list(room.get('messages', []))[-50:]
-    return jsonify({'game': g})
+    return redirect(url_for('index'))
 
 @app.route('/benchmarks')
 def benchmarks():
@@ -3999,10 +2079,8 @@ def run_benchmark():
         ('/player_trends/', 'Player Trends'),
         ('/games/', 'Games List'),
         ('/vollis_games/', 'Vollis Games'),
-        ('/one_v_one_games/', 'One v One Games'),
         ('/other_games/', 'Other Games'),
         ('/vollis_stats/', 'Vollis Stats'),
-        ('/one_v_one_stats/', 'One v One Stats'),
         ('/other_stats/', 'Other Stats'),
         ('/volleyball_stats/', 'Volleyball Stats'),
         ('/advanced_stats/', 'Advanced Stats'),
@@ -4537,315 +2615,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
     return html_body
 
 
-def create_one_v_one_email_html(summary, stats, games):
-    summary_html = summary.replace(chr(10), '<br>') if summary else ''
-
-    html_body = f"""
-            <html>
-            <head>
-                <style>
-                    body {{ 
-                        font-family: 'Open Sans', Arial, Helvetica, sans-serif;
-                        background-color: #1d2025;
-                        color: #ffffff;
-                        padding: 20px;
-                        line-height: 1.6;
-                    }}
-                    .container {{
-                        max-width: 600px;
-                        margin: 0 auto;
-                    }}
-                    h1 {{
-                        color: #aeee98;
-                        text-align: center;
-                        margin-bottom: 30px;
-                    }}
-                    .card {{
-                        background: linear-gradient(140deg, rgba(34, 52, 70, 0.95), rgba(18, 28, 40, 0.95));
-                        border-radius: 20px;
-                        padding: 24px;
-                        margin-bottom: 22px;
-                        border: 1px solid rgba(174, 238, 152, 0.32);
-                        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-                    }}
-                    .card h2 {{
-                        margin-top: 0;
-                        padding-bottom: 10px;
-                        text-align: center;
-                        font-size: 18px;
-                        font-weight: bold;
-                        margin-bottom: 18px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.6px;
-                        color: #aeee98;
-                        border-bottom: 2px solid rgba(174, 238, 152, 0.45);
-                    }}
-                    .summary-text {{
-                        background: rgba(12, 18, 25, 0.6);
-                        border-radius: 18px;
-                        padding: 16px;
-                        border: 1px solid rgba(174, 238, 152, 0.25);
-                        color: #ffffff;
-                        line-height: 1.7;
-                    }}
-                    .table-wrapper {{
-                        background: rgba(12, 18, 25, 0.6);
-                        border-radius: 18px;
-                        padding: 16px;
-                    }}
-                    .stat-item {{
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 12px;
-                        border-radius: 8px;
-                        margin-bottom: 8px;
-                        color: #ffffff;
-                    }}
-                    .stat-item:last-child {{
-                        margin-bottom: 0;
-                    }}
-                    .stat-item.win {{
-                        background-color: rgba(76, 175, 80, 0.1);
-                        border-left: 4px solid #4CAF50;
-                    }}
-                    .stat-item.loss {{
-                        background-color: rgba(244, 67, 54, 0.1);
-                        border-left: 4px solid #f44336;
-                    }}
-                    .stat-item.neutral {{
-                        background-color: rgba(158, 158, 158, 0.1);
-                        border-left: 4px solid #9E9E9E;
-                    }}
-                    .player-name-stat {{
-                        font-size: 14px;
-                        font-weight: 600;
-                        color: #ffffff;
-                        display: inline-block;
-                        text-align: center;
-                        white-space: nowrap;
-                    }}
-                    .stat-info {{
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        font-size: 14px;
-                    }}
-                    .record-info {{
-                        min-width: 60px;
-                        text-align: center;
-                    }}
-                    .differential {{
-                        min-width: 40px;
-                        text-align: center;
-                    }}
-                    .game-item {{
-                        padding: 12px;
-                        border-radius: 8px;
-                        border-left: 4px solid #aeee98;
-                        background-color: rgba(174, 238, 152, 0.05);
-                        margin-bottom: 8px;
-                        color: #ffffff;
-                    }}
-                    .game-item:last-child {{
-                        margin-bottom: 0;
-                    }}
-                    .footer {{
-                        text-align: center;
-                        margin-top: 30px;
-                    }}
-                    .link-button {{
-                        display: inline-block;
-                        background-color: rgba(174, 238, 152, 0.9);
-                        color: #102436;
-                        padding: 12px 24px;
-                        border-radius: 12px;
-                        text-decoration: none;
-                        font-weight: bold;
-                        margin: 5px;
-                        box-shadow: 0 6px 15px rgba(174, 238, 152, 0.25);
-                    }}
-                    .link-button:hover {{
-                        background-color: #c0f7a0;
-                    }}
-                    .today-games-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        color: #ffffff;
-                        font-size: 14px;
-                        background: rgba(17, 22, 28, 0.6);
-                        border-radius: 18px;
-                        overflow: hidden;
-                    }}
-                    .today-games-table thead {{
-                        background: rgba(36, 56, 76, 0.85);
-                    }}
-                    .today-games-table th {{
-                        padding: 12px 10px;
-                        text-align: center;
-                        font-size: 12px;
-                        font-weight: 700;
-                        text-transform: uppercase;
-                        letter-spacing: 1px;
-                        color: #dbe2ea;
-                    }}
-                    .today-games-table td {{
-                        padding: 14px 10px;
-                        text-align: center;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                        vertical-align: middle;
-                    }}
-                    .today-games-table tbody tr:last-child td {{
-                        border-bottom: none;
-                    }}
-                    .time-cell {{
-                        font-weight: 600;
-                        color: #aeee98;
-                        font-size: 14px;
-                    }}
-                    .team-cell {{
-                        text-align: center;
-                    }}
-                    .player-line {{
-                        font-size: 13px;
-                        font-weight: 600;
-                        color: #ffffff;
-                        margin: 2px 0;
-                        white-space: nowrap;
-                        display: inline-block;
-                        text-align: center;
-                    }}
-                    .score-cell {{
-                        width: 42px;
-                    }}
-                    .score-pill {{
-                        display: inline-block;
-                        min-width: 34px;
-                        padding: 6px 10px;
-                        border-radius: 10px;
-                        font-size: 14px;
-                        font-weight: 700;
-                        letter-spacing: 0.5px;
-                    }}
-                    .score-pill.winner {{
-                        background: rgba(76, 175, 80, 0.18);
-                        color: #aeee98;
-                        box-shadow: inset 0 0 0 1px rgba(174, 238, 152, 0.45);
-                    }}
-                    .score-pill.loser {{
-                        background: rgba(244, 67, 54, 0.18);
-                        color: #ff8686;
-                        box-shadow: inset 0 0 0 1px rgba(255, 134, 134, 0.4);
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>🎯 Today's 1v1 Recap</h1>
-                    
-                    <div class="card">
-                        <h2>AI Summary</h2>
-                        <div class="summary-text">
-                            {summary_html}
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h2>Player Stats</h2>
-            """
-
-    for stat in stats:
-        player_name = stat[0]
-        wins = stat[1]
-        losses = stat[2]
-        win_pct = stat[3] * 100
-        differential = stat[4]
-        diff_sign = '+' if differential >= 0 else ''
-
-        if win_pct > 50:
-            color_class = "win"
-        elif win_pct == 50:
-            color_class = "neutral"
-        else:
-            color_class = "loss"
-
-        html_body += f"""
-                        <div class="stat-item {color_class}">
-                            <span class="player-name-stat">{format_name_for_email(player_name)}</span>
-                            <span class="stat-info">
-                                <span class="record-info">{wins}-{losses} ({win_pct:.1f}%)</span>
-                                <span class="differential">{diff_sign}{differential}</span>
-                            </span>
-                        </div>
-                """
-
-    html_body += """
-                    </div>
-                    
-                    <div class="card">
-                        <h2>Today's 1v1 Games (""" + str(len(games)) + """)</h2>
-                        <div class="table-wrapper">
-                        <table class="today-games-table">
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Winner</th>
-                                    <th>Score</th>
-                                    <th>Loser</th>
-                                    <th>Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            """
-
-    for game in games:
-        time_display = ""
-        if len(game) > 1 and game[1]:
-            date_time_str = str(game[1]).strip()
-            parts = date_time_str.split()
-            if len(parts) > 1:
-                time_display = " ".join(parts[1:]).strip()
-            elif parts:
-                time_display = parts[0]
-        if not time_display:
-            time_display = "&nbsp;"
-
-        winner_name = game[4] if len(game) > 4 and game[4] else ""
-        loser_name = game[6] if len(game) > 6 and game[6] else ""
-        winner_score = game[5] if len(game) > 5 and game[5] is not None else ""
-        loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
-
-        html_body += f"""
-                                <tr>
-                                    <td class=\"time-cell\">{time_display}</td>
-                                    <td class=\"team-cell\"><div class=\"player-line\">{format_name_for_email(winner_name)}</div></td>
-                                    <td class=\"score-cell\"><span class=\"score-pill winner\">{winner_score}</span></td>
-                                    <td class=\"team-cell\"><div class=\"player-line\">{format_name_for_email(loser_name)}</div></td>
-                                    <td class=\"score-cell\"><span class=\"score-pill loser\">{loser_score}</span></td>
-                                </tr>
-                """
-
-    html_body += """
-                            </tbody>
-                        </table>
-                        </div>
-                    </div>
-                    <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/one_v_one_stats/" class="link-button">View 1v1 Stats</a>
-                        <a href="https://idynkydnk.pythonanywhere.com/dashboard/" class="link-button">Go to Dashboard</a>
-                    </div>
-                    <div class="footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                        <p style="color: #aeee98; font-size: 14px; margin-bottom: 10px;">Want all future AI summaries?</p>
-                        <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="link-button" style="background-color: rgba(174, 238, 152, 0.7); font-size: 13px; padding: 10px 20px;">Yes, include me</a>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-
-    return html_body
-
-
 def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
     import google.generativeai as genai
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
@@ -5134,398 +2903,6 @@ Write the recap:"""
     }
 
 
-def build_one_v_one_email_payload(selected_game_ids):
-    import google.generativeai as genai
-    import random
-    from one_v_one_functions import todays_one_v_one_stats, todays_one_v_one_games, calculate_one_v_one_stats_from_games
-    from player_functions import get_player_by_name
-
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
-
-    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-        raise ValueError('Email not configured.')
-
-    today = date.today().strftime('%Y-%m-%d')
-    all_games = todays_one_v_one_games()
-
-    if not all_games:
-        raise ValueError(f'No 1v1 games found for today ({today})')
-
-    selected_ids_set = set(str(gid) for gid in selected_game_ids if gid)
-    if selected_ids_set:
-        games = [game for game in all_games if str(game[0]) in selected_ids_set]
-        if not games:
-            raise ValueError('None of the selected games were found.')
-        stats = calculate_one_v_one_stats_from_games(games)
-    else:
-        games = all_games
-        stats = todays_one_v_one_stats()
-
-    context = f"Date: {today}\n"
-    context += f"Total 1v1 Games: {len(games)}\n\n"
-    context += "Player Stats (with details):\n"
-
-    for stat in stats[:10]:
-        player_name = stat[0]
-        wins = stat[1]
-        losses = stat[2]
-        win_pct = stat[3] * 100
-        differential = stat[4]
-
-        player_info = get_player_by_name(player_name)
-        age_str = ""
-        height_str = ""
-        if player_info:
-            if player_info[3]:
-                try:
-                    birth_date = datetime.strptime(player_info[3][:10], '%Y-%m-%d')
-                    age = datetime.now().year - birth_date.year
-                    age_str = f", Age: {age}"
-                except Exception:
-                    pass
-            if player_info[4]:
-                height_str = f", Height: {player_info[4]}"
-
-        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Point Diff: {differential:+d}{age_str}{height_str}\n"
-
-    context += "\n1v1 Games Played Today (in chronological order):\n"
-    for game in reversed(games[:10]):
-        winner = game[4]
-        loser = game[6]
-        score = f"{game[5]}-{game[7]}"
-        game_name = game[3] if len(game) > 3 else "1v1"
-        time_display = ""
-        if len(game) > 1 and game[1]:
-            date_time_str = str(game[1]).strip()
-            parts = date_time_str.split()
-            if len(parts) > 1:
-                time_display = " ".join(parts[1:]).strip()
-            elif parts:
-                time_display = parts[0]
-        time_suffix = f" ({time_display})" if time_display else ""
-        context += f"- {winner} def. {loser} ({score}) - {game_name}{time_suffix}\n"
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-flash-latest')
-
-    num_games = len(games)
-    if num_games <= 2:
-        length_guide = "1-2 sentences"
-    elif num_games <= 5:
-        length_guide = "1 short paragraph (3-4 sentences)"
-    elif num_games <= 10:
-        length_guide = "2 paragraphs"
-    else:
-        length_guide = "3 paragraphs"
-
-    prompts = [
-        f"""Write a fun, engaging summary of these 1v1 games in {length_guide}. 
-            Highlight the top performers, most exciting matches, and any notable achievements. 
-            Use clear sentences without bullet points, asterisks, emojis, or decorative quotation marks. 
-            Only quote a comment if it already appears in quotation marks in the data.
-            Make it conversational and entertaining.
-
-{context}
-
-Write the summary:""",
-        f"""You're a witty sports journalist writing a 1v1 games recap in {length_guide}. 
-            Create a story about today's action, weaving in interesting context when relevant. 
-            Stay away from bullet points, asterisks, emojis, or unnecessary quotation marks. 
-            Only quote comments if they are already quoted. 
-            Focus on rivalries, upsets, and standout performances.
-
-{context}
-
-Write the recap:""",
-        f"""Write a {length_guide} 1v1 games recap as if you're texting a friend who missed the action. 
-            Be casual and highlight the wild moments.
-            Avoid bullet lists, asterisks, emojis, or decorative quotation marks—only quote comments that come quoted in the data.
-
-{context}
-
-Tell the story:"""
-    ]
-
-    prompt = random.choice(prompts)
-    response = model.generate_content(prompt)
-    summary = getattr(response, 'text', '') or ''
-
-    players_set = set()
-    for game in games:
-        if game[4]:
-            players_set.add(game[4])
-        if game[6]:
-            players_set.add(game[6])
-
-    players_with_emails = []
-    players_without_email = []
-    for player_name in players_set:
-        player_info = get_player_by_name(player_name)
-        if player_info and player_info[2]:
-            players_with_emails.append({'name': player_name, 'email': player_info[2]})
-        else:
-            players_without_email.append(player_name)
-
-    all_emails = [player['email'] for player in players_with_emails]
-    
-    # Add emails from players who opted in to receive all AI emails
-    from database_functions import set_cur
-    cur = set_cur()
-    cur.execute("SELECT email FROM players WHERE email IS NOT NULL AND notes LIKE ?", ('%AI_EMAILS_OPT_IN%',))
-    opted_in_players = cur.fetchall()
-    for opt_in_player in opted_in_players:
-        opt_in_email = opt_in_player[0]
-        if opt_in_email and opt_in_email not in all_emails:
-            all_emails.append(opt_in_email)
-
-    date_obj = datetime.strptime(today, '%Y-%m-%d')
-    formatted_date = date_obj.strftime('%m/%d/%y')
-
-    html_body = create_one_v_one_email_html(summary, stats, games)
-    subject = f"Vball Summary - {formatted_date}"
-
-    summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
-
-    return {
-        'today': today,
-        'games': games,
-        'stats': stats,
-        'summary': summary,
-        'summary_preview': summary_preview,
-        'context': context,
-        'players': players_with_emails,
-        'players_without_email': players_without_email,
-        'all_emails': all_emails,
-        'html_body': html_body,
-        'subject': subject,
-        'date_obj': date_obj,
-        'formatted_date': formatted_date,
-        'length_guide': length_guide
-    }
-
-
-@app.route('/generate_and_email_today', methods=['POST'])
-def generate_and_email_today():
-    """Send AI summary email - uses provided HTML from preview instead of regenerating"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
-    try:
-        if request.is_json:
-            data = request.get_json() or {}
-            additional_emails = data.get('additional_emails', [])
-            selected_emails = data.get('selected_emails', [])
-            provided_html = data.get('email_html', None)
-            provided_subject = data.get('subject', None)
-        else:
-            raw_additional = request.form.get('additional_emails', '')
-            additional_emails = raw_additional.split(',') if raw_additional else []
-            selected_emails = []
-            provided_html = None
-            provided_subject = None
-
-        # Use provided HTML from preview (don't regenerate!)
-        if not provided_html or not provided_subject:
-            return jsonify({'success': False, 'error': 'Missing email content. Please go back and preview again.'}), 400
-
-        # Build list of all recipient emails
-        all_emails = list(selected_emails) if selected_emails else []
-        
-        # Append any additional email addresses provided by the user
-        if additional_emails:
-            for email in additional_emails:
-                if isinstance(email, str):
-                    email = email.strip()
-                    if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) and email not in all_emails:
-                        all_emails.append(email)
-
-        if not all_emails:
-            return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to process request: {str(e)}'}), 500
-
-    try:
-        # Set sender with display name
-        sender_email = app.config['MAIL_DEFAULT_SENDER']
-        if '@' in sender_email and not '<' in sender_email:
-            sender = f"KT Vball Summary <{sender_email}>"
-        else:
-            sender = sender_email
-        
-        # Send individual emails to each recipient with personalized opt-in link
-        for recipient_email in all_emails:
-            # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = provided_html.replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
-            
-            msg = Message(subject=provided_subject, recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
-            msg.html = html_body_personalized
-            mail.send(msg)
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
-
-    return jsonify({
-        'success': True,
-        'emails_sent': len(all_emails)
-    })
-
-@app.route('/generate_and_email_today_1v1', methods=['POST'])
-def generate_and_email_today_1v1():
-    """Send 1v1 AI summary email - uses provided HTML from preview instead of regenerating"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
-    try:
-        if request.is_json:
-            data = request.get_json() or {}
-            additional_emails = data.get('additional_emails', [])
-            selected_emails = data.get('selected_emails', [])
-            provided_html = data.get('email_html', None)
-            provided_subject = data.get('subject', None)
-        else:
-            raw_additional = request.form.get('additional_emails', '')
-            additional_emails = raw_additional.split(',') if raw_additional else []
-            selected_emails = []
-            provided_html = None
-            provided_subject = None
-
-        # Use provided HTML from preview (don't regenerate!)
-        if not provided_html or not provided_subject:
-            return jsonify({'success': False, 'error': 'Missing email content. Please go back and preview again.'}), 400
-
-        # Build list of all recipient emails
-        all_emails = list(selected_emails) if selected_emails else []
-        
-        # Append any additional email addresses provided by the user
-        if additional_emails:
-            for email in additional_emails:
-                if isinstance(email, str):
-                    email = email.strip()
-                    if email and re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email) and email not in all_emails:
-                        all_emails.append(email)
-
-        if not all_emails:
-            return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to process request: {str(e)}'}), 500
-
-    try:
-        # Set sender with display name
-        sender_email = app.config['MAIL_DEFAULT_SENDER']
-        if '@' in sender_email and not '<' in sender_email:
-            sender = f"KT Vball Summary <{sender_email}>"
-        else:
-            sender = sender_email
-        
-        # Send individual emails to each recipient with personalized opt-in link
-        for recipient_email in all_emails:
-            # Replace email placeholder with actual recipient email for personalized opt-in link
-            html_body_personalized = provided_html.replace('{{EMAIL_PLACEHOLDER}}', recipient_email)
-            
-            msg = Message(subject=provided_subject, recipients=[recipient_email], sender=sender, bcc=['idynkydnk@gmail.com', 'kt@omg.lol'])
-            msg.html = html_body_personalized
-            mail.send(msg)
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Failed to send email: {str(e)}'}), 500
-
-    return jsonify({
-        'success': True,
-        'emails_sent': len(all_emails)
-    })
-
-
-@app.route('/preview_ai_summary', methods=['POST'])
-def preview_ai_summary():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    selected_game_ids = request.form.getlist('game_ids')
-    if not selected_game_ids:
-        raw_ids = request.form.get('game_ids', '')
-        if raw_ids:
-            selected_game_ids = [gid for gid in raw_ids.split(',') if gid]
-
-    if not selected_game_ids:
-        flash('Please select at least one game to preview the AI summary.', 'error')
-        return redirect(url_for('ai_summary_redesign'))
-
-    try:
-        payload = build_doubles_email_payload(selected_game_ids)
-    except ValueError as ve:
-        flash(str(ve), 'error')
-        return redirect(url_for('ai_summary_redesign'))
-    except Exception as e:
-        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
-        return redirect(url_for('ai_summary_redesign'))
-
-    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
-
-    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
-
-    return render_template(
-        'preview_ai_summary_redesign.html',
-        game_type='doubles',
-        header_title="Doubles AI Summary Preview",
-        subject=payload['subject'],
-        email_html=payload['html_body'],
-        players=payload['players'],
-        players_without_email=payload['players_without_email'],
-        selected_game_ids_json=selected_game_ids_json,
-        selected_game_ids=selected_game_ids,
-        send_url=url_for('generate_and_email_today'),
-        back_url=url_for('ai_summary_redesign'),
-        can_send=can_send,
-        formatted_date=payload['formatted_date']
-    )
-
-
-@app.route('/preview_ai_summary_1v1', methods=['POST'])
-def preview_ai_summary_1v1():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    selected_game_ids = request.form.getlist('game_ids')
-    if not selected_game_ids:
-        raw_ids = request.form.get('game_ids', '')
-        if raw_ids:
-            selected_game_ids = [gid for gid in raw_ids.split(',') if gid]
-
-    if not selected_game_ids:
-        flash('Please select at least one game to preview the AI summary.', 'error')
-        return redirect(url_for('add_one_v_one_game'))
-
-    try:
-        payload = build_one_v_one_email_payload(selected_game_ids)
-    except ValueError as ve:
-        flash(str(ve), 'error')
-        return redirect(url_for('add_one_v_one_game'))
-    except Exception as e:
-        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
-        return redirect(url_for('add_one_v_one_game'))
-
-    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
-    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
-
-    return render_template(
-        'preview_ai_summary.html',
-        game_type='one_v_one',
-        header_title="1v1 AI Summary Preview",
-        subject=payload['subject'],
-        email_html=payload['html_body'],
-        players=payload['players'],
-        players_without_email=payload['players_without_email'],
-        selected_game_ids_json=selected_game_ids_json,
-        selected_game_ids=selected_game_ids,
-        send_url=url_for('generate_and_email_today_1v1'),
-        back_url=url_for('add_one_v_one_game'),
-        can_send=can_send,
-        formatted_date=payload['formatted_date']
-    )
-
-
 @app.route('/api/add_player', methods=['POST'])
 @login_required
 def api_add_player():
@@ -5738,14 +3115,6 @@ def get_players_who_played_on_date(target_date):
     cur.execute("SELECT winner, loser FROM vollis_games WHERE date(game_date) = ?", (target_date,))
     vollis_games = cur.fetchall()
     for game in vollis_games:
-        for player in game:
-            if player and player.strip():
-                players_set.add(player)
-    
-    # One v One games
-    cur.execute("SELECT winner, loser FROM one_v_one_games WHERE date(game_date) = ?", (target_date,))
-    one_v_one_games = cur.fetchall()
-    for game in one_v_one_games:
         for player in game:
             if player and player.strip():
                 players_set.add(player)

@@ -487,6 +487,82 @@ def get_score_type_for_game(game_name):
     return 'individual'
 
 
+def get_players_per_side_for_game(game_name):
+    """Get winner_count and loser_count from the most recent game for this game name.
+    Returns dict with winner_count, loser_count (1-15). If no previous game, returns None.
+    """
+    cur = set_cur()
+    winner_cols = [f'winner{i}' for i in range(1, 16)]
+    loser_cols = [f'loser{i}' for i in range(1, 16)]
+    cur.execute(f"""
+        SELECT {', '.join(winner_cols + loser_cols)}
+        FROM other_games 
+        WHERE game_name = ? 
+        ORDER BY game_date DESC 
+        LIMIT 1
+    """, (game_name,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    winner_count = 0
+    loser_count = 0
+    for i in range(15):
+        if row and row[winner_cols[i]] and str(row[winner_cols[i]]).strip():
+            winner_count = i + 1
+        if row and row[loser_cols[i]] and str(row[loser_cols[i]]).strip():
+            loser_count = i + 1
+    return {'winner_count': winner_count or 1, 'loser_count': loser_count or 1}
+
+
+def get_common_scores_for_game(game_name):
+    """Return most common winner_score and loser_score values for this game name (for dropdowns).
+    Returns dict with winner_scores and loser_scores (lists of integers, most frequent first).
+    """
+    cur = set_cur()
+    cur.execute("""
+        SELECT winner_score, loser_score FROM other_games
+        WHERE game_name = ? AND winner_score IS NOT NULL AND loser_score IS NOT NULL
+        ORDER BY game_date DESC
+        LIMIT 200
+    """, (game_name,))
+    rows = cur.fetchall()
+    if not rows:
+        # Default common volleyball/coed scores
+        return {
+            'winner_scores': [21, 25, 15, 18, 20, 22, 24],
+            'loser_scores': [19, 23, 12, 16, 17, 20, 21]
+        }
+    from collections import Counter
+    win_counts = Counter(int(r['winner_score']) for r in rows if r['winner_score'] is not None)
+    lose_counts = Counter(int(r['loser_score']) for r in rows if r['loser_score'] is not None)
+    winner_scores = [int(s) for s, _ in win_counts.most_common(10)]
+    loser_scores = [int(s) for s, _ in lose_counts.most_common(10)]
+    return {'winner_scores': winner_scores or [21, 25, 15], 'loser_scores': loser_scores or [19, 23, 12]}
+
+
+def get_players_ordered_for_game(game_name):
+    """Return player names for autocomplete: those who played this game first (by game count desc), then the rest.
+    If game_name is empty, returns all_combined_players() order."""
+    all_players = all_combined_players()
+    if not (game_name and game_name.strip()):
+        return all_players
+    cur = set_cur()
+    cur.execute("SELECT * FROM other_games WHERE game_name = ? ORDER BY game_date DESC", (game_name.strip(),))
+    rows = cur.fetchall()
+    from collections import Counter
+    counts = Counter()
+    for row in rows:
+        for i in range(4, 19):
+            if row[i] and isinstance(row[i], str) and row[i].strip() and _is_valid_player_name(row[i]):
+                counts[row[i].strip()] += 1
+        for i in range(35, 50):
+            if row[i] and isinstance(row[i], str) and row[i].strip() and _is_valid_player_name(row[i]):
+                counts[row[i].strip()] += 1
+    played_this_game = [p for p, _ in counts.most_common()]
+    rest = [p for p in all_players if p not in counts]
+    return played_this_game + rest
+
+
 def enter_data_into_database(games_data):
     for x in games_data:
         new_other_game(x[4], x[2], 0, x[3], 0, x[4])

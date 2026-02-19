@@ -15,10 +15,10 @@
                 <i class="fa fa-caret-down"></i>
             </button>
             <div class="dropdown-content">
-                <a href="{{ url_for('add_game') }}">Doubles</a>
-                <a href="{{ url_for('add_vollis_game') }}">Vollis</a>
-                <a href="{{ url_for('add_other_game') }}">Other</a>
-                <a href="{{ url_for('player_list') }}">Players</a>
+                <a href="{{ url_for('add_game_redesign') }}">Doubles</a>
+                <a href="{{ url_for('add_vollis_game_redesign') }}">Vollis</a>
+                <a href="{{ url_for('add_other_game_redesign') }}">Other</a>
+                <a href="{{ url_for('player_list_redesign') }}">Players</a>
             </div>
         </div>  
     </nav>
@@ -31,21 +31,15 @@
             <div class="menu-sidebar" id="menu-sidebar">
                 <button class="menu-close" id="menu-close">×</button>
                 <ul class="menu-list">
-                    <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                     <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
-                    <li><a href="{{ url_for('vollis') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
-                    <li><a href="{{ url_for('other') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
-                    <li><a href="{{ url_for('work_in_progress') }}"><i class="fas fa-tools"></i> Work in Progress</a></li>
+                    <li><a href="{{ url_for('vollis_stats_redesign_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
+                    <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
                     {% if session.logged_in %}
-                        <li><a href="{{ url_for('kobs') }}"><i class="fas fa-calendar-alt"></i> KOBs</a></li>
-                        {% if session.username and session.username|lower == 'kyle' %}
-                            <li><a href="{{ url_for('yuriy_top10') }}"><i class="fas fa-list-ol"></i> Yuriy's Top 10</a></li>
-                            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
-                            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
-                            <li><a href="{{ url_for('volleyball_stats_styled_default') }}"><i class="fas fa-volleyball-ball"></i> Volleyball Stats<br><small style="color: #888; font-size: 11px; margin-left: 26px;">vollis, 1v1, coed, etc</small></a></li>
-                            <li><a href="{{ url_for('stats_redesign_default') }}"><i class="fas fa-chart-area"></i> Doubles Stats (New)<br><small style="color: #888; font-size: 11px; margin-left: 26px;">Steam Charts style</small></a></li>
-                        {% endif %}
                         <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
+                        {% if session.username and session.username|lower == 'kyle' %}
+                            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                            <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
+                        {% endif %}
                         <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
                     {% else %}

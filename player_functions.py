@@ -38,12 +38,6 @@ def get_all_players():
     cur.execute("SELECT DISTINCT loser FROM vollis_games WHERE loser IS NOT NULL AND loser != ''")
     all_player_names.update([row[0] for row in cur.fetchall()])
     
-    # From 1v1 games
-    cur.execute("SELECT DISTINCT winner FROM one_v_one_games WHERE winner IS NOT NULL AND winner != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    cur.execute("SELECT DISTINCT loser FROM one_v_one_games WHERE loser IS NOT NULL AND loser != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    
     # From other games
     for position in ['winner1', 'winner2', 'winner3', 'winner4', 'winner5', 'winner6', 
                      'loser1', 'loser2', 'loser3', 'loser4', 'loser5', 'loser6']:
@@ -75,15 +69,6 @@ def get_all_players():
         vollis_count = vollis_result[0] if vollis_result and vollis_result[0] else 0
         vollis_date = vollis_result[1] if vollis_result else None
         
-        # Count 1v1 games
-        cur.execute("""
-            SELECT COUNT(*), MIN(game_date) FROM one_v_one_games 
-            WHERE winner = ? OR loser = ?
-        """, (player_name, player_name))
-        one_v_one_result = cur.fetchone()
-        one_v_one_count = one_v_one_result[0] if one_v_one_result and one_v_one_result[0] else 0
-        one_v_one_date = one_v_one_result[1] if one_v_one_result else None
-        
         # Count other games
         cur.execute("""
             SELECT COUNT(*), MIN(game_date) FROM other_games 
@@ -96,8 +81,8 @@ def get_all_players():
         other_date = other_result[1] if other_result else None
         
         # Calculate total games and earliest date
-        total_games = int(doubles_count + vollis_count + one_v_one_count + other_count)
-        dates = [d for d in [doubles_date, vollis_date, one_v_one_date, other_date] if d is not None]
+        total_games = int(doubles_count + vollis_count + other_count)
+        dates = [d for d in [doubles_date, vollis_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
         
         # Build player record
@@ -193,19 +178,7 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
         except:
             pass  # Table might not exist
         
-        # Update 1v1 games
-        try:
-            cur.execute("UPDATE one_v_one_games SET winner = ? WHERE winner = ?", (full_name, old_name))
-            cur.execute("UPDATE one_v_one_games SET loser = ? WHERE loser = ?", (full_name, old_name))
-        except:
-            pass  # Table might not exist
-        
-        # Update other games
-        try:
-            cur.execute("UPDATE other_games SET winner = ? WHERE winner = ?", (full_name, old_name))
-            cur.execute("UPDATE other_games SET loser = ? WHERE loser = ?", (full_name, old_name))
-        except:
-            pass  # Table might not exist
+        # Other games (winner1, winner2, etc.) updated via database_functions.update_player_name_in_all_tables
         
         conn.commit()
     

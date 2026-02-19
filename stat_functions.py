@@ -748,13 +748,6 @@ def get_player_doubles_games(player_name):
 				(player_name, player_name, player_name, player_name))
 	return cur.fetchall()
 
-def get_player_one_v_one_games(player_name):
-	"""Get all 1v1 games for a player"""
-	cur = set_cur()
-	cur.execute("SELECT * FROM one_v_one_games WHERE winner = ? OR loser = ? ORDER BY game_date DESC", 
-				(player_name, player_name))
-	return cur.fetchall()
-
 def get_player_other_games(player_name):
 	"""Get all other games for a player"""
 	cur = set_cur()
@@ -1048,9 +1041,8 @@ def get_dashboard_data(selected_year=None):
 	}
 
 def get_combined_dashboard_data(selected_year=None):
-	"""Get comprehensive dashboard data with separate sections for 1v1, vollis, and other games"""
+	"""Get comprehensive dashboard data with separate sections for vollis and other games"""
 	from datetime import datetime
-	from one_v_one_functions import get_one_v_one_dashboard_data, one_v_one_year_games, todays_one_v_one_stats
 	from vollis_functions import get_vollis_dashboard_data, vollis_year_games, todays_vollis_stats
 	from other_functions import get_other_dashboard_data, other_year_games, todays_other_stats
 	
@@ -1061,32 +1053,23 @@ def get_combined_dashboard_data(selected_year=None):
 		selected_year = str(selected_year)
 	
 	# Get data from each game type
-	one_v_one_data = get_one_v_one_dashboard_data(selected_year)
 	vollis_data = get_vollis_dashboard_data(selected_year)
 	other_data = get_other_dashboard_data(selected_year)
 	
 	# Get games for the year (already sorted most recent first)
-	all_one_v_one_games = one_v_one_year_games(selected_year)
 	all_vollis_games = vollis_year_games(selected_year)
 	all_other_games = other_year_games(selected_year)
 	
 	# Get recent games for each type (first 10 = most recent, since they're sorted reverse=True)
-	one_v_one_recent = all_one_v_one_games[:10] if all_one_v_one_games else []
 	vollis_recent = all_vollis_games[:10] if all_vollis_games else []
 	other_recent = all_other_games[:10] if all_other_games else []
 	
 	# Get today's stats for each type
-	today_one_v_one = todays_one_v_one_stats()
 	today_vollis = todays_vollis_stats()
 	today_other = todays_other_stats()
 	
 	return {
 		'current_year': selected_year,
-		# 1v1 data
-		'one_v_one_stats': one_v_one_data['top_win_percentage'][:10],
-		'one_v_one_recent_games': one_v_one_recent,
-		'one_v_one_today_stats': today_one_v_one[:10],
-		'one_v_one_total_games': len(all_one_v_one_games),
 		# Vollis data
 		'vollis_stats': vollis_data['top_win_percentage'][:10],
 		'vollis_recent_games': vollis_recent,
@@ -1098,24 +1081,21 @@ def get_combined_dashboard_data(selected_year=None):
 		'other_today_stats': today_other[:10],
 		'other_total_games': len(all_other_games),
 		# Summary
-		'total_games': len(all_one_v_one_games) + len(all_vollis_games) + len(all_other_games)
+		'total_games': len(all_vollis_games) + len(all_other_games)
 	}
 
 def get_combined_monthly_game_counts(year):
-	"""Get combined monthly game counts from 1v1, vollis, and other games"""
-	from one_v_one_functions import one_v_one_year_games
+	"""Get combined monthly game counts from vollis and other games"""
 	from vollis_functions import vollis_year_games
 	from other_functions import other_year_games
 	from datetime import datetime
 	
 	# Get all games for the year
-	one_v_one_games = one_v_one_year_games(year)
 	vollis_games = vollis_year_games(year)
 	other_games = other_year_games(year)
 	
 	# Combine all games
 	all_games = []
-	all_games.extend(one_v_one_games)
 	all_games.extend(vollis_games)
 	all_games.extend(other_games)
 	
@@ -1176,18 +1156,15 @@ def get_monthly_game_counts(year):
 	return monthly_counts
 
 def get_combined_years():
-	"""Get all years that have 1v1, vollis, or other games"""
-	from one_v_one_functions import all_one_v_one_years
+	"""Get all years that have vollis or other games"""
 	from vollis_functions import all_vollis_years
 	from other_functions import all_other_years
 	
-	one_v_one_years = all_one_v_one_years()
 	vollis_years = all_vollis_years()
 	other_years = all_other_years()
 	
 	# Combine and deduplicate years
 	all_years = set()
-	all_years.update(one_v_one_years)
 	all_years.update(vollis_years)
 	all_years.update(other_years)
 	

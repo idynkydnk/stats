@@ -18,8 +18,8 @@
             {% if session.logged_in %}
             <li><a href="{{ url_for('edit_stats_redesign') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
             {% if session.username and session.username|lower == 'kyle' %}
-            <li><a href="{{ url_for('yuriy_top10') }}"><i class="fas fa-list-ol"></i> Yuriy's Top 10</a></li>
-            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
             {% endif %}
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             {% else %}
@@ -83,11 +83,6 @@
                 <a href="{{ url_for('edit_vollis_games_redesign_default') }}" class="edit-stats-card">
                     <i class="fas fa-volleyball-ball"></i>
                     <span>Vollis</span>
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-                <a href="{{ url_for('edit_one_v_one_games') }}" class="edit-stats-card">
-                    <i class="fas fa-user-friends"></i>
-                    <span>1v1</span>
                     <i class="fas fa-chevron-right"></i>
                 </a>
                 <a href="{{ url_for('edit_other_games_redesign_default') }}" class="edit-stats-card">

@@ -24,6 +24,21 @@
         }
         .autocomplete input:focus { outline: none; border-color: var(--sr-accent); }
         .autocomplete input::placeholder { color: var(--sr-muted); }
+        .autocomplete.has-clear input { padding-right: 40px; }
+        .clear-field-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            width: 28px; height: 28px; border: none; border-radius: 6px;
+            background: rgba(255,255,255,0.08); color: var(--sr-muted); cursor: pointer;
+            display: none; align-items: center; justify-content: center; font-size: 12px; z-index: 2;
+        }
+        .clear-field-btn:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .autocomplete.has-clear:not(.empty) .clear-field-btn { display: flex; }
+        .sr-clear-btn {
+            width: 100%; padding: 12px; background: transparent; border: 1px solid var(--sr-line);
+            border-radius: 10px; color: var(--sr-muted); font-size: 14px; cursor: pointer; margin-top: 8px;
+        }
+        .sr-clear-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .form-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
         .autocomplete-list {
             display: none;
             position: absolute;
@@ -106,23 +121,30 @@
             <form method="post" action="{{ url_for('add_vollis_game_redesign') }}">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 
-                <div class="autocomplete">
+                <div class="autocomplete has-clear empty">
                     <input type="text" name="winner" id="winner" placeholder="Winner" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="winnerList"></div>
                 </div>
-                <div class="autocomplete">
+                <div class="autocomplete has-clear empty">
                     <input type="text" name="loser" id="loser" placeholder="Loser" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="loserList"></div>
                 </div>
-                <div class="autocomplete">
+                <div class="autocomplete has-clear empty">
                     <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner's Score" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="winner_scoreList"></div>
                 </div>
-                <div class="autocomplete">
+                <div class="autocomplete has-clear empty">
                     <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser's Score" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="loser_scoreList"></div>
                 </div>
-                <button type="submit" class="sr-submit-btn">Submit</button>
+                <div class="form-actions">
+                    <button type="submit" class="sr-submit-btn">Submit</button>
+                    <button type="button" class="sr-clear-btn" id="clear-form-btn"><i class="fas fa-eraser"></i> Clear form</button>
+                </div>
             </form>
         </div>
 
@@ -234,7 +256,41 @@ document.addEventListener('click', e => {
     }
 });
 
+function updateClearVisibility(wrap) {
+    if (!wrap || !wrap.classList.contains('has-clear')) return;
+    const input = wrap.querySelector('input');
+    wrap.classList.toggle('empty', !(input && (input.value || '').trim()));
+}
+function setupClearButtons() {
+    document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
+        const input = wrap.querySelector('input');
+        const btn = wrap.querySelector('.clear-field-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (input) { input.value = ''; input.focus(); }
+            updateClearVisibility(wrap);
+        });
+        if (input) {
+            input.addEventListener('input', () => updateClearVisibility(wrap));
+            input.addEventListener('change', () => updateClearVisibility(wrap));
+        }
+        updateClearVisibility(wrap);
+    });
+}
+document.getElementById('clear-form-btn')?.addEventListener('click', function() {
+    const w = document.getElementById('winner'); if (w) w.value = '';
+    const l = document.getElementById('loser'); if (l) l.value = '';
+    const ws = document.getElementById('winner_score'); if (ws) ws.value = '';
+    const ls = document.getElementById('loser_score'); if (ls) ls.value = '';
+    document.querySelectorAll('.autocomplete-list').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+    document.getElementById('winner')?.focus();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
+    setupClearButtons();
     setTimeout(() => document.getElementById('winner')?.focus(), 100);
 });
 </script>

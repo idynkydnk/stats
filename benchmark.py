@@ -59,12 +59,10 @@ ROUTES = [
     # Games listing
     ('/games/', 'Games List'),
     ('/vollis_games/', 'Vollis Games'),
-    ('/one_v_one_games/', 'One v One Games'),
     ('/other_games/', 'Other Games'),
     
     # Stats pages
     ('/vollis_stats/', 'Vollis Stats'),
-    ('/one_v_one_stats/', 'One v One Stats'),
     ('/other_stats/', 'Other Stats'),
     ('/volleyball_stats/', 'Volleyball Stats'),
     ('/advanced_stats/', 'Advanced Stats'),

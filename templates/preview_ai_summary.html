@@ -52,7 +52,7 @@
     {% endif %}
 </div>
 
-<form id="refresh-form" method="post" action="{{ url_for('preview_ai_summary' if game_type == 'doubles' else 'preview_ai_summary_1v1') }}" style="display:none;">
+<form id="refresh-form" method="post" action="{{ url_for('preview_ai_summary') }}" style="display:none;">
     {% for gid in selected_game_ids %}
         <input type="hidden" name="game_ids" value="{{ gid }}">
     {% endfor %}

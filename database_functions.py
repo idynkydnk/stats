@@ -102,7 +102,6 @@ def search_player_names(search_term):
     results = {
         'doubles': [],
         'vollis': [],
-        'one_v_one': [],
         'other': []
     }
     
@@ -125,14 +124,6 @@ def search_player_names(search_term):
         SELECT DISTINCT loser FROM vollis_games WHERE loser LIKE ?
     """, (f'%{search_term}%', f'%{search_term}%'))
     results['vollis'] = [row[0] for row in cursor.fetchall()]
-    
-    # Search 1v1 games
-    cursor.execute("""
-        SELECT DISTINCT winner FROM one_v_one_games WHERE winner LIKE ?
-        UNION 
-        SELECT DISTINCT loser FROM one_v_one_games WHERE loser LIKE ?
-    """, (f'%{search_term}%', f'%{search_term}%'))
-    results['one_v_one'] = [row[0] for row in cursor.fetchall()]
     
     # Search other games
     cursor.execute("""
@@ -195,12 +186,6 @@ def update_player_name(old_name, new_name):
     cursor.execute("UPDATE vollis_games SET loser = ? WHERE loser = ?", (new_name, old_name))
     updates_made += cursor.rowcount
     
-    # Update 1v1 games
-    cursor.execute("UPDATE one_v_one_games SET winner = ? WHERE winner = ?", (new_name, old_name))
-    updates_made += cursor.rowcount
-    cursor.execute("UPDATE one_v_one_games SET loser = ? WHERE loser = ?", (new_name, old_name))
-    updates_made += cursor.rowcount
-    
     # Update other games
     cursor.execute("UPDATE other_games SET winner1 = ? WHERE winner1 = ?", (new_name, old_name))
     updates_made += cursor.rowcount
@@ -253,11 +238,6 @@ def get_all_unique_players():
     cursor.execute("SELECT DISTINCT winner FROM vollis_games UNION SELECT DISTINCT loser FROM vollis_games")
     vollis_players = [row[0] for row in cursor.fetchall()]
     all_players.update(vollis_players)
-    
-    # Get players from 1v1 games
-    cursor.execute("SELECT DISTINCT winner FROM one_v_one_games UNION SELECT DISTINCT loser FROM one_v_one_games")
-    one_v_one_players = [row[0] for row in cursor.fetchall()]
-    all_players.update(one_v_one_players)
     
     # Get players from other games
     cursor.execute("""

@@ -1,6 +1,6 @@
 """
 Migration script to populate the players table with existing player names
-from all game tables (doubles, vollis, 1v1, other)
+from all game tables (doubles, vollis, other)
 """
 import sqlite3
 from datetime import datetime
@@ -43,18 +43,6 @@ def get_all_player_names():
                     player_names.add(player.strip())
     except sqlite3.OperationalError:
         print("  Vollis games table not found or empty")
-    
-    # Get players from 1v1 games table
-    print("Extracting players from 1v1 games...")
-    try:
-        cur.execute("SELECT winner, loser FROM one_v_one_games")
-        one_v_one_games = cur.fetchall()
-        for game in one_v_one_games:
-            for player in game:
-                if player:
-                    player_names.add(player.strip())
-    except sqlite3.OperationalError:
-        print("  1v1 games table not found or empty")
     
     # Get players from other games table
     print("Extracting players from other games...")

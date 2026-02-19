@@ -17,8 +17,8 @@
             <li><a href="{{ url_for('other_stats_redesign_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
             {% if session.logged_in %}
             {% if session.username and session.username|lower == 'kyle' %}
-            <li><a href="{{ url_for('yuriy_top10') }}"><i class="fas fa-list-ol"></i> Yuriy's Top 10</a></li>
-            <li><a href="{{ url_for('balloono') }}"><i class="fas fa-bomb"></i> Balloono</a></li>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
             {% endif %}
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             {% else %}
@@ -353,7 +353,7 @@
                     <input type="text" id="rename-new-name" name="new_name" placeholder="Enter new name" required>
                 </div>
                 <p style="font-size: 12px; color: var(--sr-muted); margin-top: 8px;">
-                    <i class="fas fa-info-circle"></i> This will update the player's name across ALL game types (doubles, vollis, 1v1, other).
+                    <i class="fas fa-info-circle"></i> This will update the player's name across ALL game types (doubles, vollis, other).
                 </p>
                 <div class="sr-form-actions">
                     <button type="button" class="sr-btn-secondary" onclick="closeRenamePlayerModal()">Cancel</button>

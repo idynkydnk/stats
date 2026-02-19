@@ -1,0 +1,357 @@
+{
+  "timestamp": "2026-02-19T10:02:04.117201",
+  "results": [
+    {
+      "route": "/",
+      "name": "Homepage",
+      "times": [
+        0.47765495899999877,
+        0.09512833400000176,
+        0.0962027919999997
+      ],
+      "avg": 0.22299536166666675,
+      "min": 0.09512833400000176,
+      "max": 0.47765495899999877,
+      "stdev": 0.22054233493930261,
+      "errors": [],
+      "runs": 3,
+      "successful_runs": 3
+    },
+    {
+      "route": "/stats/2025/",
+      "name": "Stats 2025",
+      "times": [
+        0.42308208299999706,
+        0.09577812499999894,
+        0.09495179199999981
+      ],
+      "avg": 0.2046039999999986,
+      "min": 0.09495179199999981,
+      "max": 0.42308208299999706,
+      "stdev": 0.18920802115680083,
+      "errors": [],
+      "runs": 3,
+      "successful_runs": 3
+    },
+    {
+      "route": "/stats/2026/",
+      "name": "Stats 2026",
+      "times": [
+        0.09905204200000028,
+        0.09573416599999973,
+        0.09855320900000208
+      ],
+      "avg": 0.09777980566666737,
+      "min": 0.09573416599999973,
+      "max": 0.09905204200000028,
+      "stdev": 0.0017890471835183262,
+      "errors": [],
+      "runs": 3,
+      "successful_runs": 3
+    },
+    {
+      "route": "/dashboard/",
+      "name": "Dashboard",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/combined_dashboard/",
+      "name": "Combined Dashboard",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/player_list/",
+      "name": "Player List",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/player_trends/",
+      "name": "Player Trends",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/games/",
+      "name": "Games List",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/vollis_games/",
+      "name": "Vollis Games",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/one_v_one_games/",
+      "name": "One v One Games",
+      "times": [
+        0.1416939159999977,
+        0.15909112499999978,
+        0.1409910829999994
+      ],
+      "avg": 0.14725870799999896,
+      "min": 0.1409910829999994,
+      "max": 0.15909112499999978,
+      "stdev": 0.010253197676964143,
+      "errors": [],
+      "runs": 3,
+      "successful_runs": 3
+    },
+    {
+      "route": "/other_games/",
+      "name": "Other Games",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/vollis_stats/",
+      "name": "Vollis Stats",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/one_v_one_stats/",
+      "name": "One v One Stats",
+      "times": [
+        0.23178762499999905,
+        0.2280429159999997,
+        0.25321487500000117
+      ],
+      "avg": 0.2376818053333333,
+      "min": 0.2280429159999997,
+      "max": 0.25321487500000117,
+      "stdev": 0.013581712017482808,
+      "errors": [],
+      "runs": 3,
+      "successful_runs": 3
+    },
+    {
+      "route": "/other_stats/",
+      "name": "Other Stats",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/volleyball_stats/",
+      "name": "Volleyball Stats",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/advanced_stats/",
+      "name": "Advanced Stats",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/glicko_rankings/",
+      "name": "Glicko Rankings",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/trueskill_rankings/",
+      "name": "TrueSkill Rankings",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/kobs/",
+      "name": "KOBs",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/tournaments/",
+      "name": "Tournaments",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/top_teams/",
+      "name": "Top Teams",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    },
+    {
+      "route": "/game_hub",
+      "name": "Game Hub",
+      "times": [],
+      "avg": null,
+      "min": null,
+      "max": null,
+      "stdev": 0,
+      "errors": [
+        "HTTP 302",
+        "HTTP 302",
+        "HTTP 302"
+      ],
+      "runs": 3,
+      "successful_runs": 0
+    }
+  ]
+}
