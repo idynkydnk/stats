@@ -275,6 +275,8 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
             list.style.display = 'none';
+            const wrap = field.closest('.autocomplete.has-clear');
+            if (wrap) updateClearVisibility(wrap);
             if (onSelect) onSelect(field);
             const next = nextFields[fieldId];
             if (next) setTimeout(() => document.getElementById(next)?.focus(), 50);
@@ -312,6 +314,7 @@ function setupClearButtons() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
+            document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
             if (input) { input.value = ''; input.focus(); }
             updateClearVisibility(wrap);
         });
@@ -332,8 +335,9 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     document.getElementById('winner1')?.focus();
 });
 
+// Run clear-button setup immediately (script is at end of body so DOM is ready)
+setupClearButtons();
 document.addEventListener('DOMContentLoaded', () => {
-    setupClearButtons();
     setTimeout(() => document.getElementById('winner1')?.focus(), 100);
 });
 

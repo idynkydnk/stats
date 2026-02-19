@@ -746,6 +746,7 @@ function setupClearButtons() {
         const btn = wrap.querySelector('.clear-field-btn');
         if (!btn) return;
         const clearInput = () => {
+            document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
             if (scoreTypeDisplay && scoreTypeHidden) {
                 scoreTypeHidden.value = 'individual';
                 scoreTypeDisplay.value = 'Individual Scores';

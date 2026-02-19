@@ -586,6 +586,8 @@ def add_game_redesign():
             flash("Winner's score must be higher than loser's score!")
         elif winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
             flash('Two names are the same!')
+        elif any(len(n) > 80 for n in (winner1, winner2, loser1, loser2)):
+            flash('Each player name must be a single name (max 80 characters). Please use the dropdown to pick one player per field.')
         else:
             from player_functions import get_player_by_name, add_new_player
             for player_name in [winner1, winner2, loser1, loser2]:
@@ -945,11 +947,11 @@ def update(id):
             # Check if user came from add game page
             from_add_game = request.form.get('from_add_game')
             if from_add_game == 'true':
-                return redirect(url_for('add_game'))
+                return redirect(url_for('add_game_redesign'))
             else:
                 return redirect(url_for('edit_games_redesign'))
  
-    return render_template('edit_game.html', game=game, players=players, 
+    return render_template('edit_game_redesign.html', game=game, players=players, 
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
         from_add_game=request.args.get('from_add_game'))
 
