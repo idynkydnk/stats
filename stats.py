@@ -682,8 +682,19 @@ def api_parse_voice_doubles():
         }), 400
 
     all_games = year_games('All years')
-    players_list = all_players(all_games)
-    players_str = ', '.join(sorted(players_list)) if players_list else '(no players yet)'
+    recent_players = []
+    seen = set()
+    for game in all_games:
+        for idx in (2, 3, 5, 6):
+            p = (game[idx] or '').strip()
+            if p and p not in seen:
+                seen.add(p)
+                recent_players.append(p)
+                if len(recent_players) >= 30:
+                    break
+        if len(recent_players) >= 30:
+            break
+    players_str = ', '.join(recent_players) if recent_players else '(no players yet)'
 
     try:
         import google.generativeai as genai
@@ -699,11 +710,11 @@ Transcript from the user: "{transcript}"
 Rules:
 - Identify the two winners and two losers, and the final score (winner score, loser score).
 - Map each spoken name (first name, nickname, or partial name) to the EXACT full name from the known players list above. If only one person matches, use that full name.
-- If a name cannot be matched to the list, use the spoken name as-is (e.g. "Kyle" stays "Kyle" if not in list).
+- If a name cannot be matched to the list, leave that field as empty string "".
 - Common phrases: "X and Y beat Z and W 21 13", "X and Y won 21-13 against Z and W", "X and Y over Z and W 21-13".
 - winner_score must be greater than loser_score (e.g. 21 and 13).
 
-Respond with ONLY a JSON object, no other text, with these exact keys: winner1, winner2, loser1, loser2, winner_score, loser_score. Use strings for names and integers for scores.
+Respond with ONLY a JSON object, no other text, with these exact keys: winner1, winner2, loser1, loser2, winner_score, loser_score. Use strings for names (empty string "" if no match) and integers for scores.
 Example: {{"winner1": "Kyle Thomson", "winner2": "Aaron Plumb", "loser1": "Dan Ferris", "loser2": "Zac Prost", "winner_score": 21, "loser_score": 13}}"""
 
         response = model.generate_content(prompt)
