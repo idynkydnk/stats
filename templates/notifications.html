@@ -53,6 +53,8 @@
             transition: all 0.2s;
         }
         .sr-notification-card:hover { border-color: rgba(255, 255, 255, 0.12); }
+        .sr-notification-card.sr-notification-read { opacity: 0.7; border-color: var(--sr-line); }
+        .sr-notification-card.sr-notification-read .sr-notification-user { color: var(--sr-muted); }
         .sr-notification-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
         .sr-notification-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--sr-accent); flex-shrink: 0; }
         .sr-notification-user { font-weight: 600; color: var(--sr-accent); font-size: 14px; }
@@ -92,22 +94,30 @@
 
         {% if notifications %}
         <form method="POST" action="{{ url_for('mark_notifications_read_route') }}">
+            {% if unread_count > 0 %}
             <div class="sr-notification-actions">
                 <label class="sr-section-label" style="margin: 0; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="select-all" onchange="toggleAllCheckboxes()" style="width: 18px; height: 18px; accent-color: var(--sr-accent);">
-                    Select all ({{ notifications|length }} unread)
+                    Select all ({{ unread_count }} unread)
                 </label>
                 <button type="submit" class="sr-mark-read-btn" id="mark-read-btn" onclick="return confirm('Mark selected as read?')">
                     <i class="fas fa-check"></i> Mark selected as read
                 </button>
             </div>
+            {% else %}
+            <p style="color: var(--sr-muted); font-size: 14px; margin-bottom: 12px;">Showing all {{ notifications|length }} notification(s). All caught up.</p>
+            {% endif %}
             <div class="sr-card sr-card-compact">
                 {% for notification in notifications %}
-                <div class="sr-notification-card">
+                <div class="sr-notification-card{% if notification[5] %} sr-notification-read{% endif %}">
                     <div class="sr-notification-header">
+                        {% if not notification[5] %}
                         <input type="checkbox" name="notification_ids" value="{{ notification[0] }}" class="sr-notification-checkbox notification-checkbox" id="n{{ notification[0] }}">
+                        {% else %}
+                        <span class="sr-notification-checkbox-placeholder" style="width: 18px; flex-shrink: 0; display: inline-block;"></span>
+                        {% endif %}
                         <span class="sr-notification-user">{{ notification[1] }}</span>
-                        <span class="sr-notification-action">{{ notification[2] }}</span>
+                        <span class="sr-notification-action">{{ notification[2] }}{% if notification[5] %} <span style="color: var(--sr-muted); font-size: 11px;">(read)</span>{% endif %}</span>
                     </div>
                     <div class="sr-notification-details">{{ notification[3] or '—' }}</div>
                     <div class="sr-notification-time">{{ notification[4] }}</div>
@@ -118,8 +128,8 @@
         {% else %}
         <div class="sr-card sr-card-compact">
             <div class="sr-notification-empty">
-                <h3>No unread notifications</h3>
-                <p>You're all caught up. No pending actions from other users.</p>
+                <h3>No notifications yet</h3>
+                <p>Activity from other users will appear here.</p>
             </div>
         </div>
         {% endif %}

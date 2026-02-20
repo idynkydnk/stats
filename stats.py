@@ -232,6 +232,19 @@ def get_unread_notifications():
     conn.close()
     return notifications
 
+def get_all_notifications():
+    """Get all notifications (read and unread), newest first, for Kyle's full activity log"""
+    conn = sqlite3.connect('stats.db')
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT id, user, action, details, timestamp, read_status
+        FROM notifications
+        ORDER BY timestamp DESC
+    ''')
+    notifications = cur.fetchall()
+    conn.close()
+    return notifications
+
 def mark_notifications_read(notification_ids):
     """Mark specific notifications as read"""
     if notification_ids:
@@ -1671,13 +1684,14 @@ def logout():
 @app.route('/notifications')
 @login_required
 def notifications():
-    """View and manage notifications (Kyle only)"""
+    """View and manage notifications (Kyle only). Shows all activity forever (read and unread)."""
     if session.get('username') != 'kyle':
         flash('Access denied. Only Kyle can view notifications.', 'error')
         return redirect(url_for('index'))
     
-    all_notifications = get_unread_notifications()
-    return render_template('notifications.html', notifications=all_notifications)
+    all_notifications = get_all_notifications()
+    unread_count = sum(1 for n in all_notifications if n[5] == 0)
+    return render_template('notifications.html', notifications=all_notifications, unread_count=unread_count)
 
 @app.route('/mark_notifications_read', methods=['POST'])
 @login_required
