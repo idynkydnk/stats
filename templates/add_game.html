@@ -452,8 +452,8 @@ function generateAndEmailSummary() {
                 var transcript = event.results[i][0].transcript;
                 var isFinal = event.results[i].isFinal;
                 if (transcript) {
-                    finalTranscript += transcript + ' ';
                     if (isFinal) {
+                        finalTranscript += transcript + ' ';
                         restartCount = 0;
                         log('Heard (final): "' + transcript + '"');
                     } else {
