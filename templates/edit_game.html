@@ -128,6 +128,11 @@
     </div>
 
 <script>
+// Set user timezone so updated_at timestamps use correct local time (including DST)
+(function() {
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) fetch('/api/set_timezone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({timezone: tz}) }).catch(function(){});
+})();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
 const scoreFields = ['winner_score', 'loser_score'];

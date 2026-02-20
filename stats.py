@@ -194,6 +194,19 @@ def get_user_now():
             pass
     return datetime.now()
 
+
+def get_user_now_only():
+    """Return current time in the user's timezone (from session) for adding games.
+    Never uses server time. Returns None if session timezone is not set."""
+    user_tz = session.get('timezone')
+    if not user_tz:
+        return None
+    try:
+        tz = ZoneInfo(user_tz)
+        return datetime.now(tz).replace(tzinfo=None)
+    except Exception:
+        return None
+
 def get_unread_notifications():
     """Get all unread notifications"""
     conn = sqlite3.connect('stats.db')
@@ -588,9 +601,26 @@ def add_game():
             for player_name in [winner1, winner2, loser1, loser2]:
                 if player_name and not get_player_by_name(player_name):
                     add_new_player(player_name)
-            
-            add_game_stats([get_user_now(), winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(), 
-                winner_score, loser_score, get_user_now(), comments])
+            # Use browser's local date/time when provided so games are stored in the timezone they were added (e.g. 7am PST)
+            client_date = request.form.get('client_date', '').strip()
+            client_time = request.form.get('client_time', '').strip()
+            game_dt = None
+            if client_date and client_time:
+                try:
+                    # Validate and build YYYY-MM-DD HH:MM:00
+                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
+                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
+                except (ValueError, TypeError):
+                    pass
+            if game_dt is None:
+                now = get_user_now_only()
+                if now is None:
+                    flash('Could not determine your timezone. Please refresh the page and try again.')
+                    return redirect(url_for('add_game'))
+                game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
+            tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
+            add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
+                winner_score, loser_score, game_dt, comments, tz])
             clear_stats_cache()
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
@@ -620,7 +650,23 @@ def add_vollis_game():
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
-            add_vollis_stats([get_user_now(), winner, loser, winner_score, loser_score, get_user_now()])
+            client_date = request.form.get('client_date', '').strip()
+            client_time = request.form.get('client_time', '').strip()
+            game_dt = None
+            if client_date and client_time:
+                try:
+                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
+                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
+                except (ValueError, TypeError):
+                    pass
+            if game_dt is None:
+                now = get_user_now_only()
+                if now is None:
+                    flash('Could not determine your timezone. Please refresh the page and try again.')
+                    return redirect(url_for('add_vollis_game'))
+                game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
+            tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
+            add_vollis_stats([game_dt, winner, loser, winner_score, loser_score, game_dt, tz])
             user = session.get('username', 'unknown')
             details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added vollis game', details)
@@ -680,10 +726,26 @@ def add_other_game():
         if not game_type or not game_name or not winners or not losers:
             flash('Some fields missing!')
         else:
+            client_date = request.form.get('client_date', '').strip()
+            client_time = request.form.get('client_time', '').strip()
+            game_dt = None
+            if client_date and client_time:
+                try:
+                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
+                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
+                except (ValueError, TypeError):
+                    pass
+            if game_dt is None:
+                now = get_user_now_only()
+                if now is None:
+                    flash('Could not determine your timezone. Please refresh the page and try again.')
+                    return redirect(url_for('add_other_game'))
+                game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
+            tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
             add_other_stats(
-                get_user_now(), game_type, game_name, winners, winner_scores,
-                losers, loser_scores, comment, get_user_now(),
-                team_winner_score, team_loser_score
+                game_dt, game_type, game_name, winners, winner_scores,
+                losers, loser_scores, comment, game_dt,
+                team_winner_score, team_loser_score, tz
             )
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
@@ -1590,6 +1652,14 @@ def get_other_game_info(game_name):
         'winner_count': players_per_side['winner_count'],
         'loser_count': players_per_side['loser_count']
     }
+
+@app.route('/api/clear_stats_cache', methods=['POST'])
+@login_required
+def api_clear_stats_cache():
+    """Clear in-memory stats cache (e.g. after running DB migrations)."""
+    clear_stats_cache()
+    return jsonify({'status': 'ok', 'message': 'Stats cache cleared'})
+
 
 @app.route('/api/delete_games', methods=['POST'])
 @login_required

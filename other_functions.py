@@ -118,7 +118,7 @@ def _normalize_players(players, scores):
 
 def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
                     losers, loser_scores, comment, updated_at,
-                    team_winner_score=None, team_loser_score=None):
+                    team_winner_score=None, team_loser_score=None, entered_timezone=None):
     """Insert an other-game record with per-player scores or team scores.
     
     If team_winner_score/team_loser_score are provided, they are used as the
@@ -159,7 +159,7 @@ def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
             + [aggregate_winner_score]
             + losers_normalized
             + loser_scores_normalized
-            + [aggregate_loser_score, comment, updated_at]
+            + [aggregate_loser_score, comment, updated_at, entered_timezone]
         )
         create_other_game(conn, tuple(values))
 
@@ -174,25 +174,19 @@ def _parse_datetime_string(value):
     return None
 
 def _build_other_game_display(game, include_time=False):
+    from time_display import format_game_time
     record = dict(game)
-
-    game_dt = _parse_datetime_string(record.get('game_date'))
     updated_dt = _parse_datetime_string(record.get('updated_at'))
-
-    if game_dt:
-        date_only = game_dt.strftime("%m/%d/%y")
-        time_only = game_dt.strftime("%I:%M %p") if len(record.get('game_date', '')) > 10 else ''
-        combined_date = f"{date_only} {time_only}".strip()
-    else:
-        combined_date = record.get('game_date', '')
-        date_only = combined_date[:8]
-        time_only = combined_date[9:] if len(combined_date) > 9 else ''
+    combined_date = format_game_time(record.get('game_date'), record.get('entered_timezone'))
+    parts = combined_date.split(' ', 1)
+    date_only = parts[0] if parts else combined_date
+    game_time = parts[1] if (include_time and len(parts) > 1) else ''
 
     data = {
         'game_id': record.get('id'),
         'game_date': combined_date,
         'game_date_only': date_only,
-        'game_time': time_only if include_time else '',
+        'game_time': game_time if include_time else '',
         'game_type': record.get('game_type'),
         'game_name': record.get('game_name'),
         'comment': record.get('comment') or '',

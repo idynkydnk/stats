@@ -29,8 +29,13 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_game(conn, game):
-    sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
-              VALUES(?,?,?,?,?,?,?,?,?) '''
+    if len(game) >= 10 and game[9] is not None:
+        sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone)
+                  VALUES(?,?,?,?,?,?,?,?,?,?) '''
+    else:
+        sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
+                  VALUES(?,?,?,?,?,?,?,?,?) '''
+        game = game[:9]
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()

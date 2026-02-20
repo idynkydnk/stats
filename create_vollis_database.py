@@ -29,8 +29,13 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_vollis_game(conn, game):
-    sql = ''' INSERT INTO vollis_games(game_date, winner, winner_score, loser, loser_score, updated_at)
-              VALUES(?,?,?,?,?,?) '''
+    if len(game) >= 7 and game[6] is not None:
+        sql = ''' INSERT INTO vollis_games(game_date, winner, winner_score, loser, loser_score, updated_at, entered_timezone)
+                  VALUES(?,?,?,?,?,?,?) '''
+    else:
+        sql = ''' INSERT INTO vollis_games(game_date, winner, winner_score, loser, loser_score, updated_at)
+                  VALUES(?,?,?,?,?,?) '''
+        game = game[:6]
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()

@@ -118,7 +118,10 @@
         </header>
 
         <div class="sr-form-container">
-            <form method="post" action="{{ url_for('add_vollis_game') }}">
+            <form method="post" action="{{ url_for('add_vollis_game') }}" id="add-vollis-form">
+                <input type="hidden" name="client_date" id="client_date" value="">
+                <input type="hidden" name="client_time" id="client_time" value="">
+                <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 
                 <div class="autocomplete has-clear empty">
@@ -199,6 +202,11 @@
     </div>
 
 <script>
+// Set user timezone so game timestamps use correct local time (including DST)
+(function() {
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) fetch('/api/set_timezone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({timezone: tz}) }).catch(function(){});
+})();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const nameFields = ['winner', 'loser'];
 const nextFields = { winner: 'loser', loser: 'winner_score', winner_score: 'loser_score' };
@@ -290,6 +298,13 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     document.getElementById('winner')?.focus();
 });
 
+document.getElementById('add-vollis-form').addEventListener('submit', function() {
+    var now = new Date();
+    document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) document.getElementById('entered_timezone').value = tz;
+});
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
     setTimeout(() => document.getElementById('winner')?.focus(), 100);

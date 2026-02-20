@@ -186,7 +186,10 @@
         </header>
 
         <div class="sr-form-container">
-            <form method="post" action="{{ url_for('add_other_game') }}">
+            <form method="post" action="{{ url_for('add_other_game') }}" id="add-other-form">
+                <input type="hidden" name="client_date" id="client_date" value="">
+                <input type="hidden" name="client_time" id="client_time" value="">
+                <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 <datalist id="game_names">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
@@ -346,6 +349,11 @@
     </div>
 
 <script>
+// Set user timezone so game timestamps use correct local time (including DST)
+(function() {
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) fetch('/api/set_timezone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({timezone: tz}) }).catch(function(){});
+})();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);
 const allGameTypes = Array.from(document.getElementById('game_types').options).map(o => o.value);
@@ -803,6 +811,13 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     document.getElementById('game_name')?.focus();
 });
 
+document.getElementById('add-other-form').addEventListener('submit', function() {
+    var now = new Date();
+    document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) document.getElementById('entered_timezone').value = tz;
+});
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
     setTimeout(() => document.getElementById('game_name')?.focus(), 100);

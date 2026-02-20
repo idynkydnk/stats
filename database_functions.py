@@ -72,16 +72,19 @@ def scrape_database():
 def enter_data_into_database(games_data):
 	for x in games_data:
 		comments = x[8] if len(x) > 8 else ''
-		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments)
+		timezone = x[9] if len(x) > 9 else None
+		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments, timezone)
 
-def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments=''):
+def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments='', entered_timezone=None):
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
 		conn = create_connection(database)
-	with conn: 
-		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments);
+	with conn:
+		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
+		if entered_timezone:
+			game = game + (entered_timezone,)
 		create_game(conn, game)
 
 

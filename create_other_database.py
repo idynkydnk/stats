@@ -13,7 +13,7 @@ BASE_INSERT_COLUMNS = (
     + ["winner_score"]
     + LOSER_FIELDS
     + LOSER_SCORE_FIELDS
-    + ["loser_score", "comment", "updated_at"]
+    + ["loser_score", "comment", "updated_at", "entered_timezone"]
 )
 
 BASE_UPDATE_COLUMNS = (
@@ -95,7 +95,8 @@ def main():
                                     {', '.join(f'{field} integer' for field in LOSER_SCORE_FIELDS)},
                                     loser_score integer,
                                     comment text,
-                                    updated_at DATETIME NOT NULL
+                                    updated_at DATETIME NOT NULL,
+                                    entered_timezone text
                                 );"""
 
     # create a database connection

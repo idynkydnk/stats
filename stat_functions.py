@@ -2,6 +2,7 @@ from database_functions import *
 from datetime import datetime, date
 from functools import lru_cache
 import time
+from time_display import format_game_time
 
 # Simple in-memory cache with expiration
 _cache = {}
@@ -75,10 +76,10 @@ def add_game_stats(game):
     full_game.append(game[6])
     full_game.append(game[7])
     # Add comments if provided (index 8)
-    if len(game) > 8:
-        full_game.append(game[8])
-    else:
-        full_game.append('')
+    full_game.append(game[8] if len(game) > 8 else '')
+    # Entered timezone (index 9) for display e.g. "7:00 AM (PST)"
+    if len(game) > 9 and game[9]:
+        full_game.append(game[9])
     all_games.append(full_game)
     enter_data_into_database(all_games)
 
@@ -377,12 +378,8 @@ def get_most_recent_date_with_games(max_days_back=30):
 def convert_ampm(games):
     converted_games = []
     for game in games:
-        if len(game[1]) > 19:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
-        else:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-            game_date = game_datetime.strftime("%m/%d/%Y %I:%M %p")
+        tz = game[10] if len(game) > 10 else None
+        game_date = format_game_time(game[1], tz)
         if len(game[8]) > 19:
             updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S.%f")
             updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")

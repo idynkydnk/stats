@@ -86,20 +86,23 @@ def set_cur():
     return cur  
 
 def add_vollis_stats(game):
-    new_vollis_game(game[0], game[1], game[3], game[2], game[4], game[5])
+    tz = game[6] if len(game) > 6 else None
+    new_vollis_game(game[0], game[1], game[3], game[2], game[4], game[5], tz)
 
 def enter_data_into_database(games_data):
     for x in games_data:
         new_vollis_game(x[4], x[2], 0, x[3], 0, x[4])
 
-def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated_at):
+def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated_at, entered_timezone=None):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
-    with conn: 
-        game = (game_date, winner, winner_score, loser, loser_score, updated_at);
+    with conn:
+        game = (game_date, winner, winner_score, loser, loser_score, updated_at)
+        if entered_timezone:
+            game = game + (entered_timezone,)
         create_vollis_game(conn, game)
 
 def find_vollis_game(game_id):
@@ -257,14 +260,11 @@ def vollis_winning_scores():
 
 def convert_vollis_ampm(games):
     from datetime import datetime
+    from time_display import format_game_time
     converted_games = []
     for game in games:
-        if len(game[1]) > 19:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S.%f")
-            game_date = game_datetime.strftime("%m/%d/%y %I:%M %p")
-        else:
-            game_datetime = datetime.strptime(game[1], "%Y-%m-%d %H:%M:%S")
-            game_date = game_datetime.strftime("%m/%d/%y")
+        tz = game[7] if len(game) > 7 else None
+        game_date = format_game_time(game[1], tz)
         if len(game[6]) > 19:
             updated_datetime = datetime.strptime(game[6], "%Y-%m-%d %H:%M:%S.%f")
             updated_date = updated_datetime.strftime("%m/%d/%y %I:%M %p")
