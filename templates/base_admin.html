@@ -1,3 +1,4 @@
+{# Deprecated: App now uses base_guest.html, base_logged_in.html, base_kyle.html via base_template. #}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,10 +38,10 @@
                     {% if session.logged_in %}
                         <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
                         {% if session.username and session.username|lower == 'kyle' %}
+                            <li><a href="{{ url_for('add_game_voice') }}"><i class="fas fa-plus-circle"></i> Add Doubles (Voice)</a></li>
                             <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
                             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
                         {% endif %}
-                        <li><a href="{{ url_for('manage_player_names') }}"><i class="fas fa-edit"></i> Manage Player Names</a></li>
                         <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
                     {% else %}
                         <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>

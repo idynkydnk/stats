@@ -1,6 +1,11 @@
-{% extends 'base_admin.html' %}
+{% extends base_template %}
 
 {% block content %}
+<div class="sr-header sr-header-compact" style="margin-bottom: 20px;">
+    <div class="sr-header-actions">
+        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+    </div>
+</div>
 <div class="container">
     <h1>{% block title %} Delete Game {% endblock %}</h1>
     

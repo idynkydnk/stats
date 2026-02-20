@@ -1,196 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ display_year|default(year) }} Doubles Stats</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-</head>
-<body class="sr-page">
-    <!-- Menu Overlay -->
-    <div class="menu-overlay" id="menu-overlay"></div>
-    
-    <!-- Menu Sidebar -->
-    <div class="menu-sidebar" id="menu-sidebar">
-        <button class="menu-close" id="menu-close">✕</button>
-        <ul class="menu-list">
-            <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles</a></li>
-            <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis</a></li>
-            <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other</a></li>
-            {% if session.logged_in %}
-            <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Stats</a></li>
-            {% if session.username and session.username|lower == 'kyle' %}
-            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
-            <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
-            {% endif %}
-            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-            {% else %}
-            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-            {% endif %}
-        </ul>
-    </div>
-
-    <style>
-        /* Menu styles for this standalone page */
-        .menu-toggle {
-            background: var(--sr-panel);
-            border: 1px solid var(--sr-line);
-            color: var(--sr-muted);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .menu-toggle:hover {
-            border-color: var(--sr-accent);
-            color: var(--sr-accent);
-        }
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .menu-overlay.active { opacity: 1; visibility: visible; }
-        .menu-sidebar {
-            position: fixed;
-            top: 0;
-            right: -300px;
-            width: 300px;
-            height: 100%;
-            background: #0f1620;
-            z-index: 1000;
-            transition: right 0.3s ease;
-            padding: 20px;
-            visibility: hidden;
-            overflow-y: auto;
-        }
-        .menu-sidebar.active { right: 0; visibility: visible; }
-        .menu-close {
-            background: none;
-            border: none;
-            color: var(--sr-text);
-            font-size: 20px;
-            cursor: pointer;
-            float: right;
-            padding: 5px;
-            margin-bottom: 20px;
-        }
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            clear: both;
-        }
-        .menu-list li { margin: 10px 0; }
-        .menu-list a {
-            display: block;
-            padding: 12px 15px;
-            color: var(--sr-text);
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.2s;
-            font-size: 14px;
-        }
-        .menu-list a:hover {
-            background: var(--sr-accent-dim);
-            color: var(--sr-accent);
-        }
-        .menu-list a i { margin-right: 10px; width: 16px; }
-        
-        /* Add/Edit dropdown */
-        .sr-dropdown {
-            position: relative;
-            display: inline-block;
-            z-index: 100;
-        }
-        .sr-dropdown-btn {
-            background: var(--sr-panel);
-            border: 1px solid var(--sr-line);
-            color: var(--sr-muted);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .sr-dropdown-btn:hover {
-            border-color: var(--sr-accent);
-            color: var(--sr-accent);
-        }
-        .sr-dropdown-content {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            padding-top: 6px;
-            z-index: 1000;
-        }
-        .sr-dropdown-menu {
-            background: var(--sr-panel);
-            border: 1px solid var(--sr-line);
-            border-radius: 8px;
-            min-width: 140px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        .sr-dropdown-content a {
-            display: block;
-            padding: 10px 14px;
-            color: var(--sr-text);
-            text-decoration: none;
-            font-size: 13px;
-            transition: all 0.15s;
-        }
-        .sr-dropdown-content a:hover {
-            background: var(--sr-accent-dim);
-            color: var(--sr-accent);
-        }
-        .sr-dropdown:hover .sr-dropdown-content {
-            display: block;
-        }
-        @media (max-width: 480px) {
-            .sr-dropdown-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .sr-dropdown-content {
-                min-width: 120px;
-            }
-            .sr-dropdown-content a {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-        }
-    </style>
-
-    <div class="sr-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; {% if category == 'error' %}background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);{% elif category == 'success' %}background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);{% else %}background: rgba(102, 217, 239, 0.15); color: #66d9ef; border: 1px solid rgba(102, 217, 239, 0.3);{% endif %}">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <!-- Header Section -->
+{% extends base_template %}
+{% block title %}{{ display_year|default(year) }} Doubles Stats{% endblock %}
+{% block extra_css %}
+<style>
+    .sr-dropdown { position: relative; display: inline-block; z-index: 100; }
+    .sr-dropdown-btn { background: var(--sr-panel); border: 1px solid var(--sr-line); color: var(--sr-muted); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .sr-dropdown-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+    .sr-dropdown-content { display: none; position: absolute; top: 100%; left: 0; padding-top: 6px; z-index: 1000; }
+    .sr-dropdown-menu { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 8px; min-width: 140px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+    .sr-dropdown-content a { display: block; padding: 10px 14px; color: var(--sr-text); text-decoration: none; font-size: 13px; transition: all 0.15s; }
+    .sr-dropdown-content a:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+    .sr-dropdown:hover .sr-dropdown-content { display: block; }
+    @media (max-width: 480px) {
+        .sr-dropdown-btn { padding: 6px 10px; font-size: 12px; }
+        .sr-dropdown-content { min-width: 120px; }
+        .sr-dropdown-content a { padding: 8px 12px; font-size: 12px; }
+    }
+</style>
+{% endblock %}
+{% block content %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">{{ display_year|default(year) }} Doubles Stats</h1>
             <div class="sr-header-actions">
@@ -220,9 +47,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button class="menu-toggle" id="menu-toggle">
-                    <i class="fas fa-bars"></i> Menu
-                </button>
+                <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
             </div>
         </header>
 
@@ -233,7 +58,6 @@
         </div>
         {% endif %}
 
-        <!-- Today's Stats Card (only shown if games played today) -->
         {% if today_stats %}
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
@@ -275,21 +99,18 @@
         </section>
         {% endif %}
 
-        <!-- Leaderboard Table -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <div class="sr-search-wrap">
                     <i class="fas fa-search sr-search-icon"></i>
                     <input type="text" id="sr-search" class="sr-search" placeholder="Search players...">
                 </div>
-                
                 <div id="sr-filter-active" class="sr-filter-active">
                     <div id="sr-filter-chip" class="sr-filter-chip">
                         <span class="sr-filter-text"></span>
                         <span id="sr-filter-chip-close" class="sr-filter-chip-close">✕</span>
                     </div>
                 </div>
-                
                 {% if stats %}
                 <div class="sr-table-wrap">
                     <table class="sr-table" id="sr-table">
@@ -319,7 +140,6 @@
                         </tbody>
                     </table>
                 </div>
-                
                 <div id="sr-no-results" class="sr-no-results">
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
                     <p>No players found matching your search.</p>
@@ -332,9 +152,8 @@
                 {% endif %}
             </div>
         </section>
-        
+
         {% if rare_stats %}
-        <!-- Players with fewer games -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <p class="sr-section-label">Fewer than {{ minimum_games }} games</p>
@@ -369,29 +188,7 @@
             </div>
         </section>
         {% endif %}
-    </div>
-
+{% endblock %}
+{% block extra_js %}
     <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
-    <script>
-        // Menu functionality
-        const menuToggle = document.getElementById('menu-toggle');
-        const menuOverlay = document.getElementById('menu-overlay');
-        const menuSidebar = document.getElementById('menu-sidebar');
-        const menuClose = document.getElementById('menu-close');
-
-        function openMenu() {
-            menuOverlay.classList.add('active');
-            menuSidebar.classList.add('active');
-        }
-
-        function closeMenu() {
-            menuOverlay.classList.remove('active');
-            menuSidebar.classList.remove('active');
-        }
-
-        menuToggle.addEventListener('click', openMenu);
-        menuOverlay.addEventListener('click', closeMenu);
-        menuClose.addEventListener('click', closeMenu);
-    </script>
-</body>
-</html>
+{% endblock %}

@@ -66,6 +66,17 @@ USERS = {
     'jason': 'jason2025'
 }
 
+
+@app.context_processor
+def inject_base_template():
+    """Inject which base template to use: guest, logged-in, or Kyle."""
+    if not session.get('logged_in'):
+        return {'base_template': 'base_guest.html'}
+    if session.get('username', '').lower() == 'kyle':
+        return {'base_template': 'base_kyle.html'}
+    return {'base_template': 'base_logged_in.html'}
+
+
 def init_notifications_db():
     """Initialize the notifications table"""
     conn = sqlite3.connect('stats.db')
@@ -574,10 +585,8 @@ def preview_ai_summary_with_prompt():
         can_send=can_send
     )
 
-@app.route('/add_game/', methods=['GET', 'POST'])
-@login_required
-def add_game():
-    """Add doubles game page."""
+def _add_doubles_game_view(redirect_to):
+    """Shared logic for add_game and add_game_voice (same page, different URLs)."""
     year = str(date.today().year)
     if request.method == 'POST':
         winner1 = request.form['winner1'].strip()
@@ -616,7 +625,7 @@ def add_game():
                 now = get_user_now_only()
                 if now is None:
                     flash('Could not determine your timezone. Please refresh the page and try again.')
-                    return redirect(url_for('add_game'))
+                    return redirect(url_for(redirect_to))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
             add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
@@ -626,15 +635,29 @@ def add_game():
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
             update_kobs()
-        return redirect(url_for('add_game'))
+        return redirect(url_for(redirect_to))
     
     all_games = year_games('All years')
     players = all_players(all_games)
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
-    return render_template('add_game.html', players=players, games=games, year=year, 
-        l_scores=l_scores, todays_stats=todays_stats_data)
+    return render_template('add_game.html', players=players, games=games, year=year,
+        l_scores=l_scores, todays_stats=todays_stats_data, form_action=url_for(redirect_to))
+
+
+@app.route('/add_game/', methods=['GET', 'POST'])
+@login_required
+def add_game():
+    """Add doubles game page."""
+    return _add_doubles_game_view('add_game')
+
+
+@app.route('/add_game_voice/', methods=['GET', 'POST'])
+@login_required
+def add_game_voice():
+    """Add doubles game page (same as add_game, linked from hamburger for Kyle only)."""
+    return _add_doubles_game_view('add_game_voice')
 
 @app.route('/add_vollis_game/', methods=['GET', 'POST'])
 @login_required
@@ -1709,39 +1732,6 @@ def api_delete_games():
             update_kobs()
     
     return {'success': True, 'deleted': deleted}
-
-@app.route('/manage_player_names/', methods=['GET', 'POST'])
-@login_required
-def manage_player_names():
-    """Page for managing player names across all game types"""
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'search':
-            search_term = request.form.get('search_term', '').strip()
-            if search_term:
-                search_results = search_player_names(search_term)
-                all_players = get_all_unique_players()
-                return render_template('manage_player_names.html', 
-                                     search_results=search_results, 
-                                     search_term=search_term,
-                                     all_players=all_players)
-        
-        elif action == 'update':
-            old_name = request.form.get('old_name', '').strip()
-            new_name = request.form.get('new_name', '').strip()
-            
-            if old_name and new_name and old_name != new_name:
-                try:
-                    updates_made = update_player_name(old_name, new_name)
-                    flash(f'Successfully updated "{old_name}" to "{new_name}" in {updates_made} records.', 'success')
-                except Exception as e:
-                    flash(f'Error updating player name: {str(e)}', 'error')
-            else:
-                flash('Please provide both old and new names, and ensure they are different.', 'error')
-    
-    all_players = get_all_unique_players()
-    return render_template('manage_player_names.html', all_players=all_players)
 
 @app.route('/date_range_stats/')
 @app.route('/date_range_stats/<start_date>/<end_date>/')
