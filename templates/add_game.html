@@ -60,6 +60,16 @@ textarea { resize: vertical; min-height: 60px; }
 .sr-game-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sr-line); font-size: 12px; color: var(--sr-muted); font-style: italic; }
 .sr-email-btn { width: 100%; max-width: 300px; margin: 30px auto 0; display: block; padding: 12px; background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; color: var(--sr-muted); font-size: 14px; cursor: pointer; }
 .sr-email-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-voice-section { text-align: center; margin-bottom: 20px; }
+.sr-mic-btn { width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--sr-accent); color: #0b0f14; font-size: 24px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
+.sr-mic-btn:hover { opacity: 0.9; }
+.sr-mic-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.sr-mic-btn.recording { background: var(--sr-loss); animation: sr-pulse 1s ease-in-out infinite; }
+@keyframes sr-pulse { 50% { opacity: 0.8; } }
+.sr-voice-hint { font-size: 13px; color: var(--sr-muted); margin-top: 8px; }
+.sr-voice-status { font-size: 14px; color: var(--sr-muted); margin-top: 8px; min-height: 20px; }
+.sr-voice-status.error { color: var(--sr-loss); }
+.sr-voice-status.success { color: var(--sr-win); }
 @media (max-width: 500px) { .sr-game-body { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
@@ -72,6 +82,13 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
         </header>
         <div class="sr-form-container">
+            {% if is_voice_page %}
+            <div class="sr-voice-section" id="sr-voice-section">
+                <button type="button" class="sr-mic-btn" id="sr-mic-btn" aria-label="Record game result" title="Tap to record a game result"><i class="fas fa-microphone"></i></button>
+                <p class="sr-voice-hint">Tap to start, say the result (e.g. "Kyle and Aaron beat Dan and Zac 21-13"), then tap again to finish.</p>
+                <p class="sr-voice-status" id="sr-voice-status" aria-live="polite"></p>
+            </div>
+            {% endif %}
             <form method="post" action="{{ form_action or url_for('add_game') }}" id="add-game-form">
                 <input type="hidden" name="client_date" id="client_date" value="">
                 <input type="hidden" name="client_time" id="client_time" value="">
@@ -325,5 +342,132 @@ function generateAndEmailSummary() {
     document.body.appendChild(form);
     form.submit();
 }
+
+(function initVoiceInput() {
+    var section = document.getElementById('sr-voice-section');
+    if (!section) return;
+    var micBtn = document.getElementById('sr-mic-btn');
+    var statusEl = document.getElementById('sr-voice-status');
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        statusEl.textContent = 'Voice input is not supported in this browser.';
+        statusEl.classList.add('error');
+        if (micBtn) micBtn.disabled = true;
+        return;
+    }
+    var recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    var isRecording = false;
+    var userRequestedStop = false;
+    var finalTranscript = '';
+    var startTime = 0;
+    var restartCount = 0;
+    var maxRestarts = 20;
+    function setStatus(text, isError, isSuccess) {
+        statusEl.textContent = text || '';
+        statusEl.classList.toggle('error', !!isError);
+        statusEl.classList.toggle('success', !!isSuccess);
+    }
+    function fillFormFromParsed(data) {
+        var ids = ['winner1', 'winner2', 'loser1', 'loser2', 'winner_score', 'loser_score'];
+        ids.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el && data[id] !== undefined) el.value = String(data[id]);
+        });
+        document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+        var form = document.getElementById('add-game-form');
+        if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setStatus('Review the fields below and submit when ready.', false, true);
+    }
+    function processTranscript() {
+        setStatus('Processing...', false, false);
+        fetch('/api/parse_voice_doubles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: finalTranscript.trim() })
+        })
+        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+        .then(function(result) {
+            if (result.ok && result.data.success) {
+                fillFormFromParsed(result.data);
+            } else {
+                setStatus(result.data.error || 'Could not parse the result. Try rephrasing.', true, false);
+            }
+        })
+        .catch(function(err) {
+            var msg = (err.message && (err.message.toLowerCase().indexOf('fetch') !== -1 || err.message.toLowerCase().indexOf('network') !== -1))
+                ? 'Network error. Check your connection and try again.'
+                : ('Error: ' + (err.message || 'Request failed'));
+            setStatus(msg, true, false);
+        });
+    }
+    function stopRecording() {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+    }
+    function startRecognition() {
+        setStatus('Listening... Say the result, then tap the mic again to finish.', false, false);
+        micBtn.classList.add('recording');
+        isRecording = true;
+        recognition.onresult = function(event) {
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                    restartCount = 0;
+                }
+            }
+        };
+        recognition.onend = function() {
+            if (userRequestedStop || finalTranscript.trim()) {
+                stopRecording();
+                if (!finalTranscript.trim()) {
+                    setStatus('No speech detected. Try again.', true, false);
+                    return;
+                }
+                processTranscript();
+                return;
+            }
+            if (restartCount >= maxRestarts) {
+                stopRecording();
+                setStatus('Listening keeps stopping. Try speaking right after you tap, or type in the form below.', true, false);
+                return;
+            }
+            restartCount++;
+            setTimeout(function() { recognition.start(); }, 120);
+        };
+        recognition.onerror = function(event) {
+            if (event.error === 'aborted' && userRequestedStop) return;
+            stopRecording();
+            var msg = (event.error === 'no-speech') ? 'No speech detected. Try again.' : (event.error || 'Recognition error');
+            setStatus(msg, true, false);
+        };
+        recognition.start();
+    }
+    micBtn.addEventListener('click', function() {
+        if (isRecording) {
+            userRequestedStop = true;
+            recognition.stop();
+            return;
+        }
+        userRequestedStop = false;
+        finalTranscript = '';
+        startTime = Date.now();
+        restartCount = 0;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            startRecognition();
+            return;
+        }
+        setStatus('Requesting microphone...', false, false);
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function() {
+                startRecognition();
+            })
+            .catch(function(err) {
+                setStatus('Microphone access denied or unavailable.', true, false);
+            });
+    });
+})();
 </script>
 {% endblock %}
