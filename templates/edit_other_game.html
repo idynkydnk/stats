@@ -28,10 +28,10 @@
             <div class="form-group">
                 <label for="score_type_display">Score Type:</label>
                 <input type="text" name="score_type_display" id="score_type_display" 
-                       value="{% if game['winner_score'] is not none and game['winner1_score'] is none %}Team Scores{% else %}Individual Scores{% endif %}"
+                       value="{% if game.get('winner_score') is not none and game.get('winner1_score') is none %}Team Scores{% else %}Individual Scores{% endif %}"
                        readonly onclick="toggleScoreTypeDropdown()" style="cursor: pointer;">
                 <input type="hidden" name="score_type" id="score_type" 
-                       value="{% if game['winner_score'] is not none and game['winner1_score'] is none %}team{% else %}individual{% endif %}">
+                       value="{% if game.get('winner_score') is not none and game.get('winner1_score') is none %}team{% else %}individual{% endif %}">
                 <div class="score-type-dropdown" id="score_type_dropdown" style="display: none;">
                     <div onclick="setScoreType('individual', 'Individual Scores')">Individual Scores</div>
                     <div onclick="setScoreType('team', 'Team Scores')">Team Scores</div>
@@ -51,7 +51,7 @@
             
             <div class="form-group team-score-row" id="winner-team-score">
                 <label for="winner_score">Winner Team Score:</label>
-                <input type="number" name="winner_score" id="winner_score" placeholder="Team Score" value="{{ request.form.get('winner_score', '' if game['winner_score'] is none else game['winner_score']) }}">
+                <input type="number" name="winner_score" id="winner_score" placeholder="Team Score" value="{{ request.form.get('winner_score', '' if game.get('winner_score') is none else game.get('winner_score')) }}">
             </div>
             
             <h3>Losers</h3>
@@ -67,7 +67,7 @@
             
             <div class="form-group team-score-row" id="loser-team-score">
                 <label for="loser_score">Loser Team Score:</label>
-                <input type="number" name="loser_score" id="loser_score" placeholder="Team Score" value="{{ request.form.get('loser_score', '' if game['loser_score'] is none else game['loser_score']) }}">
+                <input type="number" name="loser_score" id="loser_score" placeholder="Team Score" value="{{ request.form.get('loser_score', '' if game.get('loser_score') is none else game.get('loser_score')) }}">
             </div>
             
             <div class="form-group">

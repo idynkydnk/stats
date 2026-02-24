@@ -481,6 +481,28 @@ def get_score_type_for_game(game_name):
     return 'individual'
 
 
+def game_name_requires_scores(game_name):
+    """Return True if any existing game with this game_name has scores (team or individual).
+    If this is the first game of this name, or no previous game has scores, return False
+    (scores optional). Once any game of this name has scores, future entries must have scores.
+    Matching is case-insensitive (Coed vs coed treated as same game type).
+    """
+    if not (game_name and str(game_name).strip()):
+        return False
+    cur = set_cur()
+    score_cols = (
+        ['winner_score', 'loser_score']
+        + [f'winner{i}_score' for i in range(1, 16)]
+        + [f'loser{i}_score' for i in range(1, 16)]
+    )
+    conditions = ' OR '.join(f'{c} IS NOT NULL' for c in score_cols)
+    cur.execute(
+        f"SELECT 1 FROM other_games WHERE LOWER(TRIM(game_name)) = LOWER(?) AND ({conditions}) LIMIT 1",
+        (game_name.strip(),)
+    )
+    return cur.fetchone() is not None
+
+
 def get_players_per_side_for_game(game_name):
     """Get winner_count and loser_count from the most recent game for this game name.
     Returns dict with winner_count, loser_count (1-15). If no previous game, returns None.

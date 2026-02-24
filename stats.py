@@ -858,8 +858,27 @@ def add_other_game():
 
         comment = request.form.get('comment', '')
 
+        # Games that have had scores before (by game_name) must have scores on this entry too
+        from other_functions import game_name_requires_scores
+        requires_scores = game_name_requires_scores(game_name)
+        if requires_scores:
+            if score_type == 'team':
+                has_scores = bool(team_winner_score and team_loser_score)
+            else:
+                has_scores = bool(
+                    any(s for s in winner_scores if s not in ('', None)) and
+                    any(s for s in loser_scores if s not in ('', None))
+                )
+        else:
+            has_scores = True  # not required, so pass
+
         if not game_type or not game_name or not winners or not losers:
             flash('Some fields missing!')
+        elif requires_scores and not has_scores:
+            if score_type == 'team':
+                flash('This game type uses team scores. Please enter both Winner and Loser team scores.')
+            else:
+                flash('This game type uses scores. Please enter at least one score for winners and one for losers.')
         else:
             client_date = request.form.get('client_date', '').strip()
             client_time = request.form.get('client_time', '').strip()
@@ -893,8 +912,11 @@ def add_other_game():
     game_types = other_game_types(games_dict)
     games = todays_other_games()
     todays_stats_data = todays_other_stats()
+    from other_functions import game_name_requires_scores
+    game_names_requiring_scores = [n for n in game_names if game_name_requires_scores(n)]
     return render_template('add_other_game.html', players=players, games=games, year=year,
-        game_names=game_names, game_types=game_types, todays_stats=todays_stats_data)
+        game_names=game_names, game_types=game_types, todays_stats=todays_stats_data,
+        game_names_requiring_scores=game_names_requiring_scores)
 
 
 # ============================================
@@ -1504,8 +1526,27 @@ def update_other_game(id):
         team_winner_score = request.form.get('winner_score', '').strip()
         team_loser_score = request.form.get('loser_score', '').strip()
 
+        # Games that have had scores before (by game_name) must have scores on this entry too
+        from other_functions import game_name_requires_scores
+        requires_scores = game_name_requires_scores(game_name)
+        if requires_scores:
+            if score_type == 'team':
+                has_scores = bool(team_winner_score and team_loser_score)
+            else:
+                has_scores = bool(
+                    any(s for s in winner_scores if s not in ('', None)) and
+                    any(s for s in loser_scores if s not in ('', None))
+                )
+        else:
+            has_scores = True
+
         if not game_type or not game_name or not winners or not losers:
             flash('Required fields missing!')
+        elif requires_scores and not has_scores:
+            if score_type == 'team':
+                flash('This game type uses team scores. Please enter both Winner and Loser team scores.')
+            else:
+                flash('This game type uses scores. Please enter at least one score for winners and one for losers.')
         else:
             # Update the game using the database function
             from other_functions import database_update_other_game

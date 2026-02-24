@@ -319,7 +319,7 @@
                                 </div>
                                 {% endfor %}
                             </div>
-                            {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                            {% if game['winner_score'] is not none and game['winners'] and game['winners'][0].score is none %}
                             <span class="sr-team-score">{{ game['winner_score'] }}</span>
                             {% endif %}
                         </div>
@@ -334,7 +334,7 @@
                                 </div>
                                 {% endfor %}
                             </div>
-                            {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                            {% if game['loser_score'] is not none and game['losers'] and game['losers'][0].score is none %}
                             <span class="sr-team-score">{{ game['loser_score'] }}</span>
                             {% endif %}
                         </div>
@@ -811,12 +811,43 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     document.getElementById('game_name')?.focus();
 });
 
-document.getElementById('add-other-form').addEventListener('submit', function() {
+// Game names that already have scores in the DB — new entries for these must include scores
+var gameNamesRequiringScores = {{ game_names_requiring_scores | tojson }};
+
+document.getElementById('add-other-form').addEventListener('submit', function(e) {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
+    // If this game name has had scores before, require scores on this entry (case-insensitive)
+    var gameName = (document.getElementById('game_name').value || '').trim();
+    var requiresScores = gameName && gameNamesRequiringScores.some(function(n) { return n.toLowerCase() === gameName.toLowerCase(); });
+    if (requiresScores) {
+        var scoreType = document.getElementById('score_type').value;
+        if (scoreType === 'team') {
+            var winnerScore = (document.getElementById('winner_score').value || '').trim();
+            var loserScore = (document.getElementById('loser_score').value || '').trim();
+            if (!winnerScore || !loserScore) {
+                e.preventDefault();
+                alert('This game type uses team scores. Please enter both Winner and Loser team scores.');
+                return;
+            }
+        } else {
+            var hasWinnerScore = false, hasLoserScore = false;
+            for (var i = 1; i <= 15; i++) {
+                var w = document.getElementById('winner' + i + '_score');
+                var l = document.getElementById('loser' + i + '_score');
+                if (w && (w.value || '').trim()) hasWinnerScore = true;
+                if (l && (l.value || '').trim()) hasLoserScore = true;
+            }
+            if (!hasWinnerScore || !hasLoserScore) {
+                e.preventDefault();
+                alert('This game type uses scores. Please enter at least one score for winners and one for losers.');
+                return;
+            }
+        }
+    }
 });
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();

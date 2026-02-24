@@ -150,7 +150,7 @@
                                         </div>
                                         {% endfor %}
                                     </div>
-                                    {% if game['winner_score'] is not none and game['winners'][0].score is none %}
+                                    {% if game['winner_score'] is not none and game['winners'] and game['winners'][0].score is none %}
                                     <span class="sr-edit-team-score">{{ game['winner_score'] }}</span>
                                     {% endif %}
                                 </div>
@@ -167,7 +167,7 @@
                                         </div>
                                         {% endfor %}
                                     </div>
-                                    {% if game['loser_score'] is not none and game['losers'][0].score is none %}
+                                    {% if game['loser_score'] is not none and game['losers'] and game['losers'][0].score is none %}
                                     <span class="sr-edit-team-score">{{ game['loser_score'] }}</span>
                                     {% endif %}
                                 </div>
