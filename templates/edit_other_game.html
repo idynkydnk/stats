@@ -1,206 +1,597 @@
-{% extends base_template %}
-
-{% block content %}
-<div class="sr-header sr-header-compact" style="margin-bottom: 20px;">
-    <div class="sr-header-actions">
-        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
-    </div>
-</div>
-    <h1>{% block title %} Edit Other Game {% endblock %}</h1>
-    <div class="container">
-        <form method="post">
-            <datalist id="players">
-                {% for player in players %}
-                    <option value="{{ player }}">
-                {% endfor %}
-            </datalist>
-            
-            <div class="form-group">
-                <label for="game_type">Game Type:</label>
-                <input type="text" name="game_type" id="game_type" value="{{ request.form.get('game_type', game['game_type']) }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="game_name">Game Name:</label>
-                <input type="text" name="game_name" id="game_name" value="{{ request.form.get('game_name', game['game_name']) }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="score_type_display">Score Type:</label>
-                <input type="text" name="score_type_display" id="score_type_display" 
-                       value="{% if game.get('winner_score') is not none and game.get('winner1_score') is none %}Team Scores{% else %}Individual Scores{% endif %}"
-                       readonly onclick="toggleScoreTypeDropdown()" style="cursor: pointer;">
-                <input type="hidden" name="score_type" id="score_type" 
-                       value="{% if game.get('winner_score') is not none and game.get('winner1_score') is none %}team{% else %}individual{% endif %}">
-                <div class="score-type-dropdown" id="score_type_dropdown" style="display: none;">
-                    <div onclick="setScoreType('individual', 'Individual Scores')">Individual Scores</div>
-                    <div onclick="setScoreType('team', 'Team Scores')">Team Scores</div>
-                </div>
-            </div>
-            
-            <h3>Winners</h3>
-            {% for i in range(1, 16) %}
-            <div class="form-group player-score-row">
-                <label for="winner{{ i }}">Winner {{ i }}:</label>
-                <div class="dual-inputs">
-                    <input type="text" name="winner{{ i }}" id="winner{{ i }}" value="{{ request.form.get('winner' ~ i, game['winner' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
-                    <input type="number" name="winner{{ i }}_score" class="individual-score" placeholder="Score" value="{{ request.form.get('winner' ~ i ~ '_score', '' if game['winner' ~ i ~ '_score'] is none else game['winner' ~ i ~ '_score']) }}">
-                </div>
-            </div>
-            {% endfor %}
-            
-            <div class="form-group team-score-row" id="winner-team-score">
-                <label for="winner_score">Winner Team Score:</label>
-                <input type="number" name="winner_score" id="winner_score" placeholder="Team Score" value="{{ request.form.get('winner_score', '' if game.get('winner_score') is none else game.get('winner_score')) }}">
-            </div>
-            
-            <h3>Losers</h3>
-            {% for i in range(1, 16) %}
-            <div class="form-group player-score-row">
-                <label for="loser{{ i }}">Loser {{ i }}:</label>
-                <div class="dual-inputs">
-                    <input type="text" name="loser{{ i }}" id="loser{{ i }}" value="{{ request.form.get('loser' ~ i, game['loser' ~ i] or '') }}" list="players" {% if i == 1 %}required{% endif %}>
-                    <input type="number" name="loser{{ i }}_score" class="individual-score" placeholder="Score" value="{{ request.form.get('loser' ~ i ~ '_score', '' if game['loser' ~ i ~ '_score'] is none else game['loser' ~ i ~ '_score']) }}">
-                </div>
-            </div>
-            {% endfor %}
-            
-            <div class="form-group team-score-row" id="loser-team-score">
-                <label for="loser_score">Loser Team Score:</label>
-                <input type="number" name="loser_score" id="loser_score" placeholder="Team Score" value="{{ request.form.get('loser_score', '' if game.get('loser_score') is none else game.get('loser_score')) }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="comment">Comment:</label>
-                <input type="text" name="comment" id="comment" value="{{ request.form.get('comment', game['comment'] or '') }}">
-            </div>
-            
-            <div class="form-group">
-                <input type="submit" value="Update Game" class="btn btn-primary">
-                <a href="{{ url_for('edit_other_games', year=year) }}" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
-    
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Other Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+</head>
+<body class="sr-page">
     <style>
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
-        .form-group input {
+        .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
+        .autocomplete { position: relative; margin-bottom: 12px; }
+        .autocomplete input {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 14px 16px;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            color: var(--sr-text);
+            font-size: 16px;
+            box-sizing: border-box;
+            text-align: center;
         }
-        
-        .player-score-row .dual-inputs {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .player-score-row .dual-inputs input {
-            width: 50%;
-        }
-        
-        .team-score-row {
-            display: none;
-        }
-        
-        .score-type-dropdown {
+        .autocomplete input:focus { outline: none; border-color: var(--sr-accent); }
+        .autocomplete input::placeholder { color: var(--sr-muted); }
+        .autocomplete.has-clear input { padding-right: 40px; }
+        .clear-field-btn {
             position: absolute;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            z-index: 100;
-            width: 100%;
-            max-width: 300px;
-        }
-        
-        .score-type-dropdown div {
-            padding: 10px;
-            cursor: pointer;
-        }
-        
-        .score-type-dropdown div:hover {
-            background: #f5f5f5;
-        }
-        
-        .individual-score.hidden {
-            display: none;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            margin: 5px;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.08);
+            color: var(--sr-muted);
             cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 2;
+        }
+        .clear-field-btn:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .autocomplete.has-clear:not(.empty) .clear-field-btn { display: flex; }
+        .autocomplete-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            margin-top: 4px;
+            z-index: 100;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .autocomplete-list div {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1.4;
+            border-bottom: 1px solid var(--sr-line);
+        }
+        .autocomplete-list div:last-child { border-bottom: none; }
+        .autocomplete-list div:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
+        .sr-submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--sr-accent);
+            border: none;
+            border-radius: 10px;
+            color: #0b0f14;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .sr-submit-btn:hover { opacity: 0.9; }
+        .sr-cancel-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            color: var(--sr-muted);
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            text-align: center;
             text-decoration: none;
-            display: inline-block;
+            display: block;
+            box-sizing: border-box;
         }
-        
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
+        .sr-cancel-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .form-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .player-entry { display: flex; gap: 8px; margin-bottom: 12px; }
+        .player-entry .autocomplete { flex: 2; margin-bottom: 0; }
+        .player-entry .score-input {
+            flex: 1;
+            padding: 14px 8px;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            color: var(--sr-text);
+            font-size: 16px;
+            text-align: center;
+            max-width: 80px;
         }
-        
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
+        .player-entry .score-input:focus { outline: none; border-color: var(--sr-accent); }
+        .player-entry .score-input.hidden { display: none; }
+        .add-player-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px dashed var(--sr-line);
+            border-radius: 10px;
+            color: var(--sr-muted);
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 12px;
         }
-        
-        .btn:hover {
-            opacity: 0.8;
+        .add-player-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+        .team-score-entry { margin-bottom: 12px; }
+        .team-score-entry input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            color: var(--sr-text);
+            font-size: 16px;
+            box-sizing: border-box;
+            text-align: center;
         }
+        .team-score-entry input:focus { outline: none; border-color: var(--sr-accent); }
     </style>
-    
-    <script>
-        function toggleScoreTypeDropdown() {
-            const dropdown = document.getElementById('score_type_dropdown');
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+
+    <div class="sr-container">
+        <header class="sr-header sr-header-compact">
+            <h1 class="sr-title">Edit Other Game</h1>
+            <div class="sr-header-actions">
+                <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Back</a>
+            </div>
+        </header>
+
+        <div class="sr-form-container">
+            <form method="post" action="{{ url_for('update_other_game', id=game['id']) }}" id="edit-other-form">
+                <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
+                <datalist id="game_names">{% for name in (game_names | default([])) %}<option value="{{ name }}">{% endfor %}</datalist>
+                <datalist id="game_types">{% for type in (game_types | default([])) %}<option value="{{ type }}">{% endfor %}</datalist>
+
+                <div class="autocomplete has-clear empty" id="game_name-wrap">
+                    <input type="text" name="game_name" id="game_name" placeholder="Game Name" autocomplete="off"
+                           value="{{ request.form.get('game_name', game.get('game_name') or '') }}">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear game name"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="game_nameList"></div>
+                </div>
+                <div class="autocomplete has-clear empty" id="game_type-wrap">
+                    <input type="text" name="game_type" id="game_type" placeholder="Game Type" autocomplete="off"
+                           value="{{ request.form.get('game_type', game.get('game_type') or '') }}">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear game type"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="game_typeList"></div>
+                </div>
+                {% set score_type_val = request.form.get('score_type') or ('team' if (game.get('winner_score') is not none and game.get('winner1_score') is none) else 'individual') %}
+                <div class="autocomplete has-clear empty" id="score_type-wrap">
+                    <input type="text" name="score_type_display" id="score_type_display" placeholder="Score Type" readonly
+                           value="{{ 'Team Scores' if score_type_val == 'team' else 'Individual Scores' }}">
+                    <input type="hidden" name="score_type" id="score_type" value="{{ score_type_val }}">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear score type"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="score_typeList"></div>
+                </div>
+
+                <div class="player-entry" id="winner1-entry">
+                    <div class="autocomplete has-clear empty" id="winner1-wrap">
+                        <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off"
+                               value="{{ request.form.get('winner1', game.get('winner1') or '') }}">
+                        <button type="button" class="clear-field-btn" title="Clear winner 1"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="winner1List"></div>
+                    </div>
+                    <input type="number" pattern="[0-9]*" name="winner1_score" id="winner1_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                           value="{{ request.form.get('winner1_score', '' if game.get('winner1_score') is none else game.get('winner1_score')) }}">
+                </div>
+                <div class="player-entry" id="winner2-entry" style="{% if (winner_count | default(1)) < 2 %}display: none;{% else %}display: flex;{% endif %}">
+                    <div class="autocomplete has-clear empty" id="winner2-wrap">
+                        <input type="text" name="winner2" id="winner2" placeholder="Winner 2" autocomplete="off"
+                               value="{{ request.form.get('winner2', game.get('winner2') or '') }}">
+                        <button type="button" class="clear-field-btn" title="Clear winner 2"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="winner2List"></div>
+                    </div>
+                    <input type="number" pattern="[0-9]*" name="winner2_score" id="winner2_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                           value="{{ request.form.get('winner2_score', '' if game.get('winner2_score') is none else game.get('winner2_score')) }}">
+                </div>
+                <div id="winners-container">
+                    {% for i in range(3, (winner_count | default(1)) + 1) %}
+                    <div class="player-entry" id="winner{{ i }}-entry">
+                        <div class="autocomplete has-clear empty">
+                            <input type="text" name="winner{{ i }}" id="winner{{ i }}" placeholder="Winner {{ i }}" autocomplete="off"
+                                   value="{{ request.form.get('winner' ~ i, game.get('winner' ~ i) or '') }}">
+                            <button type="button" class="clear-field-btn" title="Clear winner {{ i }}"><i class="fas fa-times"></i></button>
+                            <div class="autocomplete-list" id="winner{{ i }}List"></div>
+                        </div>
+                        <input type="number" pattern="[0-9]*" name="winner{{ i }}_score" id="winner{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                               value="{{ request.form.get('winner' ~ i ~ '_score', '' if game.get('winner' ~ i ~ '_score') is none else game.get('winner' ~ i ~ '_score')) }}">
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-player-btn" id="add-winner-btn" onclick="addWinner()" style="{% if (winner_count | default(1)) >= 15 or ((winner_count | default(1)) == 2 and (loser_count | default(1)) == 2 and score_type_val == 'team') %}display: none;{% endif %}">+ Add Winner</button>
+                <button type="button" class="add-player-btn" id="add-more-players-btn" onclick="showExtraPlayers()" style="{% if not ((winner_count | default(1)) == 2 and (loser_count | default(1)) == 2 and score_type_val == 'team') %}display: none;{% endif %}">+ Add more players</button>
+                <div class="team-score-entry autocomplete" id="winner-team-score" style="{% if score_type_val != 'team' %}display: none;{% endif %}">
+                    <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner Team Score" autocomplete="off"
+                           value="{{ request.form.get('winner_score', '' if game.get('winner_score') is none else game.get('winner_score')) }}">
+                    <div class="autocomplete-list" id="winner_scoreList"></div>
+                </div>
+
+                <div class="player-entry" id="loser1-entry">
+                    <div class="autocomplete has-clear empty" id="loser1-wrap">
+                        <input type="text" name="loser1" id="loser1" placeholder="Loser 1" autocomplete="off"
+                               value="{{ request.form.get('loser1', game.get('loser1') or '') }}">
+                        <button type="button" class="clear-field-btn" title="Clear loser 1"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="loser1List"></div>
+                    </div>
+                    <input type="number" pattern="[0-9]*" name="loser1_score" id="loser1_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                           value="{{ request.form.get('loser1_score', '' if game.get('loser1_score') is none else game.get('loser1_score')) }}">
+                </div>
+                <div class="player-entry" id="loser2-entry" style="{% if (loser_count | default(1)) < 2 %}display: none;{% else %}display: flex;{% endif %}">
+                    <div class="autocomplete has-clear empty" id="loser2-wrap">
+                        <input type="text" name="loser2" id="loser2" placeholder="Loser 2" autocomplete="off"
+                               value="{{ request.form.get('loser2', game.get('loser2') or '') }}">
+                        <button type="button" class="clear-field-btn" title="Clear loser 2"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="loser2List"></div>
+                    </div>
+                    <input type="number" pattern="[0-9]*" name="loser2_score" id="loser2_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                           value="{{ request.form.get('loser2_score', '' if game.get('loser2_score') is none else game.get('loser2_score')) }}">
+                </div>
+                <div id="losers-container">
+                    {% for i in range(3, (loser_count | default(1)) + 1) %}
+                    <div class="player-entry" id="loser{{ i }}-entry">
+                        <div class="autocomplete has-clear empty">
+                            <input type="text" name="loser{{ i }}" id="loser{{ i }}" placeholder="Loser {{ i }}" autocomplete="off"
+                                   value="{{ request.form.get('loser' ~ i, game.get('loser' ~ i) or '') }}">
+                            <button type="button" class="clear-field-btn" title="Clear loser {{ i }}"><i class="fas fa-times"></i></button>
+                            <div class="autocomplete-list" id="loser{{ i }}List"></div>
+                        </div>
+                        <input type="number" pattern="[0-9]*" name="loser{{ i }}_score" id="loser{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                               value="{{ request.form.get('loser' ~ i ~ '_score', '' if game.get('loser' ~ i ~ '_score') is none else game.get('loser' ~ i ~ '_score')) }}">
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-player-btn" id="add-loser-btn" onclick="addLoser()" style="{% if (loser_count | default(1)) >= 15 or ((winner_count | default(1)) == 2 and (loser_count | default(1)) == 2 and score_type_val == 'team') %}display: none;{% endif %}">+ Add Loser</button>
+                <div class="team-score-entry autocomplete" id="loser-team-score" style="{% if score_type_val != 'team' %}display: none;{% endif %}">
+                    <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser Team Score" autocomplete="off"
+                           value="{{ request.form.get('loser_score', '' if game.get('loser_score') is none else game.get('loser_score')) }}">
+                    <div class="autocomplete-list" id="loser_scoreList"></div>
+                </div>
+
+                <div class="autocomplete has-clear empty" id="comment-wrap">
+                    <input type="text" name="comment" id="comment" placeholder="Comment (optional)"
+                           value="{{ request.form.get('comment', game.get('comment') or '') }}">
+                    <button type="button" class="clear-field-btn" title="Clear comment"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="sr-submit-btn">Update Game</button>
+                    <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-cancel-btn">Cancel</a>
+                </div>
+            </form>
+            <div id="common_score_dropdown" class="autocomplete-list" style="display: none; position: fixed; z-index: 1000;"></div>
+        </div>
+    </div>
+
+<script>
+const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
+const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);
+const allGameTypes = Array.from(document.getElementById('game_types').options).map(o => o.value);
+let winnerCount = {{ winner_count | default(1) }};
+let loserCount = {{ loser_count | default(1) }};
+let is2v2Mode = {{ 'true' if ((winner_count | default(1)) == 2 and (loser_count | default(1)) == 2 and score_type_val == 'team') else 'false' }};
+let cachedCommonScores = null;
+
+function getPlayerListForAutocomplete() {
+    return allPlayers;
+}
+
+function fetchCommonScoresThen(callback) {
+    const gameName = (document.getElementById('game_name').value || '').trim();
+    if (cachedCommonScores) { callback(cachedCommonScores); return; }
+    if (!gameName) {
+        callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] });
+        return;
+    }
+    fetch('/api/other_game_common_scores/' + encodeURIComponent(gameName))
+        .then(r => r.json())
+        .then(data => { cachedCommonScores = data; callback(data); })
+        .catch(() => callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] }));
+}
+
+function showScoreList(listEl, scores) {
+    listEl.innerHTML = '';
+    (scores || []).forEach(score => {
+        const div = document.createElement('div');
+        div.textContent = score;
+        div.dataset.value = score;
+        listEl.appendChild(div);
+    });
+    listEl.style.display = (scores && scores.length) ? 'block' : 'none';
+}
+
+let _currentScoreInput = null;
+function isScoreField(el) {
+    if (!el || el.tagName !== 'INPUT') return false;
+    if (el.id === 'winner_score' || el.id === 'loser_score') return true;
+    return (el.name && el.name.endsWith('_score')) || (el.classList && el.classList.contains('score-input'));
+}
+function getNextFieldAfterScore(scoreInput) {
+    const id = scoreInput.id, name = (scoreInput.name || '');
+    const isWinner = id === 'winner_score' || /^winner\d+_score$/.test(name || id);
+    if (isWinner) {
+        if (id === 'winner_score') return document.getElementById('loser1');
+        const m = (name || id).match(/^winner(\d+)_score$/);
+        const nextN = m ? parseInt(m[1], 10) + 1 : 2;
+        const nextEl = document.getElementById('winner' + nextN);
+        return (nextEl && nextEl.offsetParent) ? nextEl : document.getElementById('loser1');
+    }
+    if (id === 'loser_score') return document.getElementById('comment');
+    const m = (name || id).match(/^loser(\d+)_score$/);
+    const nextN = m ? parseInt(m[1], 10) + 1 : 2;
+    const nextEl = document.getElementById('loser' + nextN);
+    return (nextEl && nextEl.offsetParent) ? nextEl : document.getElementById('comment');
+}
+function openCommonScoreDropdown(scoreInput) {
+    _currentScoreInput = scoreInput;
+    const isWinner = scoreInput.id === 'winner_score' || /^winner\d*_score$/.test(scoreInput.name || scoreInput.id || '');
+    fetchCommonScoresThen(data => {
+        const list = document.getElementById('common_score_dropdown');
+        showScoreList(list, isWinner ? data.winner_scores : data.loser_scores);
+        const rect = scoreInput.getBoundingClientRect();
+        list.style.top = (rect.bottom + 4) + 'px';
+        list.style.left = rect.left + 'px';
+        list.style.width = Math.max(rect.width, 120) + 'px';
+        list.style.display = (list.innerHTML ? 'block' : 'none');
+    });
+}
+
+function getSelectedPlayers(excludeField) {
+    const players = [];
+    document.querySelectorAll('.player-entry input[type="text"]').forEach(input => {
+        if (input.value.trim() && input !== excludeField) players.push(input.value.trim());
+    });
+    return players;
+}
+function showList(field, list, items) {
+    list.innerHTML = '';
+    (items || []).slice(0, 10).forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = item;
+        list.appendChild(div);
+    });
+    list.style.display = (items && items.length) ? 'block' : 'none';
+}
+function setupAutocomplete(fieldId, getItems, onSelect) {
+    const field = document.getElementById(fieldId);
+    const list = document.getElementById(fieldId + 'List');
+    if (!field || !list) return;
+    field.addEventListener('focus', () => showList(field, list, getItems(field)));
+    field.addEventListener('input', () => {
+        const items = (getItems(field) || []).filter(item => String(item).toLowerCase().includes((field.value || '').toLowerCase()));
+        showList(field, list, items);
+    });
+    list.addEventListener('click', e => {
+        if (e.target.tagName === 'DIV') {
+            field.value = e.target.textContent;
+            list.style.display = 'none';
+            if (onSelect) onSelect(field);
         }
-        
-        function setScoreType(value, displayText) {
-            document.getElementById('score_type').value = value;
-            document.getElementById('score_type_display').value = displayText;
-            document.getElementById('score_type_dropdown').style.display = 'none';
-            updateScoreVisibility();
-        }
-        
-        function updateScoreVisibility() {
-            const scoreType = document.getElementById('score_type').value;
-            const individualScores = document.querySelectorAll('.individual-score');
-            const winnerTeamScore = document.getElementById('winner-team-score');
-            const loserTeamScore = document.getElementById('loser-team-score');
-            
-            if (scoreType === 'team') {
-                individualScores.forEach(input => input.classList.add('hidden'));
-                winnerTeamScore.style.display = 'block';
-                loserTeamScore.style.display = 'block';
-            } else {
-                individualScores.forEach(input => input.classList.remove('hidden'));
-                winnerTeamScore.style.display = 'none';
-                loserTeamScore.style.display = 'none';
+    });
+}
+function setupPlayerAutocomplete(field, list, onSelectNext) {
+    if (!field || !list) return;
+    field.addEventListener('focus', () => {
+        const available = allPlayers.filter(p => !getSelectedPlayers(field).includes(p));
+        showList(field, list, available);
+    });
+    field.addEventListener('input', () => {
+        const available = allPlayers.filter(p => !getSelectedPlayers(field).includes(p) && p.toLowerCase().includes((field.value || '').toLowerCase()));
+        showList(field, list, available);
+    });
+    list.addEventListener('click', e => {
+        if (e.target.tagName === 'DIV') {
+            field.value = e.target.textContent;
+            list.style.display = 'none';
+            if (onSelectNext) onSelectNext();
+            else {
+                const entry = field.closest('.player-entry');
+                const scoreInput = entry && entry.querySelector('.score-input:not(.hidden)');
+                if (scoreInput) setTimeout(() => scoreInput.focus(), 50);
             }
         }
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!e.target.matches('#score_type_display')) {
-                document.getElementById('score_type_dropdown').style.display = 'none';
-            }
+    });
+}
+
+function setScoreType(value) {
+    document.getElementById('score_type').value = value;
+    document.getElementById('score_type_display').value = value === 'team' ? 'Team Scores' : 'Individual Scores';
+    if (document.getElementById('score_typeList')) document.getElementById('score_typeList').style.display = 'none';
+    const indiv = document.querySelectorAll('.individual-score');
+    const winTeam = document.getElementById('winner-team-score');
+    const loseTeam = document.getElementById('loser-team-score');
+    if (value === 'team') {
+        indiv.forEach(el => el.classList.add('hidden'));
+        if (winTeam) winTeam.style.display = 'block';
+        if (loseTeam) loseTeam.style.display = 'block';
+    } else {
+        indiv.forEach(el => el.classList.remove('hidden'));
+        if (winTeam) winTeam.style.display = 'none';
+        if (loseTeam) loseTeam.style.display = 'none';
+    }
+}
+function getNextFocusAfterPlayer(fieldId) {
+    const isTeam = document.getElementById('score_type').value === 'team';
+    const w2Visible = document.getElementById('winner2-entry') && document.getElementById('winner2-entry').style.display !== 'none';
+    const l2Visible = document.getElementById('loser2-entry') && document.getElementById('loser2-entry').style.display !== 'none';
+    if (fieldId === 'winner1') return (isTeam && w2Visible) ? 'winner2' : (isTeam ? 'winner_score' : 'winner1_score');
+    if (fieldId === 'winner2') return isTeam ? 'winner_score' : 'winner2_score';
+    if (fieldId === 'winner1_score') return 'winner2';
+    if (fieldId === 'winner2_score') return 'loser1';
+    if (fieldId === 'winner_score') return 'loser1';
+    if (fieldId === 'loser1') return (isTeam && l2Visible) ? 'loser2' : (isTeam ? 'loser_score' : 'loser1_score');
+    if (fieldId === 'loser2') return isTeam ? 'loser_score' : 'loser2_score';
+    if (fieldId === 'loser1_score') return 'loser2';
+    if (fieldId === 'loser2_score') return 'comment';
+    if (fieldId === 'loser_score') return 'comment';
+    return null;
+}
+
+setupAutocomplete('game_name', () => allGameNames);
+setupAutocomplete('game_type', () => allGameTypes, field => {
+    const val = (field.value || '').trim().toLowerCase();
+    if (val === 'coed') {
+        is2v2Mode = true;
+        document.getElementById('winner2-entry').style.display = 'flex';
+        document.getElementById('loser2-entry').style.display = 'flex';
+        document.getElementById('add-winner-btn').style.display = 'none';
+        document.getElementById('add-loser-btn').style.display = 'none';
+        if (document.getElementById('add-more-players-btn')) document.getElementById('add-more-players-btn').style.display = 'block';
+        setScoreType('team');
+    }
+});
+
+const scoreTypeDisplay = document.getElementById('score_type_display');
+const scoreTypeList = document.getElementById('score_typeList');
+if (scoreTypeDisplay && scoreTypeList) {
+    scoreTypeDisplay.addEventListener('focus', () => {
+        scoreTypeList.innerHTML = '';
+        [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }].forEach(opt => {
+            const div = document.createElement('div');
+            div.textContent = opt.display;
+            div.dataset.value = opt.value;
+            scoreTypeList.appendChild(div);
         });
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            updateScoreVisibility();
-        });
-    </script>
-{% endblock %}
+        scoreTypeList.style.display = 'block';
+    });
+    scoreTypeDisplay.addEventListener('click', () => scoreTypeDisplay.dispatchEvent(new Event('focus')));
+    scoreTypeList.addEventListener('click', e => {
+        if (e.target.tagName === 'DIV' && e.target.dataset.value) {
+            setScoreType(e.target.dataset.value);
+        }
+    });
+}
+
+setupPlayerAutocomplete(document.getElementById('winner1'), document.getElementById('winner1List'), () => {
+    const next = getNextFocusAfterPlayer('winner1');
+    if (next) setTimeout(() => document.getElementById(next) && document.getElementById(next).focus(), 50);
+});
+setupPlayerAutocomplete(document.getElementById('winner2'), document.getElementById('winner2List'), () => {
+    const next = getNextFocusAfterPlayer('winner2');
+    if (next) { const el = document.getElementById(next); if (el) setTimeout(() => el.focus(), 50); }
+});
+setupPlayerAutocomplete(document.getElementById('loser1'), document.getElementById('loser1List'), () => {
+    const next = getNextFocusAfterPlayer('loser1');
+    if (next) setTimeout(() => document.getElementById(next) && document.getElementById(next).focus(), 50);
+});
+setupPlayerAutocomplete(document.getElementById('loser2'), document.getElementById('loser2List'), () => {
+    const next = getNextFocusAfterPlayer('loser2');
+    if (next) { const el = document.getElementById(next); if (el) setTimeout(() => el.focus(), 50); }
+});
+
+document.querySelectorAll('#winners-container .player-entry, #losers-container .player-entry').forEach(entry => {
+    const textInput = entry.querySelector('input[type="text"]');
+    const list = entry.querySelector('.autocomplete-list');
+    if (textInput && list) setupPlayerAutocomplete(textInput, list);
+});
+
+document.addEventListener('focusin', function(e) {
+    if (isScoreField(e.target)) openCommonScoreDropdown(e.target);
+});
+document.getElementById('common_score_dropdown').addEventListener('click', function(e) {
+    if (e.target.tagName === 'DIV' && e.target.dataset.value != null && _currentScoreInput) {
+        _currentScoreInput.value = e.target.dataset.value;
+        this.style.display = 'none';
+        const nextEl = getNextFieldAfterScore(_currentScoreInput);
+        if (nextEl) setTimeout(() => nextEl.focus(), 50);
+    }
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && isScoreField(e.target)) {
+        e.preventDefault();
+        const next = getNextFieldAfterScore(e.target);
+        if (next) next.focus();
+    }
+});
+
+function addWinner() {
+    if (winnerCount >= 15) return;
+    winnerCount++;
+    const container = document.getElementById('winners-container');
+    const div = document.createElement('div');
+    div.className = 'player-entry';
+    const hidden = document.getElementById('score_type').value === 'team' ? 'hidden' : '';
+    div.innerHTML = '<div class="autocomplete has-clear empty"><input type="text" name="winner' + winnerCount + '" id="winner' + winnerCount + '" placeholder="Winner ' + winnerCount + '" autocomplete="off"><button type="button" class="clear-field-btn"><i class="fas fa-times"></i></button><div class="autocomplete-list" id="winner' + winnerCount + 'List"></div></div><input type="number" pattern="[0-9]*" name="winner' + winnerCount + '_score" id="winner' + winnerCount + '_score" class="score-input individual-score ' + hidden + '" placeholder="Score">';
+    container.appendChild(div);
+    const newField = div.querySelector('input[type="text"]');
+    const newList = div.querySelector('.autocomplete-list');
+    setupPlayerAutocomplete(newField, newList);
+    setupClearButtonsForWrap(div.querySelector('.autocomplete.has-clear'));
+    newField.focus();
+}
+function addLoser() {
+    if (loserCount >= 15) return;
+    loserCount++;
+    const container = document.getElementById('losers-container');
+    const div = document.createElement('div');
+    div.className = 'player-entry';
+    const hidden = document.getElementById('score_type').value === 'team' ? 'hidden' : '';
+    div.innerHTML = '<div class="autocomplete has-clear empty"><input type="text" name="loser' + loserCount + '" id="loser' + loserCount + '" placeholder="Loser ' + loserCount + '" autocomplete="off"><button type="button" class="clear-field-btn"><i class="fas fa-times"></i></button><div class="autocomplete-list" id="loser' + loserCount + 'List"></div></div><input type="number" pattern="[0-9]*" name="loser' + loserCount + '_score" id="loser' + loserCount + '_score" class="score-input individual-score ' + hidden + '" placeholder="Score">';
+    container.appendChild(div);
+    const newField = div.querySelector('input[type="text"]');
+    const newList = div.querySelector('.autocomplete-list');
+    setupPlayerAutocomplete(newField, newList);
+    setupClearButtonsForWrap(div.querySelector('.autocomplete.has-clear'));
+    newField.focus();
+}
+function showExtraPlayers() {
+    if (document.getElementById('add-winner-btn')) document.getElementById('add-winner-btn').style.display = 'block';
+    if (document.getElementById('add-loser-btn')) document.getElementById('add-loser-btn').style.display = 'block';
+    if (document.getElementById('add-more-players-btn')) document.getElementById('add-more-players-btn').style.display = 'none';
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('.autocomplete')) {
+        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+    }
+});
+
+function updateClearVisibility(wrap) {
+    if (!wrap || !wrap.classList.contains('has-clear')) return;
+    const input = wrap.querySelector('input[type="text"]') || wrap.querySelector('#score_type_display');
+    const val = (input && input.value || '').trim();
+    wrap.classList.toggle('empty', !val);
+}
+function setupClearButtonsForWrap(wrap) {
+    if (!wrap || !wrap.querySelector('.clear-field-btn')) return;
+    const scoreTypeDisplay = wrap.querySelector('#score_type_display');
+    const scoreTypeHidden = document.getElementById('score_type');
+    const input = scoreTypeDisplay || wrap.querySelector('input[type="text"]') || wrap.querySelector('#comment');
+    const btn = wrap.querySelector('.clear-field-btn');
+    const clearInput = () => {
+        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+        if (scoreTypeDisplay && scoreTypeHidden) {
+            scoreTypeHidden.value = 'individual';
+            scoreTypeDisplay.value = 'Individual Scores';
+            setScoreType('individual');
+        } else if (input) {
+            input.value = '';
+            if (input.id !== 'comment') input.focus();
+        }
+        updateClearVisibility(wrap);
+    };
+    input && input.addEventListener('input', () => updateClearVisibility(wrap));
+    input && input.addEventListener('change', () => updateClearVisibility(wrap));
+    btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); clearInput(); });
+    updateClearVisibility(wrap);
+}
+function setupClearButtons() {
+    document.querySelectorAll('.autocomplete.has-clear').forEach(setupClearButtonsForWrap);
+}
+setupClearButtons();
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('game_name').focus();
+});
+</script>
+</body>
+</html>

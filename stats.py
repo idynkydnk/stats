@@ -1495,7 +1495,12 @@ def update_other_game(id):
     game_row = x[0]
     game_data_dict = dict(game_row)
     games = other_year_games(str(date.today().year))
+    games_all = other_year_games('All years')
     players = all_other_players(games)
+    game_names = other_game_names(games_all)
+    game_types = other_game_types(games_all)
+    winner_count = next((i for i in range(15, 0, -1) if game_data_dict.get(f'winner{i}')), 1)
+    loser_count = next((i for i in range(15, 0, -1) if game_data_dict.get(f'loser{i}')), 1)
     
     if request.method == 'POST':
         game_type = request.form.get('game_type', '')
@@ -1585,7 +1590,8 @@ def update_other_game(id):
             
             return redirect(url_for('edit_other_games', year=str(date.today().year)))
  
-    return render_template('edit_other_game.html', game=game_data_dict, players=players, year=str(date.today().year))
+    return render_template('edit_other_game.html', game=game_data_dict, players=players, year=str(date.today().year),
+        game_names=game_names, game_types=game_types, winner_count=winner_count, loser_count=loser_count)
 
 
 @app.route('/delete_other_game/<int:id>/',methods = ['GET','POST'])
