@@ -2339,9 +2339,9 @@ def generate_ai_summary():
         model = genai.GenerativeModel('models/gemini-flash-latest')
         
         # Generate summary
-        prompt = f"""Write a fun, engaging 1-2 short paragraph summary of these volleyball games. 
-        Highlight the top performers, most exciting matches, and any notable achievements. 
-        Make it conversational and entertaining but brief—like a sports announcer recapping the day in a quick hit.
+        prompt = f"""Write a fun, engaging 1-2 paragraph summary of these volleyball games. 
+        Each paragraph must be 2-3 sentences only. Total under 100 words.
+        Highlight top performers and notable matches. Be concise—quick hit, not a long read.
 
 {context}
 
@@ -2714,32 +2714,32 @@ def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', cus
 Use dramatic language, exciting calls, and hype up big plays and close games.
 Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
 Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
-Keep it to 1-2 short paragraphs.""",
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
 
         'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
 Focus on the numbers: win percentages, point differentials, streaks, and trends.
 Draw insights from the statistics and explain what they mean for each player's performance.
 Be precise and factual, but still engaging. Reference specific stats to back up your observations.
-Keep it to 1-2 short paragraphs.""",
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
 
         'storyteller': """You are a sports storyteller writing a narrative recap email.
 Weave the games into an engaging story with character development and dramatic tension.
 Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
 Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
-Keep it to 1-2 short paragraphs.""",
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
 
         'comedian': """You are a comedy writer doing a sports recap email.
 Be playful, witty, and don't be afraid to gently roast players (in good fun).
 Find the humor in the games - funny moments, ironic outcomes, playful observations.
 Keep it lighthearted and fun. Everyone should laugh, including those being teased.
-Keep it to 1-2 short paragraphs.""",
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
 
         'roast': """You are a brutal roast comedian writing a savage recap email.
 Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
 Mock the winners for barely winning, demolish the losers for their failures.
 Be creative with your insults - reference specific plays, scores, and failures.
 This is all in good fun but don't hold back. Make it hurt (but funny).
-Keep it to 1-2 short paragraphs.""",
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
 
     }
 
@@ -2922,7 +2922,7 @@ Keep it to 1-2 short paragraphs.""",
 
     # Get the prompt style instructions
     if prompt_style == 'custom' and custom_prompt.strip():
-        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs."
+        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
     else:
         style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
     
@@ -2931,6 +2931,7 @@ Keep it to 1-2 short paragraphs.""",
 Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
 Only quote a comment if it is already in the data enclosed in quotation marks.
 Weave any comments smoothly into the narrative.
+CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
 
 Here is the game data:
 
