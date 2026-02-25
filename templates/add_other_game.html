@@ -167,7 +167,7 @@
         .sr-team-players a { color: var(--sr-text); text-decoration: none; }
         .sr-team-players a:hover { color: var(--sr-accent); }
         .sr-player-row { display: flex; justify-content: space-between; }
-        .sr-player-score { font-weight: 600; font-size: 12px; }
+        .sr-player-score { font-weight: 700; font-size: 18px; }
         .sr-team-block.winners .sr-player-score { color: var(--sr-win); }
         .sr-team-block.losers .sr-player-score { color: var(--sr-loss); }
         .sr-team-score { font-size: 18px; font-weight: 700; margin-left: 10px; }
@@ -230,10 +230,6 @@
                 <div id="winners-container"></div>
                 <button type="button" class="add-player-btn" id="add-winner-btn" onclick="addWinner()">+ Add Winner</button>
                 <button type="button" class="add-player-btn" id="add-more-players-btn" style="display: none;" onclick="showExtraPlayers()">+ Add more players</button>
-                <div class="team-score-entry autocomplete" id="winner-team-score" style="display: none;">
-                    <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner Team Score" autocomplete="off">
-                    <div class="autocomplete-list" id="winner_scoreList"></div>
-                </div>
                 
                 <div class="player-entry" id="loser1-entry">
                     <div class="autocomplete has-clear empty" id="loser1-wrap">
@@ -253,6 +249,11 @@
                 </div>
                 <div id="losers-container"></div>
                 <button type="button" class="add-player-btn" id="add-loser-btn" onclick="addLoser()">+ Add Loser</button>
+                
+                <div class="team-score-entry autocomplete" id="winner-team-score" style="display: none;">
+                    <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner Team Score" autocomplete="off">
+                    <div class="autocomplete-list" id="winner_scoreList"></div>
+                </div>
                 <div class="team-score-entry autocomplete" id="loser-team-score" style="display: none;">
                     <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser Team Score" autocomplete="off">
                     <div class="autocomplete-list" id="loser_scoreList"></div>
@@ -410,7 +411,7 @@ function getNextFieldAfterScore(scoreInput) {
     const id = scoreInput.id, name = (scoreInput.name || '');
     const isWinner = id === 'winner_score' || /^winner\d+_score$/.test(name) || /^winner\d+_score$/.test(id);
     if (isWinner) {
-        if (id === 'winner_score') return document.getElementById('loser1');
+        if (id === 'winner_score') return document.getElementById('loser_score');
         const m = (name || id || '').match(/^winner(\d+)_score$/);
         const nextN = m ? parseInt(m[1], 10) + 1 : 2;
         const nextEl = document.getElementById('winner' + nextN);
@@ -630,16 +631,16 @@ function setScoreType(value) {
 }
 
 // Focus chain: individual = winner1 -> winner1_score -> winner2 -> winner2_score -> loser1 -> loser1_score -> loser2 -> loser2_score -> comment
-// Team = winner1 -> winner2 (if 2v2) -> winner_score -> loser1 -> loser2 (if 2v2) -> loser_score -> comment
+// Team = winner1 -> winner2 (if 2v2) -> loser1 -> loser2 (if 2v2) -> winner_score -> loser_score -> comment
 function getNextFocusAfterPlayer(fieldId) {
     const isTeam = document.getElementById('score_type').value === 'team';
-    if (fieldId === 'winner1') return isTeam && document.getElementById('winner2-entry')?.style.display !== 'none' ? 'winner2' : (isTeam ? 'winner_score' : 'winner1_score');
-    if (fieldId === 'winner2') return isTeam ? 'winner_score' : 'winner2_score';
+    if (fieldId === 'winner1') return isTeam && document.getElementById('winner2-entry')?.style.display !== 'none' ? 'winner2' : (isTeam ? 'loser1' : 'winner1_score');
+    if (fieldId === 'winner2') return isTeam ? 'loser1' : 'winner2_score';
     if (fieldId === 'winner1_score') return 'winner2';  // individual: next is winner2 if present
     if (fieldId === 'winner2_score') return 'loser1';
-    if (fieldId === 'winner_score') return 'loser1';
-    if (fieldId === 'loser1') return isTeam && document.getElementById('loser2-entry')?.style.display !== 'none' ? 'loser2' : (isTeam ? 'loser_score' : 'loser1_score');
-    if (fieldId === 'loser2') return isTeam ? 'loser_score' : 'loser2_score';
+    if (fieldId === 'winner_score') return 'loser_score';
+    if (fieldId === 'loser1') return isTeam && document.getElementById('loser2-entry')?.style.display !== 'none' ? 'loser2' : (isTeam ? 'winner_score' : 'loser1_score');
+    if (fieldId === 'loser2') return isTeam ? 'winner_score' : 'loser2_score';
     if (fieldId === 'loser1_score') return 'loser2';  // individual: next is loser2 if present
     if (fieldId === 'loser2_score') return 'comment';
     if (fieldId === 'loser_score') return 'comment';

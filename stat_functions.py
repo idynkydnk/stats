@@ -380,12 +380,17 @@ def convert_ampm(games):
     for game in games:
         tz = game[10] if len(game) > 10 else None
         game_date = format_game_time(game[1], tz)
-        if len(game[8]) > 19:
-            updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S.%f")
-            updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+        updated_at_raw = game[8] if len(game) > 8 else None
+        if updated_at_raw:
+            updated_at_str = str(updated_at_raw).strip()
+            if len(updated_at_str) > 19:
+                updated_datetime = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S.%f")
+                updated_date = updated_datetime.strftime("%m/%d/%Y %I:%M %p")
+            else:
+                updated_datetime = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S")
+                updated_date = updated_datetime.strftime("%m/%d/%Y")
         else:
-            updated_datetime = datetime.strptime(game[8], "%Y-%m-%d %H:%M:%S")
-            updated_date = updated_datetime.strftime("%m/%d/%Y")
+            updated_date = ""
 
         comment_text = ""
         if len(game) > 9 and game[9]:
