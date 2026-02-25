@@ -3286,6 +3286,43 @@ def test_email():
             'error': error_msg
         }), 500
 
+@app.route('/generate_and_email_today', methods=['POST'])
+@login_required
+def generate_and_email_today():
+    """Send the AI summary email to selected recipients (from preview page)."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        return jsonify({'success': False, 'error': 'Email not configured.'}), 400
+    data = request.get_json() or {}
+    selected_emails = data.get('selected_emails') or []
+    additional_emails = data.get('additional_emails') or []
+    email_html = data.get('email_html') or ''
+    subject = data.get('subject') or 'Vball Summary'
+    recipients = [e.strip() for e in selected_emails if e and str(e).strip()]
+    for raw in additional_emails:
+        for e in str(raw).replace(',', ' ').replace(';', ' ').split():
+            e = e.strip()
+            if e and '@' in e and e not in recipients:
+                recipients.append(e)
+    if not recipients:
+        return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
+    emails_sent = 0
+    errors = []
+    for to_addr in recipients:
+        try:
+            msg = Message(subject=subject, recipients=[to_addr])
+            msg.html = email_html if email_html.strip() else '<p>No content.</p>'
+            msg.body = 'View the summary in HTML email.'
+            mail.send(msg)
+            emails_sent += 1
+        except Exception as e:
+            errors.append(f"{to_addr}: {str(e)}")
+    return jsonify({
+        'success': True,
+        'emails_sent': emails_sent,
+        'errors': errors
+    })
+
+
 @app.route('/send_daily_emails', methods=['POST'])
 def send_daily_emails():
     """Send emails to all players who played on a specific date"""
