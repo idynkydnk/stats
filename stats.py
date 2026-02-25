@@ -577,26 +577,32 @@ def preview_ai_summary_with_prompt():
         flash(str(ve), 'error')
         return redirect(url_for('ai_summary'))
     except Exception as e:
+        app.logger.exception('AI summary payload failed')
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
 
     selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
-    can_send = len(payload['players']) > 0 and len(payload['all_emails']) > 0
+    can_send = len(payload.get('players', [])) > 0 and len(payload.get('all_emails', [])) > 0
 
-    return render_template(
-        'preview_ai_summary.html',
-        game_type='doubles',
-        header_title="Doubles AI Summary Preview",
-        subject=payload['subject'],
-        email_html=payload['html_body'],
-        players=payload['players'],
-        players_without_email=payload['players_without_email'],
-        selected_game_ids_json=selected_game_ids_json,
-        selected_game_ids=selected_game_ids,
-        send_url=url_for('generate_and_email_today'),
-        back_url=url_for('ai_summary'),
-        can_send=can_send
-    )
+    try:
+        return render_template(
+            'preview_ai_summary.html',
+            game_type='doubles',
+            header_title="Doubles AI Summary Preview",
+            subject=payload.get('subject') or '',
+            email_html=payload.get('html_body') or '',
+            players=payload.get('players') or [],
+            players_without_email=payload.get('players_without_email') or [],
+            selected_game_ids_json=selected_game_ids_json,
+            selected_game_ids=selected_game_ids,
+            send_url=url_for('generate_and_email_today'),
+            back_url=url_for('ai_summary'),
+            can_send=can_send
+        )
+    except Exception as e:
+        app.logger.exception('AI summary template render failed')
+        flash(f'Failed to show preview: {str(e)}', 'error')
+        return redirect(url_for('ai_summary'))
 
 def _add_doubles_game_view(redirect_to):
     """Shared logic for add_game and add_game_voice (same page, different URLs)."""
@@ -2869,7 +2875,8 @@ Keep it to 2-3 compact paragraphs.""",
         context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%){diff_str}{age_str}{height_str}{streak_str}\n"
 
     # Get earliest game date for historical queries
-    earliest_game_date = min(raw_game[1] for raw_game in raw_games)
+    date_values = [r[1] for r in raw_games if len(r) > 1 and r[1]]
+    earliest_game_date = min(date_values) if date_values else (games[0][1].split()[0] if games else datetime.now().strftime('%Y-%m-%d'))
     
     context += "\nHistorical Context:\n"
     for game in games[:5]:
@@ -2930,8 +2937,16 @@ Here is the game data:
 {context}
 
 Write the recap:"""
-    response = model.generate_content(prompt)
-    summary = getattr(response, 'text', '') or ''
+    try:
+        response = model.generate_content(prompt)
+        try:
+            summary = (response.text or '') if hasattr(response, 'text') else ''
+        except Exception:
+            summary = ''
+    except Exception as e:
+        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
+
+    summary = (summary or '').strip()
 
     players_set = set()
     for game in games:
@@ -2959,8 +2974,14 @@ Write the recap:"""
         if opt_in_email and opt_in_email not in all_emails:
             all_emails.append(opt_in_email)
 
-    # Parse earliest game date for email subject
-    date_obj = datetime.strptime(earliest_game_date[:10], '%Y-%m-%d')
+    # Parse earliest game date for email subject (raw DB is YYYY-MM-DD; fallback may be MM/DD/YYYY)
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     html_body = create_doubles_email_html(summary, stats, games, date_obj)
