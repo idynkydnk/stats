@@ -166,10 +166,10 @@
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear game type"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="game_typeList"></div>
                 </div>
-                {% set score_type_val = request.form.get('score_type') or ('team' if (game.get('winner_score') is not none and game.get('winner1_score') is none) else 'individual') %}
+                {% set score_type_val = request.form.get('score_type') or ('team' if (game.get('winner_score') is not none and game.get('winner1_score') is none) else ('none' if (game.get('winner_score') is none and game.get('winner1_score') is none) else 'individual')) %}
                 <div class="autocomplete has-clear empty" id="score_type-wrap">
                     <input type="text" name="score_type_display" id="score_type_display" placeholder="Score Type" readonly
-                           value="{{ 'Team Scores' if score_type_val == 'team' else 'Individual Scores' }}">
+                           value="{{ 'Team Scores' if score_type_val == 'team' else ('No Scores' if score_type_val == 'none' else 'Individual Scores') }}">
                     <input type="hidden" name="score_type" id="score_type" value="{{ score_type_val }}">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear score type"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="score_typeList"></div>
@@ -182,7 +182,7 @@
                         <button type="button" class="clear-field-btn" title="Clear winner 1"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="winner1List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="winner1_score" id="winner1_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                    <input type="number" pattern="[0-9]*" name="winner1_score" id="winner1_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                            value="{{ request.form.get('winner1_score', '' if game.get('winner1_score') is none else game.get('winner1_score')) }}">
                 </div>
                 <div class="player-entry" id="winner2-entry" style="{% if (winner_count | default(1)) < 2 %}display: none;{% else %}display: flex;{% endif %}">
@@ -192,7 +192,7 @@
                         <button type="button" class="clear-field-btn" title="Clear winner 2"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="winner2List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="winner2_score" id="winner2_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                    <input type="number" pattern="[0-9]*" name="winner2_score" id="winner2_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                            value="{{ request.form.get('winner2_score', '' if game.get('winner2_score') is none else game.get('winner2_score')) }}">
                 </div>
                 <div id="winners-container">
@@ -204,7 +204,7 @@
                             <button type="button" class="clear-field-btn" title="Clear winner {{ i }}"><i class="fas fa-times"></i></button>
                             <div class="autocomplete-list" id="winner{{ i }}List"></div>
                         </div>
-                        <input type="number" pattern="[0-9]*" name="winner{{ i }}_score" id="winner{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                        <input type="number" pattern="[0-9]*" name="winner{{ i }}_score" id="winner{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                                value="{{ request.form.get('winner' ~ i ~ '_score', '' if game.get('winner' ~ i ~ '_score') is none else game.get('winner' ~ i ~ '_score')) }}">
                     </div>
                     {% endfor %}
@@ -224,7 +224,7 @@
                         <button type="button" class="clear-field-btn" title="Clear loser 1"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="loser1List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="loser1_score" id="loser1_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                    <input type="number" pattern="[0-9]*" name="loser1_score" id="loser1_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                            value="{{ request.form.get('loser1_score', '' if game.get('loser1_score') is none else game.get('loser1_score')) }}">
                 </div>
                 <div class="player-entry" id="loser2-entry" style="{% if (loser_count | default(1)) < 2 %}display: none;{% else %}display: flex;{% endif %}">
@@ -234,7 +234,7 @@
                         <button type="button" class="clear-field-btn" title="Clear loser 2"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="loser2List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="loser2_score" id="loser2_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                    <input type="number" pattern="[0-9]*" name="loser2_score" id="loser2_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                            value="{{ request.form.get('loser2_score', '' if game.get('loser2_score') is none else game.get('loser2_score')) }}">
                 </div>
                 <div id="losers-container">
@@ -246,7 +246,7 @@
                             <button type="button" class="clear-field-btn" title="Clear loser {{ i }}"><i class="fas fa-times"></i></button>
                             <div class="autocomplete-list" id="loser{{ i }}List"></div>
                         </div>
-                        <input type="number" pattern="[0-9]*" name="loser{{ i }}_score" id="loser{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val == 'team' else '' }}" placeholder="Score"
+                        <input type="number" pattern="[0-9]*" name="loser{{ i }}_score" id="loser{{ i }}_score" class="score-input individual-score{{ ' hidden' if score_type_val in ('team', 'none') else '' }}" placeholder="Score"
                                value="{{ request.form.get('loser' ~ i ~ '_score', '' if game.get('loser' ~ i ~ '_score') is none else game.get('loser' ~ i ~ '_score')) }}">
                     </div>
                     {% endfor %}
@@ -404,7 +404,8 @@ function setupPlayerAutocomplete(field, list, onSelectNext) {
 
 function setScoreType(value) {
     document.getElementById('score_type').value = value;
-    document.getElementById('score_type_display').value = value === 'team' ? 'Team Scores' : 'Individual Scores';
+    const displayVal = value === 'team' ? 'Team Scores' : value === 'none' ? 'No Scores' : 'Individual Scores';
+    document.getElementById('score_type_display').value = displayVal;
     if (document.getElementById('score_typeList')) document.getElementById('score_typeList').style.display = 'none';
     const indiv = document.querySelectorAll('.individual-score');
     const winTeam = document.getElementById('winner-team-score');
@@ -413,6 +414,10 @@ function setScoreType(value) {
         indiv.forEach(el => el.classList.add('hidden'));
         if (winTeam) winTeam.style.display = 'block';
         if (loseTeam) loseTeam.style.display = 'block';
+    } else if (value === 'none') {
+        indiv.forEach(el => el.classList.add('hidden'));
+        if (winTeam) winTeam.style.display = 'none';
+        if (loseTeam) loseTeam.style.display = 'none';
     } else {
         indiv.forEach(el => el.classList.remove('hidden'));
         if (winTeam) winTeam.style.display = 'none';
@@ -420,16 +425,18 @@ function setScoreType(value) {
     }
 }
 function getNextFocusAfterPlayer(fieldId) {
-    const isTeam = document.getElementById('score_type').value === 'team';
+    const scoreType = document.getElementById('score_type').value;
+    const isTeam = scoreType === 'team';
+    const isNone = scoreType === 'none';
     const w2Visible = document.getElementById('winner2-entry') && document.getElementById('winner2-entry').style.display !== 'none';
     const l2Visible = document.getElementById('loser2-entry') && document.getElementById('loser2-entry').style.display !== 'none';
-    if (fieldId === 'winner1') return (isTeam && w2Visible) ? 'winner2' : (isTeam ? 'winner_score' : 'winner1_score');
-    if (fieldId === 'winner2') return isTeam ? 'winner_score' : 'winner2_score';
+    if (fieldId === 'winner1') return (isTeam && w2Visible) ? 'winner2' : ((isTeam || isNone) && w2Visible ? 'winner2' : (isTeam ? 'winner_score' : isNone ? 'loser1' : 'winner1_score'));
+    if (fieldId === 'winner2') return isTeam ? 'winner_score' : isNone ? 'loser1' : 'winner2_score';
     if (fieldId === 'winner1_score') return 'winner2';
     if (fieldId === 'winner2_score') return 'loser1';
     if (fieldId === 'winner_score') return 'loser1';
-    if (fieldId === 'loser1') return (isTeam && l2Visible) ? 'loser2' : (isTeam ? 'loser_score' : 'loser1_score');
-    if (fieldId === 'loser2') return isTeam ? 'loser_score' : 'loser2_score';
+    if (fieldId === 'loser1') return (isTeam && l2Visible) ? 'loser2' : ((isTeam || isNone) && l2Visible ? 'loser2' : (isTeam ? 'loser_score' : isNone ? 'comment' : 'loser1_score'));
+    if (fieldId === 'loser2') return isTeam ? 'loser_score' : isNone ? 'comment' : 'loser2_score';
     if (fieldId === 'loser1_score') return 'loser2';
     if (fieldId === 'loser2_score') return 'comment';
     if (fieldId === 'loser_score') return 'comment';
@@ -455,7 +462,7 @@ const scoreTypeList = document.getElementById('score_typeList');
 if (scoreTypeDisplay && scoreTypeList) {
     scoreTypeDisplay.addEventListener('focus', () => {
         scoreTypeList.innerHTML = '';
-        [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }].forEach(opt => {
+        [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }, { value: 'none', display: 'No Scores' }].forEach(opt => {
             const div = document.createElement('div');
             div.textContent = opt.display;
             div.dataset.value = opt.value;

@@ -861,13 +861,18 @@ def add_other_game():
         if score_type == 'team':
             team_winner_score = request.form.get('winner_score', '').strip()
             team_loser_score = request.form.get('loser_score', '').strip()
+        elif score_type == 'none':
+            team_winner_score = None
+            team_loser_score = None
 
         comment = request.form.get('comment', '')
 
-        # Games that have had scores before (by game_name) must have scores on this entry too
+        # Games that have had scores before (by game_name) must have scores on this entry too (unless user chose "No Scores")
         from other_functions import game_name_requires_scores
         requires_scores = game_name_requires_scores(game_name)
-        if requires_scores:
+        if score_type == 'none':
+            has_scores = True  # no scores option: never require scores
+        elif requires_scores:
             if score_type == 'team':
                 has_scores = bool(team_winner_score and team_loser_score)
             else:
@@ -1537,10 +1542,12 @@ def update_other_game(id):
         team_winner_score = request.form.get('winner_score', '').strip()
         team_loser_score = request.form.get('loser_score', '').strip()
 
-        # Games that have had scores before (by game_name) must have scores on this entry too
+        # Games that have had scores before (by game_name) must have scores on this entry too (unless "No Scores")
         from other_functions import game_name_requires_scores
         requires_scores = game_name_requires_scores(game_name)
-        if requires_scores:
+        if score_type == 'none':
+            has_scores = True
+        elif requires_scores:
             if score_type == 'team':
                 has_scores = bool(team_winner_score and team_loser_score)
             else:
@@ -1573,6 +1580,9 @@ def update_other_game(id):
             if score_type == 'team':
                 aggregate_winner_score = int(team_winner_score) if team_winner_score else None
                 aggregate_loser_score = int(team_loser_score) if team_loser_score else None
+            elif score_type == 'none':
+                aggregate_winner_score = None
+                aggregate_loser_score = None
             else:
                 aggregate_winner_score = next((int(score) for score in winner_scores if score not in ("", None)), None)
                 aggregate_loser_score = next((int(score) for score in loser_scores if score not in ("", None)), None)

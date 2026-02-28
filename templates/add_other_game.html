@@ -590,7 +590,7 @@ setupAutocomplete('game_type', () => allGameTypes, field => {
 // Score type dropdown
 const scoreTypeDisplay = document.getElementById('score_type_display');
 const scoreTypeList = document.getElementById('score_typeList');
-const scoreTypeOptions = [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }];
+const scoreTypeOptions = [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }, { value: 'none', display: 'No Scores' }];
 
 scoreTypeDisplay.addEventListener('focus', () => {
     scoreTypeList.innerHTML = '';
@@ -612,7 +612,8 @@ scoreTypeList.addEventListener('click', e => {
 
 function setScoreType(value) {
     document.getElementById('score_type').value = value;
-    document.getElementById('score_type_display').value = value === 'team' ? 'Team Scores' : 'Individual Scores';
+    const displayVal = value === 'team' ? 'Team Scores' : value === 'none' ? 'No Scores' : 'Individual Scores';
+    document.getElementById('score_type_display').value = displayVal;
     document.getElementById('score_typeList').style.display = 'none';
     
     const indiv = document.querySelectorAll('.individual-score');
@@ -623,6 +624,10 @@ function setScoreType(value) {
         indiv.forEach(el => el.classList.add('hidden'));
         if (winTeam) winTeam.style.display = 'block';
         if (loseTeam) loseTeam.style.display = 'block';
+    } else if (value === 'none') {
+        indiv.forEach(el => el.classList.add('hidden'));
+        if (winTeam) winTeam.style.display = 'none';
+        if (loseTeam) loseTeam.style.display = 'none';
     } else {
         indiv.forEach(el => el.classList.remove('hidden'));
         if (winTeam) winTeam.style.display = 'none';
@@ -630,17 +635,19 @@ function setScoreType(value) {
     }
 }
 
-// Focus chain: individual = winner1 -> winner1_score -> winner2 -> winner2_score -> loser1 -> loser1_score -> loser2 -> loser2_score -> comment
-// Team = winner1 -> winner2 (if 2v2) -> loser1 -> loser2 (if 2v2) -> winner_score -> loser_score -> comment
+// Focus chain: individual = winner1 -> winner1_score -> ...; Team = winner1 -> winner2 -> loser1 -> loser2 -> winner_score -> loser_score -> comment
+// No scores = winner1 -> winner2 -> loser1 -> loser2 -> comment
 function getNextFocusAfterPlayer(fieldId) {
-    const isTeam = document.getElementById('score_type').value === 'team';
-    if (fieldId === 'winner1') return isTeam && document.getElementById('winner2-entry')?.style.display !== 'none' ? 'winner2' : (isTeam ? 'loser1' : 'winner1_score');
-    if (fieldId === 'winner2') return isTeam ? 'loser1' : 'winner2_score';
+    const scoreType = document.getElementById('score_type').value;
+    const isTeam = scoreType === 'team';
+    const isNone = scoreType === 'none';
+    if (fieldId === 'winner1') return (isTeam || isNone) && document.getElementById('winner2-entry')?.style.display !== 'none' ? 'winner2' : (isTeam || isNone ? 'loser1' : 'winner1_score');
+    if (fieldId === 'winner2') return (isTeam || isNone) ? 'loser1' : 'winner2_score';
     if (fieldId === 'winner1_score') return 'winner2';  // individual: next is winner2 if present
     if (fieldId === 'winner2_score') return 'loser1';
     if (fieldId === 'winner_score') return 'loser_score';
-    if (fieldId === 'loser1') return isTeam && document.getElementById('loser2-entry')?.style.display !== 'none' ? 'loser2' : (isTeam ? 'winner_score' : 'loser1_score');
-    if (fieldId === 'loser2') return isTeam ? 'winner_score' : 'loser2_score';
+    if (fieldId === 'loser1') return (isTeam || isNone) && document.getElementById('loser2-entry')?.style.display !== 'none' ? 'loser2' : (isTeam ? 'winner_score' : isNone ? 'comment' : 'loser1_score');
+    if (fieldId === 'loser2') return isTeam ? 'winner_score' : isNone ? 'comment' : 'loser2_score';
     if (fieldId === 'loser1_score') return 'loser2';  // individual: next is loser2 if present
     if (fieldId === 'loser2_score') return 'comment';
     if (fieldId === 'loser_score') return 'comment';
@@ -698,7 +705,7 @@ function addWinner() {
     const container = document.getElementById('winners-container');
     const div = document.createElement('div');
     div.className = 'player-entry';
-    const hidden = document.getElementById('score_type').value === 'team' ? 'hidden' : '';
+    const hidden = (document.getElementById('score_type').value === 'team' || document.getElementById('score_type').value === 'none') ? 'hidden' : '';
     div.innerHTML = `
         <div class="autocomplete">
             <input type="text" name="winner${winnerCount}" id="winner${winnerCount}" placeholder="Winner ${winnerCount}" autocomplete="off">
@@ -719,7 +726,7 @@ function addLoser() {
     const container = document.getElementById('losers-container');
     const div = document.createElement('div');
     div.className = 'player-entry';
-    const hidden = document.getElementById('score_type').value === 'team' ? 'hidden' : '';
+    const hidden = (document.getElementById('score_type').value === 'team' || document.getElementById('score_type').value === 'none') ? 'hidden' : '';
     div.innerHTML = `
         <div class="autocomplete">
             <input type="text" name="loser${loserCount}" id="loser${loserCount}" placeholder="Loser ${loserCount}" autocomplete="off">
@@ -826,7 +833,9 @@ document.getElementById('add-other-form').addEventListener('submit', function(e)
     var requiresScores = gameName && gameNamesRequiringScores.some(function(n) { return n.toLowerCase() === gameName.toLowerCase(); });
     if (requiresScores) {
         var scoreType = document.getElementById('score_type').value;
-        if (scoreType === 'team') {
+        if (scoreType === 'none') {
+            // No scores option: skip score validation
+        } else if (scoreType === 'team') {
             var winnerScore = (document.getElementById('winner_score').value || '').trim();
             var loserScore = (document.getElementById('loser_score').value || '').trim();
             if (!winnerScore || !loserScore) {
