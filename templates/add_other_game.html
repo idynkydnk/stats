@@ -369,9 +369,10 @@ function getPlayerListForAutocomplete() {
     return allPlayers;
 }
 
+let cachedCommonScoresGameName = null;
 function fetchCommonScoresThen(callback) {
-    const gameName = document.getElementById('game_name').value.trim();
-    if (cachedCommonScores) {
+    const gameName = (document.getElementById('game_name') && document.getElementById('game_name').value || '').trim();
+    if (cachedCommonScores && cachedCommonScoresGameName === gameName) {
         callback(cachedCommonScores);
         return;
     }
@@ -383,6 +384,7 @@ function fetchCommonScoresThen(callback) {
         .then(r => r.json())
         .then(data => {
             cachedCommonScores = data;
+            cachedCommonScoresGameName = gameName;
             callback(data);
         })
         .catch(() => callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] }));
@@ -423,12 +425,21 @@ function getNextFieldAfterScore(scoreInput) {
     const nextEl = document.getElementById('loser' + nextN);
     return (nextEl && nextEl.offsetParent !== null) ? nextEl : document.getElementById('comment');
 }
+const defaultIndividualScores = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 function openCommonScoreDropdown(scoreInput) {
     _currentScoreInput = scoreInput;
     const isWinner = scoreInput.id === 'winner_score' || /^winner\d*_score$/.test(scoreInput.name || '') || /^winner\d*_score$/.test(scoreInput.id || '');
+    const scoreType = (document.getElementById('score_type') && document.getElementById('score_type').value) || 'individual';
+    const useIndividual = (scoreType === 'individual');
     fetchCommonScoresThen(data => {
         const list = document.getElementById('common_score_dropdown');
-        showScoreList(list, isWinner ? data.winner_scores : data.loser_scores);
+        const winScores = useIndividual
+            ? (data.winner_individual_scores && data.winner_individual_scores.length ? data.winner_individual_scores : defaultIndividualScores)
+            : (data.winner_scores || defaultIndividualScores);
+        const loseScores = useIndividual
+            ? (data.loser_individual_scores && data.loser_individual_scores.length ? data.loser_individual_scores : defaultIndividualScores)
+            : (data.loser_scores || defaultIndividualScores);
+        showScoreList(list, isWinner ? winScores : loseScores);
         const rect = scoreInput.getBoundingClientRect();
         list.style.top = (rect.bottom + 4) + 'px';
         list.style.left = rect.left + 'px';
@@ -554,6 +565,7 @@ function showExtraPlayers() {
 // Game name: on select, fetch info and player order for this game; then focus game_type or winner1
 setupAutocomplete('game_name', () => allGameNames, field => {
     cachedCommonScores = null;
+    cachedCommonScoresGameName = null;
     const gameName = (field.value || '').trim();
     if (gameName) {
         fetch(`/api/other_game_players/${encodeURIComponent(gameName)}`)
@@ -814,6 +826,7 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     cachedPlayerOrder = null;
     cachedPlayerOrderGame = null;
     cachedCommonScores = null;
+    cachedCommonScoresGameName = null;
     document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
     document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
     document.getElementById('game_name')?.focus();

@@ -280,21 +280,22 @@ let winnerCount = {{ winner_count | default(1) }};
 let loserCount = {{ loser_count | default(1) }};
 let is2v2Mode = {{ 'true' if ((winner_count | default(1)) == 2 and (loser_count | default(1)) == 2 and score_type_val == 'team') else 'false' }};
 let cachedCommonScores = null;
+let cachedCommonScoresGameName = null;
 
 function getPlayerListForAutocomplete() {
     return allPlayers;
 }
 
 function fetchCommonScoresThen(callback) {
-    const gameName = (document.getElementById('game_name').value || '').trim();
-    if (cachedCommonScores) { callback(cachedCommonScores); return; }
+    const gameName = (document.getElementById('game_name') && document.getElementById('game_name').value || '').trim();
+    if (cachedCommonScores && cachedCommonScoresGameName === gameName) { callback(cachedCommonScores); return; }
     if (!gameName) {
         callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] });
         return;
     }
     fetch('/api/other_game_common_scores/' + encodeURIComponent(gameName))
         .then(r => r.json())
-        .then(data => { cachedCommonScores = data; callback(data); })
+        .then(data => { cachedCommonScores = data; cachedCommonScoresGameName = gameName; callback(data); })
         .catch(() => callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] }));
 }
 
@@ -331,12 +332,21 @@ function getNextFieldAfterScore(scoreInput) {
     const nextEl = document.getElementById('loser' + nextN);
     return (nextEl && nextEl.offsetParent) ? nextEl : document.getElementById('comment');
 }
+const defaultIndividualScores = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 function openCommonScoreDropdown(scoreInput) {
     _currentScoreInput = scoreInput;
     const isWinner = scoreInput.id === 'winner_score' || /^winner\d*_score$/.test(scoreInput.name || scoreInput.id || '');
+    const scoreType = (document.getElementById('score_type') && document.getElementById('score_type').value) || 'individual';
+    const useIndividual = (scoreType === 'individual');
     fetchCommonScoresThen(data => {
         const list = document.getElementById('common_score_dropdown');
-        showScoreList(list, isWinner ? data.winner_scores : data.loser_scores);
+        const winScores = useIndividual
+            ? (data.winner_individual_scores && data.winner_individual_scores.length ? data.winner_individual_scores : defaultIndividualScores)
+            : (data.winner_scores || defaultIndividualScores);
+        const loseScores = useIndividual
+            ? (data.loser_individual_scores && data.loser_individual_scores.length ? data.loser_individual_scores : defaultIndividualScores)
+            : (data.loser_scores || defaultIndividualScores);
+        showScoreList(list, isWinner ? winScores : loseScores);
         const rect = scoreInput.getBoundingClientRect();
         list.style.top = (rect.bottom + 4) + 'px';
         list.style.left = rect.left + 'px';

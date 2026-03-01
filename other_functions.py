@@ -446,10 +446,11 @@ def set_cur():
 
 
 def get_score_type_for_game(game_name):
-    """Determine if a game uses individual or team scoring based on previous entries.
-    
-    Returns 'team' if winner_score is set but winner1_score is not (or all individual scores match).
-    Returns 'individual' if winner1_score is set with different values per player.
+    """Determine if a game uses individual, team, or no scoring based on previous entries.
+
+    Returns 'team' if winner_score is set but winner1_score is not.
+    Returns 'individual' if winner1_score is set.
+    Returns 'none' if the latest game had neither team nor individual scores.
     Returns 'individual' as default if no previous games exist.
     """
     cur = set_cur()
@@ -461,22 +462,26 @@ def get_score_type_for_game(game_name):
         LIMIT 1
     """, (game_name,))
     row = cur.fetchone()
-    
+
     if not row:
         return 'individual'  # Default for new games
-    
+
     winner_score = row['winner_score']
     winner1_score = row['winner1_score']
     winner2_score = row['winner2_score']
-    
+
     # If there's a team winner_score but no individual scores, it's a team game
     if winner_score is not None and winner1_score is None:
         return 'team'
-    
+
     # If there are individual scores, it's an individual game
     if winner1_score is not None:
         return 'individual'
-    
+
+    # Latest game had no scores (neither team nor individual)
+    if winner_score is None and winner1_score is None:
+        return 'none'
+
     # Default to individual
     return 'individual'
 
@@ -530,11 +535,60 @@ def get_players_per_side_for_game(game_name):
     return {'winner_count': winner_count or 1, 'loser_count': loser_count or 1}
 
 
-def get_common_scores_for_game(game_name):
-    """Return most common winner_score and loser_score values for this game name (for dropdowns).
-    Returns dict with winner_scores and loser_scores (lists of integers, most frequent first).
+def get_common_individual_scores_for_game(game_name):
+    """Return most common individual player scores (winner1_score..winner15_score, loser1_score..loser15_score)
+    for this game name. Returns dict with winner_individual_scores and loser_individual_scores (lists of ints).
+    Uses case-insensitive game_name match. Defaults to 0,1,2,... when no history (for board games etc.).
     """
+    if not (game_name and str(game_name).strip()):
+        default = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        return {'winner_individual_scores': default, 'loser_individual_scores': default}
     cur = set_cur()
+    win_cols = [f'winner{i}_score' for i in range(1, 16)]
+    lose_cols = [f'loser{i}_score' for i in range(1, 16)]
+    cols = ', '.join(win_cols + lose_cols)
+    cur.execute(
+        f"SELECT {cols} FROM other_games WHERE LOWER(TRIM(game_name)) = LOWER(TRIM(?)) ORDER BY game_date DESC LIMIT 200",
+        (game_name,)
+    )
+    rows = cur.fetchall()
+    from collections import Counter
+    win_scores = []
+    lose_scores = []
+    for r in rows:
+        for c in win_cols:
+            v = r[c] if c in r.keys() else None
+            if v is not None and str(v).strip() != '':
+                try:
+                    win_scores.append(int(v))
+                except (ValueError, TypeError):
+                    pass
+        for c in lose_cols:
+            v = r[c] if c in r.keys() else None
+            if v is not None and str(v).strip() != '':
+                try:
+                    lose_scores.append(int(v))
+                except (ValueError, TypeError):
+                    pass
+    win_counts = Counter(win_scores)
+    lose_counts = Counter(lose_scores)
+    winner_individual_scores = [int(s) for s, _ in win_counts.most_common(10)]
+    loser_individual_scores = [int(s) for s, _ in lose_counts.most_common(10)]
+    # Default for individual scores when no history: low numbers (board games, etc.)
+    default_individual = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    return {
+        'winner_individual_scores': winner_individual_scores or default_individual,
+        'loser_individual_scores': loser_individual_scores or default_individual
+    }
+
+
+def get_common_scores_for_game(game_name):
+    """Return most common team and individual scores for this game name (for dropdowns).
+    Returns dict with winner_scores, loser_scores (team), winner_individual_scores, loser_individual_scores.
+    """
+    from collections import Counter
+    cur = set_cur()
+    # Team scores (winner_score, loser_score)
     cur.execute("""
         SELECT winner_score, loser_score FROM other_games
         WHERE game_name = ? AND winner_score IS NOT NULL AND loser_score IS NOT NULL
@@ -543,17 +597,21 @@ def get_common_scores_for_game(game_name):
     """, (game_name,))
     rows = cur.fetchall()
     if not rows:
-        # Default common volleyball/coed scores
-        return {
-            'winner_scores': [21, 25, 15, 18, 20, 22, 24],
-            'loser_scores': [19, 23, 12, 16, 17, 20, 21]
-        }
-    from collections import Counter
-    win_counts = Counter(int(r['winner_score']) for r in rows if r['winner_score'] is not None)
-    lose_counts = Counter(int(r['loser_score']) for r in rows if r['loser_score'] is not None)
-    winner_scores = [int(s) for s, _ in win_counts.most_common(10)]
-    loser_scores = [int(s) for s, _ in lose_counts.most_common(10)]
-    return {'winner_scores': winner_scores or [21, 25, 15], 'loser_scores': loser_scores or [19, 23, 12]}
+        team_winner = [21, 25, 15, 18, 20, 22, 24]
+        team_loser = [19, 23, 12, 16, 17, 20, 21]
+    else:
+        win_counts = Counter(int(r['winner_score']) for r in rows if r['winner_score'] is not None)
+        lose_counts = Counter(int(r['loser_score']) for r in rows if r['loser_score'] is not None)
+        team_winner = [int(s) for s, _ in win_counts.most_common(10)] or [21, 25, 15]
+        team_loser = [int(s) for s, _ in lose_counts.most_common(10)] or [19, 23, 12]
+
+    individual = get_common_individual_scores_for_game(game_name)
+    return {
+        'winner_scores': team_winner,
+        'loser_scores': team_loser,
+        'winner_individual_scores': individual['winner_individual_scores'],
+        'loser_individual_scores': individual['loser_individual_scores']
+    }
 
 
 def get_players_ordered_for_game(game_name):
