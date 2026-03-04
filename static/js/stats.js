@@ -5,7 +5,35 @@ document.addEventListener('DOMContentLoaded', function() {
     initSorting();
     initChart();
     initRangePills();
+    initRatingInfoPopover();
 });
+
+// ============================================
+// RATING INFO POPOVER
+// ============================================
+function initRatingInfoPopover() {
+    const buttons = document.querySelectorAll('.sr-rating-info-btn');
+    if (!buttons.length) return;
+
+    function closeAllPopovers() {
+        document.querySelectorAll('.sr-rating-popover').forEach(function(pop) {
+            pop.hidden = true;
+        });
+    }
+
+    buttons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const popover = this.parentElement.querySelector('.sr-rating-popover');
+            if (!popover) return;
+            const isOpen = !popover.hidden;
+            closeAllPopovers();
+            if (!isOpen) popover.hidden = false;
+        });
+    });
+
+    document.addEventListener('click', closeAllPopovers);
+}
 
 // ============================================
 // SEARCH FILTERING
@@ -89,7 +117,8 @@ function initSorting() {
     const headers = table.querySelectorAll('th[data-sort]');
     
     headers.forEach((header, index) => {
-        header.addEventListener('click', function() {
+        header.addEventListener('click', function(e) {
+            if (e.target.closest('.sr-rating-info-btn')) return;
             const sortKey = this.dataset.sort;
             const isNumeric = this.classList.contains('sr-numeric');
             

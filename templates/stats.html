@@ -118,7 +118,18 @@
                             <tr>
                                 <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="rating" class="sr-numeric">
+                                    <span class="sr-rating-header">
+                                        Rating <span class="sr-sort-arrow">▼</span>
+                                        <button type="button" class="sr-rating-info-btn" id="sr-rating-info-btn" aria-label="What is Rating?"><i class="fas fa-info-circle"></i></button>
+                                        <div class="sr-rating-popover" id="sr-rating-popover" role="tooltip" hidden>
+                                            <div class="sr-rating-popover-title">Rating (TrueSkill)</div>
+                                            <p><strong>What it is:</strong> A skill estimate that reflects how strong a player is based on who they beat and lose to. Higher = stronger.</p>
+                                            <p><strong>How it works:</strong> Everyone starts from the same baseline. After each game, winners’ ratings go up and losers’ go down—more when the result is an upset. We show a &ldquo;conservative&rdquo; rating (skill minus uncertainty) so the order is stable and not skewed by few games.</p>
+                                            <p>The table is sorted by this rating by default.</p>
+                                        </div>
+                                    </span>
+                                </th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
@@ -163,7 +174,18 @@
                             <tr>
                                 <th>#</th>
                                 <th>Player</th>
-                                <th class="sr-numeric">Rating</th>
+                                <th class="sr-numeric">
+                                <span class="sr-rating-header">
+                                    Rating
+                                    <button type="button" class="sr-rating-info-btn sr-rating-info-btn-rare" aria-label="What is Rating?"><i class="fas fa-info-circle"></i></button>
+                                    <div class="sr-rating-popover sr-rating-popover-rare" role="tooltip" hidden>
+                                        <div class="sr-rating-popover-title">Rating (TrueSkill)</div>
+                                        <p><strong>What it is:</strong> A skill estimate that reflects how strong a player is based on who they beat and lose to. Higher = stronger.</p>
+                                        <p><strong>How it works:</strong> Everyone starts from the same baseline. After each game, winners&rsquo; ratings go up and losers&rsquo; go down—more when the result is an upset. We show a &ldquo;conservative&rdquo; rating (skill minus uncertainty) so the order is stable and not skewed by few games.</p>
+                                        <p>The table is sorted by this rating by default.</p>
+                                    </div>
+                                </span>
+                            </th>
                                 <th class="sr-numeric">W</th>
                                 <th class="sr-numeric">L</th>
                                 <th class="sr-numeric">Win%</th>
