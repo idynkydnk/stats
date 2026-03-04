@@ -21,14 +21,34 @@ function initRatingInfoPopover() {
         });
     }
 
+    function openPopover(popover) {
+        closeAllPopovers();
+        // Move to body so table/layout cannot constrain width; force 80% viewport
+        if (popover.parentNode !== document.body) {
+            document.body.appendChild(popover);
+        }
+        popover.style.position = 'fixed';
+        popover.style.left = '10vw';
+        popover.style.width = '80vw';
+        popover.style.maxWidth = '80vw';
+        popover.style.top = '50%';
+        popover.style.transform = 'translateY(-50%)';
+        popover.style.boxSizing = 'border-box';
+        popover.style.whiteSpace = 'normal';
+        popover.hidden = false;
+    }
+
     buttons.forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const popover = this.parentElement.querySelector('.sr-rating-popover');
             if (!popover) return;
             const isOpen = !popover.hidden;
-            closeAllPopovers();
-            if (!isOpen) popover.hidden = false;
+            if (isOpen) {
+                closeAllPopovers();
+            } else {
+                openPopover(popover);
+            }
         });
     });
 

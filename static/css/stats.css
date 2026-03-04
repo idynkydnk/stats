@@ -556,28 +556,44 @@ input[type=number] {
     font-size: 10px;
 }
 
+/* Always fixed so it's never clipped by table; 80% viewport, text wraps */
 .sr-rating-popover {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 6px;
-    z-index: 1000;
-    width: 200px;
-    max-width: min(200px, 85vw);
-    padding: 12px 14px;
+    position: fixed !important;
+    left: 10vw !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 80vw !important;
+    max-width: 80vw !important;
+    margin: 0 !important;
+    padding: 14px 18px;
     background: var(--sr-panel);
     border: 1px solid var(--sr-line);
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.5;
     color: var(--sr-text);
     text-align: left;
+    box-sizing: border-box;
+    z-index: 10000;
+    max-height: 80vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal !important;
+}
+
+.sr-rating-popover * {
+    max-width: 100%;
+    min-width: 0;
+    white-space: normal !important;
 }
 
 .sr-rating-popover-rare {
-    left: auto;
-    right: 0;
+    left: 10vw !important;
+    right: auto !important;
 }
 
 .sr-rating-popover-title {

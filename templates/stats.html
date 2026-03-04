@@ -2,6 +2,24 @@
 {% block title %}{{ display_year|default(year) }} Doubles Stats{% endblock %}
 {% block extra_css %}
 <style>
+    /* Rating popover: fixed overlay 80% width, text must wrap (override table nowrap) */
+    .sr-rating-popover {
+        position: fixed !important;
+        left: 10vw !important;
+        width: 80vw !important;
+        max-width: 80vw !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        white-space: normal !important;
+    }
+    .sr-rating-popover * {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        white-space: normal !important;
+    }
     .sr-dropdown { position: relative; display: inline-block; z-index: 100; }
     .sr-dropdown-btn { background: var(--sr-panel); border: 1px solid var(--sr-line); color: var(--sr-muted); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .sr-dropdown-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
