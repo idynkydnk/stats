@@ -730,6 +730,12 @@ function addWinner() {
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
     newField.focus();
+    // Explicitly open the player autocomplete menu when adding a new winner
+    setTimeout(function() {
+        const players = getPlayerListForAutocomplete();
+        const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+        showList(newField, newList, available);
+    }, 50);
 }
 
 function addLoser() {
@@ -751,6 +757,12 @@ function addLoser() {
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
     newField.focus();
+    // Explicitly open the player autocomplete menu when adding a new loser
+    setTimeout(function() {
+        const players = getPlayerListForAutocomplete();
+        const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+        showList(newField, newList, available);
+    }, 50);
 }
 
 document.addEventListener('click', e => {

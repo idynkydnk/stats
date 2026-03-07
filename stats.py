@@ -63,7 +63,8 @@ USERS = {
     'arbel': 'arbel2025',
     'mark': 'mark2025',
     'troy': 'troy2025',
-    'jason': 'jason2025'
+    'jason': 'jason2025',
+    'iosapp': 'stats2026'
 }
 
 
