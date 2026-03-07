@@ -940,7 +940,8 @@ def add_other_game():
             add_other_stats(
                 game_dt, game_type, game_name, winners, winner_scores,
                 losers, loser_scores, comment, game_dt,
-                team_winner_score, team_loser_score, tz
+                team_winner_score, team_loser_score, tz,
+                entered_by=session.get('username', '')
             )
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
@@ -1857,9 +1858,10 @@ def get_other_game_common_scores(game_name):
 
 @app.route('/api/other_game_players/<game_name>')
 def get_other_game_players(game_name):
-    """API endpoint to get players ordered for a game: played this game first (by count), then the rest."""
+    """API endpoint to get players ordered for a game: by current user's last-entered first, then by count."""
     from other_functions import get_players_ordered_for_game
-    players = get_players_ordered_for_game(game_name)
+    current_username = session.get('username') if session.get('logged_in') else None
+    players = get_players_ordered_for_game(game_name, current_username=current_username)
     return jsonify(players)
 
 

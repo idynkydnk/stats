@@ -118,7 +118,7 @@ def _normalize_players(players, scores):
 
 def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
                     losers, loser_scores, comment, updated_at,
-                    team_winner_score=None, team_loser_score=None, entered_timezone=None):
+                    team_winner_score=None, team_loser_score=None, entered_timezone=None, entered_by=None):
     """Insert an other-game record with per-player scores or team scores.
     
     If team_winner_score/team_loser_score are provided, they are used as the
@@ -159,7 +159,7 @@ def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
             + [aggregate_winner_score]
             + losers_normalized
             + loser_scores_normalized
-            + [aggregate_loser_score, comment, updated_at, entered_timezone]
+            + [aggregate_loser_score, comment, updated_at, entered_timezone, entered_by or '']
         )
         create_other_game(conn, tuple(values))
 
@@ -614,14 +614,41 @@ def get_common_scores_for_game(game_name):
     }
 
 
-def get_players_ordered_for_game(game_name):
-    """Return player names for autocomplete: those who played this game first (by game count desc), then the rest.
-    If game_name is empty, returns all_combined_players() order."""
+def get_players_ordered_for_game(game_name, current_username=None):
+    """Return player names for autocomplete. If current_username is set, order by when the current
+    user last entered a game containing each player (most recent first), then the rest. Otherwise
+    order by who played this game most (by count), then the rest. If game_name is empty,
+    returns all_combined_players() order."""
     all_players = all_combined_players()
     if not (game_name and game_name.strip()):
         return all_players
     cur = set_cur()
-    cur.execute("SELECT * FROM other_games WHERE game_name = ? ORDER BY game_date DESC", (game_name.strip(),))
+    # When we have a current user, order by "last entered by this user" (most recent game_date first)
+    if current_username and str(current_username).strip():
+        cur.execute(
+            "SELECT * FROM other_games WHERE LOWER(TRIM(game_name)) = LOWER(?) AND entered_by = ? ORDER BY game_date DESC",
+            (game_name.strip(), current_username.strip())
+        )
+        rows = cur.fetchall()
+        last_entered = {}  # player -> game_date (first occurrence = most recent)
+        for row in rows:
+            gd = row['game_date'] if hasattr(row, 'keys') else row[1]
+            for i in range(4, 19):
+                if row[i] and isinstance(row[i], str) and row[i].strip() and _is_valid_player_name(row[i]):
+                    p = row[i].strip()
+                    if p not in last_entered:
+                        last_entered[p] = gd
+            for i in range(35, 50):
+                if row[i] and isinstance(row[i], str) and row[i].strip() and _is_valid_player_name(row[i]):
+                    p = row[i].strip()
+                    if p not in last_entered:
+                        last_entered[p] = gd
+        if last_entered:
+            ordered = sorted(last_entered.keys(), key=lambda p: last_entered[p] or '', reverse=True)
+            rest = [p for p in all_players if p not in last_entered]
+            return ordered + rest
+    # Fallback: order by count (who played this game most), then rest
+    cur.execute("SELECT * FROM other_games WHERE LOWER(TRIM(game_name)) = LOWER(?) ORDER BY game_date DESC", (game_name.strip(),))
     rows = cur.fetchall()
     from collections import Counter
     counts = Counter()
