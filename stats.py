@@ -246,6 +246,35 @@ def get_all_notifications():
     conn.close()
     return notifications
 
+
+def format_notification_times(notifications, user_tz=None):
+    """Convert notification timestamps (UTC in DB) to user's timezone for display.
+    Returns list of (id, user, action, details, formatted_time_str, read_status)."""
+    if not notifications:
+        return []
+    out = []
+    utc = ZoneInfo('UTC')
+    tz = ZoneInfo(user_tz) if user_tz else utc
+    for row in notifications:
+        nid, user, action, details, ts_raw, read_status = row
+        try:
+            if not ts_raw:
+                out.append((nid, user, action, details, '—', read_status))
+                continue
+            if isinstance(ts_raw, str):
+                ts_clean = ts_raw.replace('Z', '').strip()
+                if '.' in ts_clean:
+                    ts_clean = ts_clean.split('.')[0]
+                dt_utc = datetime.strptime(ts_clean, '%Y-%m-%d %H:%M:%S').replace(tzinfo=utc)
+            else:
+                dt_utc = (ts_raw.replace(tzinfo=utc) if hasattr(ts_raw, 'replace') else datetime.fromisoformat(str(ts_raw))).replace(tzinfo=utc)
+            local = dt_utc.astimezone(tz)
+            formatted = local.strftime('%b %d, %Y at %I:%M %p')  # e.g. Mar 07, 2025 at 03:45 PM
+            out.append((nid, user, action, details, formatted, read_status))
+        except Exception:
+            out.append((nid, user, action, details, (ts_raw if isinstance(ts_raw, str) else str(ts_raw)) if ts_raw else '—', read_status))
+    return out
+
 def mark_notifications_read(notification_ids):
     """Mark specific notifications as read"""
     if notification_ids:
@@ -1754,8 +1783,10 @@ def notifications():
         return redirect(url_for('index'))
     
     all_notifications = get_all_notifications()
+    user_tz = session.get('timezone')
+    notifications_formatted = format_notification_times(all_notifications, user_tz=user_tz)
     unread_count = sum(1 for n in all_notifications if n[5] == 0)
-    return render_template('notifications.html', notifications=all_notifications, unread_count=unread_count)
+    return render_template('notifications.html', notifications=notifications_formatted, unread_count=unread_count)
 
 @app.route('/mark_notifications_read', methods=['POST'])
 @login_required
