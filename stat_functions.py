@@ -487,6 +487,42 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
+def all_players_ordered_for_doubles(current_username=None):
+	"""Return player names for doubles autocomplete. If current_username is set, players from games
+	the current user entered (most recent first) appear first, then the rest by last played."""
+	all_games_list = year_games('All years')
+	# Build "last played" order: unique players in order of most recent game first
+	last_played_order = []
+	seen = set()
+	for game in all_games_list:
+		for idx in (2, 3, 5, 6):
+			p = (game[idx] or '').strip()
+			if p and p not in seen:
+				seen.add(p)
+				last_played_order.append(p)
+	if not (current_username and str(current_username).strip()):
+		return last_played_order
+	# Get games entered by current user, most recent first; collect unique players in that order
+	cur = set_cur()
+	cur.execute(
+		"SELECT * FROM games WHERE updated_by = ? ORDER BY game_date DESC",
+		(current_username.strip(),)
+	)
+	rows = cur.fetchall()
+	# rows are tuples: id(0), game_date(1), winner1(2), winner2(3), winner_score(4), loser1(5), loser2(6), ...
+	entered_by_me_order = []
+	seen_me = set()
+	for row in rows:
+		for idx in (2, 3, 5, 6):
+			p = (row[idx] or '').strip() if idx < len(row) else ''
+			if p and p not in seen_me:
+				seen_me.add(p)
+				entered_by_me_order.append(p)
+	if not entered_by_me_order:
+		return last_played_order
+	rest = [p for p in last_played_order if p not in seen_me]
+	return entered_by_me_order + rest
+
 @cached(ttl=1800)
 def year_games(year):
 	cur = set_cur()
