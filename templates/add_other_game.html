@@ -391,6 +391,7 @@ function fetchCommonScoresThen(callback) {
 }
 
 function showScoreList(listEl, scores) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => { if (el !== listEl) el.style.display = 'none'; });
     listEl.innerHTML = '';
     (scores || []).forEach(score => {
         const div = document.createElement('div');
@@ -457,6 +458,7 @@ function getSelectedPlayers(excludeField) {
 }
 
 function showList(field, list, items) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => { if (el !== list) el.style.display = 'none'; });
     list.innerHTML = '';
     items.slice(0, 10).forEach(item => {
         const div = document.createElement('div');
@@ -605,6 +607,7 @@ const scoreTypeList = document.getElementById('score_typeList');
 const scoreTypeOptions = [{ value: 'individual', display: 'Individual Scores' }, { value: 'team', display: 'Team Scores' }, { value: 'none', display: 'No Scores' }];
 
 scoreTypeDisplay.addEventListener('focus', () => {
+    document.querySelectorAll('.autocomplete-list').forEach(el => { if (el !== scoreTypeList) el.style.display = 'none'; });
     scoreTypeList.innerHTML = '';
     scoreTypeOptions.forEach(opt => {
         const div = document.createElement('div');
@@ -715,6 +718,24 @@ function addWinner() {
     if (winnerCount >= 15) return;
     winnerCount++;
     const container = document.getElementById('winners-container');
+    // Use the existing static winner2-entry when adding the second winner (avoids duplicate name="winner2" on submit)
+    if (winnerCount === 2) {
+        const entry = document.getElementById('winner2-entry');
+        if (entry) {
+            entry.style.display = 'flex';
+            const newField = document.getElementById('winner2');
+            if (newField) {
+                newField.focus();
+                setTimeout(function() {
+                    const list = document.getElementById('winner2List');
+                    const players = getPlayerListForAutocomplete();
+                    const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+                    if (list) showList(newField, list, available);
+                }, 50);
+            }
+            return;
+        }
+    }
     const div = document.createElement('div');
     div.className = 'player-entry';
     const hidden = (document.getElementById('score_type').value === 'team' || document.getElementById('score_type').value === 'none') ? 'hidden' : '';
@@ -730,7 +751,6 @@ function addWinner() {
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
     newField.focus();
-    // Explicitly open the player autocomplete menu when adding a new winner
     setTimeout(function() {
         const players = getPlayerListForAutocomplete();
         const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
@@ -741,6 +761,24 @@ function addWinner() {
 function addLoser() {
     if (loserCount >= 15) return;
     loserCount++;
+    // Use the existing static loser2-entry when adding the second loser (avoids duplicate name="loser2" on submit)
+    if (loserCount === 2) {
+        const entry = document.getElementById('loser2-entry');
+        if (entry) {
+            entry.style.display = 'flex';
+            const newField = document.getElementById('loser2');
+            if (newField) {
+                newField.focus();
+                setTimeout(function() {
+                    const list = document.getElementById('loser2List');
+                    const players = getPlayerListForAutocomplete();
+                    const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+                    if (list) showList(newField, list, available);
+                }, 50);
+            }
+            return;
+        }
+    }
     const container = document.getElementById('losers-container');
     const div = document.createElement('div');
     div.className = 'player-entry';
@@ -757,7 +795,6 @@ function addLoser() {
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
     newField.focus();
-    // Explicitly open the player autocomplete menu when adding a new loser
     setTimeout(function() {
         const players = getPlayerListForAutocomplete();
         const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });

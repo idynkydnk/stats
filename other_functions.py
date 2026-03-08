@@ -175,7 +175,8 @@ def _parse_datetime_string(value):
 
 def _build_other_game_display(game, include_time=False):
     from time_display import format_game_time
-    record = dict(game)
+    # sqlite3.Row: dict(row) uses integer keys; use column names for winner1/loser1 etc.
+    record = dict(zip(game.keys(), game)) if hasattr(game, 'keys') else dict(game)
     updated_dt = _parse_datetime_string(record.get('updated_at'))
     combined_date = format_game_time(record.get('game_date'), record.get('entered_timezone'))
     parts = combined_date.split(' ', 1)
@@ -647,7 +648,10 @@ def get_players_ordered_for_game(game_name, current_username=None):
             ordered = sorted(last_entered.keys(), key=lambda p: last_entered[p] or '', reverse=True)
             rest = [p for p in all_players if p not in last_entered]
             return ordered + rest
-    # Fallback: order by count (who played this game most), then rest
+        # Current user has no games with entered_by set for this name: return neutral order
+        # (do not use other users' games — that would put their recent entries at the top)
+        return list(all_players)
+    # No current user: order by count (who played this game most), then rest
     cur.execute("SELECT * FROM other_games WHERE LOWER(TRIM(game_name)) = LOWER(?) ORDER BY game_date DESC", (game_name.strip(),))
     rows = cur.fetchall()
     from collections import Counter

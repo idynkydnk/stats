@@ -1533,9 +1533,9 @@ def update_other_game(id):
         flash('Game not found!')
         return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
-    # Get the full game data (all 20 fields)
+    # Get the full game data (all 20 fields); Row needs zip(keys, row) for column-name keys
     game_row = x[0]
-    game_data_dict = dict(game_row)
+    game_data_dict = dict(zip(game_row.keys(), game_row)) if hasattr(game_row, 'keys') else dict(game_row)
     games = other_year_games(str(date.today().year))
     games_all = other_year_games('All years')
     players = all_other_players(games)
@@ -1857,10 +1857,11 @@ def get_other_game_common_scores(game_name):
 
 
 @app.route('/api/other_game_players/<game_name>')
+@login_required
 def get_other_game_players(game_name):
-    """API endpoint to get players ordered for a game: by current user's last-entered first, then by count."""
+    """API endpoint to get players ordered for a game: by current user's last-entered first."""
     from other_functions import get_players_ordered_for_game
-    current_username = session.get('username') if session.get('logged_in') else None
+    current_username = session.get('username') or None
     players = get_players_ordered_for_game(game_name, current_username=current_username)
     return jsonify(players)
 
