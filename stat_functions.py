@@ -63,7 +63,7 @@ def get_player_wins_losses(year):
     
     return player_wins_losses
 
-def add_game_stats(game):
+def add_game_stats(game, updated_by=None):
     all_games = []
     full_game = []
     game_date = game[0]
@@ -80,17 +80,23 @@ def add_game_stats(game):
     # Entered timezone (index 9) for display e.g. "7:00 AM (PST)"
     if len(game) > 9 and game[9]:
         full_game.append(game[9])
+    else:
+        full_game.append(None)
+    full_game.append(updated_by)
     all_games.append(full_game)
     enter_data_into_database(all_games)
 
-def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2):
+def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2, updated_by=None):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
     with conn:
-        game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2)
+        if updated_by is not None:
+            game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2)
+        else:
+            game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2)
         database_update_game(conn, game)
 
 def remove_game(game_id):

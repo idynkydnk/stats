@@ -45,6 +45,12 @@
         }
         .clear-field-btn:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
         .autocomplete.has-clear:not(.empty) .clear-field-btn { display: flex; }
+        .field-with-clear { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; max-width: 80px; }
+        .field-with-clear input { padding-right: 36px; }
+        .field-with-clear .clear-field-btn { display: none; }
+        .field-with-clear:not(.empty) .clear-field-btn { display: flex; }
+        .team-score-entry.field-with-clear { max-width: none; position: relative; }
+        .team-score-entry.field-with-clear input { padding-right: 36px; }
         .autocomplete-list {
             display: none;
             position: absolute;
@@ -95,10 +101,11 @@
         .sr-clear-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
         .form-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
         
-        .player-entry { display: flex; gap: 8px; margin-bottom: 12px; }
-        .player-entry .autocomplete { flex: 2; margin-bottom: 0; }
+        .player-entry { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+        .player-entry .autocomplete { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+        .player-entry .field-with-clear { flex: 0 0 auto; }
         .player-entry .score-input {
-            flex: 1;
+            flex: 0 0 auto;
             padding: 14px 8px;
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -217,7 +224,10 @@
                         <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear winner 1"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="winner1List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="winner1_score" id="winner1_score" class="score-input individual-score" placeholder="Score">
+                    <span class="field-with-clear empty">
+                        <input type="number" pattern="[0-9]*" name="winner1_score" id="winner1_score" class="score-input individual-score" placeholder="Score">
+                        <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear winner 1 score"><i class="fas fa-times"></i></button>
+                    </span>
                 </div>
                 <div class="player-entry" id="winner2-entry" style="display: none;">
                     <div class="autocomplete has-clear empty" id="winner2-wrap">
@@ -225,7 +235,10 @@
                         <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear winner 2"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="winner2List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="winner2_score" id="winner2_score" class="score-input individual-score" placeholder="Score">
+                    <span class="field-with-clear empty">
+                        <input type="number" pattern="[0-9]*" name="winner2_score" id="winner2_score" class="score-input individual-score" placeholder="Score">
+                        <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear winner 2 score"><i class="fas fa-times"></i></button>
+                    </span>
                 </div>
                 <div id="winners-container"></div>
                 <button type="button" class="add-player-btn" id="add-winner-btn" onclick="addWinner()">+ Add Winner</button>
@@ -237,7 +250,10 @@
                         <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear loser 1"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="loser1List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="loser1_score" id="loser1_score" class="score-input individual-score" placeholder="Score">
+                    <span class="field-with-clear empty">
+                        <input type="number" pattern="[0-9]*" name="loser1_score" id="loser1_score" class="score-input individual-score" placeholder="Score">
+                        <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear loser 1 score"><i class="fas fa-times"></i></button>
+                    </span>
                 </div>
                 <div class="player-entry" id="loser2-entry" style="display: none;">
                     <div class="autocomplete has-clear empty" id="loser2-wrap">
@@ -245,17 +261,22 @@
                         <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear loser 2"><i class="fas fa-times"></i></button>
                         <div class="autocomplete-list" id="loser2List"></div>
                     </div>
-                    <input type="number" pattern="[0-9]*" name="loser2_score" id="loser2_score" class="score-input individual-score" placeholder="Score">
+                    <span class="field-with-clear empty">
+                        <input type="number" pattern="[0-9]*" name="loser2_score" id="loser2_score" class="score-input individual-score" placeholder="Score">
+                        <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear loser 2 score"><i class="fas fa-times"></i></button>
+                    </span>
                 </div>
                 <div id="losers-container"></div>
                 <button type="button" class="add-player-btn" id="add-loser-btn" onclick="addLoser()">+ Add Loser</button>
                 
-                <div class="team-score-entry autocomplete" id="winner-team-score" style="display: none;">
+                <div class="team-score-entry autocomplete field-with-clear empty" id="winner-team-score" style="display: none;">
                     <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner Team Score" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear winner team score"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="winner_scoreList"></div>
                 </div>
-                <div class="team-score-entry autocomplete" id="loser-team-score" style="display: none;">
+                <div class="team-score-entry autocomplete field-with-clear empty" id="loser-team-score" style="display: none;">
                     <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser Team Score" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear loser team score"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="loser_scoreList"></div>
                 </div>
                 
@@ -495,6 +516,8 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
             list.style.display = 'none';
+            const wrap = field.closest('.autocomplete.has-clear');
+            if (wrap) updateClearVisibility(wrap);
             if (onSelect) onSelect(field);
         }
     });
@@ -515,6 +538,8 @@ function setupPlayerAutocomplete(field, list, onSelectNext) {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
             list.style.display = 'none';
+            const wrap = field.closest('.autocomplete.has-clear');
+            if (wrap) updateClearVisibility(wrap);
             if (onSelectNext) {
                 onSelectNext();
             } else {
@@ -581,7 +606,11 @@ setupAutocomplete('game_name', () => allGameNames, field => {
     fetch(`/api/other_game_info/${encodeURIComponent(field.value)}`)
         .then(r => r.json())
         .then(data => {
-            if (data.game_type) document.getElementById('game_type').value = data.game_type;
+            if (data.game_type) {
+                document.getElementById('game_type').value = data.game_type;
+                const gtWrap = document.getElementById('game_type-wrap');
+                if (gtWrap) updateClearVisibility(gtWrap);
+            }
             applyGameInfo(data);
             const gt = document.getElementById('game_type');
             if (!gt.value.trim()) setTimeout(() => gt.focus(), 100);
@@ -621,6 +650,8 @@ scoreTypeDisplay.addEventListener('click', () => scoreTypeDisplay.dispatchEvent(
 scoreTypeList.addEventListener('click', e => {
     if (e.target.tagName === 'DIV') {
         setScoreType(e.target.dataset.value);
+        const scoreTypeWrap = document.getElementById('score_type-wrap');
+        if (scoreTypeWrap) updateClearVisibility(scoreTypeWrap);
         setTimeout(() => document.getElementById('winner1')?.focus(), 50);
     }
 });
@@ -630,7 +661,9 @@ function setScoreType(value) {
     const displayVal = value === 'team' ? 'Team Scores' : value === 'none' ? 'No Scores' : 'Individual Scores';
     document.getElementById('score_type_display').value = displayVal;
     document.getElementById('score_typeList').style.display = 'none';
-    
+    const scoreTypeWrap = document.getElementById('score_type-wrap');
+    if (scoreTypeWrap) updateClearVisibility(scoreTypeWrap);
+
     const indiv = document.querySelectorAll('.individual-score');
     const winTeam = document.getElementById('winner-team-score');
     const loseTeam = document.getElementById('loser-team-score');
@@ -740,16 +773,22 @@ function addWinner() {
     div.className = 'player-entry';
     const hidden = (document.getElementById('score_type').value === 'team' || document.getElementById('score_type').value === 'none') ? 'hidden' : '';
     div.innerHTML = `
-        <div class="autocomplete">
+        <div class="autocomplete has-clear empty">
             <input type="text" name="winner${winnerCount}" id="winner${winnerCount}" placeholder="Winner ${winnerCount}" autocomplete="off">
+            <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear winner ${winnerCount}"><i class="fas fa-times"></i></button>
             <div class="autocomplete-list" id="winner${winnerCount}List"></div>
         </div>
-        <input type="number" pattern="[0-9]*" name="winner${winnerCount}_score" class="score-input individual-score ${hidden}" placeholder="Score">
+        <span class="field-with-clear empty">
+            <input type="number" pattern="[0-9]*" name="winner${winnerCount}_score" id="winner${winnerCount}_score" class="score-input individual-score ${hidden}" placeholder="Score">
+            <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear winner ${winnerCount} score"><i class="fas fa-times"></i></button>
+        </span>
     `;
     container.appendChild(div);
     const newField = div.querySelector('input[type="text"]');
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
+    attachClearToWrap(div.querySelector('.autocomplete.has-clear'));
+    attachClearToWrap(div.querySelector('.field-with-clear'));
     newField.focus();
     setTimeout(function() {
         const players = getPlayerListForAutocomplete();
@@ -784,16 +823,22 @@ function addLoser() {
     div.className = 'player-entry';
     const hidden = (document.getElementById('score_type').value === 'team' || document.getElementById('score_type').value === 'none') ? 'hidden' : '';
     div.innerHTML = `
-        <div class="autocomplete">
+        <div class="autocomplete has-clear empty">
             <input type="text" name="loser${loserCount}" id="loser${loserCount}" placeholder="Loser ${loserCount}" autocomplete="off">
+            <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear loser ${loserCount}"><i class="fas fa-times"></i></button>
             <div class="autocomplete-list" id="loser${loserCount}List"></div>
         </div>
-        <input type="number" pattern="[0-9]*" name="loser${loserCount}_score" class="score-input individual-score ${hidden}" placeholder="Score">
+        <span class="field-with-clear empty">
+            <input type="number" pattern="[0-9]*" name="loser${loserCount}_score" id="loser${loserCount}_score" class="score-input individual-score ${hidden}" placeholder="Score">
+            <button type="button" class="clear-field-btn" title="Clear score" aria-label="Clear loser ${loserCount} score"><i class="fas fa-times"></i></button>
+        </span>
     `;
     container.appendChild(div);
     const newField = div.querySelector('input[type="text"]');
     const newList = div.querySelector('.autocomplete-list');
     setupPlayerAutocomplete(newField, newList);
+    attachClearToWrap(div.querySelector('.autocomplete.has-clear'));
+    attachClearToWrap(div.querySelector('.field-with-clear'));
     newField.focus();
     setTimeout(function() {
         const players = getPlayerListForAutocomplete();
@@ -810,16 +855,19 @@ document.addEventListener('click', e => {
 
 // Per-field clear (X): toggle visibility and clear on click
 function updateClearVisibility(wrap) {
-    if (!wrap || !wrap.classList.contains('has-clear')) return;
-    const input = wrap.querySelector('input[type="text"]:not([type="hidden"])') || wrap.querySelector('input[type="number"]');
+    if (!wrap) return;
+    const isAutocomplete = wrap.classList.contains('has-clear');
+    const isFieldWithClear = wrap.classList.contains('field-with-clear');
+    if (!isAutocomplete && !isFieldWithClear) return;
+    const input = wrap.querySelector('input[type="text"]:not([type="hidden"])') || wrap.querySelector('input[type="number"]') || wrap.querySelector('#score_type_display') || wrap.querySelector('#comment');
     const val = (input && input.value || '').trim();
     wrap.classList.toggle('empty', !val);
 }
 function setupClearButtons() {
-    document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
+    document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(wrap => {
         const scoreTypeDisplay = wrap.querySelector('#score_type_display');
         const scoreTypeHidden = document.getElementById('score_type');
-        const input = scoreTypeDisplay || wrap.querySelector('input[type="text"]') || wrap.querySelector('#comment');
+        const input = scoreTypeDisplay || wrap.querySelector('input[type="text"]') || wrap.querySelector('input[type="number"]') || wrap.querySelector('#comment');
         const btn = wrap.querySelector('.clear-field-btn');
         if (!btn) return;
         const clearInput = () => {
@@ -841,6 +889,21 @@ function setupClearButtons() {
         btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearInput(); });
         updateClearVisibility(wrap);
     });
+}
+function attachClearToWrap(wrap) {
+    const input = wrap.querySelector('input[type="text"]') || wrap.querySelector('input[type="number"]');
+    const btn = wrap.querySelector('.clear-field-btn');
+    if (!input || !btn) return;
+    const clearInput = () => {
+        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+        input.value = '';
+        input.focus();
+        updateClearVisibility(wrap);
+    };
+    input.addEventListener('input', () => updateClearVisibility(wrap));
+    input.addEventListener('change', () => updateClearVisibility(wrap));
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearInput(); });
+    updateClearVisibility(wrap);
 }
 setupClearButtons();
 
@@ -877,7 +940,7 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     cachedCommonScores = null;
     cachedCommonScoresGameName = null;
     document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
-    document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+    document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(updateClearVisibility);
     document.getElementById('game_name')?.focus();
 });
 

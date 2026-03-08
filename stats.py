@@ -320,6 +320,58 @@ def login_required(f):
         return redirect(url_for('login', next=request.url))
     return decorated_function
 
+def api_login_required(f):
+    """Require auth for API: Authorization Bearer <token> or session/cookie. Returns 401 JSON if not authenticated."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        username = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
+            if token:
+                username = validate_auth_token(token)
+                if username:
+                    session['logged_in'] = True
+                    session['username'] = username
+        if not username and session.get('logged_in'):
+            username = session.get('username')
+        if not username:
+            auth_token = request.cookies.get('remember_token')
+            if auth_token:
+                username = validate_auth_token(auth_token)
+                if username:
+                    session['logged_in'] = True
+                    session['username'] = username
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def _api_get_db():
+    """Return DB path for API (same as rest of app)."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    if not os.path.exists(database):
+        database = 'stats.db'
+    return database
+
+def _api_game_row_to_dict(row):
+    """Convert a games row (tuple or Row) to JSON-serializable dict."""
+    if hasattr(row, 'keys'):
+        d = dict(row)
+    else:
+        cols = ['id', 'game_date', 'winner1', 'winner2', 'winner_score', 'loser1', 'loser2', 'loser_score', 'updated_at', 'comments', 'entered_timezone', 'updated_by']
+        d = {}
+        for i, k in enumerate(cols):
+            if i < len(row):
+                d[k] = row[i]
+            else:
+                d[k] = None
+    for key in ('game_date', 'updated_at'):
+        if key in d and d[key] is not None and hasattr(d[key], 'isoformat'):
+            d[key] = d[key].isoformat()
+    return d
+
 @app.route('/')
 def index():
     """Redirect to the main stats page."""
@@ -678,7 +730,7 @@ def _add_doubles_game_view(redirect_to):
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
             add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
-                winner_score, loser_score, game_dt, comments, tz])
+                winner_score, loser_score, game_dt, comments, tz], updated_by=session.get('username'))
             clear_stats_cache()
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
@@ -1145,7 +1197,7 @@ def update(id):
         else:
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
-            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id)
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
             
             # Clear stats cache after editing a game
             clear_stats_cache()
@@ -1774,6 +1826,160 @@ def logout():
     
     flash('You have been logged out.', 'info')
     return response
+
+# --- API for iPhone app: auth + doubles CRUD and sync ---
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """API login: POST JSON {username, password}. Returns {token, username} for use in Authorization: Bearer <token>."""
+    data = request.get_json(force=True, silent=True) or {}
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+    if username not in USERS or USERS[username] != password:
+        return jsonify({'error': 'Invalid username or password'}), 401
+    token = create_auth_token(username)
+    return jsonify({'token': token, 'username': username})
+
+@app.route('/api/doubles/games', methods=['GET'])
+@api_login_required
+def api_doubles_list():
+    """List doubles games. Query: year=YYYY (optional), since=ISO8601 (optional, for sync - games with updated_at >= since)."""
+    database = _api_get_db()
+    conn = sqlite3.connect(database)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    year = request.args.get('year', '').strip()
+    since = request.args.get('since', '').strip()
+    if since:
+        try:
+            # Parse ISO8601 and compare; SQLite stores as text
+            dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+            since_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            since_str = None
+    else:
+        since_str = None
+    if since_str:
+        cur.execute("SELECT * FROM games WHERE updated_at >= ? ORDER BY game_date DESC", (since_str,))
+    elif year and year != 'All years':
+        cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date DESC", (year,))
+    else:
+        cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+    rows = cur.fetchall()
+    conn.close()
+    games = [_api_game_row_to_dict(r) for r in rows]
+    return jsonify({'games': games})
+
+@app.route('/api/doubles/games/<int:game_id>', methods=['GET'])
+@api_login_required
+def api_doubles_get(game_id):
+    """Get one doubles game by id."""
+    x = find_game(game_id)
+    if not x or not x[0]:
+        return jsonify({'error': 'Game not found'}), 404
+    return jsonify(_api_game_row_to_dict(x[0]))
+
+@app.route('/api/doubles/games', methods=['POST'])
+@api_login_required
+def api_doubles_create():
+    """Create a doubles game. JSON: game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, comments?, entered_timezone?."""
+    data = request.get_json(force=True, silent=True) or {}
+    game_date = (data.get('game_date') or '').strip()
+    winner1 = (data.get('winner1') or '').strip()
+    winner2 = (data.get('winner2') or '').strip()
+    loser1 = (data.get('loser1') or '').strip()
+    loser2 = (data.get('loser2') or '').strip()
+    try:
+        winner_score = int(data.get('winner_score', 0))
+        loser_score = int(data.get('loser_score', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'winner_score and loser_score must be integers'}), 400
+    comments = (data.get('comments') or '').strip()
+    entered_timezone = (data.get('entered_timezone') or '').strip() or None
+    if not all([game_date, winner1, winner2, loser1, loser2]):
+        return jsonify({'error': 'game_date, winner1, winner2, loser1, loser2 required'}), 400
+    if winner_score <= loser_score:
+        return jsonify({'error': "winner_score must be greater than loser_score"}), 400
+    if winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+        return jsonify({'error': 'All four player names must be unique'}), 400
+    from player_functions import get_player_by_name, add_new_player
+    for name in (winner1, winner2, loser1, loser2):
+        if name and not get_player_by_name(name):
+            add_new_player(name)
+    # Normalize game_date to YYYY-MM-DD HH:MM:SS if needed
+    try:
+        if 'T' in game_date:
+            game_date = datetime.fromisoformat(game_date.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+        elif len(game_date) == 10:
+            game_date = game_date + ' 12:00:00'
+    except (ValueError, TypeError):
+        pass
+    updated_by = session.get('username', 'unknown')
+    add_game_stats([game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, game_date, comments, entered_timezone], updated_by=updated_by)
+    clear_stats_cache()
+    update_kobs()
+    # Return the created game (we don't have id easily; fetch last inserted or by unique key)
+    conn = sqlite3.connect(_api_get_db())
+    cur = conn.execute("SELECT * FROM games ORDER BY id DESC LIMIT 1")
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        game = _api_game_row_to_dict(row)
+        return jsonify(game), 201
+    return jsonify({'message': 'Game created'}), 201
+
+@app.route('/api/doubles/games/<int:game_id>', methods=['PUT'])
+@api_login_required
+def api_doubles_update(game_id):
+    """Update a doubles game. JSON: game_date?, winner1?, winner2?, loser1?, loser2?, winner_score?, loser_score?, comments?."""
+    x = find_game(game_id)
+    if not x or not x[0]:
+        return jsonify({'error': 'Game not found'}), 404
+    row = x[0]
+    # row is tuple: id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone?, updated_by?
+    def get(i, default=''):
+        return (row[i] if i < len(row) else default) or default
+    data = request.get_json(force=True, silent=True) or {}
+    game_date = (data.get('game_date') or get(1)).strip() if data.get('game_date') is not None else str(get(1)).strip()
+    winner1 = (data.get('winner1') or get(2)).strip()
+    winner2 = (data.get('winner2') or get(3)).strip()
+    loser1 = (data.get('loser1') or get(5)).strip()
+    loser2 = (data.get('loser2') or get(6)).strip()
+    winner_score = int(data.get('winner_score', get(4)))
+    loser_score = int(data.get('loser_score', get(7)))
+    comments = (data.get('comments') or get(9)).strip() if data.get('comments') is not None else str(get(9)).strip()
+    if winner_score <= loser_score:
+        return jsonify({'error': "winner_score must be greater than loser_score"}), 400
+    if winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
+        return jsonify({'error': 'All four player names must be unique'}), 400
+    try:
+        if 'T' in game_date:
+            game_date = datetime.fromisoformat(game_date.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+        elif len(game_date) == 10:
+            game_date = game_date + ' 12:00:00'
+    except (ValueError, TypeError):
+        pass
+    updated_at = get_user_now()
+    updated_by = session.get('username', 'unknown')
+    update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id, updated_by=updated_by)
+    clear_stats_cache()
+    update_kobs()
+    x = find_game(game_id)
+    if x and x[0]:
+        return jsonify(_api_game_row_to_dict(x[0]))
+    return jsonify({'id': game_id, 'message': 'Updated'})
+
+@app.route('/api/doubles/games/<int:game_id>', methods=['DELETE'])
+@api_login_required
+def api_doubles_delete(game_id):
+    """Delete a doubles game."""
+    x = find_game(game_id)
+    if not x or not x[0]:
+        return jsonify({'error': 'Game not found'}), 404
+    remove_game(game_id)
+    clear_stats_cache()
+    update_kobs()
+    return jsonify({'message': 'Deleted', 'id': game_id}), 200
 
 @app.route('/notifications')
 @login_required
