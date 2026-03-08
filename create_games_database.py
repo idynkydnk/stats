@@ -29,35 +29,52 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_game(conn, game):
+    cur = conn.cursor()
     if len(game) >= 11 and game[10] is not None:
         sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone, updated_by)
                   VALUES(?,?,?,?,?,?,?,?,?,?,?) '''
+        try:
+            cur.execute(sql, game)
+        except sqlite3.OperationalError as e:
+            if 'updated_by' in str(e) or 'no such column' in str(e).lower():
+                # Production DB may not have migration run yet: insert without updated_by
+                sql_fallback = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone)
+                                  VALUES(?,?,?,?,?,?,?,?,?,?) '''
+                cur.execute(sql_fallback, game[:10])
+            else:
+                raise
     elif len(game) >= 10 and game[9] is not None:
         sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone)
                   VALUES(?,?,?,?,?,?,?,?,?,?) '''
-        game = game[:10]
+        cur.execute(sql, game[:10])
     else:
         sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
                   VALUES(?,?,?,?,?,?,?,?,?) '''
-        game = game[:9]
-    cur = conn.cursor()
-    cur.execute(sql, game)
+        cur.execute(sql, game[:9])
     conn.commit()
 
 def database_update_game(conn, game):
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
     #   or: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2) when len==11
+    cur = conn.cursor()
     if len(game) >= 12:
         sql = ''' UPDATE games
                   SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?, updated_by = ?
                   WHERE id = ?'''
-        cur = conn.cursor()
-        cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11]))
+        try:
+            cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10], game[11]))
+        except sqlite3.OperationalError as e:
+            if 'updated_by' in str(e) or 'no such column' in str(e).lower():
+                sql_fallback = ''' UPDATE games
+                                  SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?
+                                  WHERE id = ?'''
+                cur.execute(sql_fallback, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[11]))
+            else:
+                raise
     else:
         sql = ''' UPDATE games
                   SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?
                   WHERE id = ?'''
-        cur = conn.cursor()
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
     conn.commit()
 

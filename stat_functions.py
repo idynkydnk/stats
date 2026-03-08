@@ -503,12 +503,16 @@ def all_players_ordered_for_doubles(current_username=None):
 	if not (current_username and str(current_username).strip()):
 		return last_played_order
 	# Get games entered by current user, most recent first; collect unique players in that order
-	cur = set_cur()
-	cur.execute(
-		"SELECT * FROM games WHERE updated_by = ? ORDER BY game_date DESC",
-		(current_username.strip(),)
-	)
-	rows = cur.fetchall()
+	try:
+		cur = set_cur()
+		cur.execute(
+			"SELECT * FROM games WHERE updated_by = ? ORDER BY game_date DESC",
+			(current_username.strip(),)
+		)
+		rows = cur.fetchall()
+	except Exception:
+		# updated_by column may not exist if migration not run on this DB
+		return last_played_order
 	# rows are tuples: id(0), game_date(1), winner1(2), winner2(3), winner_score(4), loser1(5), loser2(6), ...
 	entered_by_me_order = []
 	seen_me = set()
