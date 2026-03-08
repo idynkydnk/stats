@@ -68,6 +68,14 @@ USERS = {
 }
 
 
+def _stats_db_path():
+    """Single path for stats DB (games + auth_tokens). Use this everywhere so API and login share the same DB."""
+    path = '/home/Idynkydnk/stats/stats.db'
+    if os.path.exists(path):
+        return path
+    return 'stats.db'
+
+
 @app.context_processor
 def inject_base_template():
     """Inject which base template to use: guest, logged-in, or Kyle."""
@@ -97,7 +105,7 @@ def init_notifications_db():
 
 def init_auth_tokens_db():
     """Initialize the auth_tokens table for remember me functionality"""
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('''
         CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -125,7 +133,7 @@ def create_auth_token(username):
     token_hash = hash_token(token)
     expires_at = datetime.now() + timedelta(days=30)  # Token expires in 30 days
     
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO auth_tokens (username, token_hash, expires_at)
@@ -142,7 +150,7 @@ def validate_auth_token(token):
         return None
     
     token_hash = hash_token(token)
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('''
         SELECT username FROM auth_tokens 
@@ -160,7 +168,7 @@ def revoke_auth_token(token):
         return
     
     token_hash = hash_token(token)
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('DELETE FROM auth_tokens WHERE token_hash = ?', (token_hash,))
     conn.commit()
@@ -168,7 +176,7 @@ def revoke_auth_token(token):
 
 def revoke_all_user_tokens(username):
     """Revoke all authentication tokens for a user"""
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('DELETE FROM auth_tokens WHERE username = ?', (username,))
     conn.commit()
@@ -176,7 +184,7 @@ def revoke_all_user_tokens(username):
 
 def cleanup_expired_tokens():
     """Remove expired authentication tokens"""
-    conn = sqlite3.connect('stats.db')
+    conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('DELETE FROM auth_tokens WHERE expires_at <= ?', (datetime.now(),))
     conn.commit()
@@ -321,19 +329,25 @@ def login_required(f):
     return decorated_function
 
 def api_login_required(f):
-    """Require auth for API: Authorization Bearer <token> or session/cookie. Returns 401 JSON if not authenticated."""
+    """Require auth for API: X-API-Key (STATS_API_TOKEN), Authorization Bearer <token>, or session/cookie. Returns 401 JSON if not authenticated."""
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
         username = None
-        auth_header = request.headers.get('Authorization')
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header[7:].strip()
-            if token:
-                username = validate_auth_token(token)
-                if username:
-                    session['logged_in'] = True
-                    session['username'] = username
+        api_key = request.headers.get('X-API-Key')
+        if api_key and os.environ.get('STATS_API_TOKEN') and secrets.compare_digest(api_key, os.environ.get('STATS_API_TOKEN', '')):
+            username = 'api_key'
+            session['logged_in'] = True
+            session['username'] = username
+        if not username:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header[7:].strip()
+                if token:
+                    username = validate_auth_token(token)
+                    if username:
+                        session['logged_in'] = True
+                        session['username'] = username
         if not username and session.get('logged_in'):
             username = session.get('username')
         if not username:
@@ -350,10 +364,7 @@ def api_login_required(f):
 
 def _api_get_db():
     """Return DB path for API (same as rest of app)."""
-    database = '/home/Idynkydnk/stats/stats.db'
-    if not os.path.exists(database):
-        database = 'stats.db'
-    return database
+    return _stats_db_path()
 
 def _api_game_row_to_dict(row):
     """Convert a games row (tuple or Row) to JSON-serializable dict."""
@@ -739,8 +750,7 @@ def _add_doubles_game_view(redirect_to):
         return redirect(url_for(redirect_to))
     
     all_games = year_games('All years')
-    current_user = session.get('username')
-    players = all_players_ordered_for_doubles(current_username=current_user)
+    players = all_players(all_games)
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
