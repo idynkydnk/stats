@@ -565,6 +565,38 @@ def year_games_paginated(year, limit=50, offset=0):
 	row = convert_ampm(row)
 	return row
 
+def _search_like_arg(q):
+	"""LIKE argument for partial match (wrap in %)."""
+	if not q:
+		return None
+	return '%' + q.strip() + '%'
+
+def year_games_search_count(year, q):
+	"""Count doubles games matching search q (player names or date)."""
+	if not (q and q.strip()):
+		return year_games_count(year)
+	cur = set_cur()
+	like = _search_like_arg(q)
+	if year == 'All years':
+		cur.execute("""SELECT COUNT(*) FROM games WHERE (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?)""", (like, like, like, like, like))
+	else:
+		cur.execute("""SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=? AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?)""", (year, like, like, like, like, like))
+	return cur.fetchone()[0]
+
+def year_games_paginated_search(year, q, limit=50, offset=0):
+	"""Doubles games matching search q, one page. Not cached."""
+	if not (q and q.strip()):
+		return year_games_paginated(year, limit, offset)
+	cur = set_cur()
+	like = _search_like_arg(q)
+	if year == 'All years':
+		cur.execute("""SELECT * FROM games WHERE (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?) ORDER BY game_date DESC LIMIT ? OFFSET ?""", (like, like, like, like, like, limit, offset))
+	else:
+		cur.execute("""SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?) ORDER BY game_date DESC LIMIT ? OFFSET ?""", (year, like, like, like, like, like, limit, offset))
+	row = cur.fetchall()
+	row = convert_ampm(row)
+	return row
+
 def all_games():
 	cur = set_cur()
 	cur.execute("SELECT * FROM games")

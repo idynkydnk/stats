@@ -172,10 +172,11 @@
 
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
-                <div class="sr-search-wrap">
+                <form method="get" action="{{ url_for('edit_games', year=year) }}" class="sr-search-wrap" style="display: flex; align-items: center; gap: 8px;">
                     <i class="fas fa-search sr-search-icon"></i>
-                    <input type="text" id="sr-search" class="sr-search" placeholder="Search players or dates...">
-                </div>
+                    <input type="text" name="q" id="sr-search" class="sr-search" placeholder="Search all games (players or dates)..." value="{{ search_query or '' }}">
+                    <button type="submit" class="sr-action-btn" style="width: auto; padding: 8px 14px;">Search</button>
+                </form>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <p class="sr-section-label" id="games-count" style="margin: 0;">
                         {% if total_games > 0 %}
@@ -246,13 +247,13 @@
                 {% if total_pages > 1 %}
                 <nav class="sr-pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sr-line); flex-wrap: wrap;">
                     {% if page > 1 %}
-                    <a href="{{ url_for('edit_games', year=year, page=page-1) }}" class="sr-action-btn" style="width: auto; padding: 8px 14px;"><i class="fas fa-chevron-left"></i> Prev</a>
+                    <a href="{{ url_for('edit_games', year=year, page=page-1) }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="sr-action-btn" style="width: auto; padding: 8px 14px;"><i class="fas fa-chevron-left"></i> Prev</a>
                     {% else %}
                     <span class="sr-action-btn" style="width: auto; padding: 8px 14px; opacity: 0.5; cursor: default;"><i class="fas fa-chevron-left"></i> Prev</span>
                     {% endif %}
                     <span class="sr-section-label" style="margin: 0;">Page {{ page }} of {{ total_pages }}</span>
                     {% if page < total_pages %}
-                    <a href="{{ url_for('edit_games', year=year, page=page+1) }}" class="sr-action-btn" style="width: auto; padding: 8px 14px;">Next <i class="fas fa-chevron-right"></i></a>
+                    <a href="{{ url_for('edit_games', year=year, page=page+1) }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}" class="sr-action-btn" style="width: auto; padding: 8px 14px;">Next <i class="fas fa-chevron-right"></i></a>
                     {% else %}
                     <span class="sr-action-btn" style="width: auto; padding: 8px 14px; opacity: 0.5; cursor: default;">Next <i class="fas fa-chevron-right"></i></span>
                     {% endif %}
@@ -260,8 +261,8 @@
                 {% endif %}
                 {% else %}
                 <div class="sr-empty">
-                    <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>
-                    <p class="sr-empty-text">No doubles games recorded for {{ year }} yet.</p>
+                    <div class="sr-empty-icon"><i class="fas fa-search"></i></div>
+                    <p class="sr-empty-text">{% if search_query %}No games match your search.{% else %}No doubles games recorded for {{ year }} yet.{% endif %}</p>
                 </div>
                 {% endif %}
             </div>
@@ -280,26 +281,7 @@
         menuOverlay.addEventListener('click', closeMenu);
         menuClose.addEventListener('click', closeMenu);
 
-        // Search filter (like games page)
-        const searchInput = document.getElementById('sr-search');
-        const gamesGrid = document.getElementById('games-grid');
-        const gamesCount = document.getElementById('games-count');
-        const noResults = document.getElementById('sr-no-results');
-        if (searchInput && gamesGrid) {
-            searchInput.addEventListener('input', function() {
-                const query = this.value.toLowerCase().trim();
-                const cards = gamesGrid.querySelectorAll('.sr-edit-card');
-                let visibleCount = 0;
-                cards.forEach(card => {
-                    const searchData = (card.dataset.search || '').toLowerCase();
-                    const matches = !query || searchData.includes(query);
-                    card.style.display = matches ? '' : 'none';
-                    if (matches) visibleCount++;
-                });
-                if (gamesCount) gamesCount.textContent = visibleCount + ' game' + (visibleCount !== 1 ? 's' : '');
-                if (noResults) noResults.style.display = visibleCount === 0 ? 'block' : 'none';
-            });
-        }
+        // Search is server-side; form submit sends ?q= and reloads with filtered results.
 
         function toggleAllGames() {
             const selectAll = document.getElementById('select-all');
