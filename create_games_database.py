@@ -1,6 +1,11 @@
 import sqlite3
 from sqlite3 import Error
 
+try:
+    from firestore_games import write_game as firestore_write_game, update_game as firestore_update_game, delete_game as firestore_delete_game
+except ImportError:
+    firestore_write_game = firestore_update_game = firestore_delete_game = None
+
 def create_connection(db_file):
     """ create a database connection to the SQLite database
         specified by db_file
@@ -28,6 +33,26 @@ def create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
+def _game_tuple_to_dict(game, game_id=None):
+    """Build a dict for Firestore from game tuple (after insert: 9–11 elements)."""
+    # game: (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone?, updated_by?)
+    d = {
+        'game_date': game[0],
+        'winner1': game[1],
+        'winner2': game[2],
+        'winner_score': game[3],
+        'loser1': game[4],
+        'loser2': game[5],
+        'loser_score': game[6],
+        'updated_at': game[7],
+        'comments': game[8] if len(game) > 8 else '',
+        'entered_timezone': game[9] if len(game) > 9 else None,
+        'updated_by': game[10] if len(game) > 10 else None,
+    }
+    if game_id is not None:
+        d['id'] = game_id
+    return d
+
 def create_game(conn, game):
     cur = conn.cursor()
     if len(game) >= 11 and game[10] is not None:
@@ -51,12 +76,16 @@ def create_game(conn, game):
         sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
                   VALUES(?,?,?,?,?,?,?,?,?) '''
         cur.execute(sql, game[:9])
+    new_id = cur.lastrowid
     conn.commit()
+    if firestore_write_game and new_id is not None:
+        firestore_write_game(new_id, _game_tuple_to_dict(game, game_id=new_id))
 
 def database_update_game(conn, game):
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
     #   or: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2) when len==11
     cur = conn.cursor()
+    game_id = game[11] if len(game) >= 12 else game[10]
     if len(game) >= 12:
         sql = ''' UPDATE games
                   SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?, updated_by = ?
@@ -77,12 +106,19 @@ def database_update_game(conn, game):
                   WHERE id = ?'''
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
     conn.commit()
+    if firestore_update_game:
+        fd = {'id': game_id, 'game_date': game[1], 'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
+              'loser1': game[5], 'loser2': game[6], 'loser_score': game[7], 'updated_at': game[8], 'comments': game[9],
+              'entered_timezone': None, 'updated_by': game[10] if len(game) >= 12 else None}
+        firestore_update_game(game_id, fd)
 
 def database_delete_game(conn, game_id):
     sql = 'DELETE FROM games WHERE id=?'
     cur = conn.cursor()
     cur.execute(sql, (game_id,))
     conn.commit()
+    if firestore_delete_game:
+        firestore_delete_game(game_id)
 
 def main():
     database = r"stats.db"

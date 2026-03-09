@@ -223,7 +223,7 @@
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('games', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('games', year=yr, page=1) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -239,7 +239,13 @@
                     <input type="text" id="sr-search" class="sr-search" placeholder="Search players or dates...">
                 </div>
                 {% if games %}
-                <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
+                <p class="sr-section-label" id="games-count">
+                    {% if total_games > 0 %}
+                    Showing {{ (page - 1) * per_page + 1 }}–{{ page_end }} of {{ total_games }} games
+                    {% else %}
+                    0 games
+                    {% endif %}
+                </p>
                 <div class="sr-games-grid" id="games-grid">
                     {% for game in games %}
                     <div class="sr-game-card" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[3]|lower }} {{ game[5]|lower }} {{ game[6]|lower }}">
@@ -271,6 +277,21 @@
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
                     <p>No games found matching your search.</p>
                 </div>
+                {% if total_pages > 1 %}
+                <nav class="sr-pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sr-line); flex-wrap: wrap;">
+                    {% if page > 1 %}
+                    <a href="{{ url_for('games', year=year, page=page-1) }}" class="sr-link-btn" style="padding: 8px 14px;"><i class="fas fa-chevron-left"></i> Prev</a>
+                    {% else %}
+                    <span class="sr-link-btn" style="padding: 8px 14px; opacity: 0.5; cursor: default;"><i class="fas fa-chevron-left"></i> Prev</span>
+                    {% endif %}
+                    <span class="sr-section-label" style="margin: 0;">Page {{ page }} of {{ total_pages }}</span>
+                    {% if page < total_pages %}
+                    <a href="{{ url_for('games', year=year, page=page+1) }}" class="sr-link-btn" style="padding: 8px 14px;">Next <i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                    <span class="sr-link-btn" style="padding: 8px 14px; opacity: 0.5; cursor: default;">Next <i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </nav>
+                {% endif %}
                 {% else %}
                 <div class="sr-empty">
                     <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>

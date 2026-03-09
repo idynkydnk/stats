@@ -462,10 +462,18 @@ def games_default():
 
 @app.route('/games/<year>/')
 def games(year):
-    """Doubles games page."""
+    """Doubles games page. 50 games per page."""
     all_years = grab_all_years()
-    games_list = year_games(year)
-    return render_template('games.html', games=games_list, year=year, all_years=all_years)
+    per_page = 50
+    page = max(1, request.args.get('page', 1, type=int))
+    total = year_games_count(year)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
+    games_list = year_games_paginated(year, limit=per_page, offset=offset)
+    page_end = min(page * per_page, total)
+    return render_template('games.html', games=games_list, year=year, all_years=all_years,
+                           page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end)
 
 
 # ============================================
@@ -599,10 +607,18 @@ def edit_games_default():
 @app.route('/edit_games/<year>/')
 @login_required
 def edit_games(year):
-    """Edit doubles games page."""
+    """Edit doubles games page. 50 games per page."""
     all_years = grab_all_years()
-    games = year_games(year)
-    return render_template('edit_games.html', games=games, year=year, all_years=all_years)
+    per_page = 50
+    page = max(1, request.args.get('page', 1, type=int))
+    total = year_games_count(year)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
+    games = year_games_paginated(year, limit=per_page, offset=offset)
+    page_end = min(page * per_page, total)
+    return render_template('edit_games.html', games=games, year=year, all_years=all_years,
+                           page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end)
 
 @app.route('/edit_vollis_games/')
 @login_required

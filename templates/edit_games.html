@@ -177,7 +177,13 @@
                     <input type="text" id="sr-search" class="sr-search" placeholder="Search players or dates...">
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <p class="sr-section-label" id="games-count" style="margin: 0;">{{ games|length }} games</p>
+                    <p class="sr-section-label" id="games-count" style="margin: 0;">
+                        {% if total_games > 0 %}
+                        Showing {{ (page - 1) * per_page + 1 }}–{{ page_end }} of {{ total_games }} games
+                        {% else %}
+                        0 games
+                        {% endif %}
+                    </p>
                     <div class="sr-bulk-actions">
                         <label class="sr-select-all">
                             <input type="checkbox" id="select-all" onclick="toggleAllGames()">
@@ -237,6 +243,21 @@
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
                     <p>No games found matching your search.</p>
                 </div>
+                {% if total_pages > 1 %}
+                <nav class="sr-pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sr-line); flex-wrap: wrap;">
+                    {% if page > 1 %}
+                    <a href="{{ url_for('edit_games', year=year, page=page-1) }}" class="sr-action-btn" style="width: auto; padding: 8px 14px;"><i class="fas fa-chevron-left"></i> Prev</a>
+                    {% else %}
+                    <span class="sr-action-btn" style="width: auto; padding: 8px 14px; opacity: 0.5; cursor: default;"><i class="fas fa-chevron-left"></i> Prev</span>
+                    {% endif %}
+                    <span class="sr-section-label" style="margin: 0;">Page {{ page }} of {{ total_pages }}</span>
+                    {% if page < total_pages %}
+                    <a href="{{ url_for('edit_games', year=year, page=page+1) }}" class="sr-action-btn" style="width: auto; padding: 8px 14px;">Next <i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                    <span class="sr-action-btn" style="width: auto; padding: 8px 14px; opacity: 0.5; cursor: default;">Next <i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </nav>
+                {% endif %}
                 {% else %}
                 <div class="sr-empty">
                     <div class="sr-empty-icon"><i class="fas fa-table-tennis"></i></div>

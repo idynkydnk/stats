@@ -545,6 +545,26 @@ def year_games(year):
 	row = convert_ampm(row)
 	return row
 
+def year_games_count(year):
+	"""Total number of doubles games for the year (for pagination)."""
+	cur = set_cur()
+	if year == 'All years':
+		cur.execute("SELECT COUNT(*) FROM games")
+	else:
+		cur.execute("SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=?", (year,))
+	return cur.fetchone()[0]
+
+def year_games_paginated(year, limit=50, offset=0):
+	"""Doubles games for the year, one page (limit/offset). Not cached so edits show up."""
+	cur = set_cur()
+	if year == 'All years':
+		cur.execute("SELECT * FROM games ORDER BY game_date DESC LIMIT ? OFFSET ?", (limit, offset))
+	else:
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC LIMIT ? OFFSET ?", (year, limit, offset))
+	row = cur.fetchall()
+	row = convert_ampm(row)
+	return row
+
 def all_games():
 	cur = set_cur()
 	cur.execute("SELECT * FROM games")
