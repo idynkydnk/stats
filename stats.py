@@ -749,8 +749,8 @@ def _add_doubles_game_view(redirect_to):
             update_kobs()
         return redirect(url_for(redirect_to))
     
-    all_games = year_games('All years')
-    players = all_players(all_games)
+    current_user = session.get('username')
+    players = all_players_ordered_for_doubles(current_username=current_user)
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))

@@ -487,10 +487,17 @@ def all_players(games):
 			players.append(game[6])
 	return players
 
+def _games_for_player_order():
+	"""Fetch all games by most recent first, no cache (so add-game dropdown is always fresh)."""
+	cur = set_cur()
+	cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+	return cur.fetchall()
+
 def all_players_ordered_for_doubles(current_username=None):
 	"""Return player names for doubles autocomplete. If current_username is set, players from games
 	the current user entered (most recent first) appear first, then the rest by last played."""
-	all_games_list = year_games('All years')
+	# Use uncached query so the dropdown always reflects the latest games (including just-added)
+	all_games_list = _games_for_player_order()
 	# Build "last played" order: unique players in order of most recent game first
 	last_played_order = []
 	seen = set()
