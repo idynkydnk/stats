@@ -78,6 +78,7 @@ def create_game(conn, game):
         cur.execute(sql, game[:9])
     new_id = cur.lastrowid
     conn.commit()
+    _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
     if firestore_write_game and new_id is not None:
         firestore_write_game(new_id, _game_tuple_to_dict(game, game_id=new_id))
 
@@ -106,11 +107,26 @@ def database_update_game(conn, game):
                   WHERE id = ?'''
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
     conn.commit()
+    _update_player_last_played(conn, game[1], game[2], game[3], game[5], game[6])
     if firestore_update_game:
         fd = {'id': game_id, 'game_date': game[1], 'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
               'loser1': game[5], 'loser2': game[6], 'loser_score': game[7], 'updated_at': game[8], 'comments': game[9],
               'entered_timezone': None, 'updated_by': game[10] if len(game) >= 12 else None}
         firestore_update_game(game_id, fd)
+
+def _update_player_last_played(conn, game_date, winner1, winner2, loser1, loser2):
+    """Update doubles_player_last_played for the four players (add/edit). Table may not exist yet."""
+    try:
+        cur = conn.cursor()
+        for name in (winner1, winner2, loser1, loser2):
+            if name and isinstance(name, str) and name.strip():
+                cur.execute(
+                    "INSERT INTO doubles_player_last_played (player_name, last_game_date) VALUES (?, ?) "
+                    "ON CONFLICT(player_name) DO UPDATE SET last_game_date = excluded.last_game_date",
+                    (name.strip(), game_date)
+                )
+    except sqlite3.OperationalError:
+        pass  # table may not exist before migration
 
 def database_delete_game(conn, game_id):
     sql = 'DELETE FROM games WHERE id=?'

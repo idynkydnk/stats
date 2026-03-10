@@ -99,14 +99,70 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
             game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2)
         database_update_game(conn, game)
 
+def _get_db_path():
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn:
+        conn.close()
+        return database
+    return r'stats.db'
+
+def get_players_ordered_from_cache():
+    """Player names from doubles_player_last_played (last played first). Returns None if table missing."""
+    try:
+        cur = set_cur()
+        cur.execute("SELECT player_name FROM doubles_player_last_played ORDER BY last_game_date DESC")
+        return [row[0] for row in cur.fetchall()]
+    except Exception:
+        return None
+
+def recompute_players_after_delete(player_names):
+    """After deleting a game, refresh last_game_date for those players from remaining games."""
+    if not player_names:
+        return
+    database = _get_db_path()
+    conn = create_connection(database)
+    if conn is None:
+        return
+    cur = conn.cursor()
+    try:
+        for name in player_names:
+            if not name or not isinstance(name, str) or not name.strip():
+                continue
+            cur.execute(
+                "SELECT MAX(game_date) FROM games WHERE winner1=? OR winner2=? OR loser1=? OR loser2=?",
+                (name.strip(),) * 4
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                cur.execute(
+                    "INSERT INTO doubles_player_last_played (player_name, last_game_date) VALUES (?, ?) "
+                    "ON CONFLICT(player_name) DO UPDATE SET last_game_date = excluded.last_game_date",
+                    (name.strip(), row[0])
+                )
+            else:
+                cur.execute("DELETE FROM doubles_player_last_played WHERE player_name = ?", (name.strip(),))
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
 def remove_game(game_id):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    players = []
     with conn:
+        cur = conn.cursor()
+        row = cur.execute("SELECT winner1, winner2, loser1, loser2 FROM games WHERE id = ?", (game_id,)).fetchone()
+        if row:
+            players = [row[0], row[1], row[2], row[3]]
         database_delete_game(conn, game_id)
+    if players:
+        recompute_players_after_delete(players)
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -495,18 +551,20 @@ def _games_for_player_order():
 
 def all_players_ordered_for_doubles(current_username=None):
 	"""Return player names for doubles autocomplete. If current_username is set, players from games
-	the current user entered (most recent first) appear first, then the rest by last played."""
-	# Use uncached query so the dropdown always reflects the latest games (including just-added)
-	all_games_list = _games_for_player_order()
-	# Build "last played" order: unique players in order of most recent game first
-	last_played_order = []
-	seen = set()
-	for game in all_games_list:
-		for idx in (2, 3, 5, 6):
-			p = (game[idx] or '').strip()
-			if p and p not in seen:
-				seen.add(p)
-				last_played_order.append(p)
+	the current user entered (most recent first) appear first, then the rest by last played.
+	Uses doubles_player_last_played when available to avoid scanning all games."""
+	last_played_order = get_players_ordered_from_cache()
+	if last_played_order is None:
+		# Fallback: table missing (migration not run) — build from full games list
+		all_games_list = _games_for_player_order()
+		last_played_order = []
+		seen = set()
+		for game in all_games_list:
+			for idx in (2, 3, 5, 6):
+				p = (game[idx] or '').strip()
+				if p and p not in seen:
+					seen.add(p)
+					last_played_order.append(p)
 	if not (current_username and str(current_username).strip()):
 		return last_played_order
 	# Get games entered by current user, most recent first; collect unique players in that order
@@ -611,11 +669,10 @@ def current_year_games():
 
 @cached(ttl=1800)
 def grab_all_years():
-	games = all_games()
-	years = []
-	for game in games:
-		if game[1][0:4] not in years:
-			years.append(game[1][0:4])
+	"""Return list of years that have games (newest first), plus 'All years'. Lightweight: one query, no full table load."""
+	cur = set_cur()
+	cur.execute("SELECT DISTINCT strftime('%Y', game_date) AS y FROM games ORDER BY y DESC")
+	years = [row[0] for row in cur.fetchall()]
 	years.append('All years')
 	return years
 
