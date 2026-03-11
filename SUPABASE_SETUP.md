@@ -11,30 +11,11 @@ Set these where the app runs (e.g. PythonAnywhere env, or `.env` locally):
 
 Optional:
 
-- **SUPABASE_DOUBLES_TABLE** – Table name (default: `doubles_games`)
+- **SUPABASE_DOUBLES_TABLE** – Table name (default: `games`)
 
 ## 2. Table in Supabase
 
-Create a table that matches the doubles game shape. Example SQL:
-
-```sql
-create table doubles_games (
-  id bigint primary key,
-  game_date timestamptz,
-  winner1 text not null,
-  winner2 text not null,
-  winner_score int not null,
-  loser1 text not null,
-  loser2 text not null,
-  loser_score int not null,
-  updated_at timestamptz,
-  comments text default '',
-  entered_timezone text,
-  updated_by text
-);
-```
-
-The app will **insert** on add, **update** on edit, and **delete** on delete, using the same `id` as SQLite.
+The app writes to a table named **`games`** by default. It expects columns: `id` (uuid), `db_id` (uuid), `game_date`, `winner1`, `winner2`, `winner_score`, `loser1`, `loser2`, `loser_score`, `comments`, `updated_at`, `entered_timezone`, `updated_by`, and optionally `editor_db_id`. On **insert** the app generates a new UUID for `id` and a deterministic UUID from the SQLite game id for `db_id` (so it can find the row on **update** and **delete**).
 
 ## 3. If Supabase isn’t configured
 
