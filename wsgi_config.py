@@ -34,6 +34,9 @@ from stats import app as application
 #      os.environ['MAIL_PASSWORD'] = 'your_gmail_app_password_here'
 #      os.environ['MAIL_DEFAULT_SENDER'] = 'kt.vball.summary@gmail.com'
 #
+#      os.environ['SUPABASE_URL'] = 'https://your-project.supabase.co'
+#      os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'your_service_role_key_here'
+#
 #   6. Replace 'your_gmail_app_password_here' with your actual Gmail app password
 #   7. Click "Save" at the top of the editor
 #   8. Go back to the Web tab and click the green "Reload" button

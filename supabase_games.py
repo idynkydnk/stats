@@ -18,8 +18,8 @@ import uuid
 # Namespace for deterministic id from SQLite game_id (so we can find row on update/delete)
 _ID_NAMESPACE = uuid.UUID('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')
 
-# Default: KT database id from public.databases (so games go to the KT game set)
-_DEFAULT_DATABASE_ID = '5fb2e373-2cb4-4857-b4d8-78f9cb44ab7f'
+# Default database id from public.databases (game set to write games to)
+_DEFAULT_DATABASE_ID = '2720b654-b3f7-4868-825d-e595d7be3d78'
 
 
 def _id_for_sqlite_game(game_id):
@@ -49,7 +49,9 @@ def _get_supabase():
         from supabase import create_client
         _supabase_client = create_client(url, key)
         return _supabase_client
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning('Supabase init failed: %s', e)
         return None
 
 
