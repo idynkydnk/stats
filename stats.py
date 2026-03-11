@@ -54,6 +54,15 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'norep
 
 mail = Mail(app)
 
+
+def _supabase_flash_suffix(supabase_ok):
+    """Return flash message suffix for Supabase sync status (True/False/None)."""
+    if supabase_ok is True:
+        return ' Synced to Supabase.'
+    if supabase_ok is False:
+        return ' Supabase sync failed.'
+    return ' (Supabase not configured.)'
+
 # User authentication - you can add more users here
 USERS = {
     'kyle': 'stats2025',
@@ -772,13 +781,14 @@ def _add_doubles_game_view(redirect_to):
                     return redirect(url_for(redirect_to))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
-            add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
+            supabase_ok = add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
                 winner_score, loser_score, game_dt, comments, tz], updated_by=session.get('username'))
             clear_stats_cache()
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
             update_kobs()
+            flash('Game saved to database.' + _supabase_flash_suffix(supabase_ok), 'success')
         return redirect(url_for(redirect_to))
     
     current_user = session.get('username')
@@ -1240,7 +1250,7 @@ def update(id):
         else:
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
-            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
+            supabase_ok = update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
             
             # Clear stats cache after editing a game
             clear_stats_cache()
@@ -1252,6 +1262,7 @@ def update(id):
             
             # Update KOBs after editing game
             update_kobs()
+            flash('Game updated in database.' + _supabase_flash_suffix(supabase_ok), 'success')
             
             # Check if user came from add game page
             from_add_game = request.form.get('from_add_game')
@@ -1284,13 +1295,14 @@ def delete_game(id):
             details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]} ({game_data[4]}-{game_data[7]})"
             log_user_action(user, 'Deleted doubles game', details)
         
-        remove_game(game_id)
+        supabase_ok = remove_game(game_id)
         
         # Clear stats cache after deleting a game
         clear_stats_cache()
         
         # Update KOBs after deleting game
         update_kobs()
+        flash('Game deleted from database.' + _supabase_flash_suffix(supabase_ok), 'success')
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':

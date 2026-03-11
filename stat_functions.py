@@ -84,7 +84,7 @@ def add_game_stats(game, updated_by=None):
         full_game.append(None)
     full_game.append(updated_by)
     all_games.append(full_game)
-    enter_data_into_database(all_games)
+    return enter_data_into_database(all_games)
 
 def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2, updated_by=None):
     database = '/home/Idynkydnk/stats/stats.db'
@@ -97,7 +97,7 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
             game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2)
         else:
             game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2)
-        database_update_game(conn, game)
+        return database_update_game(conn, game)
 
 def _get_db_path():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -155,14 +155,16 @@ def remove_game(game_id):
         database = r'stats.db'
         conn = create_connection(database)
     players = []
+    supabase_ok = None
     with conn:
         cur = conn.cursor()
         row = cur.execute("SELECT winner1, winner2, loser1, loser2 FROM games WHERE id = ?", (game_id,)).fetchone()
         if row:
             players = [row[0], row[1], row[2], row[3]]
-        database_delete_game(conn, game_id)
+        supabase_ok = database_delete_game(conn, game_id)
     if players:
         recompute_players_after_delete(players)
+    return supabase_ok
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
