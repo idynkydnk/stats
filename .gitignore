@@ -33,6 +33,3 @@ Thumbs.db
 .env.local
 run_with_email.sh
 
-# Firebase service account key (never commit)
-*-firebase-adminsdk-*.json
-firebase-key.json

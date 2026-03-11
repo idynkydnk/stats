@@ -2,9 +2,9 @@ import sqlite3
 from sqlite3 import Error
 
 try:
-    from firestore_games import write_game as firestore_write_game, update_game as firestore_update_game, delete_game as firestore_delete_game
+    from supabase_games import write_game as supabase_write_game, update_game as supabase_update_game, delete_game as supabase_delete_game
 except ImportError:
-    firestore_write_game = firestore_update_game = firestore_delete_game = None
+    supabase_write_game = supabase_update_game = supabase_delete_game = None
 
 def create_connection(db_file):
     """ create a database connection to the SQLite database
@@ -34,7 +34,7 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def _game_tuple_to_dict(game, game_id=None):
-    """Build a dict for Firestore from game tuple (after insert: 9–11 elements)."""
+    """Build a dict for Supabase from game tuple (after insert: 9–11 elements)."""
     # game: (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone?, updated_by?)
     d = {
         'game_date': game[0],
@@ -79,8 +79,8 @@ def create_game(conn, game):
     new_id = cur.lastrowid
     conn.commit()
     _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
-    if firestore_write_game and new_id is not None:
-        firestore_write_game(new_id, _game_tuple_to_dict(game, game_id=new_id))
+    if supabase_write_game and new_id is not None:
+        supabase_write_game(new_id, _game_tuple_to_dict(game, game_id=new_id))
 
 def database_update_game(conn, game):
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
@@ -108,11 +108,11 @@ def database_update_game(conn, game):
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
     conn.commit()
     _update_player_last_played(conn, game[1], game[2], game[3], game[5], game[6])
-    if firestore_update_game:
+    if supabase_update_game:
         fd = {'id': game_id, 'game_date': game[1], 'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
               'loser1': game[5], 'loser2': game[6], 'loser_score': game[7], 'updated_at': game[8], 'comments': game[9],
               'entered_timezone': None, 'updated_by': game[10] if len(game) >= 12 else None}
-        firestore_update_game(game_id, fd)
+        supabase_update_game(game_id, fd)
 
 def _update_player_last_played(conn, game_date, winner1, winner2, loser1, loser2):
     """Update doubles_player_last_played for the four players (add/edit). Table may not exist yet."""
@@ -133,8 +133,8 @@ def database_delete_game(conn, game_id):
     cur = conn.cursor()
     cur.execute(sql, (game_id,))
     conn.commit()
-    if firestore_delete_game:
-        firestore_delete_game(game_id)
+    if supabase_delete_game:
+        supabase_delete_game(game_id)
 
 def main():
     database = r"stats.db"
