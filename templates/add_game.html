@@ -20,6 +20,8 @@
 .autocomplete-list div:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
 .sr-submit-btn { width: 100%; padding: 14px; background: var(--sr-accent); border: none; border-radius: 10px; color: #0b0f14; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
 .sr-submit-btn:hover { opacity: 0.9; }
+.sr-submit-btn:disabled { opacity: 0.85; cursor: wait; }
+.sr-submit-btn .fa-spinner { margin-right: 8px; }
 textarea { resize: vertical; min-height: 60px; }
 .sr-stats-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 .sr-stats-table th, .sr-stats-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
@@ -297,12 +299,29 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     var w1 = document.getElementById('winner1'); if (w1) w1.focus();
 });
 setupClearButtons();
-document.getElementById('add-game-form').addEventListener('submit', function() {
+document.getElementById('add-game-form').addEventListener('submit', function(e) {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
+    var btn = document.querySelector('#add-game-form button[type="submit"]');
+    var form = document.getElementById('add-game-form');
+    if (typeof fetch !== 'function' || !form || !form.action) {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…'; }
+        return;
+    }
+    e.preventDefault();
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+    }
+    var data = new FormData(form);
+    fetch(form.action, { method: 'POST', body: data, keepalive: true });
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-check"></i> Submitted — safe to close';
+        btn.style.background = 'var(--sr-win, #4ade80)';
+    }
 });
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1) w1.focus(); }, 100);
