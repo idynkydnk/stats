@@ -16,10 +16,10 @@
         </div>
         
         <div class="confirmation-actions">
-            <form action='' method="post" class="delete-form">
+            <form action="" method="post" class="delete-form" id="delete-game-form">
                 <input type="hidden" name="from_add_game" value="{{ from_add_game }}">
                 <input type="hidden" name="from_redesign" value="{{ from_redesign }}">
-                <button type="submit" class="delete-button">
+                <button type="submit" class="delete-button" id="delete-game-btn">
                     <i class="fas fa-trash"></i>
                     Delete Game
                 </button>
@@ -98,6 +98,12 @@
     box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
 }
 
+.delete-button:disabled {
+    opacity: 0.85;
+    cursor: wait;
+    transform: none;
+}
+
 .cancel-button {
     background: var(--table-banding);
     color: var(--text);
@@ -137,4 +143,29 @@
     }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var form = document.getElementById('delete-game-form');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        if (typeof fetch !== 'function') return;
+        e.preventDefault();
+        var btn = document.getElementById('delete-game-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+        }
+        var data = new FormData(form);
+        var url = form.action || window.location.href;
+        fetch(url, { method: 'POST', body: data, keepalive: true });
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Deleted — safe to close';
+            btn.style.background = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
+        }
+    });
+})();
+</script>
 {% endblock %}
