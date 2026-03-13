@@ -51,6 +51,7 @@
         .sr-submit-btn:hover { opacity: 0.9; }
         .sr-submit-btn:disabled { opacity: 0.85; cursor: wait; }
         .sr-submit-btn .fa-spinner { margin-right: 8px; }
+        .sr-form-container .autocomplete:has(textarea) { position: relative; z-index: 15; }
         textarea { resize: vertical; min-height: 60px; }
         .sr-date-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     </style>
@@ -119,6 +120,13 @@
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                 </div>
                 <button type="submit" class="sr-submit-btn">Save changes</button>
+                <p class="sr-edit-done" id="edit-done-p" style="display: none; margin-top: 12px; text-align: center;">
+                    {% if from_add_game %}
+                    <a href="{{ url_for('add_game') }}" class="sr-link-btn">Back to Add game</a>
+                    {% else %}
+                    <a href="{{ url_for('edit_games', year=year) }}" class="sr-link-btn">Back to Edit games</a>
+                    {% endif %}
+                </p>
             </form>
         </div>
 
@@ -219,6 +227,15 @@ document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
 });
 
 (function() {
+    var commentEl = document.getElementById('comment');
+    if (commentEl) {
+        commentEl.addEventListener('focus', function() {
+            document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
+            commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+})();
+(function() {
     var form = document.getElementById('edit-game-form');
     if (!form) return;
     form.addEventListener('submit', function(e) {
@@ -235,6 +252,8 @@ document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
             btn.innerHTML = '<i class="fas fa-check"></i> Saved — safe to close';
             btn.style.background = 'var(--sr-win, #4ade80)';
         }
+        var doneLink = document.getElementById('edit-done-p');
+        if (doneLink) doneLink.style.display = 'block';
     });
 })();
 </script>
