@@ -36,6 +36,8 @@ except (ImportError, ModuleNotFoundError):
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
+# Stay logged in across browser closes (session cookie lives 90 days when permanent)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
 # Cache configuration - cache expensive calculations for 5 minutes
 # Flask-Caching is optional - stat_functions.py has its own caching that works without it
@@ -140,7 +142,7 @@ def create_auth_token(username):
     """Create a new authentication token for a user"""
     token = generate_auth_token()
     token_hash = hash_token(token)
-    expires_at = datetime.now() + timedelta(days=30)  # Token expires in 30 days
+    expires_at = datetime.now() + timedelta(days=90)  # Token expires in 90 days
     
     conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
@@ -641,9 +643,11 @@ def edit_games(year):
     else:
         games = year_games_paginated(year, limit=per_page, offset=offset)
     page_end = min(page * per_page, total)
+    saved = request.args.get('saved')
+    deleted = request.args.get('deleted')
     return render_template('edit_games.html', games=games, year=year, all_years=all_years,
                            page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end,
-                           search_query=search_query)
+                           search_query=search_query, saved=saved, deleted=deleted)
 
 @app.route('/edit_vollis_games/')
 @login_required
@@ -797,9 +801,12 @@ def _add_doubles_game_view(redirect_to):
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
     is_voice_page = (redirect_to == 'add_game_voice')
+    added = request.args.get('added')
+    saved = request.args.get('saved')
+    deleted = request.args.get('deleted')
     return render_template('add_game.html', players=players, games=games, year=year,
         l_scores=l_scores, todays_stats=todays_stats_data, form_action=url_for(redirect_to),
-        is_voice_page=is_voice_page)
+        is_voice_page=is_voice_page, added=added, saved=saved, deleted=deleted)
 
 
 @app.route('/add_game/', methods=['GET', 'POST'])
@@ -1311,7 +1318,8 @@ def delete_game(id):
             return redirect(url_for('add_game'))
         return redirect(url_for('edit_games', year=str(date.today().year)))
  
-    return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
+    year = str(date.today().year)
+    return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign, year=year)
 
 @app.route('/advanced_stats/')
 def advanced_stats():
@@ -1828,6 +1836,7 @@ def login():
         next_url = request.form.get('next')  # Get from hidden form field
         
         if username in USERS and USERS[username] == password:
+            session.permanent = True  # Use PERMANENT_SESSION_LIFETIME so session cookie persists
             session['logged_in'] = True
             session['username'] = username
             flash(f'Successfully logged in as {username}!', 'success')
@@ -1842,15 +1851,16 @@ def login():
             redirect_url = next_url if next_url else url_for('index')
             response = make_response(redirect(redirect_url))
             
-            # Set remember me cookie if requested
+            # Set remember me cookie if requested (default on so phone stays recognized)
             if remember_me:
                 auth_token = create_auth_token(username)
-                response.set_cookie('remember_token', auth_token, 
-                                  max_age=30*24*60*60,  # 30 days
+                cookie_days = 90
+                response.set_cookie('remember_token', auth_token,
+                                  max_age=cookie_days*24*60*60,
                                   secure=False,  # Set to True in production with HTTPS
-                                  httponly=True,  # Prevent XSS attacks
-                                  samesite='Lax')  # CSRF protection
-                flash('You will stay logged in on this device for 30 days.', 'info')
+                                  httponly=True,
+                                  samesite='Lax')
+                flash(f'You will stay logged in on this device for {cookie_days} days.', 'info')
             
             return response
         else:

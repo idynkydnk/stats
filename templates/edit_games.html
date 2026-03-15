@@ -145,12 +145,21 @@
         .sr-delete-btn:hover { background: rgba(248, 113, 113, 0.3); }
         .sr-delete-btn.active { opacity: 1; }
 
+        .sr-success-banner { padding: 12px 16px; margin-bottom: 16px; background: rgba(74,222,128,0.15); border: 1px solid var(--sr-win, #4ade80); border-radius: 10px; color: var(--sr-win, #4ade80); font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        .sr-success-banner i { font-size: 18px; }
+
         @media (max-width: 600px) {
             .sr-edit-body { grid-template-columns: 1fr; gap: 8px; }
         }
     </style>
 
     <div class="sr-container">
+        {% if saved or deleted %}
+        <div class="sr-success-banner" role="alert">
+            {% if saved %}<i class="fas fa-check-circle"></i> Changes saved. Safe to close.{% endif %}
+            {% if deleted %}<i class="fas fa-check-circle"></i> Game deleted. Safe to close.{% endif %}
+        </div>
+        {% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit {{ year }} Doubles</h1>
             <div class="sr-header-actions">

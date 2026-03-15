@@ -16,7 +16,7 @@
         </div>
         
         <div class="confirmation-actions">
-            <form action="" method="post" class="delete-form" id="delete-game-form">
+            <form action="" method="post" class="delete-form" id="delete-game-form" data-redirect-url="{% if from_redesign == 'true' or from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games', year=year) }}{% endif %}">
                 <input type="hidden" name="from_add_game" value="{{ from_add_game }}">
                 <input type="hidden" name="from_redesign" value="{{ from_redesign }}">
                 <button type="submit" class="delete-button" id="delete-game-btn">
@@ -160,11 +160,17 @@
         }
         var data = new FormData(form);
         var url = form.action || window.location.href;
-        fetch(url, { method: 'POST', body: data, keepalive: true });
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-check"></i> Deleted — safe to close';
-            btn.style.background = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
-        }
+        var baseUrl = form.getAttribute('data-redirect-url') || url;
+        var redirectUrl = baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') + 'deleted=1';
+        fetch(url, { method: 'POST', body: data, keepalive: true })
+            .then(function(r) {
+                if (r.ok) window.location.href = redirectUrl;
+                else { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Delete Game'; } alert('Delete failed. Try again.'); }
+            })
+            .catch(function() {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Delete Game'; }
+                alert('Delete failed. Check connection and try again.');
+            });
     });
 })();
 </script>

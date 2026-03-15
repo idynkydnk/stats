@@ -24,6 +24,8 @@
 .sr-submit-btn:hover { opacity: 0.9; }
 .sr-submit-btn:disabled { opacity: 0.85; cursor: wait; }
 .sr-submit-btn .fa-spinner { margin-right: 8px; }
+.sr-success-banner { padding: 12px 16px; margin-bottom: 16px; background: rgba(74,222,128,0.15); border: 1px solid var(--sr-win, #4ade80); border-radius: 10px; color: var(--sr-win, #4ade80); font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.sr-success-banner i { font-size: 18px; }
 textarea { resize: vertical; min-height: 60px; }
 .sr-stats-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 .sr-stats-table th, .sr-stats-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
@@ -85,6 +87,13 @@ textarea { resize: vertical; min-height: 60px; }
 </style>
 {% endblock %}
 {% block content %}
+        {% if added or saved or deleted %}
+        <div class="sr-success-banner" role="alert">
+            {% if added %}<i class="fas fa-check-circle"></i> Game added. Safe to close.{% endif %}
+            {% if saved %}<i class="fas fa-check-circle"></i> Changes saved. Safe to close.{% endif %}
+            {% if deleted %}<i class="fas fa-check-circle"></i> Game deleted. Safe to close.{% endif %}
+        </div>
+        {% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Doubles</h1>
             <div class="sr-header-actions">
@@ -147,9 +156,6 @@ textarea { resize: vertical; min-height: 60px; }
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn" id="add-game-submit-btn">Submit</button>
-                    <p class="sr-add-another" id="add-another-p" style="display: none; margin-top: 12px; text-align: center;">
-                        <a href="{% if is_voice_page %}{{ url_for('add_game_voice') }}{% else %}{{ url_for('add_game') }}{% endif %}" class="sr-link-btn" id="add-another-link">Add another game</a>
-                    </p>
                     <button type="button" class="sr-clear-btn" id="clear-form-btn"><i class="fas fa-eraser"></i> Clear form</button>
                 </div>
             </form>
@@ -331,13 +337,16 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
     }
     var data = new FormData(form);
-    fetch(form.action, { method: 'POST', body: data, keepalive: true });
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-check"></i> Submitted — safe to close';
-        btn.style.background = 'var(--sr-win, #4ade80)';
-    }
-    var addAnother = document.getElementById('add-another-p');
-    if (addAnother) addAnother.style.display = 'block';
+    var redirectUrl = form.action + (form.action.indexOf('?') >= 0 ? '&' : '?') + 'added=1';
+    fetch(form.action, { method: 'POST', body: data, keepalive: true })
+        .then(function(r) {
+            if (r.ok) window.location.href = redirectUrl;
+            else { if (btn) { btn.disabled = false; btn.innerHTML = 'Submit'; } alert('Save failed. Try again.'); }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Submit'; }
+            alert('Save failed. Check connection and try again.');
+        });
 });
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1) w1.focus(); }, 100);

@@ -69,7 +69,7 @@
         </header>
 
         <div class="sr-form-container">
-            <form method="post" action="{{ url_for('update', id=game[0]) }}" id="edit-game-form">
+            <form method="post" action="{{ url_for('update', id=game[0]) }}" id="edit-game-form" data-redirect-url="{% if from_add_game %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games', year=year) }}{% endif %}">
                 {% if from_add_game %}
                 <input type="hidden" name="from_add_game" value="true">
                 {% endif %}
@@ -120,13 +120,6 @@
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                 </div>
                 <button type="submit" class="sr-submit-btn">Save changes</button>
-                <p class="sr-edit-done" id="edit-done-p" style="display: none; margin-top: 12px; text-align: center;">
-                    {% if from_add_game %}
-                    <a href="{{ url_for('add_game') }}" class="sr-link-btn">Back to Add game</a>
-                    {% else %}
-                    <a href="{{ url_for('edit_games', year=year) }}" class="sr-link-btn">Back to Edit games</a>
-                    {% endif %}
-                </p>
             </form>
         </div>
 
@@ -247,13 +240,17 @@ document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
         }
         var data = new FormData(form);
-        fetch(form.action, { method: 'POST', body: data, keepalive: true });
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-check"></i> Saved — safe to close';
-            btn.style.background = 'var(--sr-win, #4ade80)';
-        }
-        var doneLink = document.getElementById('edit-done-p');
-        if (doneLink) doneLink.style.display = 'block';
+        var baseUrl = form.getAttribute('data-redirect-url') || form.action;
+        var redirectUrl = baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') + 'saved=1';
+        fetch(form.action, { method: 'POST', body: data, keepalive: true })
+            .then(function(r) {
+                if (r.ok) window.location.href = redirectUrl;
+                else { if (btn) { btn.disabled = false; btn.innerHTML = 'Save changes'; } alert('Save failed. Try again.'); }
+            })
+            .catch(function() {
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Save changes'; }
+                alert('Save failed. Check connection and try again.');
+            });
     });
 })();
 </script>
