@@ -102,6 +102,9 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
         </header>
         <div class="sr-form-container">
+            <div class="sr-success-banner" id="add-game-success-banner" role="alert" style="display: none; margin-bottom: 16px;">
+                <i class="fas fa-check-circle"></i> <span id="add-game-success-text">Game added. Safe to close.</span>
+            </div>
             {% if is_voice_page %}
             <div class="sr-voice-section" id="sr-voice-section">
                 <button type="button" class="sr-mic-btn" id="sr-mic-btn" aria-label="Record game result" title="Tap to record a game result"><i class="fas fa-microphone"></i></button>
@@ -319,6 +322,14 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     var w1 = document.getElementById('winner1'); if (w1) w1.focus();
 });
 setupClearButtons();
+function clearAddGameForm() {
+    ['winner1', 'winner2', 'loser1', 'loser2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    var ws = document.getElementById('winner_score'); if (ws) ws.value = '';
+    var ls = document.getElementById('loser_score'); if (ls) ls.value = '';
+    var comments = document.getElementById('comments'); if (comments) comments.value = '';
+    document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
+    document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+}
 document.getElementById('add-game-form').addEventListener('submit', function(e) {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
@@ -337,16 +348,21 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
     }
     var data = new FormData(form);
-    var redirectUrl = form.action + (form.action.indexOf('?') >= 0 ? '&' : '?') + 'added=1';
-    fetch(form.action, { method: 'POST', body: data, keepalive: true })
-        .then(function(r) {
-            if (r.ok) window.location.href = redirectUrl;
-            else { if (btn) { btn.disabled = false; btn.innerHTML = 'Submit'; } alert('Save failed. Try again.'); }
-        })
-        .catch(function() {
-            if (btn) { btn.disabled = false; btn.innerHTML = 'Submit'; }
-            alert('Save failed. Check connection and try again.');
-        });
+    fetch(form.action, { method: 'POST', body: data, keepalive: true });
+    var banner = document.getElementById('add-game-success-banner');
+    if (banner) {
+        var text = document.getElementById('add-game-success-text');
+        if (text) text.textContent = 'Game added. Safe to close.';
+        banner.style.display = 'flex';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    clearAddGameForm();
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = 'Submit';
+    }
+    var w1 = document.getElementById('winner1');
+    if (w1) { w1.focus(); }
 });
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1) w1.focus(); }, 100);
