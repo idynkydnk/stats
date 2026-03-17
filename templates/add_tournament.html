@@ -1,0 +1,50 @@
+{% extends base_template %}
+{% block title %}Add Tournament{% endblock %}
+{% block extra_css %}
+<style>
+.sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
+.sr-form-group { margin-bottom: 14px; }
+.sr-form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: var(--sr-text); }
+.sr-form-group input { width: 100%; padding: 12px 14px; background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 15px; box-sizing: border-box; }
+.sr-form-group input:focus { outline: none; border-color: var(--sr-accent); }
+.sr-submit-btn { width: 100%; padding: 14px; background: var(--sr-accent); border: none; border-radius: 10px; color: #0b0f14; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.sr-submit-btn:hover { opacity: 0.9; }
+.sr-cancel-link { display: inline-block; margin-top: 12px; color: var(--sr-muted); font-size: 14px; text-decoration: none; }
+.sr-cancel-link:hover { color: var(--sr-accent); }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">Add Tournament</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('tournaments') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Tournaments</a>
+        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+    </div>
+</header>
+<div class="sr-form-container" style="margin-top: 20px;">
+    <form method="post">
+        <div class="sr-form-group">
+            <label for="tournament_date">Date *</label>
+            <input type="date" name="tournament_date" id="tournament_date" required>
+        </div>
+        <div class="sr-form-group">
+            <label for="place">Place *</label>
+            <input type="text" name="place" id="place" placeholder="e.g. 1st, 2nd, 3rd" required>
+        </div>
+        <div class="sr-form-group">
+            <label for="team">Team *</label>
+            <input type="text" name="team" id="team" placeholder="Player or team name" required>
+        </div>
+        <div class="sr-form-group">
+            <label for="location">Location *</label>
+            <input type="text" name="location" id="location" placeholder="City or venue" required>
+        </div>
+        <div class="sr-form-group">
+            <label for="tournament_name">Tournament name *</label>
+            <input type="text" name="tournament_name" id="tournament_name" placeholder="Tournament name" required>
+        </div>
+        <button type="submit" class="sr-submit-btn">Add Tournament</button>
+        <a href="{{ url_for('tournaments') }}" class="sr-cancel-link">Cancel</a>
+    </form>
+</div>
+{% endblock %}

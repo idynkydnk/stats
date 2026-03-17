@@ -22,6 +22,7 @@
             <li><a href="{{ url_for('add_game_voice') }}"><i class="fas fa-plus-circle"></i> Add Doubles (Voice)</a></li>
             <li><a href="{{ url_for('notifications') }}" id="menu-link-notifications"><i class="fas fa-bell"></i> Notifications<span class="notification-badge" id="notification-badge" aria-label="Unread count"></span></a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
+            <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
         </ul>
     </div>

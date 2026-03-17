@@ -1,0 +1,51 @@
+{% extends base_template %}
+{% block title %}Tournaments{% endblock %}
+{% block extra_css %}
+<style>
+.sr-tournaments-table { width: 100%; border-collapse: collapse; }
+.sr-tournaments-table th, .sr-tournaments-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
+.sr-tournaments-table th { color: var(--sr-muted); font-size: 12px; text-transform: uppercase; }
+.sr-tournaments-table td { font-size: 14px; color: var(--sr-text); }
+.sr-tournaments-table a { color: var(--sr-accent); text-decoration: none; }
+.sr-tournaments-table a:hover { text-decoration: underline; }
+.sr-tournaments-empty { color: var(--sr-muted); padding: 24px; text-align: center; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">Tournaments</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('index') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+        <a href="{{ url_for('add_tournament') }}" class="sr-link-btn"><i class="fas fa-plus"></i> Add Tournament</a>
+        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+    </div>
+</header>
+<div class="sr-card" style="margin-top: 16px;">
+    {% if tournaments %}
+    <table class="sr-tournaments-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Place</th>
+                <th>Team</th>
+                <th>Location</th>
+                <th>Tournament</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tournaments %}
+            <tr>
+                <td>{{ t[1] }}</td>
+                <td>{{ t[2] }}</td>
+                <td>{{ t[3] }}</td>
+                <td>{{ t[4] }}</td>
+                <td>{{ t[5] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="sr-tournaments-empty">No tournaments yet. <a href="{{ url_for('add_tournament') }}">Add one</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

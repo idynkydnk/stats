@@ -2369,14 +2369,68 @@ def dashboard_top_teams():
 def streak_details(player_name, streak_type, streak_length, year=None):
     return redirect(url_for('index'))
 
+def _ensure_tournaments_table(conn):
+    """Create tournaments table if it doesn't exist."""
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS tournaments (
+            id integer PRIMARY KEY AUTOINCREMENT,
+            tournament_date DATE NOT NULL,
+            place text NOT NULL,
+            team text NOT NULL,
+            location text NOT NULL,
+            tournament_name text NOT NULL
+        )
+    ''')
+    conn.commit()
+
 @app.route('/tournaments/')
+@login_required
 def tournaments():
-    return redirect(url_for('index'))
+    """Tournaments list page (Kyle-only in menu; any logged-in user can open URL)."""
+    conn = sqlite3.connect(_stats_db_path())
+    cur = conn.cursor()
+    try:
+        _ensure_tournaments_table(conn)
+        cur.execute('''
+            SELECT id, tournament_date, place, team, location, tournament_name
+            FROM tournaments
+            ORDER BY tournament_date DESC
+        ''')
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    finally:
+        conn.close()
+    return render_template('tournaments.html', tournaments=rows)
 
 @app.route('/add_tournament/', methods=('GET', 'POST'))
 @login_required
 def add_tournament():
-    return redirect(url_for('index'))
+    """Add a tournament - form POST or show form."""
+    if request.method == 'POST':
+        tournament_date = request.form.get('tournament_date', '').strip()
+        place = request.form.get('place', '').strip()
+        team = request.form.get('team', '').strip()
+        location = request.form.get('location', '').strip()
+        tournament_name = request.form.get('tournament_name', '').strip()
+        if tournament_date and place and team and location and tournament_name:
+            conn = sqlite3.connect(_stats_db_path())
+            cur = conn.cursor()
+            try:
+                _ensure_tournaments_table(conn)
+                cur.execute('''
+                    INSERT INTO tournaments (tournament_date, place, team, location, tournament_name)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (tournament_date, place, team, location, tournament_name))
+                conn.commit()
+                flash('Tournament added.', 'success')
+            except Exception as e:
+                flash(f'Error saving: {e}', 'error')
+            finally:
+                conn.close()
+            return redirect(url_for('tournaments'))
+        flash('All fields are required.', 'error')
+    return render_template('add_tournament.html')
 
 @app.route('/glicko_rankings/')
 def glicko_rankings():
