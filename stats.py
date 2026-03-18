@@ -1518,11 +1518,14 @@ def build_volleyball_game_cards(year):
 
 @app.route('/volleyball_stats/')
 def volleyball_stats_default():
-    return redirect(url_for('index'))
+    return redirect(url_for('volleyball_stats', year=str(date.today().year)))
 
 @app.route('/volleyball_stats/<year>/')
 def volleyball_stats(year):
-    return redirect(url_for('index'))
+    """Volleyball stats page: one card per volleyball game type (Beach, Indoor, etc.)."""
+    all_years = all_other_years()
+    game_cards = build_volleyball_game_cards_styled(year)
+    return render_template('volleyball_stats.html', game_cards=game_cards, year=year, all_years=all_years)
 
 
 def build_volleyball_game_cards_styled(year):
@@ -1540,24 +1543,21 @@ def build_volleyball_game_cards_styled(year):
             stats_for_game = total_game_name_stats(game_specific)
             if not stats_for_game:
                 continue
+            num_games = len(game_specific)
+            card_minimum_games = 1 if num_games < 30 else num_games // 30
+            qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
+            rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
             game_cards.append({
                 'game_name': game_name,
-                'stats': stats_for_game,
-                'total_games': len(game_specific),
+                'stats': qualified_stats,
+                'rare_stats': rare_stats,
+                'total_games': num_games,
+                'minimum_games': card_minimum_games,
                 'is_consolidated': False
             })
         game_cards.sort(key=lambda x: x['total_games'], reverse=True)
     
     return game_cards
-
-
-@app.route('/volleyball_stats_styled/')
-def volleyball_stats_styled_default():
-    return redirect(url_for('index'))
-
-@app.route('/volleyball_stats_styled/<year>/')
-def volleyball_stats_styled(year):
-    return redirect(url_for('index'))
 
 
 @app.route('/volleyball_player/<year>/<name>')

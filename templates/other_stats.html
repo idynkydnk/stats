@@ -302,7 +302,7 @@
             <div class="sr-card sr-card-compact">
                 <h3 class="sr-game-card-title">{{ card.game_name }}{% if card.is_consolidated %} (various types){% endif %}</h3>
                 {% if card.is_consolidated %}
-                <a href="{{ url_for('volleyball_stats', year=year) }}" class="sr-game-card-link">
+                <a href="{{ url_for('volleyball_stats', year=display_year|default(year)) }}" class="sr-game-card-link">
                     <i class="fas fa-volleyball-ball"></i> View all {{ card.num_game_types }} volleyball game types
                 </a>
                 {% else %}

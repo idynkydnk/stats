@@ -1,0 +1,80 @@
+{% extends base_template %}
+{% block title %}{{ year }} Volleyball Stats{% endblock %}
+{% block extra_css %}
+<style>
+.sr-game-card-section { margin-bottom: 16px; }
+.sr-game-card-section:first-of-type { margin-top: 0; }
+.sr-game-card-title { font-size: 18px; font-weight: 600; color: var(--sr-text); margin: 0 0 8px 0; }
+.sr-game-card-link { font-size: 12px; color: var(--sr-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.sr-game-card-link:hover { color: var(--sr-accent); }
+.sr-year-select-wrap { display: inline-flex; align-items: center; }
+.sr-year-select { background: var(--sr-panel); border: 1px solid var(--sr-line); color: var(--sr-text); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">{{ year }} Volleyball</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Other Stats</a>
+        <div class="sr-year-select-wrap">
+            <select class="sr-year-select" onchange="window.location.href=this.value">
+                {% for yr in all_years %}
+                <option value="{{ url_for('volleyball_stats', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+    </div>
+</header>
+
+<div class="sr-container">
+    {% if game_cards %}
+    {% for card in game_cards %}
+    <section class="sr-table-section sr-game-card-section">
+        <div class="sr-card sr-card-compact">
+            <h3 class="sr-game-card-title">{{ card.game_name }}</h3>
+            <a href="{{ url_for('other_games_by_name', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
+                <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
+            </a>
+            <div class="sr-table-wrap">
+                <table class="sr-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Player</th>
+                            <th class="sr-numeric">W</th>
+                            <th class="sr-numeric">L</th>
+                            <th class="sr-numeric">Win%</th>
+                            <th class="sr-numeric">Games</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in card.stats %}
+                        <tr>
+                            <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
+                            <td class="sr-player"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                            <td class="sr-numeric sr-win">{{ stat[1] }}</td>
+                            <td class="sr-numeric sr-loss">{{ stat[2] }}</td>
+                            <td class="sr-numeric sr-winpct">{{ "%.0f"|format(stat[3] * 100) }}%</td>
+                            <td class="sr-numeric">{{ stat[1] + stat[2] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endfor %}
+    {% else %}
+    <section class="sr-table-section">
+        <div class="sr-card sr-card-compact">
+            <div class="sr-empty">
+                <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
+                <p class="sr-empty-text">No volleyball games recorded for {{ year }} yet.</p>
+                <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn" style="margin-top: 12px;">Back to Other Stats</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
