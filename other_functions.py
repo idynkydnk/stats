@@ -226,7 +226,7 @@ def todays_other_games():
     from datetime import datetime
     cur = set_cur()
     today = datetime.now().strftime('%Y-%m-%d')
-    cur.execute("SELECT * FROM other_games WHERE date(game_date) = ? ORDER BY game_date DESC", (today,))
+    cur.execute("SELECT * FROM other_games WHERE date(game_date) = ? ORDER BY game_date DESC, id DESC", (today,))
     games = cur.fetchall()
     readable_games = readable_games_data(games)
     return readable_games
@@ -331,6 +331,33 @@ def _is_valid_player_name(value):
         if short_words >= len(words) * 0.7:  # 70% or more are short
             return False
     return True
+
+
+def _other_game_point_margin(game):
+    """Point margin for the winning side: winner team total minus loser team total."""
+    def _to_int(v):
+        if v is None or v == "":
+            return None
+        try:
+            return int(float(v))
+        except (TypeError, ValueError):
+            return None
+
+    ws = _to_int(game.get("winner_score"))
+    ls = _to_int(game.get("loser_score"))
+    if ws is not None and ls is not None:
+        return ws - ls
+
+    win_sum, lose_sum = 0, 0
+    for i in range(1, MAX_OTHER_PLAYERS + 1):
+        wi = _to_int(game.get(f"winner{i}_score"))
+        if wi is not None:
+            win_sum += wi
+        li = _to_int(game.get(f"loser{i}_score"))
+        if li is not None:
+            lose_sum += li
+    return win_sum - lose_sum
+
 
 def all_other_players(games):
     players = []
@@ -799,15 +826,18 @@ def todays_other_stats():
                 if _is_valid_player_name(val):
                     loser_names.append(val)
             
+            margin = _other_game_point_margin(game)
             if player in winner_names:
                 wins += 1
-                differential += (0-0) # TEMPORARY
+                differential += margin
             elif player in loser_names:
                 losses += 1
-                differential -= (0-0) # TEMPORARY
-        win_percentage = 0 ##wins / (wins + losses)
+                differential -= margin
+        played = wins + losses
+        win_percentage = (wins / played) if played else 0
         stats.append([player, wins, losses, win_percentage, differential])
-    stats.sort(key=lambda x: x[3], reverse=True)
+    # Win % first, then point differential (higher is better, so -2 ranks above -4 above -14)
+    stats.sort(key=lambda x: (x[3], x[4]), reverse=True)
     return stats
 
 

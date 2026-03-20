@@ -376,6 +376,15 @@
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) fetch('/api/set_timezone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({timezone: tz}) }).catch(function(){});
 })();
+(function() {
+    document.addEventListener('focusin', function(e) {
+        var t = e.target;
+        if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA' && t.tagName !== 'SELECT')) return;
+        if (t.closest('#menu-sidebar') || t.closest('.menu-sidebar')) return;
+        if (t.type === 'hidden' || t.type === 'checkbox' || t.type === 'radio' || t.disabled) return;
+        t.scrollIntoView({ block: 'start', behavior: 'smooth', inline: 'nearest' });
+    });
+})();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);
 const allGameTypes = Array.from(document.getElementById('game_types').options).map(o => o.value);
@@ -448,6 +457,19 @@ function getNextFieldAfterScore(scoreInput) {
     return (nextEl && nextEl.offsetParent !== null) ? nextEl : document.getElementById('comment');
 }
 const defaultIndividualScores = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+function isVolleyballGame() {
+    const gt = (document.getElementById('game_type') && document.getElementById('game_type').value || '').trim().toLowerCase();
+    return gt === 'volleyball';
+}
+/** Volleyball team: loser score options from (winner_score - 2) down to 0 */
+function buildVolleyballTeamLoserScoresFromWinnerInput() {
+    const wsEl = document.getElementById('winner_score');
+    const ws = wsEl ? parseInt(wsEl.value, 10) : NaN;
+    if (!Number.isFinite(ws) || ws < 2) return null;
+    const scores = [];
+    for (let s = ws - 2; s >= 0; s--) scores.push(s);
+    return scores;
+}
 function openCommonScoreDropdown(scoreInput) {
     _currentScoreInput = scoreInput;
     const isWinner = scoreInput.id === 'winner_score' || /^winner\d*_score$/.test(scoreInput.name || '') || /^winner\d*_score$/.test(scoreInput.id || '');
@@ -458,9 +480,13 @@ function openCommonScoreDropdown(scoreInput) {
         const winScores = useIndividual
             ? (data.winner_individual_scores && data.winner_individual_scores.length ? data.winner_individual_scores : defaultIndividualScores)
             : (data.winner_scores || defaultIndividualScores);
-        const loseScores = useIndividual
+        let loseScores = useIndividual
             ? (data.loser_individual_scores && data.loser_individual_scores.length ? data.loser_individual_scores : defaultIndividualScores)
             : (data.loser_scores || defaultIndividualScores);
+        if (!isWinner && !useIndividual && isVolleyballGame() && scoreInput.id === 'loser_score') {
+            const vbLoser = buildVolleyballTeamLoserScoresFromWinnerInput();
+            if (vbLoser != null) loseScores = vbLoser;
+        }
         showScoreList(list, isWinner ? winScores : loseScores);
         const rect = scoreInput.getBoundingClientRect();
         list.style.top = (rect.bottom + 4) + 'px';
@@ -950,7 +976,7 @@ var gameNamesRequiringScores = {{ game_names_requiring_scores | tojson }};
 document.getElementById('add-other-form').addEventListener('submit', function(e) {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
     // If this game name has had scores before, require scores on this entry (case-insensitive)

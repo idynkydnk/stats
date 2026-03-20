@@ -227,6 +227,15 @@ textarea { resize: vertical; min-height: 60px; }
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) fetch('/api/set_timezone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({timezone: tz}) }).catch(function(){});
 })();
+(function() {
+    document.addEventListener('focusin', function(e) {
+        var t = e.target;
+        if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA' && t.tagName !== 'SELECT')) return;
+        if (t.closest('#menu-sidebar') || t.closest('.menu-sidebar')) return;
+        if (t.type === 'hidden' || t.type === 'checkbox' || t.type === 'radio' || t.disabled) return;
+        t.scrollIntoView({ block: 'start', behavior: 'smooth', inline: 'nearest' });
+    });
+})();
 var allPlayers = Array.from(document.getElementById('players').options).map(function(o) { return o.value; });
 var nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
 var nextFields = { winner1: 'winner2', winner2: 'loser1', loser1: 'loser2', loser2: 'winner_score', winner_score: 'loser_score' };
@@ -284,7 +293,6 @@ document.addEventListener('click', function(e) {
     if (commentsEl) {
         commentsEl.addEventListener('focus', function() {
             document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
-            commentsEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     }
 })();
@@ -333,7 +341,7 @@ function clearAddGameForm() {
 document.getElementById('add-game-form').addEventListener('submit', function(e) {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
     var btn = document.querySelector('#add-game-form button[type="submit"]');

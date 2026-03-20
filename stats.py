@@ -238,6 +238,22 @@ def get_user_now_only():
     except Exception:
         return None
 
+def parse_client_datetime_for_game(client_date, client_time):
+    """Parse browser local date/time. Returns 'YYYY-MM-DD HH:MM:SS' or None.
+    Accepts client_time as HH:MM or HH:MM:SS so older clients still work."""
+    if not client_date or not client_time:
+        return None
+    try:
+        ct = client_time.strip()
+        cd = client_date.strip()
+        if len(ct) >= 8 and ct.count(':') >= 2:
+            dt = datetime.strptime(f"{cd} {ct[:8]}", '%Y-%m-%d %H:%M:%S')
+        else:
+            dt = datetime.strptime(f"{cd} {ct[:5]}", '%Y-%m-%d %H:%M')
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        return None
+
 def get_unread_notifications():
     """Get all unread notifications"""
     conn = sqlite3.connect('stats.db')
@@ -770,14 +786,7 @@ def _add_doubles_game_view(redirect_to):
             # Use browser's local date/time when provided so games are stored in the timezone they were added (e.g. 7am PST)
             client_date = request.form.get('client_date', '').strip()
             client_time = request.form.get('client_time', '').strip()
-            game_dt = None
-            if client_date and client_time:
-                try:
-                    # Validate and build YYYY-MM-DD HH:MM:00
-                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
-                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
-                except (ValueError, TypeError):
-                    pass
+            game_dt = parse_client_datetime_for_game(client_date, client_time)
             if game_dt is None:
                 now = get_user_now_only()
                 if now is None:
@@ -935,13 +944,7 @@ def add_vollis_game():
         else:
             client_date = request.form.get('client_date', '').strip()
             client_time = request.form.get('client_time', '').strip()
-            game_dt = None
-            if client_date and client_time:
-                try:
-                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
-                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
-                except (ValueError, TypeError):
-                    pass
+            game_dt = parse_client_datetime_for_game(client_date, client_time)
             if game_dt is None:
                 now = get_user_now_only()
                 if now is None:
@@ -1035,13 +1038,7 @@ def add_other_game():
         else:
             client_date = request.form.get('client_date', '').strip()
             client_time = request.form.get('client_time', '').strip()
-            game_dt = None
-            if client_date and client_time:
-                try:
-                    dt = datetime.strptime(f"{client_date} {client_time[:5]}", '%Y-%m-%d %H:%M')
-                    game_dt = dt.strftime('%Y-%m-%d %H:%M:00')
-                except (ValueError, TypeError):
-                    pass
+            game_dt = parse_client_datetime_for_game(client_date, client_time)
             if game_dt is None:
                 now = get_user_now_only()
                 if now is None:

@@ -301,10 +301,19 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
 document.getElementById('add-vollis-form').addEventListener('submit', function() {
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
 });
+(function() {
+    document.addEventListener('focusin', function(e) {
+        var t = e.target;
+        if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA' && t.tagName !== 'SELECT')) return;
+        if (t.closest('#menu-sidebar') || t.closest('.menu-sidebar')) return;
+        if (t.type === 'hidden' || t.type === 'checkbox' || t.type === 'radio' || t.disabled) return;
+        t.scrollIntoView({ block: 'start', behavior: 'smooth', inline: 'nearest' });
+    });
+})();
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
     setTimeout(() => document.getElementById('winner')?.focus(), 100);
