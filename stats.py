@@ -594,11 +594,12 @@ def other_stats(year):
     
     # Get today's stats grouped by game name
     today_stats_by_game = todays_other_stats_by_game()
-    
+    today_other_games = todays_other_games()
+
     return render_template('other_stats.html', stats=stats, rare_stats=rare_stats,
         all_years=all_years, minimum_games=minimum_games, year=year,
         display_year=display_year, showing_previous_year=showing_previous_year, game_cards=game_cards,
-        today_stats_by_game=today_stats_by_game)
+        today_stats_by_game=today_stats_by_game, today_other_games=today_other_games)
 
 @app.route('/other_games/')
 def other_games_default():
@@ -2122,6 +2123,15 @@ def get_other_game_common_scores(game_name):
     from other_functions import get_common_scores_for_game
     data = get_common_scores_for_game(game_name)
     return jsonify(data)
+
+
+@app.route('/api/doubles_players')
+@login_required
+def api_doubles_players():
+    """Fresh doubles player list for add-game autocomplete after AJAX submit (no full reload)."""
+    current_user = session.get('username')
+    players = all_players_ordered_for_doubles(current_username=current_user)
+    return jsonify(players)
 
 
 @app.route('/api/other_game_players/<game_name>')

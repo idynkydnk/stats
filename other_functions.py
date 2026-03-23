@@ -859,7 +859,7 @@ def todays_other_stats_by_game():
         players = all_other_players(game_list)
         stats = []
         for player in players:
-            wins, losses = 0, 0
+            wins, losses, differential = 0, 0, 0
             for game in game_list:
                 winner_names = []
                 for i in range(1, 16):
@@ -873,15 +873,19 @@ def todays_other_stats_by_game():
                     if _is_valid_player_name(val):
                         loser_names.append(val)
                 
+                margin = _other_game_point_margin(game)
                 if player in winner_names:
                     wins += 1
+                    differential += margin
                 elif player in loser_names:
                     losses += 1
+                    differential -= margin
             
             win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
-            stats.append([player, wins, losses, win_pct])
+            stats.append([player, wins, losses, win_pct, differential])
         
-        stats.sort(key=lambda x: (-x[3], -x[1]))  # Sort by win%, then wins
+        # Win %, then +/- (higher is better), then wins
+        stats.sort(key=lambda x: (x[3], x[4], x[1]), reverse=True)
         result.append({
             'game_name': game_name,
             'game_count': len(game_list),

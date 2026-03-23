@@ -215,6 +215,48 @@
         .sr-game-card-link:hover {
             color: var(--sr-accent);
         }
+        /* Today's games list (same layout as Add Other) */
+        .sr-today-games-section { margin-top: 8px; margin-bottom: 20px; }
+        .sr-today-games-section .sr-games-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--sr-text);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sr-games-grid { display: flex; flex-direction: column; gap: 8px; }
+        .sr-today-game-card {
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .sr-game-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .sr-game-title { font-size: 15px; font-weight: 600; color: var(--sr-text); }
+        .sr-game-actions { display: flex; gap: 6px; }
+        .sr-action-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--sr-line); color: var(--sr-muted); text-decoration: none; }
+        .sr-action-btn:hover { background: var(--sr-accent-dim); color: var(--sr-accent); border-color: var(--sr-accent); }
+        .sr-action-btn.delete:hover { background: rgba(248,113,113,0.2); color: var(--sr-loss); border-color: var(--sr-loss); }
+        .sr-game-date { font-size: 12px; color: var(--sr-muted); }
+        .sr-game-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sr-team-block { padding: 8px 10px; border-radius: 6px; }
+        .sr-team-block.winners { background: rgba(74,222,128,0.1); border-left: 2px solid var(--sr-win); }
+        .sr-team-block.losers { background: rgba(248,113,113,0.1); border-left: 2px solid var(--sr-loss); }
+        .sr-team-content { display: flex; justify-content: space-between; align-items: center; }
+        .sr-team-players { font-size: 13px; }
+        .sr-team-players a { color: var(--sr-text); text-decoration: none; }
+        .sr-team-players a:hover { color: var(--sr-accent); }
+        .sr-player-row { display: flex; justify-content: space-between; gap: 8px; }
+        .sr-player-score { font-weight: 700; font-size: 18px; }
+        .sr-team-block.winners .sr-player-score { color: var(--sr-win); }
+        .sr-team-block.losers .sr-player-score { color: var(--sr-loss); }
+        .sr-team-score { font-size: 18px; font-weight: 700; margin-left: 10px; }
+        .sr-team-block.winners .sr-team-score { color: var(--sr-win); }
+        .sr-team-block.losers .sr-team-score { color: var(--sr-loss); }
+        .sr-game-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sr-line); font-size: 12px; color: var(--sr-muted); font-style: italic; }
+        @media (max-width: 500px) { .sr-game-body { grid-template-columns: 1fr; } }
     </style>
 
     <div class="sr-container">
@@ -276,6 +318,7 @@
                                 <th class="sr-numeric">W</th>
                                 <th class="sr-numeric">L</th>
                                 <th class="sr-numeric">Win%</th>
+                                <th class="sr-numeric">+/-</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -286,6 +329,7 @@
                                 <td class="sr-numeric sr-win">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric">{% if player[4] > 0 %}+{% endif %}{{ player[4] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -294,6 +338,65 @@
             </div>
         </section>
         {% endfor %}
+        {% endif %}
+
+        {% if today_other_games %}
+        <section class="sr-table-section sr-game-card-section sr-today-games-section">
+            <div class="sr-card sr-card-compact">
+                <div class="sr-games-title"><i class="fas fa-list-alt"></i> Today's Games</div>
+                <div class="sr-games-grid">
+                    {% for game in today_other_games %}
+                    <div class="sr-today-game-card">
+                        <div class="sr-game-header">
+                            <div>
+                                <div class="sr-game-title">{{ game['game_name'] }}</div>
+                                <div class="sr-game-date">{{ game['game_time'] or game['game_date_only'] }}</div>
+                            </div>
+                            {% if session.logged_in %}
+                            <div class="sr-game-actions">
+                                <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                                <a href="{{ url_for('delete_other_game', id=game['game_id'], from_redesign='true') }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="sr-game-body">
+                            <div class="sr-team-block winners">
+                                <div class="sr-team-content">
+                                    <div class="sr-team-players">
+                                        {% for winner in game['winners'] %}
+                                        <div class="sr-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=display_year|default(year), name=winner.name) }}">{{ winner.name }}</a>
+                                            {% if winner.score is not none %}<span class="sr-player-score">{{ winner.score }}</span>{% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['winner_score'] is not none and game['winners'] and game['winners'][0].score is none %}
+                                    <span class="sr-team-score">{{ game['winner_score'] }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="sr-team-block losers">
+                                <div class="sr-team-content">
+                                    <div class="sr-team-players">
+                                        {% for loser in game['losers'] %}
+                                        <div class="sr-player-row">
+                                            <a href="{{ url_for('other_player_stats', year=display_year|default(year), name=loser.name) }}">{{ loser.name }}</a>
+                                            {% if loser.score is not none %}<span class="sr-player-score">{{ loser.score }}</span>{% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if game['loser_score'] is not none and game['losers'] and game['losers'][0].score is none %}
+                                    <span class="sr-team-score">{{ game['loser_score'] }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if game['comment'] %}<div class="sr-game-footer">{{ game['comment'] }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
         {% endif %}
 
         {% if game_cards %}
