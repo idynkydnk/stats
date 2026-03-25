@@ -315,9 +315,30 @@ def todays_stats():
                 differential -= (game[4] - game[7])
         win_percentage = wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage, differential])
-    stats.sort(key=lambda x: x[4], reverse=True)
-    stats.sort(key=lambda x: x[3], reverse=True)
+    stats.sort(key=lambda x: (x[3], x[4]), reverse=True)
     return stats
+
+
+def todays_doubles_dashboard_payload():
+    """Today's doubles stats + games for add-game page (SSR refresh / JSON API)."""
+    games = todays_games()
+    stats = todays_stats()
+    out_games = []
+    for g in games:
+        out_games.append({
+            'id': g[0],
+            'when': g[1],
+            'winner1': g[2],
+            'winner2': g[3],
+            'winner_score': g[4],
+            'loser1': g[5],
+            'loser2': g[6],
+            'loser_score': g[7],
+            'comment': g[9] if len(g) > 9 else '',
+        })
+    stats_out = [[row[0], row[1], row[2], row[3], row[4]] for row in stats]
+    return {'stats': stats_out, 'games': out_games, 'year': str(date.today().year)}
+
 
 def todays_games():
     from datetime import datetime

@@ -24,8 +24,9 @@
 .sr-submit-btn:hover { opacity: 0.9; }
 .sr-submit-btn:disabled { opacity: 0.85; cursor: wait; }
 .sr-submit-btn .fa-spinner { margin-right: 8px; }
-.sr-success-banner { padding: 12px 16px; margin-bottom: 16px; background: rgba(74,222,128,0.15); border: 1px solid var(--sr-win, #4ade80); border-radius: 10px; color: var(--sr-win, #4ade80); font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.sr-success-banner i { font-size: 18px; }
+.sr-success-banner { padding: 12px 16px; margin-bottom: 16px; background: rgba(74,222,128,0.15); border: 1px solid var(--sr-win, #4ade80); border-radius: 10px; color: var(--sr-win, #4ade80); font-size: 15px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.45; }
+.sr-success-banner i { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+.sr-success-banner strong { color: var(--sr-text, #e6edf3); font-weight: 600; }
 textarea { resize: vertical; min-height: 60px; }
 .sr-stats-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 .sr-stats-table th, .sr-stats-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
@@ -102,8 +103,13 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
         </header>
         <div class="sr-form-container">
-            <div class="sr-success-banner" id="add-game-success-banner" role="alert" style="display: none; margin-bottom: 16px;">
-                <i class="fas fa-check-circle"></i> <span id="add-game-success-text">Game added. Safe to close.</span>
+            <div class="sr-success-banner" id="add-game-success-banner" role="alert" aria-live="assertive" aria-atomic="true" style="display: none; margin-bottom: 16px;">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                <span id="add-game-success-text"></span>
+            </div>
+            <div class="sr-success-banner" id="add-game-error-banner" role="alert" aria-live="assertive" style="display: none; margin-bottom: 16px; border-color: rgba(248,113,113,0.5); background: rgba(248,113,113,0.12); color: var(--sr-loss, #f87171);">
+                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                <span id="add-game-error-text">Could not save. Check your connection and try again.</span>
             </div>
             {% if is_voice_page %}
             <div class="sr-voice-section" id="sr-voice-section">
@@ -163,9 +169,10 @@ textarea { resize: vertical; min-height: 60px; }
                 </div>
             </form>
         </div>
-        {% if todays_stats %}
-        <div class="sr-card" style="margin-top: 30px;">
+        <div class="sr-card" id="add-game-todays-stats-card" style="margin-top: 30px;">
             <h2 style="font-size: 16px; margin-bottom: 12px;">Today's Stats</h2>
+            <div id="add-game-todays-stats-body">
+            {% if todays_stats %}
             <table class="sr-stats-table">
                 <thead><tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>%</th><th>+/-</th></tr></thead>
                 <tbody>
@@ -181,16 +188,21 @@ textarea { resize: vertical; min-height: 60px; }
                 {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <p id="add-game-no-stats-msg" style="margin:0;font-size:14px;color:var(--sr-muted);">No doubles played today yet.</p>
+            {% endif %}
+            </div>
         </div>
-        <div class="sr-games-section">
-            <div class="sr-games-header">
+        <div class="sr-games-section" id="add-game-todays-games-section">
+            <div class="sr-games-header" id="add-game-games-header-tools" {% if not games %}style="display:none;"{% endif %}>
                 <span class="sr-games-title">Today's Games</span>
                 <div class="sr-games-header-right">
                     <label class="sr-select-all"><input type="checkbox" id="select-all" onclick="toggleAllGames()"> Select All</label>
                     <button class="sr-delete-selected" id="delete-selected-btn" onclick="deleteSelectedGames()"><i class="fas fa-trash"></i> Delete Selected</button>
                 </div>
             </div>
-            <div class="sr-games-grid">
+            <p id="add-game-no-games-msg" style="margin:0 0 12px 0;font-size:14px;color:var(--sr-muted);{% if games %}display:none;{% endif %}">No games today yet.</p>
+            <div class="sr-games-grid" id="add-game-todays-games-grid">
             {% for game in games %}
             <div class="sr-game-card" data-game-id="{{ game[0] }}">
                 <div class="sr-game-header">
@@ -199,7 +211,7 @@ textarea { resize: vertical; min-height: 60px; }
                         <a href="{{ url_for('delete_game', id=game[0], from_redesign='true') }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
                     </div>
                     <div class="sr-game-meta">
-                        <span class="sr-game-date">{{ game[1][11:19] }}</span>
+                        <span class="sr-game-date">{{ game[1] }}</span>
                         <input type="checkbox" class="sr-game-checkbox game-checkbox" data-game-id="{{ game[0] }}" onchange="updateCardSelection(this)">
                     </div>
                 </div>
@@ -217,9 +229,8 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
             {% endfor %}
             </div>
-            <button class="sr-email-btn" onclick="generateAndEmailSummary()">Generate AI Summary & Email</button>
+            <button type="button" class="sr-email-btn" id="add-game-ai-email-btn" onclick="generateAndEmailSummary()" {% if not games %}style="display:none;"{% endif %}>Generate AI Summary & Email</button>
         </div>
-        {% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -254,6 +265,90 @@ function refreshDoublesPlayersFromServer() {
             }
         })
         .catch(function() { /* keep existing allPlayers */ });
+}
+/** Put winner1, winner2, loser1, loser2 (in that order) at top of autocomplete; then rest of server list, no duplicates. */
+function mergeDoublesPlayersPriorityFirst(priorityNames, serverList) {
+    var seen = {};
+    var out = [];
+    function add(n) {
+        var t = (n || '').trim();
+        if (!t) return;
+        var k = t.toLowerCase();
+        if (seen[k]) return;
+        seen[k] = true;
+        out.push(t);
+    }
+    (priorityNames || []).forEach(add);
+    (serverList || []).forEach(add);
+    return out;
+}
+function applyDoublesPlayerOrderAfterSave(priorityNames) {
+    allPlayers = mergeDoublesPlayersPriorityFirst(priorityNames, allPlayers);
+    var dl = document.getElementById('players');
+    if (dl) {
+        dl.innerHTML = '';
+        allPlayers.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p;
+            dl.appendChild(opt);
+        });
+    }
+}
+/** Bumps on each submit so an older background save cannot reorder autocomplete over a newer one. */
+var doublesBackgroundSaveSeq = 0;
+var ADD_GAME_STATS_YEAR = {{ year|tojson }};
+function escapeHtmlDoubles(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function doublesPlayerUrl(year, name) {
+    return '/player/' + encodeURIComponent(String(year)) + '/' + encodeURIComponent(String(name)) + '/';
+}
+function refreshTodaysDoublesDashboard() {
+    return fetch('/api/todays_doubles_dashboard', { credentials: 'same-origin' })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('dashboard')); })
+        .then(function(d) {
+            var yr = (d && d.year) ? d.year : ADD_GAME_STATS_YEAR;
+            var statsBody = document.getElementById('add-game-todays-stats-body');
+            var grid = document.getElementById('add-game-todays-games-grid');
+            var headerTools = document.getElementById('add-game-games-header-tools');
+            var noGamesMsg = document.getElementById('add-game-no-games-msg');
+            var emailBtn = document.getElementById('add-game-ai-email-btn');
+            if (!statsBody || !grid) return;
+            var stats = (d && d.stats) ? d.stats : [];
+            if (stats.length) {
+                var stHtml = '<table class="sr-stats-table"><thead><tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>%</th><th>+/-</th></tr></thead><tbody>';
+                for (var i = 0; i < stats.length; i++) {
+                    var p = stats[i];
+                    var pct = Math.round((p[3] || 0) * 100);
+                    var pm = p[4];
+                    stHtml += '<tr><td>' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + escapeHtmlDoubles(p[0]) + '</a></td><td>' + p[1] + '</td><td>' + p[2] + '</td><td>' + pct + '</td><td>' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
+                }
+                stHtml += '</tbody></table>';
+                statsBody.innerHTML = stHtml;
+            } else {
+                statsBody.innerHTML = '<p id="add-game-no-stats-msg" style="margin:0;font-size:14px;color:var(--sr-muted);">No doubles played today yet.</p>';
+            }
+            var games = (d && d.games) ? d.games : [];
+            if (headerTools) headerTools.style.display = games.length ? 'flex' : 'none';
+            if (noGamesMsg) noGamesMsg.style.display = games.length ? 'none' : 'block';
+            if (emailBtn) emailBtn.style.display = games.length ? 'block' : 'none';
+            var sel = document.getElementById('select-all');
+            if (sel) sel.checked = false;
+            var delBtn = document.getElementById('delete-selected-btn');
+            if (delBtn) delBtn.classList.remove('visible');
+            var gHtml = '';
+            for (var j = 0; j < games.length; j++) {
+                var g = games[j];
+                var editU = '/edit/' + g.id + '/?from_add_game=true';
+                var delU = '/delete/' + g.id + '/?from_redesign=true';
+                gHtml += '<div class="sr-game-card" data-game-id="' + g.id + '"><div class="sr-game-header"><div class="sr-game-actions"><a href="' + editU + '" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a><a href="' + delU + '" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a></div><div class="sr-game-meta"><span class="sr-game-date">' + escapeHtmlDoubles(g.when || '') + '</span><input type="checkbox" class="sr-game-checkbox game-checkbox" data-game-id="' + g.id + '" onchange="updateCardSelection(this)"></div></div><div class="sr-game-body"><div class="sr-team-block winners"><div class="sr-team-players"><a href="' + doublesPlayerUrl(yr, g.winner1) + '">' + escapeHtmlDoubles(g.winner1) + '</a><br><a href="' + doublesPlayerUrl(yr, g.winner2) + '">' + escapeHtmlDoubles(g.winner2) + '</a></div><span class="sr-team-score">' + escapeHtmlDoubles(String(g.winner_score)) + '</span></div><div class="sr-team-block losers"><div class="sr-team-players"><a href="' + doublesPlayerUrl(yr, g.loser1) + '">' + escapeHtmlDoubles(g.loser1) + '</a><br><a href="' + doublesPlayerUrl(yr, g.loser2) + '">' + escapeHtmlDoubles(g.loser2) + '</a></div><span class="sr-team-score">' + escapeHtmlDoubles(String(g.loser_score)) + '</span></div></div>';
+                if (g.comment) gHtml += '<div class="sr-game-footer">' + escapeHtmlDoubles(g.comment) + '</div>';
+                gHtml += '</div>';
+            }
+            grid.innerHTML = gHtml;
+        })
+        .catch(function() { /* keep existing DOM */ });
 }
 var nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
 var nextFields = { winner1: 'winner2', winner2: 'loser1', loser1: 'loser2', loser2: 'winner_score', winner_score: 'loser_score' };
@@ -362,38 +457,52 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
-    var btn = document.querySelector('#add-game-form button[type="submit"]');
     var form = document.getElementById('add-game-form');
     if (typeof fetch !== 'function' || !form || !form.action) {
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…'; }
         return;
     }
     e.preventDefault();
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
-    }
     var data = new FormData(form);
-    fetch(form.action, { method: 'POST', body: data, credentials: 'same-origin', keepalive: true })
+    var errBanner = document.getElementById('add-game-error-banner');
+    var okBanner = document.getElementById('add-game-success-banner');
+    if (errBanner) errBanner.style.display = 'none';
+    if (okBanner) okBanner.style.display = 'none';
+    var priorityNames = [
+        (data.get('winner1') || '').trim(),
+        (data.get('winner2') || '').trim(),
+        (data.get('loser1') || '').trim(),
+        (data.get('loser2') || '').trim()
+    ];
+    var saveSeq = ++doublesBackgroundSaveSeq;
+    applyDoublesPlayerOrderAfterSave(priorityNames);
+    var action = form.action;
+    clearAddGameForm();
+    var w1 = document.getElementById('winner1');
+    if (w1) w1.focus();
+    fetch(action, { method: 'POST', body: data, credentials: 'same-origin', keepalive: true })
         .then(function(r) {
-            if (r.ok) return refreshDoublesPlayersFromServer();
+            if (!r.ok) return Promise.reject(new Error('save'));
+            return refreshDoublesPlayersFromServer()
+                .then(function() {
+                    if (saveSeq === doublesBackgroundSaveSeq) {
+                        applyDoublesPlayerOrderAfterSave(priorityNames);
+                    }
+                    return refreshTodaysDoublesDashboard();
+                });
         })
-        .catch(function() { /* still show UI below */ })
-        .finally(function() {
-            var banner = document.getElementById('add-game-success-banner');
-            if (banner) {
+        .then(function() {
+            if (saveSeq !== doublesBackgroundSaveSeq) return;
+            if (okBanner) {
                 var text = document.getElementById('add-game-success-text');
-                if (text) text.textContent = 'Game added. Safe to close.';
-                banner.style.display = 'flex';
-                banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                if (text) text.textContent = 'Game saved successfully';
+                okBanner.style.display = 'flex';
             }
-            clearAddGameForm();
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = 'Submit';
+        })
+        .catch(function() {
+            if (errBanner) {
+                errBanner.style.display = 'flex';
+                errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
-            var w1 = document.getElementById('winner1');
-            if (w1) { w1.focus(); }
         });
 });
 document.addEventListener('DOMContentLoaded', function() {

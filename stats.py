@@ -2134,6 +2134,13 @@ def api_doubles_players():
     return jsonify(players)
 
 
+@app.route('/api/todays_doubles_dashboard')
+@login_required
+def api_todays_doubles_dashboard():
+    """Today's stats + games for add doubles page (updates after AJAX submit)."""
+    return jsonify(todays_doubles_dashboard_payload())
+
+
 @app.route('/api/other_game_players/<game_name>')
 @login_required
 def get_other_game_players(game_name):
