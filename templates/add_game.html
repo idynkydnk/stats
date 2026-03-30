@@ -357,6 +357,9 @@ function getSelectedPlayers(excludeField) {
     return nameFields.map(function(id) { return document.getElementById(id).value.trim(); }).filter(function(v) { return v && v !== (excludeField ? excludeField.value.trim() : ''); });
 }
 function showList(field, list, items) {
+    document.querySelectorAll('.autocomplete-list').forEach(function(el) {
+        if (el !== list) el.style.display = 'none';
+    });
     list.innerHTML = '';
     items.slice(0, 12).forEach(function(item) {
         var div = document.createElement('div');
@@ -364,6 +367,12 @@ function showList(field, list, items) {
         list.appendChild(div);
     });
     list.style.display = items.length ? 'block' : 'none';
+    if (items.length) {
+        list.scrollTop = 0;
+        requestAnimationFrame(function() {
+            list.scrollTop = 0;
+        });
+    }
 }
 function filterList(field, list, items, filterFn) {
     var filtered = items.filter(filterFn);
@@ -374,7 +383,14 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     var list = document.getElementById(fieldId + 'List');
     if (!field || !list) return;
     field.addEventListener('focus', function() { showList(field, list, getItems(field)); });
-    field.addEventListener('input', function() { filterList(field, list, getItems(field), function(item) { return item.toLowerCase().includes(field.value.toLowerCase()); }); });
+    field.addEventListener('input', function() {
+        if (!(field.value || '').trim()) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
+        filterList(field, list, getItems(field), function(item) { return item.toLowerCase().includes(field.value.toLowerCase()); });
+    });
     list.addEventListener('click', function(e) {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
@@ -423,7 +439,7 @@ function setupClearButtons() {
             e.preventDefault();
             e.stopPropagation();
             document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
-            if (input) { input.value = ''; input.focus(); }
+            if (input) { input.value = ''; input.blur(); }
             updateClearVisibility(wrap);
         });
         if (input) {
@@ -465,8 +481,12 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
     var data = new FormData(form);
     var errBanner = document.getElementById('add-game-error-banner');
     var okBanner = document.getElementById('add-game-success-banner');
+    var okText = document.getElementById('add-game-success-text');
     if (errBanner) errBanner.style.display = 'none';
-    if (okBanner) okBanner.style.display = 'none';
+    if (okBanner && okText) {
+        okText.textContent = 'Game added';
+        okBanner.style.display = 'flex';
+    }
     var priorityNames = [
         (data.get('winner1') || '').trim(),
         (data.get('winner2') || '').trim(),
@@ -492,13 +512,11 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
         })
         .then(function() {
             if (saveSeq !== doublesBackgroundSaveSeq) return;
-            if (okBanner) {
-                var text = document.getElementById('add-game-success-text');
-                if (text) text.textContent = 'Game saved successfully';
-                okBanner.style.display = 'flex';
-            }
+            if (okText) okText.textContent = 'Game saved successfully';
+            if (okBanner) okBanner.style.display = 'flex';
         })
         .catch(function() {
+            if (okBanner) okBanner.style.display = 'none';
             if (errBanner) {
                 errBanner.style.display = 'flex';
                 errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

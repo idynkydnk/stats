@@ -169,15 +169,32 @@
         .sr-team-block { padding: 8px 10px; border-radius: 6px; }
         .sr-team-block.winners { background: rgba(74,222,128,0.1); border-left: 2px solid var(--sr-win); }
         .sr-team-block.losers { background: rgba(248,113,113,0.1); border-left: 2px solid var(--sr-loss); }
-        .sr-team-content { display: flex; justify-content: space-between; align-items: center; }
-        .sr-team-players { font-size: 13px; }
+        .sr-team-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .sr-team-players {
+            font-size: 13px;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
         .sr-team-players a { color: var(--sr-text); text-decoration: none; }
         .sr-team-players a:hover { color: var(--sr-accent); }
-        .sr-player-row { display: flex; justify-content: space-between; }
-        .sr-player-score { font-weight: 700; font-size: 18px; }
+        .sr-player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+            width: 100%;
+        }
+        .sr-player-row a { min-width: 0; }
+        .sr-player-score { flex-shrink: 0; text-align: right; font-weight: 700; font-size: 18px; }
         .sr-team-block.winners .sr-player-score { color: var(--sr-win); }
         .sr-team-block.losers .sr-player-score { color: var(--sr-loss); }
-        .sr-team-score { font-size: 18px; font-weight: 700; margin-left: 10px; }
+        .sr-team-score { flex-shrink: 0; font-size: 18px; font-weight: 700; text-align: right; }
         .sr-team-block.winners .sr-team-score { color: var(--sr-win); }
         .sr-team-block.losers .sr-team-score { color: var(--sr-loss); }
         .sr-game-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sr-line); font-size: 12px; color: var(--sr-muted); font-style: italic; }
@@ -185,6 +202,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Other</h1>
             <div class="sr-header-actions">
@@ -448,7 +466,8 @@ function getNextFieldAfterScore(scoreInput) {
         const m = (name || id || '').match(/^winner(\d+)_score$/);
         const nextN = m ? parseInt(m[1], 10) + 1 : 2;
         const nextEl = document.getElementById('winner' + nextN);
-        return (nextEl && nextEl.offsetParent !== null) ? nextEl : document.getElementById('loser1');
+        if (nextEl && nextEl.offsetParent !== null) return nextEl;
+        return document.getElementById('loser1');
     }
     if (id === 'loser_score') return document.getElementById('comment');
     const m = (name || id || '').match(/^loser(\d+)_score$/);
@@ -513,6 +532,10 @@ function showList(field, list, items) {
         list.appendChild(div);
     });
     list.style.display = items.length ? 'block' : 'none';
+    if (items.length) {
+        list.scrollTop = 0;
+        requestAnimationFrame(function() { list.scrollTop = 0; });
+    }
 }
 
 function focusNextField(currentId) {
@@ -535,6 +558,12 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     
     field.addEventListener('focus', () => showList(field, list, getItems(field)));
     field.addEventListener('input', () => {
+        const q = (field.value || '').trim();
+        if (!q) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         const items = getItems(field).filter(item => item.toLowerCase().includes(field.value.toLowerCase()));
         showList(field, list, items);
     });
@@ -556,6 +585,12 @@ function setupPlayerAutocomplete(field, list, onSelectNext) {
         showList(field, list, available);
     });
     field.addEventListener('input', () => {
+        const q = (field.value || '').trim();
+        if (!q) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         const players = getPlayerListForAutocomplete();
         const available = players.filter(p => !getSelectedPlayers(field).includes(p) && p.toLowerCase().includes(field.value.toLowerCase()));
         showList(field, list, available);
@@ -591,21 +626,52 @@ function apply2v2Layout() {
     setScoreType('team');
 }
 
+function playerEntryRowVisible(rowEl) {
+    return rowEl && rowEl.style.display !== 'none';
+}
+
+/**
+ * Match extra winner/loser slots to last game (beyond static winner1–2 / loser1–2).
+ * Does not steal focus (used after game name / API load).
+ */
+function ensurePlayerRowCountFromLastGame(wCount, lCount) {
+    while (winnerCount < wCount) {
+        addWinner({ quiet: true });
+    }
+    while (loserCount < lCount) {
+        addLoser({ quiet: true });
+    }
+}
+
 function applyGameInfo(data) {
     if (data.score_type) setScoreType(data.score_type);
-    const wCount = data.winner_count || 1;
-    const lCount = data.loser_count || 1;
-    if (wCount >= 2 || lCount >= 2) {
-        document.getElementById('winner2-entry').style.display = 'flex';
-        document.getElementById('loser2-entry').style.display = 'flex';
-        winnerCount = Math.max(winnerCount, wCount);
-        loserCount = Math.max(loserCount, lCount);
-    }
-    if (wCount === 2 && lCount === 2 && data.score_type === 'team') {
+    const wCount = Math.max(1, parseInt(data.winner_count, 10) || 1);
+    const lCount = Math.max(1, parseInt(data.loser_count, 10) || 1);
+    document.querySelectorAll('#winners-container .player-entry').forEach(r => r.remove());
+    document.querySelectorAll('#losers-container .player-entry').forEach(r => r.remove());
+    winnerCount = 1;
+    loserCount = 1;
+
+    const w2 = document.getElementById('winner2-entry');
+    const l2 = document.getElementById('loser2-entry');
+    if (w2) w2.style.display = wCount >= 2 ? 'flex' : 'none';
+    if (l2) l2.style.display = lCount >= 2 ? 'flex' : 'none';
+
+    if (wCount >= 2) winnerCount = 2;
+    if (lCount >= 2) loserCount = 2;
+    ensurePlayerRowCountFromLastGame(wCount, lCount);
+
+    const strictTeam22 = (wCount === 2 && lCount === 2 && data.score_type === 'team');
+    if (strictTeam22) {
         is2v2Mode = true;
         document.getElementById('add-winner-btn').style.display = 'none';
         document.getElementById('add-loser-btn').style.display = 'none';
         document.getElementById('add-more-players-btn').style.display = 'block';
+    } else {
+        is2v2Mode = false;
+        document.getElementById('add-winner-btn').style.display = 'block';
+        document.getElementById('add-loser-btn').style.display = 'block';
+        document.getElementById('add-more-players-btn').style.display = 'none';
     }
 }
 
@@ -709,20 +775,31 @@ function setScoreType(value) {
     }
 }
 
-// Focus chain: individual = winner1 -> winner1_score -> ...; Team = winner1 -> winner2 -> loser1 -> loser2 -> winner_score -> loser_score -> comment
-// No scores = winner1 -> winner2 -> loser1 -> loser2 -> comment
+// Focus chain follows last-game layout: e.g. 1 winner + 2 losers → winner1 → winner1_score → loser1 (skip hidden winner2).
+// Team / no scores: only visible winner2 / loser2 rows participate.
 function getNextFocusAfterPlayer(fieldId) {
     const scoreType = document.getElementById('score_type').value;
     const isTeam = scoreType === 'team';
     const isNone = scoreType === 'none';
-    if (fieldId === 'winner1') return (isTeam || isNone) && document.getElementById('winner2-entry')?.style.display !== 'none' ? 'winner2' : (isTeam || isNone ? 'loser1' : 'winner1_score');
+    const w2vis = playerEntryRowVisible(document.getElementById('winner2-entry'));
+    const l2vis = playerEntryRowVisible(document.getElementById('loser2-entry'));
+    if (fieldId === 'winner1') {
+        if (isTeam || isNone) return w2vis ? 'winner2' : 'loser1';
+        return 'winner1_score';
+    }
     if (fieldId === 'winner2') return (isTeam || isNone) ? 'loser1' : 'winner2_score';
-    if (fieldId === 'winner1_score') return 'winner2';  // individual: next is winner2 if present
+    if (fieldId === 'winner1_score') return w2vis ? 'winner2' : 'loser1';
     if (fieldId === 'winner2_score') return 'loser1';
     if (fieldId === 'winner_score') return 'loser_score';
-    if (fieldId === 'loser1') return (isTeam || isNone) && document.getElementById('loser2-entry')?.style.display !== 'none' ? 'loser2' : (isTeam ? 'winner_score' : isNone ? 'comment' : 'loser1_score');
+    if (fieldId === 'loser1') {
+        if (isTeam || isNone) return l2vis ? 'loser2' : (isTeam ? 'winner_score' : 'comment');
+        return 'loser1_score';
+    }
     if (fieldId === 'loser2') return isTeam ? 'winner_score' : isNone ? 'comment' : 'loser2_score';
-    if (fieldId === 'loser1_score') return 'loser2';  // individual: next is loser2 if present
+    if (fieldId === 'loser1_score') {
+        if (l2vis) return 'loser2';
+        return isTeam ? 'winner_score' : 'comment';
+    }
     if (fieldId === 'loser2_score') return 'comment';
     if (fieldId === 'loser_score') return 'comment';
     return null;
@@ -773,7 +850,8 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-function addWinner() {
+function addWinner(opts) {
+    const quiet = opts && opts.quiet;
     if (winnerCount >= 15) return;
     winnerCount++;
     const container = document.getElementById('winners-container');
@@ -783,7 +861,7 @@ function addWinner() {
         if (entry) {
             entry.style.display = 'flex';
             const newField = document.getElementById('winner2');
-            if (newField) {
+            if (newField && !quiet) {
                 newField.focus();
                 setTimeout(function() {
                     const list = document.getElementById('winner2List');
@@ -815,15 +893,18 @@ function addWinner() {
     setupPlayerAutocomplete(newField, newList);
     attachClearToWrap(div.querySelector('.autocomplete.has-clear'));
     attachClearToWrap(div.querySelector('.field-with-clear'));
-    newField.focus();
-    setTimeout(function() {
-        const players = getPlayerListForAutocomplete();
-        const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
-        showList(newField, newList, available);
-    }, 50);
+    if (!quiet) {
+        newField.focus();
+        setTimeout(function() {
+            const players = getPlayerListForAutocomplete();
+            const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+            showList(newField, newList, available);
+        }, 50);
+    }
 }
 
-function addLoser() {
+function addLoser(opts) {
+    const quiet = opts && opts.quiet;
     if (loserCount >= 15) return;
     loserCount++;
     // Use the existing static loser2-entry when adding the second loser (avoids duplicate name="loser2" on submit)
@@ -832,7 +913,7 @@ function addLoser() {
         if (entry) {
             entry.style.display = 'flex';
             const newField = document.getElementById('loser2');
-            if (newField) {
+            if (newField && !quiet) {
                 newField.focus();
                 setTimeout(function() {
                     const list = document.getElementById('loser2List');
@@ -865,12 +946,14 @@ function addLoser() {
     setupPlayerAutocomplete(newField, newList);
     attachClearToWrap(div.querySelector('.autocomplete.has-clear'));
     attachClearToWrap(div.querySelector('.field-with-clear'));
-    newField.focus();
-    setTimeout(function() {
-        const players = getPlayerListForAutocomplete();
-        const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
-        showList(newField, newList, available);
-    }, 50);
+    if (!quiet) {
+        newField.focus();
+        setTimeout(function() {
+            const players = getPlayerListForAutocomplete();
+            const available = players.filter(function(p) { return !getSelectedPlayers(newField).includes(p); });
+            showList(newField, newList, available);
+        }, 50);
+    }
 }
 
 document.addEventListener('click', e => {
@@ -889,6 +972,12 @@ function updateClearVisibility(wrap) {
     const val = (input && input.value || '').trim();
     wrap.classList.toggle('empty', !val);
 }
+function hidePickerUi() {
+    document.querySelectorAll('.autocomplete-list').forEach(l => { l.style.display = 'none'; });
+    const cdd = document.getElementById('common_score_dropdown');
+    if (cdd) cdd.style.display = 'none';
+}
+
 function setupClearButtons() {
     document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(wrap => {
         const scoreTypeDisplay = wrap.querySelector('#score_type_display');
@@ -897,14 +986,15 @@ function setupClearButtons() {
         const btn = wrap.querySelector('.clear-field-btn');
         if (!btn) return;
         const clearInput = () => {
-            document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+            hidePickerUi();
             if (scoreTypeDisplay && scoreTypeHidden) {
                 scoreTypeHidden.value = 'individual';
                 scoreTypeDisplay.value = 'Individual Scores';
                 setScoreType('individual');
+                scoreTypeDisplay.blur();
             } else if (input) {
                 input.value = '';
-                input.focus();
+                input.blur();
             }
             updateClearVisibility(wrap);
         };
@@ -921,9 +1011,9 @@ function attachClearToWrap(wrap) {
     const btn = wrap.querySelector('.clear-field-btn');
     if (!input || !btn) return;
     const clearInput = () => {
-        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+        hidePickerUi();
         input.value = '';
-        input.focus();
+        input.blur();
         updateClearVisibility(wrap);
     };
     input.addEventListener('input', () => updateClearVisibility(wrap));
@@ -965,7 +1055,7 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     cachedPlayerOrderGame = null;
     cachedCommonScores = null;
     cachedCommonScoresGameName = null;
-    document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+    hidePickerUi();
     document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(updateClearVisibility);
     document.getElementById('game_name')?.focus();
 });

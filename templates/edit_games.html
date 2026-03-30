@@ -154,6 +154,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         {% if saved or deleted %}
         <div class="sr-success-banner" role="alert">
             {% if saved %}<i class="fas fa-check-circle"></i> Changes saved. Safe to close.{% endif %}

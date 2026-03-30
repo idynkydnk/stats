@@ -545,9 +545,9 @@ def get_players_per_side_for_game(game_name):
     loser_cols = [f'loser{i}' for i in range(1, 16)]
     cur.execute(f"""
         SELECT {', '.join(winner_cols + loser_cols)}
-        FROM other_games 
-        WHERE game_name = ? 
-        ORDER BY game_date DESC 
+        FROM other_games
+        WHERE LOWER(TRIM(game_name)) = LOWER(TRIM(?))
+        ORDER BY game_date DESC
         LIMIT 1
     """, (game_name,))
     row = cur.fetchone()

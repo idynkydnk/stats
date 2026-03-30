@@ -110,6 +110,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Vollis</h1>
             <div class="sr-header-actions">
@@ -217,6 +218,9 @@ function getSelectedPlayers(excludeField) {
 }
 
 function showList(field, list, items) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => {
+        if (el !== list) el.style.display = 'none';
+    });
     list.innerHTML = '';
     items.slice(0, 12).forEach(item => {
         const div = document.createElement('div');
@@ -224,6 +228,10 @@ function showList(field, list, items) {
         list.appendChild(div);
     });
     list.style.display = items.length ? 'block' : 'none';
+    if (items.length) {
+        list.scrollTop = 0;
+        requestAnimationFrame(function() { list.scrollTop = 0; });
+    }
 }
 
 function setupAutocomplete(fieldId, getItems, onSelect) {
@@ -233,6 +241,12 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     
     field.addEventListener('focus', () => showList(field, list, getItems(field)));
     field.addEventListener('input', () => {
+        const q = (field.value || '').trim();
+        if (!q) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         const items = getItems(field).filter(item => item.toLowerCase().includes(field.value.toLowerCase()));
         showList(field, list, items);
     });
@@ -278,7 +292,7 @@ function setupClearButtons() {
             e.preventDefault();
             e.stopPropagation();
             document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
-            if (input) { input.value = ''; input.focus(); }
+            if (input) { input.value = ''; input.blur(); }
             updateClearVisibility(wrap);
         });
         if (input) {

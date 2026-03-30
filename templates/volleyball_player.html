@@ -91,6 +91,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
             <div class="sr-header-actions">

@@ -141,6 +141,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit Other Game</h1>
             <div class="sr-header-actions">
@@ -300,6 +301,9 @@ function fetchCommonScoresThen(callback) {
 }
 
 function showScoreList(listEl, scores) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => {
+        if (el !== listEl) el.style.display = 'none';
+    });
     listEl.innerHTML = '';
     (scores || []).forEach(score => {
         const div = document.createElement('div');
@@ -363,6 +367,9 @@ function getSelectedPlayers(excludeField) {
     return players;
 }
 function showList(field, list, items) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => {
+        if (el !== list) el.style.display = 'none';
+    });
     list.innerHTML = '';
     (items || []).slice(0, 10).forEach(item => {
         const div = document.createElement('div');
@@ -377,6 +384,12 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     if (!field || !list) return;
     field.addEventListener('focus', () => showList(field, list, getItems(field)));
     field.addEventListener('input', () => {
+        const q = (field.value || '').trim();
+        if (!q) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         const items = (getItems(field) || []).filter(item => String(item).toLowerCase().includes((field.value || '').toLowerCase()));
         showList(field, list, items);
     });
@@ -395,6 +408,12 @@ function setupPlayerAutocomplete(field, list, onSelectNext) {
         showList(field, list, available);
     });
     field.addEventListener('input', () => {
+        const q = (field.value || '').trim();
+        if (!q) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         const available = allPlayers.filter(p => !getSelectedPlayers(field).includes(p) && p.toLowerCase().includes((field.value || '').toLowerCase()));
         showList(field, list, available);
     });
@@ -586,13 +605,16 @@ function setupClearButtonsForWrap(wrap) {
     const btn = wrap.querySelector('.clear-field-btn');
     const clearInput = () => {
         document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+        const cdd = document.getElementById('common_score_dropdown');
+        if (cdd) cdd.style.display = 'none';
         if (scoreTypeDisplay && scoreTypeHidden) {
             scoreTypeHidden.value = 'individual';
             scoreTypeDisplay.value = 'Individual Scores';
             setScoreType('individual');
+            scoreTypeDisplay.blur();
         } else if (input) {
             input.value = '';
-            if (input.id !== 'comment') input.focus();
+            input.blur();
         }
         updateClearVisibility(wrap);
     };

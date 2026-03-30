@@ -1,0 +1,16 @@
+<div class="sr-global-actions-bar" role="navigation" aria-label="Quick add and tools">
+    <div class="sr-dropdown">
+        <button type="button" class="sr-dropdown-btn" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-bolt" aria-hidden="true"></i> Actions
+        </button>
+        <div class="sr-dropdown-content">
+            <div class="sr-dropdown-menu">
+                <a href="{{ url_for('add_game') }}">Doubles</a>
+                <a href="{{ url_for('add_vollis_game') }}">Vollis</a>
+                <a href="{{ url_for('add_other_game') }}">Other</a>
+                <a href="{{ url_for('ai_summary') }}">AI Summary</a>
+                <a href="{{ url_for('player_list') }}">Players</a>
+            </div>
+        </div>
+    </div>
+</div>

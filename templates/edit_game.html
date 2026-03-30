@@ -57,6 +57,7 @@
     </style>
 
     <div class="sr-container">
+        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit Game</h1>
             <div class="sr-header-actions">
@@ -147,6 +148,9 @@ function getSelectedPlayers(excludeField) {
 }
 
 function showList(field, list, items) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => {
+        if (el !== list) el.style.display = 'none';
+    });
     list.innerHTML = '';
     items.slice(0, 12).forEach(item => {
         const div = document.createElement('div');
@@ -167,7 +171,14 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     if (!field || !list) return;
 
     field.addEventListener('focus', () => showList(field, list, getItems(field)));
-    field.addEventListener('input', () => filterList(field, list, getItems(field), item => item.toLowerCase().includes(field.value.toLowerCase())));
+    field.addEventListener('input', () => {
+        if (!(field.value || '').trim()) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
+        filterList(field, list, getItems(field), item => item.toLowerCase().includes(field.value.toLowerCase()));
+    });
     list.addEventListener('click', e => {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
@@ -209,7 +220,7 @@ document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
         e.preventDefault();
         e.stopPropagation();
         document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
-        if (input) { input.value = ''; input.focus(); }
+        if (input) { input.value = ''; input.blur(); }
         updateClearVisibility(wrap);
     });
     if (input) {
