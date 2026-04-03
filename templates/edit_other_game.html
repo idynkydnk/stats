@@ -320,22 +320,6 @@ function isScoreField(el) {
     if (el.id === 'winner_score' || el.id === 'loser_score') return true;
     return (el.name && el.name.endsWith('_score')) || (el.classList && el.classList.contains('score-input'));
 }
-function getNextFieldAfterScore(scoreInput) {
-    const id = scoreInput.id, name = (scoreInput.name || '');
-    const isWinner = id === 'winner_score' || /^winner\d+_score$/.test(name || id);
-    if (isWinner) {
-        if (id === 'winner_score') return document.getElementById('loser1');
-        const m = (name || id).match(/^winner(\d+)_score$/);
-        const nextN = m ? parseInt(m[1], 10) + 1 : 2;
-        const nextEl = document.getElementById('winner' + nextN);
-        return (nextEl && nextEl.offsetParent) ? nextEl : document.getElementById('loser1');
-    }
-    if (id === 'loser_score') return document.getElementById('comment');
-    const m = (name || id).match(/^loser(\d+)_score$/);
-    const nextN = m ? parseInt(m[1], 10) + 1 : 2;
-    const nextEl = document.getElementById('loser' + nextN);
-    return (nextEl && nextEl.offsetParent) ? nextEl : document.getElementById('comment');
-}
 const defaultIndividualScores = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 function openCommonScoreDropdown(scoreInput) {
     _currentScoreInput = scoreInput;
@@ -422,11 +406,6 @@ function setupPlayerAutocomplete(field, list, onSelectNext) {
             field.value = e.target.textContent;
             list.style.display = 'none';
             if (onSelectNext) onSelectNext();
-            else {
-                const entry = field.closest('.player-entry');
-                const scoreInput = entry && entry.querySelector('.score-input:not(.hidden)');
-                if (scoreInput) setTimeout(() => scoreInput.focus(), 50);
-            }
         }
     });
 }
@@ -453,25 +432,6 @@ function setScoreType(value) {
         if (loseTeam) loseTeam.style.display = 'none';
     }
 }
-function getNextFocusAfterPlayer(fieldId) {
-    const scoreType = document.getElementById('score_type').value;
-    const isTeam = scoreType === 'team';
-    const isNone = scoreType === 'none';
-    const w2Visible = document.getElementById('winner2-entry') && document.getElementById('winner2-entry').style.display !== 'none';
-    const l2Visible = document.getElementById('loser2-entry') && document.getElementById('loser2-entry').style.display !== 'none';
-    if (fieldId === 'winner1') return (isTeam && w2Visible) ? 'winner2' : ((isTeam || isNone) && w2Visible ? 'winner2' : (isTeam ? 'winner_score' : isNone ? 'loser1' : 'winner1_score'));
-    if (fieldId === 'winner2') return isTeam ? 'winner_score' : isNone ? 'loser1' : 'winner2_score';
-    if (fieldId === 'winner1_score') return 'winner2';
-    if (fieldId === 'winner2_score') return 'loser1';
-    if (fieldId === 'winner_score') return 'loser1';
-    if (fieldId === 'loser1') return (isTeam && l2Visible) ? 'loser2' : ((isTeam || isNone) && l2Visible ? 'loser2' : (isTeam ? 'loser_score' : isNone ? 'comment' : 'loser1_score'));
-    if (fieldId === 'loser2') return isTeam ? 'loser_score' : isNone ? 'comment' : 'loser2_score';
-    if (fieldId === 'loser1_score') return 'loser2';
-    if (fieldId === 'loser2_score') return 'comment';
-    if (fieldId === 'loser_score') return 'comment';
-    return null;
-}
-
 setupAutocomplete('game_name', () => allGameNames);
 setupAutocomplete('game_type', () => allGameTypes, field => {
     const val = (field.value || '').trim().toLowerCase();
@@ -507,22 +467,10 @@ if (scoreTypeDisplay && scoreTypeList) {
     });
 }
 
-setupPlayerAutocomplete(document.getElementById('winner1'), document.getElementById('winner1List'), () => {
-    const next = getNextFocusAfterPlayer('winner1');
-    if (next) setTimeout(() => document.getElementById(next) && document.getElementById(next).focus(), 50);
-});
-setupPlayerAutocomplete(document.getElementById('winner2'), document.getElementById('winner2List'), () => {
-    const next = getNextFocusAfterPlayer('winner2');
-    if (next) { const el = document.getElementById(next); if (el) setTimeout(() => el.focus(), 50); }
-});
-setupPlayerAutocomplete(document.getElementById('loser1'), document.getElementById('loser1List'), () => {
-    const next = getNextFocusAfterPlayer('loser1');
-    if (next) setTimeout(() => document.getElementById(next) && document.getElementById(next).focus(), 50);
-});
-setupPlayerAutocomplete(document.getElementById('loser2'), document.getElementById('loser2List'), () => {
-    const next = getNextFocusAfterPlayer('loser2');
-    if (next) { const el = document.getElementById(next); if (el) setTimeout(() => el.focus(), 50); }
-});
+setupPlayerAutocomplete(document.getElementById('winner1'), document.getElementById('winner1List'));
+setupPlayerAutocomplete(document.getElementById('winner2'), document.getElementById('winner2List'));
+setupPlayerAutocomplete(document.getElementById('loser1'), document.getElementById('loser1List'));
+setupPlayerAutocomplete(document.getElementById('loser2'), document.getElementById('loser2List'));
 
 document.querySelectorAll('#winners-container .player-entry, #losers-container .player-entry').forEach(entry => {
     const textInput = entry.querySelector('input[type="text"]');
@@ -537,15 +485,6 @@ document.getElementById('common_score_dropdown').addEventListener('click', funct
     if (e.target.tagName === 'DIV' && e.target.dataset.value != null && _currentScoreInput) {
         _currentScoreInput.value = e.target.dataset.value;
         this.style.display = 'none';
-        const nextEl = getNextFieldAfterScore(_currentScoreInput);
-        if (nextEl) setTimeout(() => nextEl.focus(), 50);
-    }
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && isScoreField(e.target)) {
-        e.preventDefault();
-        const next = getNextFieldAfterScore(e.target);
-        if (next) next.focus();
     }
 });
 

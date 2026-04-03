@@ -139,8 +139,6 @@
 })();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const nameFields = ['winner1', 'winner2', 'loser1', 'loser2'];
-const scoreFields = ['winner_score', 'loser_score'];
-const nextFields = { winner1: 'winner2', winner2: 'loser1', loser1: 'loser2', loser2: 'winner_score', winner_score: 'loser_score' };
 const winnerScores = ['21', '15', '22', '23', '16'];
 
 function getSelectedPlayers(excludeField) {
@@ -184,8 +182,6 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
             field.value = e.target.textContent;
             list.style.display = 'none';
             if (onSelect) onSelect(field);
-            const next = nextFields[fieldId];
-            if (next) setTimeout(() => document.getElementById(next)?.focus(), 50);
         }
     });
 }
