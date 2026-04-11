@@ -701,18 +701,24 @@ def edit_other_games(year):
 @login_required
 def ai_summary():
     """AI summary page for selecting games to summarize."""
-    games = recent_games(50)  # Get last 50 games
-    return render_template('ai_summary.html', games=games)
+    doubles_games = recent_games(50)
+    vollis_games = recent_vollis_games(50)
+    other_games = recent_other_games(50)
+    return render_template('ai_summary.html',
+                           doubles_games=doubles_games,
+                           vollis_games=vollis_games,
+                           other_games=other_games)
 
 @app.route('/select_ai_prompt/', methods=['POST'])
 @login_required
 def select_ai_prompt():
     """Show prompt selection page after selecting games."""
     selected_game_ids = request.form.getlist('game_ids')
+    game_type = request.form.get('game_type', 'doubles')
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary'))
-    return render_template('select_prompt.html', game_ids=selected_game_ids)
+    return render_template('select_prompt.html', game_ids=selected_game_ids, game_type=game_type)
 
 @app.route('/preview_ai_summary_with_prompt/', methods=['POST'])
 @login_required
@@ -721,13 +727,19 @@ def preview_ai_summary_with_prompt():
     selected_game_ids = request.form.getlist('game_ids')
     prompt_style = request.form.get('prompt_style', 'announcer')
     custom_prompt = request.form.get('custom_prompt', '')
+    game_type = request.form.get('game_type', 'doubles')
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary'))
 
     try:
-        payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+        if game_type == 'vollis':
+            payload = build_vollis_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+        elif game_type == 'other':
+            payload = build_other_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+        else:
+            payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
     except ValueError as ve:
         flash(str(ve), 'error')
         return redirect(url_for('ai_summary'))
@@ -736,14 +748,17 @@ def preview_ai_summary_with_prompt():
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
 
+    type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
+    header_label = type_labels.get(game_type, 'Doubles')
+
     selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
     can_send = len(payload.get('players', [])) > 0 and len(payload.get('all_emails', [])) > 0
 
     try:
         return render_template(
             'preview_ai_summary.html',
-            game_type='doubles',
-            header_title="Doubles AI Summary Preview",
+            game_type=game_type,
+            header_title=f"{header_label} AI Summary Preview",
             subject=payload.get('subject') or '',
             email_html=payload.get('html_body') or '',
             players=payload.get('players') or [],
@@ -3371,6 +3386,734 @@ Write the recap:"""
 
     html_body = create_doubles_email_html(summary, stats, games, date_obj)
     subject = f"Vball Summary - {formatted_date}"
+
+    summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+
+    return {
+        'date': date_str,
+        'games': games,
+        'stats': stats,
+        'summary': summary,
+        'summary_preview': summary_preview,
+        'context': context,
+        'players': players,
+        'players_without_email': players_without_email,
+        'all_emails': all_emails,
+        'html_body': html_body,
+        'subject': subject,
+        'date_obj': date_obj,
+        'formatted_date': formatted_date
+    }
+
+
+def create_vollis_email_html(summary, stats, games, date_obj):
+    summary_html = summary.replace(chr(10), '<br>') if summary else ''
+    formatted_date = date_obj.strftime('%m/%d/%Y')
+
+    html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                        background-color: #0b0f14;
+                        color: #e4e8eb;
+                        padding: 20px;
+                        line-height: 1.6;
+                        margin: 0;
+                    }}
+                    .container {{ max-width: 600px; margin: 0 auto; }}
+                    h1 {{ color: #66d9ef; text-align: center; margin-bottom: 24px; font-size: 22px; font-weight: 600; }}
+                    .card {{ background: #131a24; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.08); }}
+                    .card h2 {{ margin-top: 0; padding-bottom: 12px; font-size: 14px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; color: #66d9ef; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }}
+                    .summary-text {{ background: rgba(11, 15, 20, 0.5); border-radius: 8px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.06); color: #e4e8eb; line-height: 1.7; font-size: 14px; }}
+                    .stats-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
+                    .stats-table thead {{ background: rgba(255, 255, 255, 0.03); }}
+                    .stats-table th {{ padding: 10px 8px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
+                    .stats-table td {{ padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }}
+                    .stats-table tbody tr:last-child td {{ border-bottom: none; }}
+                    .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
+                    .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
+                    .stats-player {{ text-align: left !important; font-weight: 500; }}
+                    .games-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
+                    .games-table thead {{ background: rgba(255, 255, 255, 0.03); }}
+                    .games-table th {{ padding: 10px 6px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
+                    .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
+                    .games-table tbody tr:last-child td {{ border-bottom: none; }}
+                    .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
+                    .time-cell {{ font-size: 12px; color: #8b949e; }}
+                    .winner-team {{ color: #4ade80; }}
+                    .loser-team {{ color: #f87171; }}
+                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; }}
+                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; }}
+                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; }}
+                    .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
+                    .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
+                    .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
+                    .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
+                    .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Vollis Recap - {formatted_date}</h1>
+                    
+                    <div class="card">
+                        <h2>AI Summary</h2>
+                        <div class="summary-text">
+                            {summary_html}
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Player Stats</h2>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>Win %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            """
+
+    for index, stat in enumerate(stats, start=1):
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+
+        html_body += f"""
+                                <tr>
+                                    <td class="stats-rank">{index}</td>
+                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
+                                    <td>{wins}</td>
+                                    <td>{losses}</td>
+                                    <td>{win_pct:.0f}%</td>
+                                </tr>
+                """
+
+    html_body += """
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Games (""" + str(len(games)) + """)</h2>
+                        <table class="games-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Winner</th>
+                                    <th></th>
+                                    <th>Loser</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            """
+
+    for game in games:
+        time_display = ""
+        if len(game) > 1 and game[1]:
+            date_time_str = str(game[1]).strip()
+            parts = date_time_str.split()
+            if len(parts) > 1:
+                time_display = " ".join(parts[1:]).strip()
+            elif parts:
+                time_display = parts[0]
+        if not time_display:
+            time_display = "-"
+
+        winner = format_name_for_email(game[2]) if game[2] else ""
+        loser = format_name_for_email(game[4]) if game[4] else ""
+        winner_score = game[3] if len(game) > 3 and game[3] is not None else ""
+        loser_score = game[5] if len(game) > 5 and game[5] is not None else ""
+
+        html_body += f"""
+                                <tr>
+                                    <td class="time-cell">{time_display}</td>
+                                    <td class="winner-team"><span class="player-name">{winner}</span></td>
+                                    <td class="score-winner">{winner_score}</td>
+                                    <td class="loser-team"><span class="player-name">{loser}</span></td>
+                                    <td class="score-loser">{loser_score}</td>
+                                </tr>
+                """
+
+    stats_year = date_obj.year
+    html_body += f"""
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="footer">
+                        <a href="https://idynkydnk.pythonanywhere.com/vollis_stats/{stats_year}/" class="link-button">View {stats_year} Vollis Stats</a>
+                        <div class="opt-in-section">
+                            <p class="opt-in-text">Want all future AI summaries?</p>
+                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+    return html_body
+
+
+def create_other_email_html(summary, stats, games, date_obj, game_name_label=''):
+    summary_html = summary.replace(chr(10), '<br>') if summary else ''
+    formatted_date = date_obj.strftime('%m/%d/%Y')
+    title_suffix = f" ({game_name_label})" if game_name_label else ""
+
+    html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                        background-color: #0b0f14;
+                        color: #e4e8eb;
+                        padding: 20px;
+                        line-height: 1.6;
+                        margin: 0;
+                    }}
+                    .container {{ max-width: 600px; margin: 0 auto; }}
+                    h1 {{ color: #66d9ef; text-align: center; margin-bottom: 24px; font-size: 22px; font-weight: 600; }}
+                    .card {{ background: #131a24; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.08); }}
+                    .card h2 {{ margin-top: 0; padding-bottom: 12px; font-size: 14px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; color: #66d9ef; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }}
+                    .summary-text {{ background: rgba(11, 15, 20, 0.5); border-radius: 8px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.06); color: #e4e8eb; line-height: 1.7; font-size: 14px; }}
+                    .stats-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
+                    .stats-table thead {{ background: rgba(255, 255, 255, 0.03); }}
+                    .stats-table th {{ padding: 10px 8px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
+                    .stats-table td {{ padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }}
+                    .stats-table tbody tr:last-child td {{ border-bottom: none; }}
+                    .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
+                    .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
+                    .stats-player {{ text-align: left !important; font-weight: 500; }}
+                    .games-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
+                    .games-table thead {{ background: rgba(255, 255, 255, 0.03); }}
+                    .games-table th {{ padding: 10px 6px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
+                    .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
+                    .games-table tbody tr:last-child td {{ border-bottom: none; }}
+                    .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
+                    .time-cell {{ font-size: 12px; color: #8b949e; }}
+                    .winner-team {{ color: #4ade80; }}
+                    .loser-team {{ color: #f87171; }}
+                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; }}
+                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; }}
+                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; }}
+                    .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
+                    .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
+                    .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
+                    .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
+                    .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
+                    .game-label {{ font-size: 11px; color: #8b949e; font-style: italic; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Game Recap{title_suffix} - {formatted_date}</h1>
+                    
+                    <div class="card">
+                        <h2>AI Summary</h2>
+                        <div class="summary-text">
+                            {summary_html}
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Player Stats</h2>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>Win %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            """
+
+    for index, stat in enumerate(stats, start=1):
+        player_name = stat[0]
+        wins = stat[1]
+        losses = stat[2]
+        win_pct = stat[3] * 100
+
+        html_body += f"""
+                                <tr>
+                                    <td class="stats-rank">{index}</td>
+                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
+                                    <td>{wins}</td>
+                                    <td>{losses}</td>
+                                    <td>{win_pct:.0f}%</td>
+                                </tr>
+                """
+
+    html_body += """
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Games (""" + str(len(games)) + """)</h2>
+                        <table class="games-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Game</th>
+                                    <th>Winners</th>
+                                    <th></th>
+                                    <th>Losers</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            """
+
+    for game in games:
+        time_display = ""
+        game_date = game.get('game_date', '')
+        if game_date:
+            parts = str(game_date).strip().split()
+            if len(parts) > 1:
+                time_display = " ".join(parts[1:]).strip()
+            elif parts:
+                time_display = parts[0]
+        if not time_display:
+            time_display = "-"
+
+        game_name = game.get('game_name', '')
+        winners = game.get('winners', [])
+        losers = game.get('losers', [])
+        winner_names = "<br>".join(format_name_for_email(w['name']) for w in winners if w.get('name'))
+        loser_names = "<br>".join(format_name_for_email(l['name']) for l in losers if l.get('name'))
+        w_score = game.get('winner_score') or ''
+        l_score = game.get('loser_score') or ''
+
+        html_body += f"""
+                                <tr>
+                                    <td class="time-cell">{time_display}</td>
+                                    <td class="game-label">{game_name}</td>
+                                    <td class="winner-team">{winner_names}</td>
+                                    <td class="score-winner">{w_score}</td>
+                                    <td class="loser-team">{loser_names}</td>
+                                    <td class="score-loser">{l_score}</td>
+                                </tr>
+                """
+
+    stats_year = date_obj.year
+    html_body += f"""
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="footer">
+                        <a href="https://idynkydnk.pythonanywhere.com/other_stats/{stats_year}/" class="link-button">View {stats_year} Other Stats</a>
+                        <div class="opt-in-section">
+                            <p class="opt-in-text">Want all future AI summaries?</p>
+                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+    return html_body
+
+
+def build_vollis_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
+    import google.generativeai as genai
+    from vollis_functions import convert_vollis_ampm
+    from player_functions import get_player_by_name
+
+    PROMPT_STYLES = {
+        'announcer': """You are an energetic sports announcer writing an exciting recap email.
+Use dramatic language, exciting calls, and hype up big plays and close games.
+Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
+Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
+Focus on the numbers: win percentages, point differentials, streaks, and trends.
+Draw insights from the statistics and explain what they mean for each player's performance.
+Be precise and factual, but still engaging. Reference specific stats to back up your observations.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'storyteller': """You are a sports storyteller writing a narrative recap email.
+Weave the games into an engaging story with character development and dramatic tension.
+Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
+Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'comedian': """You are a comedy writer doing a sports recap email.
+Be playful, witty, and don't be afraid to gently roast players (in good fun).
+Find the humor in the games - funny moments, ironic outcomes, playful observations.
+Keep it lighthearted and fun. Everyone should laugh, including those being teased.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'roast': """You are a brutal roast comedian writing a savage recap email.
+Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
+Mock the winners for barely winning, demolish the losers for their failures.
+Be creative with your insults - reference specific plays, scores, and failures.
+This is all in good fun but don't hold back. Make it hurt (but funny).
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+    }
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        raise ValueError('Email not configured.')
+
+    if not selected_game_ids:
+        raise ValueError('No games selected.')
+
+    from database_functions import create_connection
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        conn = create_connection('stats.db')
+    cur = conn.cursor()
+    placeholders = ','.join('?' * len(selected_game_ids))
+    cur.execute(f"SELECT * FROM vollis_games WHERE id IN ({placeholders}) ORDER BY game_date DESC",
+                [int(gid) for gid in selected_game_ids])
+    raw_games = cur.fetchall()
+
+    if not raw_games:
+        raise ValueError('None of the selected games were found.')
+
+    games = convert_vollis_ampm(raw_games)
+
+    # Calculate simple stats from selected vollis games
+    player_stats = {}
+    for game in games:
+        winner, loser = game[2], game[4]
+        for name in [winner, loser]:
+            if name and name.strip():
+                if name not in player_stats:
+                    player_stats[name] = {'wins': 0, 'losses': 0}
+        if winner and winner.strip():
+            player_stats[winner]['wins'] += 1
+        if loser and loser.strip():
+            player_stats[loser]['losses'] += 1
+
+    stats = []
+    for name, s in player_stats.items():
+        total = s['wins'] + s['losses']
+        if total > 0:
+            stats.append([name, s['wins'], s['losses'], s['wins'] / total])
+    stats.sort(key=lambda x: x[3], reverse=True)
+
+    game_dates = sorted(set(str(game[1]).split(' ')[0] for game in games))
+    if len(game_dates) == 1:
+        date_str = game_dates[0]
+    else:
+        date_str = f"{game_dates[0]} to {game_dates[-1]}"
+
+    context = f"Game Type: Vollis (1v1)\nDate: {date_str}\nTotal Games: {len(games)}\n\n"
+    context += "Player Stats:\n"
+    for stat in stats[:10]:
+        win_pct = stat[3] * 100
+        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%)\n"
+
+    context += "\nGames Played (in chronological order):\n"
+    for game in reversed(games[:10]):
+        winner = game[2]
+        loser = game[4]
+        w_score = game[3]
+        l_score = game[5]
+        context += f"- {winner} def. {loser} ({w_score}-{l_score})\n"
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('models/gemini-flash-latest')
+
+    if prompt_style == 'custom' and custom_prompt.strip():
+        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
+    else:
+        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
+
+    prompt = f"""{style_instructions}
+
+Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
+Only quote a comment if it is already in the data enclosed in quotation marks.
+Weave any comments smoothly into the narrative.
+CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
+
+Here is the game data:
+
+{context}
+
+Write the recap:"""
+    try:
+        response = model.generate_content(prompt)
+        try:
+            summary = (response.text or '') if hasattr(response, 'text') else ''
+        except Exception:
+            summary = ''
+    except Exception as e:
+        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
+
+    summary = (summary or '').strip()
+
+    players_set = set()
+    for game in games:
+        for player_name in [game[2], game[4]]:
+            if player_name and player_name.strip():
+                players_set.add(player_name)
+
+    players = []
+    players_without_email = []
+    for player_name in players_set:
+        player_info = get_player_by_name(player_name)
+        if player_info and player_info[2]:
+            players.append({'name': player_name, 'email': player_info[2]})
+        else:
+            players_without_email.append(player_name)
+
+    all_emails = [player['email'] for player in players]
+
+    cur2 = conn.cursor()
+    cur2.execute("SELECT email FROM players WHERE email IS NOT NULL AND notes LIKE ?", ('%AI_EMAILS_OPT_IN%',))
+    opted_in_players = cur2.fetchall()
+    for opt_in_player in opted_in_players:
+        opt_in_email = opt_in_player[0]
+        if opt_in_email and opt_in_email not in all_emails:
+            all_emails.append(opt_in_email)
+
+    date_values = [r[1] for r in raw_games if len(r) > 1 and r[1]]
+    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
+    formatted_date = date_obj.strftime('%m/%d/%y')
+
+    html_body = create_vollis_email_html(summary, stats, games, date_obj)
+    subject = f"Vollis Summary - {formatted_date}"
+
+    summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
+
+    return {
+        'date': date_str,
+        'games': games,
+        'stats': stats,
+        'summary': summary,
+        'summary_preview': summary_preview,
+        'context': context,
+        'players': players,
+        'players_without_email': players_without_email,
+        'all_emails': all_emails,
+        'html_body': html_body,
+        'subject': subject,
+        'date_obj': date_obj,
+        'formatted_date': formatted_date
+    }
+
+
+def build_other_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
+    import google.generativeai as genai
+    from other_functions import readable_games_data, _is_valid_player_name
+    from player_functions import get_player_by_name
+
+    PROMPT_STYLES = {
+        'announcer': """You are an energetic sports announcer writing an exciting recap email.
+Use dramatic language, exciting calls, and hype up big plays and close games.
+Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
+Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
+Focus on the numbers: win percentages, point differentials, streaks, and trends.
+Draw insights from the statistics and explain what they mean for each player's performance.
+Be precise and factual, but still engaging. Reference specific stats to back up your observations.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'storyteller': """You are a sports storyteller writing a narrative recap email.
+Weave the games into an engaging story with character development and dramatic tension.
+Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
+Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'comedian': """You are a comedy writer doing a sports recap email.
+Be playful, witty, and don't be afraid to gently roast players (in good fun).
+Find the humor in the games - funny moments, ironic outcomes, playful observations.
+Keep it lighthearted and fun. Everyone should laugh, including those being teased.
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+
+        'roast': """You are a brutal roast comedian writing a savage recap email.
+Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
+Mock the winners for barely winning, demolish the losers for their failures.
+Be creative with your insults - reference specific plays, scores, and failures.
+This is all in good fun but don't hold back. Make it hurt (but funny).
+Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
+    }
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        raise ValueError('Email not configured.')
+
+    if not selected_game_ids:
+        raise ValueError('No games selected.')
+
+    import sqlite3
+    from database_functions import create_connection
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        conn = create_connection('stats.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    placeholders = ','.join('?' * len(selected_game_ids))
+    cur.execute(f"SELECT * FROM other_games WHERE id IN ({placeholders}) ORDER BY game_date DESC",
+                [int(gid) for gid in selected_game_ids])
+    raw_games = cur.fetchall()
+
+    if not raw_games:
+        raise ValueError('None of the selected games were found.')
+
+    games = readable_games_data(raw_games)
+
+    # Calculate stats from the selected games
+    player_stats = {}
+    for game in games:
+        for w in game.get('winners', []):
+            name = w.get('name', '')
+            if name and _is_valid_player_name(name):
+                if name not in player_stats:
+                    player_stats[name] = {'wins': 0, 'losses': 0}
+                player_stats[name]['wins'] += 1
+        for l in game.get('losers', []):
+            name = l.get('name', '')
+            if name and _is_valid_player_name(name):
+                if name not in player_stats:
+                    player_stats[name] = {'wins': 0, 'losses': 0}
+                player_stats[name]['losses'] += 1
+
+    stats = []
+    for name, s in player_stats.items():
+        total = s['wins'] + s['losses']
+        if total > 0:
+            stats.append([name, s['wins'], s['losses'], s['wins'] / total])
+    stats.sort(key=lambda x: x[3], reverse=True)
+
+    game_dates = sorted(set(str(game.get('game_date', '')).split(' ')[0] for game in games if game.get('game_date')))
+    if len(game_dates) == 1:
+        date_str = game_dates[0]
+    else:
+        date_str = f"{game_dates[0]} to {game_dates[-1]}"
+
+    game_names = set(game.get('game_name', '') for game in games if game.get('game_name'))
+    game_name_label = ', '.join(sorted(game_names)) if game_names else 'Other'
+
+    context = f"Game Type: {game_name_label}\nDate: {date_str}\nTotal Games: {len(games)}\n\n"
+    context += "Player Stats:\n"
+    for stat in stats[:10]:
+        win_pct = stat[3] * 100
+        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%)\n"
+
+    context += "\nGames Played (in chronological order):\n"
+    for game in reversed(games[:10]):
+        winner_names = ' & '.join(w['name'] for w in game.get('winners', []) if w.get('name'))
+        loser_names = ' & '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
+        w_score = game.get('winner_score', '')
+        l_score = game.get('loser_score', '')
+        score_str = f" ({w_score}-{l_score})" if w_score and l_score else ""
+        gn = game.get('game_name', '')
+        game_label = f" [{gn}]" if gn else ""
+        comment = game.get('comment', '')
+        comment_str = f" - Comment: {comment}" if comment else ""
+        context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('models/gemini-flash-latest')
+
+    if prompt_style == 'custom' and custom_prompt.strip():
+        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
+    else:
+        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
+
+    prompt = f"""{style_instructions}
+
+Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
+Only quote a comment if it is already in the data enclosed in quotation marks.
+Weave any comments smoothly into the narrative.
+CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
+
+Here is the game data:
+
+{context}
+
+Write the recap:"""
+    try:
+        response = model.generate_content(prompt)
+        try:
+            summary = (response.text or '') if hasattr(response, 'text') else ''
+        except Exception:
+            summary = ''
+    except Exception as e:
+        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
+
+    summary = (summary or '').strip()
+
+    players_set = set()
+    for game in games:
+        for w in game.get('winners', []):
+            name = w.get('name', '')
+            if name and _is_valid_player_name(name):
+                players_set.add(name)
+        for l in game.get('losers', []):
+            name = l.get('name', '')
+            if name and _is_valid_player_name(name):
+                players_set.add(name)
+
+    players = []
+    players_without_email = []
+    for player_name in players_set:
+        player_info = get_player_by_name(player_name)
+        if player_info and player_info[2]:
+            players.append({'name': player_name, 'email': player_info[2]})
+        else:
+            players_without_email.append(player_name)
+
+    all_emails = [player['email'] for player in players]
+
+    conn2 = create_connection(database)
+    if conn2 is None:
+        conn2 = create_connection('stats.db')
+    cur2 = conn2.cursor()
+    cur2.execute("SELECT email FROM players WHERE email IS NOT NULL AND notes LIKE ?", ('%AI_EMAILS_OPT_IN%',))
+    opted_in_players = cur2.fetchall()
+    for opt_in_player in opted_in_players:
+        opt_in_email = opt_in_player[0]
+        if opt_in_email and opt_in_email not in all_emails:
+            all_emails.append(opt_in_email)
+
+    date_values = [dict(r).get('game_date') for r in raw_games if dict(r).get('game_date')]
+    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
+    formatted_date = date_obj.strftime('%m/%d/%y')
+
+    html_body = create_other_email_html(summary, stats, games, date_obj, game_name_label)
+    subject = f"{game_name_label} Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 

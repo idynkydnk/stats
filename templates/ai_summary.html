@@ -259,6 +259,35 @@
             border: 1px solid var(--sr-win);
             color: var(--sr-win);
         }
+        .sr-tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--sr-bg);
+            border-radius: 10px;
+            padding: 4px;
+            border: 1px solid var(--sr-line);
+        }
+        .sr-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--sr-muted);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sr-tab:hover {
+            color: var(--sr-text);
+        }
+        .sr-tab.active {
+            background: var(--sr-accent);
+            color: #0b0f14;
+            font-weight: 600;
+        }
     </style>
 
     <div class="sr-container">
@@ -289,6 +318,12 @@
                 <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select the games you want included in the AI-generated email summary</p>
             </div>
 
+            <div class="sr-tab-bar">
+                <button class="sr-tab active" data-tab="doubles" onclick="switchTab('doubles')">Doubles{% if doubles_games %} ({{ doubles_games|length }}){% endif %}</button>
+                <button class="sr-tab" data-tab="vollis" onclick="switchTab('vollis')">Vollis{% if vollis_games %} ({{ vollis_games|length }}){% endif %}</button>
+                <button class="sr-tab" data-tab="other" onclick="switchTab('other')">Other{% if other_games %} ({{ other_games|length }}){% endif %}</button>
+            </div>
+
             <div class="sr-selection-header">
                 <div class="sr-select-actions">
                     <button class="sr-select-btn" onclick="selectAll()">Select All</button>
@@ -298,12 +333,15 @@
             </div>
 
             <form id="summary-form" method="POST" action="{{ url_for('select_ai_prompt') }}">
-                <div id="games-container">
-                    {% for game in games %}
+                <input type="hidden" name="game_type" id="game-type-input" value="doubles">
+
+                <!-- Doubles Games -->
+                <div id="tab-doubles" class="sr-tab-content active">
+                    {% for game in doubles_games %}
                     <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
-                         data-game-id="{{ game[0] }}" 
+                         data-game-id="{{ game[0] }}" data-game-type="doubles"
                          onclick="toggleGame(this, event)">
-                        <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
                         <div class="sr-game-info">
                             <div class="sr-game-date">{{ game[1] }}</div>
                             <div class="sr-game-row winners">
@@ -317,14 +355,78 @@
                         </div>
                     </div>
                     {% endfor %}
+                    {% if doubles_games|length > 10 %}
+                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('doubles')">
+                        <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                        Show {{ doubles_games|length - 10 }} More Games
+                    </button>
+                    {% endif %}
+                    {% if not doubles_games %}
+                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games found.</p>
+                    {% endif %}
                 </div>
 
-                {% if games|length > 10 %}
-                <button type="button" class="sr-expand-btn" id="expand-btn" onclick="toggleExpand()">
-                    <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
-                    Show {{ games|length - 10 }} More Games
-                </button>
-                {% endif %}
+                <!-- Vollis Games -->
+                <div id="tab-vollis" class="sr-tab-content" style="display: none;">
+                    {% for game in vollis_games %}
+                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                         data-game-id="{{ game[0] }}" data-game-type="vollis"
+                         onclick="toggleGame(this, event)">
+                        <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
+                        <div class="sr-game-info">
+                            <div class="sr-game-date">{{ game[1] }}</div>
+                            <div class="sr-game-row winners">
+                                <span class="sr-game-names">{{ game[2] }}</span>
+                                <span class="sr-game-score">{{ game[3] }}</span>
+                            </div>
+                            <div class="sr-game-row losers">
+                                <span class="sr-game-names">{{ game[4] }}</span>
+                                <span class="sr-game-score">{{ game[5] }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if vollis_games|length > 10 %}
+                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('vollis')">
+                        <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                        Show {{ vollis_games|length - 10 }} More Games
+                    </button>
+                    {% endif %}
+                    {% if not vollis_games %}
+                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No vollis games found.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Other Games -->
+                <div id="tab-other" class="sr-tab-content" style="display: none;">
+                    {% for game in other_games %}
+                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                         data-game-id="{{ game.game_id }}" data-game-type="other"
+                         onclick="toggleGame(this, event)">
+                        <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game.game_id }}" onclick="event.stopPropagation()" disabled>
+                        <div class="sr-game-info">
+                            <div class="sr-game-date">{{ game.game_date }}{% if game.game_name %} &middot; {{ game.game_name }}{% endif %}</div>
+                            <div class="sr-game-row winners">
+                                <span class="sr-game-names">{{ game.winners|map(attribute='name')|join(' & ') }}</span>
+                                <span class="sr-game-score">{{ game.winner_score if game.winner_score else '' }}</span>
+                            </div>
+                            <div class="sr-game-row losers">
+                                <span class="sr-game-names">{{ game.losers|map(attribute='name')|join(' & ') }}</span>
+                                <span class="sr-game-score">{{ game.loser_score if game.loser_score else '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if other_games|length > 10 %}
+                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('other')">
+                        <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                        Show {{ other_games|length - 10 }} More Games
+                    </button>
+                    {% endif %}
+                    {% if not other_games %}
+                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games found.</p>
+                    {% endif %}
+                </div>
 
                 <div class="sr-action-bar">
                     <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
@@ -337,27 +439,54 @@
     </div>
 
     <script>
-        const totalGames = {{ games|length }};
-        let expanded = false;
+        let currentTab = 'doubles';
+        const expandedTabs = {};
+
+        function switchTab(tab) {
+            document.querySelectorAll('.sr-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.sr-tab[data-tab="' + tab + '"]').classList.add('active');
+
+            document.querySelectorAll('.sr-tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('tab-' + tab).style.display = 'block';
+
+            currentTab = tab;
+            document.getElementById('game-type-input').value = tab;
+
+            // Enable only checkboxes in the active tab, disable others
+            document.querySelectorAll('.sr-tab-content').forEach(content => {
+                var isActive = content.id === 'tab-' + tab;
+                content.querySelectorAll('.sr-game-checkbox').forEach(cb => {
+                    cb.disabled = !isActive;
+                    if (!isActive) {
+                        cb.checked = false;
+                        cb.closest('.sr-game-card').classList.remove('selected');
+                    }
+                });
+            });
+
+            updateSelectedCount();
+        }
 
         function updateSelectedCount() {
-            const checked = document.querySelectorAll('.sr-game-checkbox:checked').length;
+            var activeTab = document.getElementById('tab-' + currentTab);
+            var checked = activeTab.querySelectorAll('.sr-game-checkbox:checked').length;
             document.getElementById('selected-count').textContent = checked + ' game' + (checked !== 1 ? 's' : '') + ' selected';
             document.getElementById('generate-btn').disabled = checked === 0;
         }
 
         function toggleGame(card, event) {
             if (event.target.type === 'checkbox') return;
-            const checkbox = card.querySelector('.sr-game-checkbox');
+            var checkbox = card.querySelector('.sr-game-checkbox');
+            if (checkbox.disabled) return;
             checkbox.checked = !checkbox.checked;
             card.classList.toggle('selected', checkbox.checked);
             updateSelectedCount();
         }
 
         function selectAll() {
-            const visibleCards = document.querySelectorAll('.sr-game-card:not(.sr-hidden-game)');
-            visibleCards.forEach(card => {
-                const checkbox = card.querySelector('.sr-game-checkbox');
+            var activeTab = document.getElementById('tab-' + currentTab);
+            activeTab.querySelectorAll('.sr-game-card:not(.sr-hidden-game)').forEach(function(card) {
+                var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = true;
                 card.classList.add('selected');
             });
@@ -365,37 +494,37 @@
         }
 
         function selectNone() {
-            document.querySelectorAll('.sr-game-card').forEach(card => {
-                const checkbox = card.querySelector('.sr-game-checkbox');
+            var activeTab = document.getElementById('tab-' + currentTab);
+            activeTab.querySelectorAll('.sr-game-card').forEach(function(card) {
+                var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = false;
                 card.classList.remove('selected');
             });
             updateSelectedCount();
         }
 
-        function toggleExpand() {
-            const hiddenGames = document.querySelectorAll('.sr-game-card.sr-hidden-game');
-            const btn = document.getElementById('expand-btn');
+        function toggleExpand(tab) {
+            var container = document.getElementById('tab-' + tab);
+            var cards = container.querySelectorAll('.sr-game-card');
+            var btn = container.querySelector('.sr-expand-btn');
             
-            if (!expanded) {
-                document.querySelectorAll('.sr-game-card').forEach(card => {
-                    card.classList.remove('sr-hidden-game');
-                });
+            if (!expandedTabs[tab]) {
+                cards.forEach(function(card) { card.classList.remove('sr-hidden-game'); });
                 btn.innerHTML = '<i class="fas fa-chevron-up" style="margin-right: 6px;"></i>Show Less';
-                expanded = true;
+                expandedTabs[tab] = true;
             } else {
-                document.querySelectorAll('.sr-game-card').forEach((card, index) => {
-                    if (index >= 10) {
-                        card.classList.add('sr-hidden-game');
-                    }
+                cards.forEach(function(card, index) {
+                    if (index >= 10) card.classList.add('sr-hidden-game');
                 });
-                btn.innerHTML = '<i class="fas fa-chevron-down" style="margin-right: 6px;"></i>Show ' + (totalGames - 10) + ' More Games';
-                expanded = false;
+                btn.innerHTML = '<i class="fas fa-chevron-down" style="margin-right: 6px;"></i>Show ' + (cards.length - 10) + ' More Games';
+                expandedTabs[tab] = false;
             }
         }
 
-        // Sync checkbox visual state with card selection
-        document.querySelectorAll('.sr-game-checkbox').forEach(checkbox => {
+        // Enable doubles checkboxes on load (default active tab)
+        document.querySelectorAll('#tab-doubles .sr-game-checkbox').forEach(function(cb) { cb.disabled = false; });
+
+        document.querySelectorAll('.sr-game-checkbox').forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {
                 this.closest('.sr-game-card').classList.toggle('selected', this.checked);
                 updateSelectedCount();

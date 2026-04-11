@@ -564,6 +564,11 @@ function generateAndEmailSummary() {
     var form = document.createElement('form');
     form.method = 'POST';
     form.action = '/select_ai_prompt/';
+    var gtInput = document.createElement('input');
+    gtInput.type = 'hidden';
+    gtInput.name = 'game_type';
+    gtInput.value = 'doubles';
+    form.appendChild(gtInput);
     ids.forEach(function(id) {
         var input = document.createElement('input');
         input.type = 'hidden';
