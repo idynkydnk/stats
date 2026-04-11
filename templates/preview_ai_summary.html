@@ -717,6 +717,14 @@
             });
         }
 
+        // Re-evaluate send button when additional emails are typed
+        var additionalField = document.getElementById('additional-emails');
+        if (additionalField) {
+            additionalField.addEventListener('input', function() {
+                updateRecipientCount();
+            });
+        }
+
         // Menu toggle
         document.getElementById('menu-toggle').addEventListener('click', function() {
             document.getElementById('menu-sidebar').classList.add('active');
