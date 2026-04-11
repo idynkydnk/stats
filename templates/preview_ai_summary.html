@@ -513,15 +513,26 @@
         <input type="hidden" name="game_type" value="{{ game_type }}">
     </form>
 
+    <script id="page-data" type="application/json">{{ {'selectedGameIds': selected_game_ids|list, 'emailSubject': subject, 'gameType': game_type, 'emailHtml': email_html} | tojson | safe }}</script>
+
     <script>
         window.onerror = function(msg, url, line) { alert('JS Error: ' + msg + ' (line ' + line + ')'); };
-        var selectedGameIds = JSON.parse('{{ selected_game_ids_json | safe }}');
-        var emailHtml = {{ email_html | tojson | safe }};
-        var emailSubject = {{ subject | tojson | safe }};
-        var gameType = {{ game_type | tojson | safe }};
+    </script>
+    <script>
+        var _pageData;
+        try {
+            _pageData = JSON.parse(document.getElementById('page-data').textContent);
+        } catch (e) {
+            alert('Data parse error: ' + e.message);
+            _pageData = {};
+        }
+        var selectedGameIds = _pageData.selectedGameIds || [];
+        var emailSubject = _pageData.emailSubject || '';
+        var gameType = _pageData.gameType || 'doubles';
+        var emailHtml = _pageData.emailHtml || '';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const frame = document.getElementById('email-preview-frame');
+        document.addEventListener('DOMContentLoaded', function() {
+            var frame = document.getElementById('email-preview-frame');
             if (frame) {
                 frame.srcdoc = emailHtml;
             }
