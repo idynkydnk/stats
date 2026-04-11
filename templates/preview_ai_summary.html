@@ -484,7 +484,7 @@
             </div>
 
             <div class="sr-action-bar">
-                <button class="sr-send-btn" id="send-btn" {% if not can_send %}disabled{% endif %}>
+                <button type="button" class="sr-send-btn" id="send-btn" onclick="sendEmail()" {% if not can_send %}disabled{% endif %}>
                     <i class="fas fa-paper-plane"></i> Send Email
                 </button>
                 <a href="{{ back_url }}" class="sr-back-btn">
@@ -516,63 +516,59 @@
     <script id="page-data" type="application/json">{{ {'selectedGameIds': selected_game_ids|list, 'emailSubject': subject, 'gameType': game_type, 'emailHtml': email_html} | tojson | safe }}</script>
 
     <script>
-        window.onerror = function(msg, url, line) { alert('JS Error: ' + msg + ' (line ' + line + ')'); };
+        window.onerror = function(msg, url, line) { alert('JS error: ' + msg + ' at line ' + line); };
     </script>
+
     <script>
-        var _pageData;
-        try {
-            _pageData = JSON.parse(document.getElementById('page-data').textContent);
-        } catch (e) {
-            alert('Data parse error: ' + e.message);
-            _pageData = {};
-        }
-        var selectedGameIds = _pageData.selectedGameIds || [];
-        var emailSubject = _pageData.emailSubject || '';
-        var gameType = _pageData.gameType || 'doubles';
-        var emailHtml = _pageData.emailHtml || '';
+    var selectedGameIds = [];
+    var emailSubject = '';
+    var gameType = 'doubles';
+    var emailHtml = '';
+    try {
+        var _pd = JSON.parse(document.getElementById('page-data').textContent);
+        selectedGameIds = _pd.selectedGameIds || [];
+        emailSubject = _pd.emailSubject || '';
+        gameType = _pd.gameType || 'doubles';
+        emailHtml = _pd.emailHtml || '';
+    } catch (e) {
+        alert('Data load error: ' + e.message);
+    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var frame = document.getElementById('email-preview-frame');
-            if (frame) {
-                frame.srcdoc = emailHtml;
-            }
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        var frame = document.getElementById('email-preview-frame');
+        if (frame) { frame.srcdoc = emailHtml; }
+    });
 
-        function refreshPreview() {
-            document.getElementById('refresh-form').submit();
-        }
+    function refreshPreview() {
+        document.getElementById('refresh-form').submit();
+    }
 
-        function toggleRecipientEdit(index) {
-            const form = document.getElementById('recipient-form-' + index);
-            form.classList.toggle('show');
-        }
+    function toggleRecipientEdit(index) {
+        var form = document.getElementById('recipient-form-' + index);
+        if (form) form.classList.toggle('show');
+    }
 
-        function toggleRecipientIncluded(index) {
-            const checkbox = document.getElementById('recipient-checkbox-' + index);
-            const card = document.getElementById('recipient-card-' + index);
-            if (checkbox.checked) {
-                card.classList.remove('excluded');
-            } else {
-                card.classList.add('excluded');
-            }
-            updateRecipientCount();
+    function toggleRecipientIncluded(index) {
+        var checkbox = document.getElementById('recipient-checkbox-' + index);
+        var card = document.getElementById('recipient-card-' + index);
+        if (checkbox && card) {
+            if (checkbox.checked) { card.classList.remove('excluded'); }
+            else { card.classList.add('excluded'); }
         }
+        updateRecipientCount();
+    }
 
-        function updateRecipientCount() {
-            const checkboxes = document.querySelectorAll('.sr-recipient-checkbox:checked');
-            const countLabel = document.getElementById('recipient-count');
-            if (countLabel) {
-                countLabel.textContent = checkboxes.length;
-            }
-            // Update send button state
-            const sendBtn = document.getElementById('send-btn');
-            const additionalEmails = document.getElementById('additional-emails').value.trim();
-            if (checkboxes.length === 0 && !additionalEmails) {
-                sendBtn.disabled = true;
-            } else {
-                sendBtn.disabled = false;
-            }
+    function updateRecipientCount() {
+        var checkboxes = document.querySelectorAll('.sr-recipient-checkbox:checked');
+        var countLabel = document.getElementById('recipient-count');
+        if (countLabel) { countLabel.textContent = checkboxes.length; }
+        var sendBtn = document.getElementById('send-btn');
+        var addField = document.getElementById('additional-emails');
+        var hasAdditional = addField && addField.value.trim().length > 0;
+        if (sendBtn) {
+            sendBtn.disabled = (checkboxes.length === 0 && !hasAdditional);
         }
+    }
 
         function saveRecipient(playerName, index) {
             const email = document.getElementById('recipient-email-' + index).value.trim();
@@ -670,59 +666,49 @@
             });
         }
 
-        // Re-evaluate send button when additional emails are typed
-        (function() {
-            var field = document.getElementById('additional-emails');
-            if (field) {
-                field.addEventListener('input', function() { updateRecipientCount(); });
+    // Re-evaluate send button when additional emails are typed
+    var _addField = document.getElementById('additional-emails');
+    if (_addField) { _addField.addEventListener('input', function() { updateRecipientCount(); }); }
+    </script>
+
+    <script>
+    function sendEmail() {
+        var btn = document.getElementById('send-btn');
+        if (!btn || btn.disabled) return;
+        try {
+            var selectedEmails = [];
+            var cbs = document.querySelectorAll('.sr-recipient-checkbox:checked');
+            for (var i = 0; i < cbs.length; i++) {
+                selectedEmails.push(cbs[i].getAttribute('data-email'));
             }
-        })();
 
-        // Send email via event listener (more reliable on mobile than onclick attribute)
-        document.getElementById('send-btn').addEventListener('click', function(e) {
-            e.preventDefault();
-            var btn = this;
-            try {
-                if (btn.disabled) return;
-
-                var selectedEmails = [];
-                document.querySelectorAll('.sr-recipient-checkbox:checked').forEach(function(cb) {
-                    selectedEmails.push(cb.dataset.email);
-                });
-
-                var addField = document.getElementById('additional-emails');
-                var additionalEmails = [];
-                if (addField && addField.value.trim()) {
-                    additionalEmails = addField.value
-                        .split(/[,;\n]+/)
-                        .map(function(e) { return e.trim(); })
-                        .filter(function(e) { return e.length > 0; });
+            var addField = document.getElementById('additional-emails');
+            var additionalEmails = [];
+            if (addField && addField.value.trim()) {
+                var parts = addField.value.split(/[,;\n]+/);
+                for (var j = 0; j < parts.length; j++) {
+                    var e = parts[j].trim();
+                    if (e.length > 0) additionalEmails.push(e);
                 }
+            }
 
-                var totalRecipients = selectedEmails.length + additionalEmails.length;
-                if (totalRecipients === 0) {
-                    alert('Please select at least one recipient.');
-                    return;
-                }
+            var totalRecipients = selectedEmails.length + additionalEmails.length;
+            if (totalRecipients === 0) {
+                alert('Please select at least one recipient.');
+                return;
+            }
 
-                if (!confirm('Send this AI summary email to ' + totalRecipients + ' recipient(s)?')) return;
+            if (!confirm('Send email to ' + totalRecipients + ' recipient(s)?')) return;
 
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
-                fetch('{{ send_url }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        game_ids: selectedGameIds,
-                        additional_emails: additionalEmails,
-                        selected_emails: selectedEmails,
-                        email_html: emailHtml,
-                        subject: emailSubject
-                    })
-                })
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '{{ send_url }}');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onload = function() {
+                try {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.success) {
                         alert('Email sent to ' + data.emails_sent + ' recipient(s)!');
                         window.location.href = '{{ back_url }}';
@@ -731,19 +717,32 @@
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
                     }
-                })
-                .catch(function(error) {
-                    alert('Send failed: ' + error.message);
+                } catch (parseErr) {
+                    alert('Server response error: ' + xhr.status + ' ' + xhr.responseText.substring(0, 200));
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-                });
-            } catch (err) {
-                alert('Error: ' + err.message);
+                }
+            };
+            xhr.onerror = function() {
+                alert('Network error sending email.');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-            }
-        });
+            };
+            xhr.send(JSON.stringify({
+                game_ids: selectedGameIds,
+                additional_emails: additionalEmails,
+                selected_emails: selectedEmails,
+                email_html: emailHtml,
+                subject: emailSubject
+            }));
+        } catch (err) {
+            alert('Send error: ' + err.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email'; }
+        }
+    }
+    </script>
 
+    <script>
         // Menu toggle
         document.getElementById('menu-toggle').addEventListener('click', function() {
             document.getElementById('menu-sidebar').classList.add('active');
