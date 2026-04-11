@@ -334,7 +334,7 @@
                 
                 <div class="sr-action-bar">
                     <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
-                        <i class="fas fa-magic"></i> Generate Summary
+                        <i class="fas fa-magic" id="generate-icon"></i> <span id="generate-text">Generate Summary</span>
                     </button>
                     <a href="{{ url_for('ai_summary') }}" class="sr-back-btn">
                         <i class="fas fa-arrow-left"></i> Back
@@ -364,12 +364,16 @@
             document.getElementById('generate-btn').disabled = false;
         }
 
-        // Copy custom prompt to hidden field on form submit
+        // Copy custom prompt to hidden field on form submit + show loading
         document.getElementById('generate-form').addEventListener('submit', function() {
-            const customText = document.getElementById('custom-prompt-text');
+            var customText = document.getElementById('custom-prompt-text');
             if (customText) {
                 document.getElementById('custom-prompt-hidden').value = customText.value;
             }
+            var btn = document.getElementById('generate-btn');
+            btn.disabled = true;
+            document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
+            document.getElementById('generate-text').textContent = 'Generating...';
         });
 
         // Menu toggle

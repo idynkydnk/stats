@@ -430,8 +430,8 @@
 
                 <div class="sr-action-bar">
                     <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
-                        <i class="fas fa-paper-plane"></i>
-                        Generate & Preview Summary
+                        <i class="fas fa-paper-plane" id="generate-icon"></i>
+                        <span id="generate-text">Generate & Preview Summary</span>
                     </button>
                 </div>
             </form>
@@ -520,6 +520,14 @@
                 expandedTabs[tab] = false;
             }
         }
+
+        // Show loading spinner on form submit
+        document.getElementById('summary-form').addEventListener('submit', function() {
+            var btn = document.getElementById('generate-btn');
+            btn.disabled = true;
+            document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
+            document.getElementById('generate-text').textContent = 'Loading...';
+        });
 
         // Enable doubles checkboxes on load (default active tab)
         document.querySelectorAll('#tab-doubles .sr-game-checkbox').forEach(function(cb) { cb.disabled = false; });

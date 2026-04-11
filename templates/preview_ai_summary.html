@@ -484,7 +484,7 @@
             </div>
 
             <div class="sr-action-bar">
-                <button class="sr-send-btn" id="send-btn" onclick="sendEmail()" {% if not can_send %}disabled{% endif %}>
+                <button class="sr-send-btn" id="send-btn" {% if not can_send %}disabled{% endif %}>
                     <i class="fas fa-paper-plane"></i> Send Email
                 </button>
                 <a href="{{ back_url }}" class="sr-back-btn">
@@ -514,10 +514,11 @@
     </form>
 
     <script>
-        const selectedGameIds = JSON.parse('{{ selected_game_ids_json | safe }}');
-        const emailHtml = {{ email_html | tojson | safe }};
-        const emailSubject = {{ subject | tojson | safe }};
-        const gameType = {{ game_type | tojson }};
+        window.onerror = function(msg, url, line) { alert('JS Error: ' + msg + ' (line ' + line + ')'); };
+        var selectedGameIds = JSON.parse('{{ selected_game_ids_json | safe }}');
+        var emailHtml = {{ email_html | tojson | safe }};
+        var emailSubject = {{ subject | tojson | safe }};
+        var gameType = {{ game_type | tojson | safe }};
 
         document.addEventListener('DOMContentLoaded', () => {
             const frame = document.getElementById('email-preview-frame');
@@ -658,72 +659,79 @@
             });
         }
 
-        function sendEmail() {
-            const btn = document.getElementById('send-btn');
-            if (btn.disabled) return;
-
-            // Get selected recipient emails
-            const selectedEmails = [];
-            document.querySelectorAll('.sr-recipient-checkbox:checked').forEach(cb => {
-                selectedEmails.push(cb.dataset.email);
-            });
-
-            const additionalField = document.getElementById('additional-emails');
-            let additionalEmails = [];
-            if (additionalField && additionalField.value.trim()) {
-                additionalEmails = additionalField.value
-                    .split(/[,;\n]+/)
-                    .map(e => e.trim())
-                    .filter(e => e.length > 0);
+        // Re-evaluate send button when additional emails are typed
+        (function() {
+            var field = document.getElementById('additional-emails');
+            if (field) {
+                field.addEventListener('input', function() { updateRecipientCount(); });
             }
+        })();
 
-            const totalRecipients = selectedEmails.length + additionalEmails.length;
-            if (totalRecipients === 0) {
-                alert('Please select at least one recipient.');
-                return;
-            }
+        // Send email via event listener (more reliable on mobile than onclick attribute)
+        document.getElementById('send-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            var btn = this;
+            try {
+                if (btn.disabled) return;
 
-            if (!confirm('Send this AI summary email to ' + totalRecipients + ' recipient(s)?')) return;
+                var selectedEmails = [];
+                document.querySelectorAll('.sr-recipient-checkbox:checked').forEach(function(cb) {
+                    selectedEmails.push(cb.dataset.email);
+                });
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                var addField = document.getElementById('additional-emails');
+                var additionalEmails = [];
+                if (addField && addField.value.trim()) {
+                    additionalEmails = addField.value
+                        .split(/[,;\n]+/)
+                        .map(function(e) { return e.trim(); })
+                        .filter(function(e) { return e.length > 0; });
+                }
 
-            fetch('{{ send_url }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    game_ids: selectedGameIds, 
-                    additional_emails: additionalEmails, 
-                    selected_emails: selectedEmails,
-                    email_html: emailHtml,
-                    subject: emailSubject
+                var totalRecipients = selectedEmails.length + additionalEmails.length;
+                if (totalRecipients === 0) {
+                    alert('Please select at least one recipient.');
+                    return;
+                }
+
+                if (!confirm('Send this AI summary email to ' + totalRecipients + ' recipient(s)?')) return;
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+                fetch('{{ send_url }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        game_ids: selectedGameIds,
+                        additional_emails: additionalEmails,
+                        selected_emails: selectedEmails,
+                        email_html: emailHtml,
+                        subject: emailSubject
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Email sent to ' + data.emails_sent + ' recipient(s)!');
-                    window.location.href = '{{ back_url }}';
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        alert('Email sent to ' + data.emails_sent + ' recipient(s)!');
+                        window.location.href = '{{ back_url }}';
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+                    }
+                })
+                .catch(function(error) {
+                    alert('Send failed: ' + error.message);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-                }
-            })
-            .catch(error => {
-                alert('Error: ' + error.message);
+                });
+            } catch (err) {
+                alert('Error: ' + err.message);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-            });
-        }
-
-        // Re-evaluate send button when additional emails are typed
-        var additionalField = document.getElementById('additional-emails');
-        if (additionalField) {
-            additionalField.addEventListener('input', function() {
-                updateRecipientCount();
-            });
-        }
+            }
+        });
 
         // Menu toggle
         document.getElementById('menu-toggle').addEventListener('click', function() {
