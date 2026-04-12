@@ -478,23 +478,40 @@
             {% endfor %}
             {% endif %}
 
-            <div class="sr-extra-box">
-                <label>Additional recipients (comma separated)</label>
-                <textarea id="additional-emails" placeholder="friend@example.com, coach@example.com"></textarea>
-            </div>
+        </div>
 
-            <div class="sr-action-bar">
-                <button type="button" class="sr-send-btn" id="send-btn" onclick="sendEmail()" {% if not can_send %}disabled{% endif %}>
-                    <i class="fas fa-paper-plane"></i> Send Email
-                </button>
-                <a href="{{ back_url }}" class="sr-back-btn">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            </div>
+        <!-- Send Email Form (plain HTML, no JS needed) -->
+        <div class="sr-card">
+            <h2 class="sr-card-title">Send Email</h2>
+            <form method="POST" action="{{ url_for('send_ai_email_form') }}">
+                <textarea name="email_html" style="display:none;">{{ email_html | e }}</textarea>
+                <input type="hidden" name="subject" value="{{ subject | e }}">
 
-            {% if not can_send %}
-            <p class="sr-note"><i class="fas fa-info-circle"></i> Add at least one email address above to enable sending.</p>
-            {% endif %}
+                {% if players %}
+                <p class="sr-section-title"><i class="fas fa-envelope"></i> Recipients</p>
+                {% for player in players %}
+                <label style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--sr-line); font-size:14px; color:var(--sr-text); cursor:pointer;">
+                    <input type="checkbox" name="recipient_emails" value="{{ player.email }}" checked style="width:18px; height:18px; accent-color:var(--sr-win);">
+                    <span>{{ player.name }}</span>
+                    <span style="color:var(--sr-muted); font-size:12px;">{{ player.email }}</span>
+                </label>
+                {% endfor %}
+                {% endif %}
+
+                <div class="sr-extra-box">
+                    <label>Additional recipients (comma separated)</label>
+                    <textarea name="additional_emails" placeholder="friend@example.com, coach@example.com" style="width:100%; padding:12px; background:var(--sr-bg); border:1px solid var(--sr-line); border-radius:8px; color:var(--sr-text); font-size:14px; resize:vertical; min-height:60px; box-sizing:border-box;"></textarea>
+                </div>
+
+                <div class="sr-action-bar">
+                    <button type="submit" class="sr-send-btn">
+                        <i class="fas fa-paper-plane"></i> Send Email
+                    </button>
+                    <a href="{{ back_url }}" class="sr-back-btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </form>
         </div>
 
         <!-- Email Preview Card -->
@@ -666,80 +683,6 @@
             });
         }
 
-    // Re-evaluate send button when additional emails are typed
-    var _addField = document.getElementById('additional-emails');
-    if (_addField) { _addField.addEventListener('input', function() { updateRecipientCount(); }); }
-    </script>
-
-    <script>
-    function sendEmail() {
-        var btn = document.getElementById('send-btn');
-        if (!btn || btn.disabled) return;
-        try {
-            var selectedEmails = [];
-            var cbs = document.querySelectorAll('.sr-recipient-checkbox:checked');
-            for (var i = 0; i < cbs.length; i++) {
-                selectedEmails.push(cbs[i].getAttribute('data-email'));
-            }
-
-            var addField = document.getElementById('additional-emails');
-            var additionalEmails = [];
-            if (addField && addField.value.trim()) {
-                var parts = addField.value.split(/[,;\n]+/);
-                for (var j = 0; j < parts.length; j++) {
-                    var e = parts[j].trim();
-                    if (e.length > 0) additionalEmails.push(e);
-                }
-            }
-
-            var totalRecipients = selectedEmails.length + additionalEmails.length;
-            if (totalRecipients === 0) {
-                alert('Please select at least one recipient.');
-                return;
-            }
-
-            if (!confirm('Send email to ' + totalRecipients + ' recipient(s)?')) return;
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '{{ send_url }}');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onload = function() {
-                try {
-                    var data = JSON.parse(xhr.responseText);
-                    if (data.success) {
-                        alert('Email sent to ' + data.emails_sent + ' recipient(s)!');
-                        window.location.href = '{{ back_url }}';
-                    } else {
-                        alert('Error: ' + (data.error || 'Unknown error'));
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-                    }
-                } catch (parseErr) {
-                    alert('Server response error: ' + xhr.status + ' ' + xhr.responseText.substring(0, 200));
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-                }
-            };
-            xhr.onerror = function() {
-                alert('Network error sending email.');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
-            };
-            xhr.send(JSON.stringify({
-                game_ids: selectedGameIds,
-                additional_emails: additionalEmails,
-                selected_emails: selectedEmails,
-                email_html: emailHtml,
-                subject: emailSubject
-            }));
-        } catch (err) {
-            alert('Send error: ' + err.message);
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email'; }
-        }
-    }
     </script>
 
     <script>

@@ -4451,6 +4451,48 @@ def generate_and_email_today():
     })
 
 
+@app.route('/send_ai_email_form', methods=['POST'])
+@login_required
+def send_ai_email_form():
+    """Send the AI summary email via plain HTML form (no JS needed)."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        flash('Email not configured.', 'error')
+        return redirect(url_for('ai_summary'))
+
+    email_html = request.form.get('email_html') or ''
+    subject = request.form.get('subject') or 'Vball Summary'
+    recipient_emails = request.form.getlist('recipient_emails')
+    additional_raw = request.form.get('additional_emails') or ''
+
+    recipients = [e.strip() for e in recipient_emails if e and e.strip()]
+    for e in additional_raw.replace(',', ' ').replace(';', ' ').replace('\n', ' ').split():
+        e = e.strip()
+        if e and '@' in e and e not in recipients:
+            recipients.append(e)
+
+    if not recipients:
+        flash('No recipients selected.', 'error')
+        return redirect(url_for('ai_summary'))
+
+    emails_sent = 0
+    errors = []
+    for to_addr in recipients:
+        try:
+            msg = Message(subject=subject, recipients=[to_addr])
+            msg.html = email_html if email_html.strip() else '<p>No content.</p>'
+            msg.body = 'View the summary in HTML email.'
+            mail.send(msg)
+            emails_sent += 1
+        except Exception as e:
+            errors.append(f"{to_addr}: {str(e)}")
+
+    if errors:
+        flash(f'Sent to {emails_sent} recipient(s), but {len(errors)} failed: {"; ".join(errors)}', 'error')
+    else:
+        flash(f'Email sent to {emails_sent} recipient(s)!', 'success')
+    return redirect(url_for('ai_summary'))
+
+
 @app.route('/send_daily_emails', methods=['POST'])
 def send_daily_emails():
     """Send emails to all players who played on a specific date"""
