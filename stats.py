@@ -1123,17 +1123,13 @@ def player_list():
 def player_stats(year, name):
     """Doubles player stats page."""
     games = games_from_player_by_year(year, name)
-    if games:
-        minimum_games = max(1, len(games) // 40)
-    else:
-        minimum_games = 1
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    partner_stats = partner_stats_by_year(name, games, minimum_games)
-    opponent_stats = opponent_stats_by_year(name, games, minimum_games)
+    partner_stats = partner_stats_by_year(name, games)
+    opponent_stats = opponent_stats_by_year(name, games)
     return render_template('player.html', opponent_stats=opponent_stats,
-        partner_stats=partner_stats, year=year, player=name, 
-        minimum_games=minimum_games, all_years=all_years, stats=stats, games=games)
+        partner_stats=partner_stats, year=year, player=name,
+        all_years=all_years, stats=stats, games=games)
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):

@@ -732,138 +732,53 @@ def games_from_player_by_year(year, name):
 	row = convert_ampm(row)
 	return row
 
-def partner_stats_by_year(name, games, minimum_games):
-	stats = []
-	no_wins = []
+def partner_stats_by_year(name, games):
+	"""Record with every partner, most games together first (single pass over games)."""
 	if not games:
-		return stats
-	else:
-		players = all_players(games)
-		players.remove(name)
-		for partner in players:
-			wins, losses = 0, 0
-			for game in games:
-				if game[2] == name or game[3] == name:
-					if game[2] == partner or game[3] == partner:
-						wins += 1
-				if game[5] == name or game[6] == name:
-					if game[5] == partner or game[6] == partner:
-						losses += 1
-			if wins + losses > 0:
-				win_percent = wins / (wins + losses)
-				total_games = wins + losses
-				if total_games >= minimum_games:
-					if wins == 0:
-						no_wins.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-					else:
-						stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-		stats.sort(key=lambda x: x['wins'], reverse=True)
-		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-		no_wins.sort(key=lambda x: x['losses'])
-		for stat in no_wins:
-			stats.append(stat)
-		return stats
-
-
-def rare_partner_stats_by_year(name, games, minimum_games):
+		return []
+	records = {}
+	for game in games:
+		if game[2] == name or game[3] == name:
+			partner = game[3] if game[2] == name else game[2]
+			result = 'wins'
+		elif game[5] == name or game[6] == name:
+			partner = game[6] if game[5] == name else game[5]
+			result = 'losses'
+		else:
+			continue
+		rec = records.setdefault(partner, {'wins': 0, 'losses': 0})
+		rec[result] += 1
 	stats = []
+	for partner, rec in records.items():
+		total_games = rec['wins'] + rec['losses']
+		stats.append({'partner': partner, 'wins': rec['wins'], 'losses': rec['losses'],
+			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
+	stats.sort(key=lambda x: (-x['total_games'], -x['win_percentage']))
+	return stats
+
+
+def opponent_stats_by_year(name, games):
+	"""Record against every opponent, most games against first (single pass over games)."""
 	if not games:
-		return stats
-	else:
-		players = all_players(games)
-		players.remove(name)
-		stats = []
-		no_wins = []
-		for partner in players:
-			wins, losses = 0, 0
-			for game in games:
-				if game[2] == name or game[3] == name:
-					if game[2] == partner or game[3] == partner:
-						wins += 1
-				if game[5] == name or game[6] == name:
-					if game[5] == partner or game[6] == partner:
-						losses += 1
-			if wins + losses > 0:
-				win_percent = wins / (wins + losses)
-				total_games = wins + losses
-				if total_games < minimum_games:
-					if wins == 0:
-						no_wins.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-					else:
-						stats.append({'partner':partner, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-		stats.sort(key=lambda x: x['wins'], reverse=True)
-		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-		no_wins.sort(key=lambda x: x['losses'])
-		for stat in no_wins:
-			stats.append(stat)
-		return stats
-
-
-def opponent_stats_by_year(name, games, minimum_games):
+		return []
+	records = {}
+	for game in games:
+		if game[2] == name or game[3] == name:
+			opponents, result = (game[5], game[6]), 'wins'
+		elif game[5] == name or game[6] == name:
+			opponents, result = (game[2], game[3]), 'losses'
+		else:
+			continue
+		for opponent in opponents:
+			rec = records.setdefault(opponent, {'wins': 0, 'losses': 0})
+			rec[result] += 1
 	stats = []
-	if not games:
-		return stats
-	else:
-		players = all_players(games)
-		players.remove(name)
-		stats = []
-		no_wins = []
-		for opponent in players:
-			wins, losses = 0, 0
-			for game in games:
-				if game[2] == name or game[3] == name:
-					if game[5] == opponent or game[6] == opponent:
-						wins += 1
-				if game[5] == name or game[6] == name:
-					if game[2] == opponent or game[3] == opponent:
-						losses += 1
-			if wins + losses > 0:
-				win_percent = wins / (wins + losses)
-				total_games = wins + losses
-				if total_games >= minimum_games:
-					if wins == 0:
-						no_wins.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-					else:
-						stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-		stats.sort(key=lambda x: x['wins'], reverse=True)
-		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-		no_wins.sort(key=lambda x: x['losses'])
-		for stat in no_wins:
-			stats.append(stat)
-		return stats
-
-def rare_opponent_stats_by_year(name, games, minimum_games):
-	stats = []
-	if not games:
-		return stats
-	else:
-		players = all_players(games)
-		players.remove(name)
-		stats = []
-		no_wins = []
-		for opponent in players:
-			wins, losses = 0, 0
-			for game in games:
-				if game[2] == name or game[3] == name:
-					if game[5] == opponent or game[6] == opponent:
-						wins += 1
-				if game[5] == name or game[6] == name:
-					if game[2] == opponent or game[3] == opponent:
-						losses += 1
-			if wins + losses > 0:
-				win_percent = wins / (wins + losses)
-				total_games = wins + losses
-				if total_games < minimum_games:
-					if wins == 0:
-						no_wins.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-					else:
-						stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-		stats.sort(key=lambda x: x['wins'], reverse=True)
-		stats.sort(key=lambda x: x['win_percentage'], reverse=True)
-		no_wins.sort(key=lambda x: x['losses'])
-		for stat in no_wins:
-			stats.append(stat)
-		return stats
+	for opponent, rec in records.items():
+		total_games = rec['wins'] + rec['losses']
+		stats.append({'opponent': opponent, 'wins': rec['wins'], 'losses': rec['losses'],
+			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
+	stats.sort(key=lambda x: (-x['total_games'], -x['win_percentage']))
+	return stats
 
 def total_stats(games, player):
 	stats = []

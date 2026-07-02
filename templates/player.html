@@ -170,14 +170,15 @@
 
         {% if partner_stats %}
         <div class="sr-card">
-            <h3 class="sr-section-title">Stats with Partners</h3>
+            <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
             <table class="sr-mini-table">
-                <thead><tr><th>#</th><th>Partner</th><th>W</th><th>L</th><th>%</th></tr></thead>
+                <thead><tr><th>#</th><th>Partner</th><th>GP</th><th>W</th><th>L</th><th>%</th></tr></thead>
                 <tbody id="partner-tbody">
                 {% for stat in partner_stats %}
                 <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                     <td>{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['partner']) }}">{{ stat['partner'] }}</a></td>
+                    <td>{{ stat['total_games'] }}</td>
                     <td class="sr-win">{{ stat['wins'] }}</td>
                     <td class="sr-loss">{{ stat['losses'] }}</td>
                     <td>{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
@@ -186,21 +187,22 @@
                 </tbody>
             </table>
             {% if partner_stats|length > 5 %}
-            <button class="sr-show-more" onclick="toggleRows('partner-tbody', this)">Show {{ partner_stats|length - 5 }} more</button>
+            <button class="sr-show-more" onclick="toggleRows('partner-tbody', this)">Show all {{ partner_stats|length }} partners</button>
             {% endif %}
         </div>
         {% endif %}
 
         {% if opponent_stats %}
         <div class="sr-card">
-            <h3 class="sr-section-title">Stats vs Opponents</h3>
+            <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
             <table class="sr-mini-table">
-                <thead><tr><th>#</th><th>Opponent</th><th>W</th><th>L</th><th>%</th></tr></thead>
+                <thead><tr><th>#</th><th>Opponent</th><th>GP</th><th>W</th><th>L</th><th>%</th></tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
                 <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                     <td>{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
+                    <td>{{ stat['total_games'] }}</td>
                     <td class="sr-win">{{ stat['wins'] }}</td>
                     <td class="sr-loss">{{ stat['losses'] }}</td>
                     <td>{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
@@ -209,7 +211,7 @@
                 </tbody>
             </table>
             {% if opponent_stats|length > 5 %}
-            <button class="sr-show-more" onclick="toggleRows('opponent-tbody', this)">Show {{ opponent_stats|length - 5 }} more</button>
+            <button class="sr-show-more" onclick="toggleRows('opponent-tbody', this)">Show all {{ opponent_stats|length }} opponents</button>
             {% endif %}
         </div>
         {% endif %}
@@ -250,13 +252,14 @@
         function toggleRows(tbodyId, btn) {
             const tbody = document.getElementById(tbodyId);
             const hidden = tbody.querySelectorAll('.sr-hidden');
+            if (!btn.dataset.expandLabel) btn.dataset.expandLabel = btn.textContent;
             if (hidden.length > 0) {
                 hidden.forEach(row => row.classList.remove('sr-hidden'));
                 btn.textContent = 'Show less';
             } else {
                 const rows = tbody.querySelectorAll('tr');
                 rows.forEach((row, i) => { if (i >= 5) row.classList.add('sr-hidden'); });
-                btn.textContent = `Show ${rows.length - 5} more`;
+                btn.textContent = btn.dataset.expandLabel;
             }
         }
         function toggleGames(btn) {
