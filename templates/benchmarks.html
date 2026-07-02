@@ -382,7 +382,7 @@
                 </thead>
                 <tbody>
                     {% set max_time = benchmark.results|selectattr('avg')|map(attribute='avg')|max %}
-                    {% for result in benchmark.results|sort(attribute='avg', reverse=true) if result.avg %}
+                    {% for result in benchmark.results|selectattr('avg')|sort(attribute='avg', reverse=true) %}
                     <tr>
                         <td>{{ result.name }}</td>
                         <td>

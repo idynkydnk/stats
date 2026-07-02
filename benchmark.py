@@ -48,13 +48,8 @@ ROUTES = [
     ('/stats/2025/', 'Stats 2025'),
     ('/stats/2026/', 'Stats 2026'),
     
-    # Dashboard
-    ('/dashboard/', 'Dashboard'),
-    ('/combined_dashboard/', 'Combined Dashboard'),
-    
     # Player pages
     ('/player_list/', 'Player List'),
-    ('/player_trends/', 'Player Trends'),
     
     # Games listing
     ('/games/', 'Games List'),
@@ -65,17 +60,9 @@ ROUTES = [
     ('/vollis_stats/', 'Vollis Stats'),
     ('/other_stats/', 'Other Stats'),
     ('/volleyball_stats/', 'Volleyball Stats'),
-    ('/advanced_stats/', 'Advanced Stats'),
-    
-    # Rankings
-    ('/glicko_rankings/', 'Glicko Rankings'),
-    ('/trueskill_rankings/', 'TrueSkill Rankings'),
     
     # Other
-    ('/kobs/', 'KOBs'),
     ('/tournaments/', 'Tournaments'),
-    ('/top_teams/', 'Top Teams'),
-    ('/game_hub', 'Game Hub'),
 ]
 
 def benchmark_route(base_url, route, name, runs=3, session=None):

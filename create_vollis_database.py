@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from sqlite3 import Error
 
@@ -7,6 +8,10 @@ def create_connection(db_file):
     :param db_file: database file
     :return: Connection object or None
     """
+    # Skip paths whose directory doesn't exist (e.g. server path when running locally)
+    parent = os.path.dirname(db_file)
+    if parent and not os.path.isdir(parent):
+        return None
     conn = None
     try:
         conn = sqlite3.connect(db_file)

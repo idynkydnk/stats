@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from sqlite3 import Error
 
@@ -12,6 +13,11 @@ def create_connection(db_file):
     :param db_file: database file
     :return: Connection object or None
     """
+    # Skip absolute paths whose directory doesn't exist (e.g. the PythonAnywhere
+    # path when running locally) instead of spamming "unable to open database file".
+    parent = os.path.dirname(db_file)
+    if parent and not os.path.isdir(parent):
+        return None
     conn = None
     try:
         conn = sqlite3.connect(db_file)
