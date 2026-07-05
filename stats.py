@@ -20,6 +20,7 @@ from email_content import (
     build_vollis_email_payload,
     build_other_email_payload,
 )
+import admin_functions as adminfx
 import os
 import subprocess
 import sqlite3
@@ -74,9 +75,9 @@ def _supabase_flash_suffix(supabase_ok):
         return ' Supabase sync failed.'
     return ' (Supabase not configured.)'
 
-# User authentication - passwords are stored as werkzeug pbkdf2 hashes, never plaintext.
-# To add or change a user, generate a hash with:
-#   python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('the_password', method='pbkdf2:sha256'))"
+# Legacy seed users - only used to populate the site_users DB table on first run.
+# After that, users live in the database and are managed from the /admin page.
+# Passwords are werkzeug pbkdf2 hashes, never plaintext.
 USERS = {
     'kyle': 'pbkdf2:sha256:260000$x1zU6VqW1aTl88DR$e007afc1b4d32fee014d14c1f8376a535b0dc9f62a285bde81374ea4330f2e47',
     'aaron': 'pbkdf2:sha256:260000$9TvOpo8SprF7XljN$67b49134c7baec674e8464475fc8b92605068d9c24005ae4c438ad3708dd4105',
@@ -91,9 +92,18 @@ USERS = {
 
 
 def verify_password(username, password):
-    """Check a username/password pair against the stored hash."""
+    """Check a username/password pair against the site_users table.
+    Inactive (deactivated) users are rejected."""
+    if not password:
+        return False
+    user = adminfx.get_site_user(username)
+    if user:
+        if not user.get('active'):
+            return False
+        return check_password_hash(user['password_hash'], password)
+    # Fallback for the seed dict in case the DB table is unavailable
     password_hash = USERS.get(username)
-    if not password_hash or not password:
+    if not password_hash:
         return False
     return check_password_hash(password_hash, password)
 
@@ -134,9 +144,18 @@ ADMIN_USERS = {'kyle'}
 
 
 def is_admin(username=None):
-    """True if the given username (or the current session user) is an admin."""
+    """True if the given username (or the current session user) is an admin.
+    Admin flag lives in the site_users table; ADMIN_USERS is the fallback."""
     if username is None:
         username = session.get('username', '')
+    if not username:
+        return False
+    try:
+        user = adminfx.get_site_user(username)
+        if user:
+            return bool(user.get('is_admin')) and bool(user.get('active'))
+    except Exception:
+        pass
     return (username or '').lower() in ADMIN_USERS
 
 
@@ -388,6 +407,33 @@ def mark_notifications_read(notification_ids):
 # Initialize database tables
 init_notifications_db()
 init_auth_tokens_db()
+adminfx.init_activity_log_db()
+adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
+
+
+def log_activity(action, target=None, target_id=None, summary=None, before=None, after=None, username=None):
+    """Record an entry in the admin activity log. Never raises - logging must
+    not break the action being logged."""
+    try:
+        user = username or session.get('username') or 'unknown'
+        adminfx.insert_activity(user, action, target, target_id, summary, before, after)
+    except Exception:
+        app.logger.exception('Failed to write activity log')
+
+
+def admin_required(f):
+    """Require a logged-in admin user. Non-admins get redirected home."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login', next=request.url))
+        if not is_admin():
+            flash('Admin access required.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 def login_required(f):
     from functools import wraps
@@ -877,6 +923,10 @@ def _add_doubles_game_view(redirect_to):
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added doubles game', details)
+            new_row = adminfx.snapshot_last_row('doubles_game')
+            log_activity('Added doubles game', target='doubles_game',
+                         target_id=new_row['id'] if new_row else None,
+                         summary=details, after=new_row)
             update_kobs()
             flash('Game saved to database.' + _supabase_flash_suffix(supabase_ok), 'success')
         return redirect(url_for(redirect_to))
@@ -1033,6 +1083,10 @@ def add_vollis_game():
             user = session.get('username', 'unknown')
             details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added vollis game', details)
+            new_row = adminfx.snapshot_last_row('vollis_game')
+            log_activity('Added vollis game', target='vollis_game',
+                         target_id=new_row['id'] if new_row else None,
+                         summary=details, after=new_row)
         return redirect(url_for('add_vollis_game'))
     
     all_games = vollis_year_games('All years')
@@ -1132,6 +1186,10 @@ def add_other_game():
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Added other game', details)
+            new_row = adminfx.snapshot_last_row('other_game')
+            log_activity('Added other game', target='other_game',
+                         target_id=new_row['id'] if new_row else None,
+                         summary=details, after=new_row)
         return redirect(url_for('add_other_game'))
     
     players = all_combined_players()
@@ -1319,6 +1377,7 @@ def update(id):
         else:
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
+            before_row = adminfx.snapshot_row('doubles_game', game_id)
             supabase_ok = update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
             
             # Clear stats cache after editing a game
@@ -1328,6 +1387,9 @@ def update(id):
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited doubles game', details)
+            log_activity('Edited doubles game', target='doubles_game', target_id=game_id,
+                         summary=details, before=before_row,
+                         after=adminfx.snapshot_row('doubles_game', game_id))
             
             # Update KOBs after editing game
             update_kobs()
@@ -1353,13 +1415,16 @@ def delete_game(id):
     from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
         # Log the action for notifications before deleting
+        details = f"Game ID {game_id}"
         if game and len(game) > 0 and len(game[0]) >= 8:
             user = session.get('username', 'unknown')
             game_data = game[0]  # Get the first (and only) row
             details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]} ({game_data[4]}-{game_data[7]})"
             log_user_action(user, 'Deleted doubles game', details)
-        
+        before_row = adminfx.snapshot_row('doubles_game', game_id)
         supabase_ok = remove_game(game_id)
+        log_activity('Deleted doubles game', target='doubles_game', target_id=game_id,
+                     summary=details, before=before_row)
         
         # Clear stats cache after deleting a game
         clear_stats_cache()
@@ -1382,6 +1447,7 @@ def delete_game(id):
 
 
 @app.route('/edit_vollis_game/<int:id>/',methods = ['GET','POST'])
+@login_required
 def update_vollis_game(id):
     game_id = id
     x = find_vollis_game(game_id)
@@ -1397,12 +1463,16 @@ def update_vollis_game(id):
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
         else:
+            before_row = adminfx.snapshot_row('vollis_game', game_id)
             edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, get_user_now(), game_id)
             
             # Log the action for notifications
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited vollis game', details)
+            log_activity('Edited vollis game', target='vollis_game', target_id=game_id,
+                         summary=details, before=before_row,
+                         after=adminfx.snapshot_row('vollis_game', game_id))
             
             return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
  
@@ -1410,6 +1480,7 @@ def update_vollis_game(id):
 
 
 @app.route('/delete_vollis_game/<int:id>/',methods = ['GET','POST'])
+@login_required
 def delete_vollis_game(id):
     game_id = id
     game = find_vollis_game(id)
@@ -1420,8 +1491,10 @@ def delete_vollis_game(id):
         user = session.get('username', 'unknown')
         details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
         log_user_action(user, 'Deleted vollis game', details)
-        
+        before_row = adminfx.snapshot_row('vollis_game', game_id)
         remove_vollis_game(game_id)
+        log_activity('Deleted vollis game', target='vollis_game', target_id=game_id,
+                     summary=details, before=before_row)
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':
@@ -1692,6 +1765,7 @@ def volleyball_player_stats(year, name):
 
 
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
+@login_required
 def update_other_game(id):
     game_id = id
     x = find_other_game(game_id)
@@ -1784,6 +1858,7 @@ def update_other_game(id):
                 aggregate_winner_score = next((int(score) for score in winner_scores if score not in ("", None)), None)
                 aggregate_loser_score = next((int(score) for score in loser_scores if score not in ("", None)), None)
             
+            before_row = adminfx.snapshot_row('other_game', game_id)
             with conn:
                 game_data = tuple(
                     [game_row[1], game_type, game_name]
@@ -1800,6 +1875,9 @@ def update_other_game(id):
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Edited other game', details)
+            log_activity('Edited other game', target='other_game', target_id=game_id,
+                         summary=details, before=before_row,
+                         after=adminfx.snapshot_row('other_game', game_id))
             
             return redirect(url_for('edit_other_games', year=str(date.today().year)))
  
@@ -1808,6 +1886,7 @@ def update_other_game(id):
 
 
 @app.route('/delete_other_game/<int:id>/',methods = ['GET','POST'])
+@login_required
 def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
@@ -1823,8 +1902,10 @@ def delete_other_game(id):
         # Raw database structure: [id, game_date, game_type, game_name, winner1, winner2, ..., winner_score, loser1, ..., loser_score, comment, updated_at]
         details = f"Game ID {game_id}: {game[0][2]} - {game[0][3]} ({game[0][4]} vs {game[0][11]})"
         log_user_action(user, 'Deleted other game', details)
-        
+        before_row = adminfx.snapshot_row('other_game', game_id)
         remove_other_game(game_id)
+        log_activity('Deleted other game', target='other_game', target_id=game_id,
+                     summary=details, before=before_row)
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':
@@ -1896,6 +1977,7 @@ def login():
             session.permanent = True  # Use PERMANENT_SESSION_LIFETIME so session cookie persists
             session['logged_in'] = True
             session['username'] = username
+            log_activity('Logged in', summary=f'Web login from {ip}', username=username)
             flash(f'Successfully logged in as {username}!', 'success')
             
             # Show notifications to admins if there are any unread ones
@@ -1966,6 +2048,7 @@ def api_login():
         return jsonify({'error': 'Invalid username or password'}), 401
     clear_login_failures(ip)
     token = create_auth_token(username)
+    log_activity('Logged in', summary=f'iPhone app login from {ip}', username=username)
     return jsonify({'token': token, 'username': username})
 
 @app.route('/api/doubles/games', methods=['GET'])
@@ -2051,6 +2134,11 @@ def api_doubles_create():
     cur = conn.execute("SELECT * FROM games ORDER BY id DESC LIMIT 1")
     row = cur.fetchone()
     conn.close()
+    new_row = adminfx.snapshot_last_row('doubles_game')
+    log_activity('Added doubles game (iPhone)', target='doubles_game',
+                 target_id=new_row['id'] if new_row else None,
+                 summary=f"{winner1} & {winner2} beat {loser1} & {loser2} {winner_score}-{loser_score}",
+                 after=new_row)
     if row:
         game = _api_game_row_to_dict(row)
         return jsonify(game), 201
@@ -2089,9 +2177,13 @@ def api_doubles_update(game_id):
         pass
     updated_at = get_user_now()
     updated_by = session.get('username', 'unknown')
+    before_row = adminfx.snapshot_row('doubles_game', game_id)
     update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id, updated_by=updated_by)
     clear_stats_cache()
     update_kobs()
+    log_activity('Edited doubles game (iPhone)', target='doubles_game', target_id=game_id,
+                 summary=f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})",
+                 before=before_row, after=adminfx.snapshot_row('doubles_game', game_id))
     x = find_game(game_id)
     if x and x[0]:
         return jsonify(_api_game_row_to_dict(x[0]))
@@ -2104,9 +2196,12 @@ def api_doubles_delete(game_id):
     x = find_game(game_id)
     if not x or not x[0]:
         return jsonify({'error': 'Game not found'}), 404
+    before_row = adminfx.snapshot_row('doubles_game', game_id)
     remove_game(game_id)
     clear_stats_cache()
     update_kobs()
+    log_activity('Deleted doubles game (iPhone)', target='doubles_game', target_id=game_id,
+                 summary=f"Game ID {game_id}", before=before_row)
     return jsonify({'message': 'Deleted', 'id': game_id}), 200
 
 @app.route('/notifications')
@@ -2169,6 +2264,7 @@ def deploy():
         # Reload the web app
         subprocess.run(['touch', '/var/www/idynkydnk_pythonanywhere_com_wsgi.py'], check=True)
         
+        log_activity('Deployed site', summary='Auto-deploy from GitHub push', username='github')
         return 'Deployment successful', 200
     except Exception as e:
         return f'Deployment failed: {str(e)}', 500
@@ -2335,21 +2431,30 @@ def api_delete_games():
                     game_data = game[0]
                     details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]}"
                     log_user_action(user, 'Deleted doubles game (bulk)', details)
+                    before_row = adminfx.snapshot_row('doubles_game', game_id)
                     remove_game(game_id)
+                    log_activity('Deleted doubles game (bulk)', target='doubles_game',
+                                 target_id=game_id, summary=details, before=before_row)
                     deleted += 1
             elif game_type == 'vollis':
                 game = find_vollis_game(game_id)
                 if game and len(game) > 0:
                     details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]}"
                     log_user_action(user, 'Deleted vollis game (bulk)', details)
+                    before_row = adminfx.snapshot_row('vollis_game', game_id)
                     remove_vollis_game(game_id)
+                    log_activity('Deleted vollis game (bulk)', target='vollis_game',
+                                 target_id=game_id, summary=details, before=before_row)
                     deleted += 1
             elif game_type == 'other':
                 game = find_other_game(game_id)
                 if game:
                     details = f"Game ID {game_id}"
                     log_user_action(user, 'Deleted other game (bulk)', details)
+                    before_row = adminfx.snapshot_row('other_game', game_id)
                     remove_other_game(game_id)
+                    log_activity('Deleted other game (bulk)', target='other_game',
+                                 target_id=game_id, summary=details, before=before_row)
                     deleted += 1
         except Exception as e:
             print(f"Error deleting game {game_id}: {e}")
@@ -2416,6 +2521,7 @@ def add_tournament():
                     VALUES (?, ?, ?, ?, ?)
                 ''', (tournament_date, place, team, location, tournament_name))
                 conn.commit()
+                log_activity('Added tournament', summary=f'{tournament_name} ({tournament_date}) - {place} place')
                 flash('Tournament added.', 'success')
             except Exception as e:
                 flash(f'Error saving: {e}', 'error')
@@ -2426,6 +2532,7 @@ def add_tournament():
     return render_template('add_tournament.html')
 
 @app.route('/edit_player/<int:player_id>/', methods=['GET', 'POST'])
+@login_required
 def edit_player(player_id):
     """Edit player information page"""
     from player_functions import get_player_by_id, update_player_info
@@ -2453,9 +2560,11 @@ def edit_player(player_id):
             user = session.get('username', 'unknown')
             if old_name != full_name:
                 log_user_action(user, 'Edited player', f'Renamed "{old_name}" to "{full_name}"')
+                log_activity('Edited player', summary=f'Renamed "{old_name}" to "{full_name}"')
                 flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.')
             else:
                 log_user_action(user, 'Edited player', f'Updated info for "{full_name}"')
+                log_activity('Edited player', summary=f'Updated info for "{full_name}"')
                 flash('Player updated successfully!')
             return redirect(url_for('player_list'))
     
@@ -2720,6 +2829,7 @@ def api_add_player():
 
     user = session.get('username', 'unknown')
     log_user_action(user, 'Added new player', f'{full_name} ({email or "no email"})')
+    log_activity('Added new player', summary=f'{full_name} ({email or "no email"})')
 
     return jsonify({'success': True, 'player_id': player_id})
 
@@ -2742,6 +2852,7 @@ def api_rename_player():
         updates_made = update_player_name(old_name, new_name)
         user = session.get('username', 'unknown')
         log_user_action(user, 'Renamed player', f'"{old_name}" to "{new_name}" ({updates_made} records)')
+        log_activity('Renamed player', summary=f'"{old_name}" to "{new_name}" ({updates_made} records)')
         
         # Clear caches so stats reflect the new name
         clear_stats_cache()
@@ -2782,6 +2893,7 @@ def add_player_email():
 
     user = session.get('username', 'unknown')
     log_user_action(user, 'Updated player email', f'{player_name} -> {email}')
+    log_activity('Updated player email', summary=f'{player_name} -> {email}')
 
     return jsonify({'success': True, 'email': email})
 
@@ -2830,6 +2942,7 @@ def api_update_player_info():
     if birthday: updates.append(f'birthday={birthday}')
     if height: updates.append(f'height={height}')
     log_user_action(user, 'Updated player info', f'{player_name}: {", ".join(updates)}')
+    log_activity('Updated player info', summary=f'{player_name}: {", ".join(updates)}')
 
     return jsonify({'success': True})
 
@@ -2959,6 +3072,7 @@ def test_email():
         # Send the email
         mail.send(msg)
         
+        log_activity('Sent email', summary='Test email to acwodzinski@gmail.com')
         flash('Test email sent successfully to acwodzinski@gmail.com!', 'success')
         return jsonify({
             'success': True,
@@ -3003,6 +3117,7 @@ def generate_and_email_today():
             emails_sent += 1
         except Exception as e:
             errors.append(f"{to_addr}: {str(e)}")
+    log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     return jsonify({
         'success': True,
         'emails_sent': emails_sent,
@@ -3045,6 +3160,7 @@ def send_ai_email_form():
         except Exception as e:
             errors.append(f"{to_addr}: {str(e)}")
 
+    log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     if errors:
         flash(f'Sent to {emails_sent} recipient(s), but {len(errors)} failed: {"; ".join(errors)}', 'error')
     else:
@@ -3135,6 +3251,7 @@ def send_daily_emails():
     # Flash success/error messages
     if emails_sent > 0:
         flash(f'Successfully sent {emails_sent} email(s) for {target_date}!', 'success')
+        log_activity('Sent email', summary=f'Daily emails for {target_date} to {emails_sent} player(s)')
     
     if errors:
         for error in errors:
@@ -3145,6 +3262,181 @@ def send_daily_emails():
         'emails_sent': emails_sent,
         'errors': errors
     })
+
+
+# ============================================
+# ADMIN DASHBOARD
+# ============================================
+
+@app.route('/admin/')
+@admin_required
+def admin_dashboard():
+    """Admin dashboard: overview cards, activity feed, user management, quick actions."""
+    today = date.today()
+    counts = adminfx.games_counts(today.strftime('%Y-%m-%d'), (today - timedelta(days=6)).strftime('%Y-%m-%d'))
+    recent_game = adminfx.most_recent_game()
+    unread_count = len(get_unread_notifications())
+
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 50
+    entries, total_entries = adminfx.get_activity_page(page=page, per_page=per_page)
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    entries = _format_activity_times(entries)
+
+    users = adminfx.list_site_users()
+    users = [dict(u, last_seen_fmt=_format_utc_str(u.get('last_seen')),
+                  last_login_fmt=_format_utc_str(u.get('last_login'))) for u in users]
+
+    try:
+        db_size_mb = round(os.path.getsize(adminfx.stats_db_path()) / (1024 * 1024), 1)
+    except OSError:
+        db_size_mb = None
+
+    return render_template('admin.html',
+        counts=counts, recent_game=recent_game, unread_count=unread_count,
+        entries=entries, page=page, total_pages=total_pages, total_entries=total_entries,
+        users=users, db_size_mb=db_size_mb,
+        email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')))
+
+
+def _format_utc_str(ts):
+    """Format a UTC timestamp string from SQLite into the session user's timezone."""
+    if not ts:
+        return None
+    try:
+        clean = str(ts).split('.')[0]
+        dt_utc = datetime.strptime(clean, '%Y-%m-%d %H:%M:%S').replace(tzinfo=ZoneInfo('UTC'))
+        tz = ZoneInfo(session.get('timezone')) if session.get('timezone') else ZoneInfo('UTC')
+        return dt_utc.astimezone(tz).strftime('%b %d, %Y at %I:%M %p')
+    except Exception:
+        return str(ts)
+
+
+def _format_activity_times(entries):
+    for e in entries:
+        e['created_at_fmt'] = _format_utc_str(e.get('created_at'))
+    return entries
+
+
+@app.route('/admin/undo/<int:log_id>', methods=['POST'])
+@admin_required
+def admin_undo(log_id):
+    """Reverse a logged game change (edit -> restore old values, delete -> re-insert, add -> remove)."""
+    ok, message, target = adminfx.undo_entry(log_id)
+    if ok:
+        clear_stats_cache()
+        if target == 'doubles_game':
+            update_kobs()
+        entry = adminfx.get_activity_entry(log_id)
+        log_activity('Undid change', target=target, target_id=entry['target_id'] if entry else None,
+                     summary=f"Undid log entry #{log_id}: {entry['summary'] if entry else ''}")
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/users/add', methods=['POST'])
+@admin_required
+def admin_add_user():
+    from werkzeug.security import generate_password_hash
+    username = (request.form.get('username') or '').strip().lower()
+    password = request.form.get('password') or ''
+    make_admin = request.form.get('is_admin') == 'on'
+    if not username or not password:
+        flash('Username and password are required.', 'error')
+    elif len(password) < 8:
+        flash('Password must be at least 8 characters.', 'error')
+    elif adminfx.get_site_user(username):
+        flash(f'User "{username}" already exists.', 'error')
+    else:
+        adminfx.create_site_user(username, generate_password_hash(password, method='pbkdf2:sha256'), is_admin=make_admin)
+        log_activity('Added site user', summary=f'{username}{" (admin)" if make_admin else ""}')
+        flash(f'User "{username}" created.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/users/reset_password', methods=['POST'])
+@admin_required
+def admin_reset_password():
+    from werkzeug.security import generate_password_hash
+    username = (request.form.get('username') or '').strip()
+    password = request.form.get('password') or ''
+    if not username or not password:
+        flash('Username and new password are required.', 'error')
+    elif len(password) < 8:
+        flash('Password must be at least 8 characters.', 'error')
+    elif adminfx.update_site_user(username, password_hash=generate_password_hash(password, method='pbkdf2:sha256')):
+        log_activity('Reset user password', summary=username)
+        flash(f'Password updated for "{username}".', 'success')
+    else:
+        flash(f'User "{username}" not found.', 'error')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/users/toggle_active', methods=['POST'])
+@admin_required
+def admin_toggle_active():
+    username = (request.form.get('username') or '').strip()
+    activate = request.form.get('activate') == '1'
+    if username.lower() == (session.get('username') or '').lower():
+        flash('You cannot deactivate your own account.', 'error')
+    elif adminfx.update_site_user(username, active=activate):
+        # Kick a deactivated user off any device immediately
+        if not activate:
+            revoke_all_user_tokens(username)
+        log_activity('Reactivated site user' if activate else 'Deactivated site user', summary=username)
+        flash(f'User "{username}" {"reactivated" if activate else "deactivated"}.', 'success')
+    else:
+        flash(f'User "{username}" not found.', 'error')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/backup', methods=['POST'])
+@admin_required
+def admin_backup():
+    """Copy stats.db into backups/ with a timestamp."""
+    import shutil
+    src = adminfx.stats_db_path()
+    backup_dir = os.path.join(os.path.dirname(os.path.abspath(src)) or '.', 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+    dest = os.path.join(backup_dir, f"stats_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+    try:
+        shutil.copy2(src, dest)
+        log_activity('Backed up database', summary=os.path.basename(dest))
+        flash(f'Database backed up to {os.path.basename(dest)}.', 'success')
+    except Exception as e:
+        flash(f'Backup failed: {e}', 'error')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/clear_cache', methods=['POST'])
+@admin_required
+def admin_clear_cache():
+    clear_stats_cache()
+    log_activity('Cleared stats cache')
+    flash('Stats cache cleared.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/test_email', methods=['POST'])
+@admin_required
+def admin_test_email():
+    """Send a test email and redirect back to the dashboard (form-friendly)."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        flash('Email not configured.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    to_addr = app.config.get('MAIL_USERNAME')
+    try:
+        msg = Message(subject='Test email from Stats admin dashboard', recipients=[to_addr])
+        msg.body = 'Email sending works. Sent from the admin dashboard.'
+        mail.send(msg)
+        log_activity('Sent email', summary=f'Test email to {to_addr}')
+        flash(f'Test email sent to {to_addr}.', 'success')
+    except Exception as e:
+        flash(f'Test email failed: {e}', 'error')
+    return redirect(url_for('admin_dashboard'))
+
 
 if __name__ == '__main__':
     # host='127.0.0.1' = local only (avoids HTTPS probes from browser/network)

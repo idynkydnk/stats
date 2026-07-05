@@ -15,6 +15,7 @@
     <div class="menu-sidebar" id="menu-sidebar">
         <button class="menu-close" id="menu-close">✕</button>
         <ul class="menu-list">
+            <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin Dashboard</a></li>
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
             <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
             <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
