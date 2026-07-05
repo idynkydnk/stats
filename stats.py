@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response, send_from_directory
+from werkzeug.security import check_password_hash
 # Flask-Caching is optional - the custom caching in stat_functions.py will still work
 try:
     from flask_caching import Cache
@@ -40,7 +41,10 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'b83880e869f054bfc465a6f46125ac715e7286ed25e88537'
+# SECRET_KEY comes from the environment (.env locally, WSGI file on PythonAnywhere).
+# Fallback is a random key per process: the app still runs, but session cookies reset
+# on each restart until SECRET_KEY is set. Remember-me tokens live in the DB and survive.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 # Stay logged in across browser closes (session cookie lives 90 days when permanent)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
@@ -70,18 +74,60 @@ def _supabase_flash_suffix(supabase_ok):
         return ' Supabase sync failed.'
     return ' (Supabase not configured.)'
 
-# User authentication - you can add more users here
+# User authentication - passwords are stored as werkzeug pbkdf2 hashes, never plaintext.
+# To add or change a user, generate a hash with:
+#   python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('the_password', method='pbkdf2:sha256'))"
 USERS = {
-    'kyle': 'stats2025',
-    'aaron': 'aaron2025',
-    'dan': 'dan2025',
-    'ryan': 'ryan2025',
-    'arbel': 'arbel2025',
-    'mark': 'mark2025',
-    'troy': 'troy2025',
-    'jason': 'jason2025',
-    'iosapp': 'stats2026'
+    'kyle': 'pbkdf2:sha256:260000$x1zU6VqW1aTl88DR$e007afc1b4d32fee014d14c1f8376a535b0dc9f62a285bde81374ea4330f2e47',
+    'aaron': 'pbkdf2:sha256:260000$9TvOpo8SprF7XljN$67b49134c7baec674e8464475fc8b92605068d9c24005ae4c438ad3708dd4105',
+    'dan': 'pbkdf2:sha256:260000$6KBD6pvcm2iolqSA$51e8af1de015b689917d6ceb29cf6dd2b61a9aeeefa6c15a31889708f297e167',
+    'ryan': 'pbkdf2:sha256:260000$ieJam4WevIp0HbDv$6f10272595d186052d1392e83c7a5332b46e7277fef1aaddb4b07b15b6bd5710',
+    'arbel': 'pbkdf2:sha256:260000$uyEex6wjretzvU9R$ada59f54c3ea7a9cd03e5f6bdb52e619d7e9727ae7fbd88b43e1473a0ed24881',
+    'mark': 'pbkdf2:sha256:260000$nMljS3zc86cNQpVa$c7a86794395d1eb70274cc2fd7e429201d92e77ffa55506ce787968d01fdcd16',
+    'troy': 'pbkdf2:sha256:260000$KPm2XJKdTb41DX87$636369a4264b2c7d9643551501b62718fc0a07e8db19ff5379c74608392d15bf',
+    'jason': 'pbkdf2:sha256:260000$f9ODxWNNQ392rwMq$38681d54120fde7624cebea606413e1800f0fcc17a357e8a551e2de2623ad4ea',
+    'iosapp': 'pbkdf2:sha256:260000$BzqYrJSydBHGcaFa$04ac62a42b1af2dadd05d2deaece7dcd8b6ee73abd817e94c729f6ad3b934a80',
 }
+
+
+def verify_password(username, password):
+    """Check a username/password pair against the stored hash."""
+    password_hash = USERS.get(username)
+    if not password_hash or not password:
+        return False
+    return check_password_hash(password_hash, password)
+
+
+# --- Simple in-memory rate limiting for login endpoints (no extra dependency) ---
+_login_failures = {}  # ip -> list of failure timestamps
+_login_failures_lock = threading.Lock()
+LOGIN_MAX_FAILURES = 10       # allowed failures per window
+LOGIN_WINDOW_SECONDS = 300    # 5 minutes
+
+
+def _client_ip():
+    """Client IP, preferring the proxy header PythonAnywhere sets."""
+    return request.headers.get('X-Real-IP') or request.remote_addr or 'unknown'
+
+
+def login_rate_limited(ip):
+    """True if this IP has too many recent failed logins."""
+    now = time.time()
+    with _login_failures_lock:
+        recent = [t for t in _login_failures.get(ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+        _login_failures[ip] = recent
+        return len(recent) >= LOGIN_MAX_FAILURES
+
+
+def record_login_failure(ip):
+    now = time.time()
+    with _login_failures_lock:
+        _login_failures.setdefault(ip, []).append(now)
+
+
+def clear_login_failures(ip):
+    with _login_failures_lock:
+        _login_failures.pop(ip, None)
 
 # Users with access to admin-only pages (notifications, benchmarks, admin base template)
 ADMIN_USERS = {'kyle'}
@@ -1839,8 +1885,14 @@ def login():
         password = request.form['password']
         remember_me = request.form.get('remember_me') == 'on'
         next_url = request.form.get('next')  # Get from hidden form field
-        
-        if username in USERS and USERS[username] == password:
+
+        ip = _client_ip()
+        if login_rate_limited(ip):
+            flash('Too many failed login attempts. Please wait a few minutes and try again.', 'error')
+            return render_template('login.html'), 429
+
+        if verify_password(username, password):
+            clear_login_failures(ip)
             session.permanent = True  # Use PERMANENT_SESSION_LIFETIME so session cookie persists
             session['logged_in'] = True
             session['username'] = username
@@ -1862,13 +1914,14 @@ def login():
                 cookie_days = 90
                 response.set_cookie('remember_token', auth_token,
                                   max_age=cookie_days*24*60*60,
-                                  secure=False,  # Set to True in production with HTTPS
+                                  secure=request.is_secure,  # HTTPS-only cookie in production, still works on local http
                                   httponly=True,
                                   samesite='Lax')
                 flash(f'You will stay logged in on this device for {cookie_days} days.', 'info')
             
             return response
         else:
+            record_login_failure(ip)
             flash('Invalid username or password.', 'error')
     
     return render_template('login.html')
@@ -1905,8 +1958,13 @@ def api_login():
     data = request.get_json(force=True, silent=True) or {}
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
-    if username not in USERS or USERS[username] != password:
+    ip = _client_ip()
+    if login_rate_limited(ip):
+        return jsonify({'error': 'Too many failed login attempts. Try again in a few minutes.'}), 429
+    if not verify_password(username, password):
+        record_login_failure(ip)
         return jsonify({'error': 'Invalid username or password'}), 401
+    clear_login_failures(ip)
     token = create_auth_token(username)
     return jsonify({'token': token, 'username': username})
 
@@ -2092,7 +2150,14 @@ def get_notification_count():
 
 @app.route('/deploy', methods=['POST'])
 def deploy():
-    """Webhook endpoint for automated deployment"""
+    """Webhook endpoint for automated deployment. Requires X-Deploy-Token header
+    matching the DEPLOY_TOKEN env var (set in the WSGI file on PythonAnywhere)."""
+    expected_token = os.environ.get('DEPLOY_TOKEN', '')
+    if not expected_token:
+        return 'Deployment disabled: DEPLOY_TOKEN is not configured on the server', 503
+    provided_token = request.headers.get('X-Deploy-Token', '')
+    if not secrets.compare_digest(provided_token, expected_token):
+        return 'Unauthorized', 403
     try:
         # Change to the stats directory
         os.chdir('/home/Idynkydnk/stats')

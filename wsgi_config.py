@@ -37,6 +37,15 @@ from stats import app as application
 #      os.environ['SUPABASE_URL'] = 'https://your-project.supabase.co'
 #      os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'your_service_role_key_here'
 #
+#      # Flask session signing key - generate with:
+#      #   python3 -c "import secrets; print(secrets.token_hex(32))"
+#      os.environ['SECRET_KEY'] = 'your_random_secret_key_here'
+#
+#      # Deploy webhook token - must match the DEPLOY_TOKEN secret in the
+#      # GitHub repo (Settings -> Secrets and variables -> Actions).
+#      # Without it, POST /deploy returns 503 and auto-deploy is disabled.
+#      os.environ['DEPLOY_TOKEN'] = 'your_random_deploy_token_here'
+#
 #   6. Replace 'your_gmail_app_password_here' with your actual Gmail app password
 #   7. Click "Save" at the top of the editor
 #   8. Go back to the Web tab and click the green "Reload" button
