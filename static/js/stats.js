@@ -58,6 +58,9 @@ function initRatingInfoPopover() {
 // ============================================
 // SEARCH FILTERING
 // ============================================
+let searchTimeout = null;
+let currentSearchQuery = '';
+
 function initSearch() {
     const searchInput = document.getElementById('sr-search');
     if (!searchInput) return;
@@ -65,13 +68,30 @@ function initSearch() {
     const filterActive = document.getElementById('sr-filter-active');
     const filterChip = document.getElementById('sr-filter-chip');
     const noResults = document.getElementById('sr-no-results');
+    const searchDropdown = document.getElementById('sr-search-dropdown');
     
     // Get all sr-table elements on the page
     const tables = document.querySelectorAll('.sr-table');
     
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
+        currentSearchQuery = query;
+        
+        // First, filter the existing tables
         filterAllTables(query, tables, filterActive, filterChip, noResults);
+        
+        // Then, search all players via API if query is not empty
+        if (query) {
+            // Debounce API calls
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchAllPlayers(query, searchDropdown);
+            }, 300);
+        } else {
+            if (searchDropdown) {
+                searchDropdown.style.display = 'none';
+            }
+        }
     });
     
     // Clear filter on chip close click
@@ -79,9 +99,81 @@ function initSearch() {
     if (chipClose) {
         chipClose.addEventListener('click', function() {
             searchInput.value = '';
+            currentSearchQuery = '';
             filterAllTables('', tables, filterActive, filterChip, noResults);
+            if (searchDropdown) {
+                searchDropdown.style.display = 'none';
+            }
         });
     }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (searchDropdown && !searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+            searchDropdown.style.display = 'none';
+        }
+    });
+}
+
+function searchAllPlayers(query, dropdown) {
+    if (!dropdown || !query) return;
+    
+    fetch(`/api/search_all_players?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(players => {
+            if (players.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            // Detect which page we're on to determine default link type
+            const isVollisPage = window.location.pathname.includes('/vollis');
+            const isOtherPage = window.location.pathname.includes('/other');
+            
+            // Build dropdown HTML
+            let html = '<div class="sr-search-dropdown-header">All Players</div>';
+            players.forEach(player => {
+                const yearText = player.most_recent_year ? ` (Last played: ${player.most_recent_year})` : '';
+                const gameTypes = [];
+                if (player.has_doubles) gameTypes.push('Doubles');
+                if (player.has_vollis) gameTypes.push('Vollis');
+                if (player.has_other) gameTypes.push('Other');
+                const gamesText = gameTypes.length > 0 ? ` - ${gameTypes.join(', ')}` : '';
+                
+                // Default to most recent year or first year they played
+                const linkYear = player.most_recent_year || (player.years.length > 0 ? player.years[0] : new Date().getFullYear());
+                
+                // Determine best link based on current page and player's games
+                let linkPath;
+                if (isVollisPage && player.has_vollis) {
+                    linkPath = `/vollis_player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                } else if (isOtherPage && player.has_other) {
+                    linkPath = `/other_player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                } else if (player.has_doubles) {
+                    // Default to doubles if they have doubles games
+                    linkPath = `/player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                } else if (player.has_vollis) {
+                    linkPath = `/vollis_player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                } else if (player.has_other) {
+                    linkPath = `/other_player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                } else {
+                    // Fallback to doubles page
+                    linkPath = `/player/${linkYear}/${encodeURIComponent(player.name)}/`;
+                }
+                
+                html += `<a href="${linkPath}" class="sr-search-dropdown-item">
+                    <div class="sr-search-player-name">${player.name}</div>
+                    <div class="sr-search-player-info">${yearText}${gamesText}</div>
+                </a>`;
+            });
+            
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            dropdown.style.display = 'none';
+        });
 }
 
 function filterAllTables(query, tables, filterActive, filterChip, noResults) {
