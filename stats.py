@@ -2179,6 +2179,51 @@ def get_other_game_info(game_name):
         'loser_count': players_per_side['loser_count']
     }
 
+@app.route('/api/search_all_players')
+def api_search_all_players():
+    """Search for players across all years and game types"""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    
+    all_players = get_all_unique_players()
+    query_lower = query.lower()
+    
+    # Filter players matching the search query
+    matching_players = [p for p in all_players if query_lower in p.lower()]
+    
+    # For each matching player, get their years and game counts
+    results = []
+    for player_name in matching_players[:20]:  # Limit to 20 results
+        years_doubles = all_years_player(player_name)
+        years_vollis = all_years_vollis_player(player_name)
+        years_other = all_years_other_player(player_name)
+        
+        # Get most recent year they played (excluding 'All years')
+        all_years_list = []
+        for y in years_doubles:
+            if y != 'All years' and y not in all_years_list:
+                all_years_list.append(y)
+        for y in years_vollis:
+            if y != 'All years' and y not in all_years_list:
+                all_years_list.append(y)
+        for y in years_other:
+            if y != 'All years' and y not in all_years_list:
+                all_years_list.append(y)
+        
+        most_recent_year = max(all_years_list) if all_years_list else None
+        
+        results.append({
+            'name': player_name,
+            'years': sorted(all_years_list, reverse=True),
+            'most_recent_year': most_recent_year,
+            'has_doubles': len(years_doubles) > 0,
+            'has_vollis': len(years_vollis) > 0,
+            'has_other': len(years_other) > 0
+        })
+    
+    return jsonify(results)
+
 @app.route('/api/clear_stats_cache', methods=['POST'])
 @login_required
 def api_clear_stats_cache():
