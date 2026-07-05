@@ -2186,43 +2186,59 @@ def api_search_all_players():
     if not query:
         return jsonify([])
     
-    all_players = get_all_unique_players()
-    query_lower = query.lower()
-    
-    # Filter players matching the search query
-    matching_players = [p for p in all_players if query_lower in p.lower()]
-    
-    # For each matching player, get their years and game counts
-    results = []
-    for player_name in matching_players[:20]:  # Limit to 20 results
-        years_doubles = all_years_player(player_name)
-        years_vollis = all_years_vollis_player(player_name)
-        years_other = all_years_other_player(player_name)
+    try:
+        all_players = get_all_unique_players()
+        query_lower = query.lower()
         
-        # Get most recent year they played (excluding 'All years')
-        all_years_list = []
-        for y in years_doubles:
-            if y != 'All years' and y not in all_years_list:
-                all_years_list.append(y)
-        for y in years_vollis:
-            if y != 'All years' and y not in all_years_list:
-                all_years_list.append(y)
-        for y in years_other:
-            if y != 'All years' and y not in all_years_list:
-                all_years_list.append(y)
+        # Filter players matching the search query
+        matching_players = [p for p in all_players if query_lower in p.lower()]
         
-        most_recent_year = max(all_years_list) if all_years_list else None
+        # For each matching player, get their years and game counts
+        results = []
+        for player_name in matching_players[:20]:  # Limit to 20 results
+            try:
+                years_doubles = all_years_player(player_name) or []
+            except:
+                years_doubles = []
+            
+            try:
+                years_vollis = all_years_vollis_player(player_name) or []
+            except:
+                years_vollis = []
+            
+            try:
+                years_other = all_years_other_player(player_name) or []
+            except:
+                years_other = []
+            
+            # Get most recent year they played (excluding 'All years')
+            all_years_list = []
+            for y in years_doubles:
+                if y != 'All years' and y not in all_years_list:
+                    all_years_list.append(y)
+            for y in years_vollis:
+                if y != 'All years' and y not in all_years_list:
+                    all_years_list.append(y)
+            for y in years_other:
+                if y != 'All years' and y not in all_years_list:
+                    all_years_list.append(y)
+            
+            most_recent_year = max(all_years_list) if all_years_list else None
+            
+            results.append({
+                'name': player_name,
+                'years': sorted(all_years_list, reverse=True),
+                'most_recent_year': most_recent_year,
+                'has_doubles': len(years_doubles) > 0,
+                'has_vollis': len(years_vollis) > 0,
+                'has_other': len(years_other) > 0
+            })
         
-        results.append({
-            'name': player_name,
-            'years': sorted(all_years_list, reverse=True),
-            'most_recent_year': most_recent_year,
-            'has_doubles': len(years_doubles) > 0,
-            'has_vollis': len(years_vollis) > 0,
-            'has_other': len(years_other) > 0
-        })
-    
-    return jsonify(results)
+        return jsonify(results)
+    except Exception as e:
+        # Log error and return empty results
+        print(f"Error in search_all_players: {e}")
+        return jsonify([])
 
 @app.route('/api/clear_stats_cache', methods=['POST'])
 @login_required

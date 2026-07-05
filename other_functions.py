@@ -744,7 +744,17 @@ def all_years_other_player(name):
 
 def all_other_games_by_player(name):
     cur = set_cur()
-    cur.execute("SELECT * FROM other_games WHERE (winner=? OR loser=?)", (name, name))
+    # Query across all winner and loser columns (winner1-15, loser1-15)
+    where_clauses = []
+    params = []
+    for i in range(1, 16):
+        where_clauses.append(f"winner{i}=?")
+        params.append(name)
+        where_clauses.append(f"loser{i}=?")
+        params.append(name)
+    
+    sql = f"SELECT * FROM other_games WHERE {' OR '.join(where_clauses)}"
+    cur.execute(sql, tuple(params))
     row = cur.fetchall()
     return row
 
@@ -757,10 +767,28 @@ def all_other_games():
 
 def games_from_other_player_by_year(year, name):
     cur = set_cur()
-    if year == 'All years':
-        cur.execute("SELECT * FROM other_games WHERE winner=? OR loser=?", (name, name))
+    # Query across all winner and loser columns (winner1-15, loser1-15)
+    where_clauses = []
+    params = []
+    
+    if year != 'All years':
+        year_clause = "strftime('%Y',game_date)=? AND ("
+        params.append(year)
     else:
-        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
+        year_clause = ""
+    
+    for i in range(1, 16):
+        where_clauses.append(f"winner{i}=?")
+        params.append(name)
+        where_clauses.append(f"loser{i}=?")
+        params.append(name)
+    
+    if year != 'All years':
+        sql = f"SELECT * FROM other_games WHERE {year_clause}{' OR '.join(where_clauses)})"
+    else:
+        sql = f"SELECT * FROM other_games WHERE {' OR '.join(where_clauses)}"
+    
+    cur.execute(sql, tuple(params))
     row = cur.fetchall()
     games = readable_games_data(row)
     return games
