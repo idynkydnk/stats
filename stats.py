@@ -613,9 +613,26 @@ def games(year):
     else:
         games_list = year_games_paginated(year, limit=per_page, offset=offset)
     page_end = min(page * per_page, total)
+
+    # Group games by day for sticky day headers (games are date DESC, so days are contiguous)
+    day_groups = []
+    for game in games_list:
+        day_raw = str(game[1])[:10].strip()
+        label = day_raw
+        for fmt in ('%m/%d/%Y', '%m/%d/%y'):
+            try:
+                label = datetime.strptime(day_raw, fmt).strftime('%A, %b %-d')
+                break
+            except ValueError:
+                continue
+        if day_groups and day_groups[-1]['day'] == day_raw:
+            day_groups[-1]['games'].append(game)
+        else:
+            day_groups.append({'day': day_raw, 'label': label, 'games': [game]})
+
     return render_template('games.html', games=games_list, year=year, all_years=all_years,
                            page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end,
-                           search_query=search_query)
+                           search_query=search_query, day_groups=day_groups)
 
 
 # ============================================
@@ -1231,9 +1248,42 @@ def player_stats(year, name):
     stats = total_stats(games, name)
     partner_stats = partner_stats_by_year(name, games)
     opponent_stats = opponent_stats_by_year(name, games)
+
+    # TrueSkill rating + rank for this year
+    player_rating = None
+    player_rank = None
+    total_ranked = 0
+    try:
+        rankings = calculate_trueskill_rankings(year)
+        total_ranked = len(rankings)
+        for i, entry in enumerate(rankings):
+            if entry['player'] == name:
+                player_rating = entry['rating']
+                player_rank = i + 1
+                break
+    except Exception:
+        pass
+
+    # Current streak and recent form (games list is chronological ascending)
+    current_streak = None
+    if games:
+        streak_type, streak_len = None, 0
+        for game in reversed(games):
+            result = 'W' if name in (game[2], game[3]) else 'L'
+            if streak_type is None:
+                streak_type, streak_len = result, 1
+            elif result == streak_type:
+                streak_len += 1
+            else:
+                break
+        current_streak = {'type': streak_type, 'length': streak_len}
+    recent_form = ['W' if name in (g[2], g[3]) else 'L' for g in games[-10:]]
+
     return render_template('player.html', opponent_stats=opponent_stats,
         partner_stats=partner_stats, year=year, player=name,
-        all_years=all_years, stats=stats, games=games)
+        all_years=all_years, stats=stats, games=games,
+        player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
+        current_streak=current_streak, recent_form=recent_form)
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1296,40 +1346,49 @@ def calculate_tile_stats(year, stats, games):
 
 @app.route('/api/stats/hero')
 def api_stats_hero():
-    """JSON endpoint for hero chart data."""
+    """JSON endpoint for hero chart: TrueSkill rating over time for top players."""
     year = request.args.get('year', str(date.today().year))
-    range_filter = request.args.get('range', 'all')
+    range_filter = request.args.get('range', '10')
     
-    games = year_games(year)
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
+    day_labels, series = trueskill_rating_history(year)
     
-    stats = stats_per_year(year, minimum_games)
+    # Only chart players who meet the same minimum-games bar as the main table
+    games_count = len(year_games(year))
+    minimum_games = max(1, games_count // 30) if games_count >= 30 else 1
+    qualified = [s for s in series if s['games'] >= minimum_games]
     
-    # Limit based on range
-    if range_filter == '10':
-        stats = stats[:10]
+    if range_filter == '5':
+        qualified = qualified[:5]
+    elif range_filter == '10':
+        qualified = qualified[:10]
     elif range_filter == '25':
-        stats = stats[:25]
-    # 'all' returns all stats
-    
-    # Format for chart (bar chart of top players by rating)
-    series = []
-    for player in stats:
-        series.append({
-            'name': player[0],
-            'value': player[4] if player[4] else 0  # rating
-        })
+        qualified = qualified[:25]
+    # 'all' returns everyone qualified
     
     return jsonify({
-        'labels': [s['name'] for s in series],
-        'series': series
+        'labels': day_labels,
+        'series': [{'name': s['name'], 'values': s['values']} for s in qualified]
     })
+
+
+@app.route('/api/player/rating_history/<year>/<name>/')
+def api_player_rating_history(year, name):
+    """Rating-over-time series for one player (for the player page sparkline)."""
+    day_labels, series = trueskill_rating_history(year)
+    for s in series:
+        if s['name'] == name:
+            # Trim leading None values so the chart starts at the first game
+            labels, values = [], []
+            for day, value in zip(day_labels, s['values']):
+                if value is None and not values:
+                    continue
+                labels.append(day)
+                values.append(value)
+            # Rank among all players in this year's history (by final rating)
+            rank = next((i + 1 for i, entry in enumerate(series) if entry['name'] == name), None)
+            return jsonify({'labels': labels, 'values': values,
+                            'final': s['final'], 'rank': rank, 'players': len(series)})
+    return jsonify({'labels': [], 'values': [], 'final': None, 'rank': None, 'players': len(series)})
 
 
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])

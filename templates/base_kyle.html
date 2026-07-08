@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="sr-page">
@@ -24,6 +26,7 @@
             <li><a href="{{ url_for('notifications') }}" id="menu-link-notifications"><i class="fas fa-bell"></i> Notifications<span class="notification-badge" id="notification-badge" aria-label="Unread count"></span></a></li>
             <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
             <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
+            <li><a href="#" class="theme-toggle-link" onclick="srToggleTheme(); return false;"><i class="fas fa-sun"></i> Light Mode</a></li>
             <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout ({{ session.username }})</a></li>
         </ul>
     </div>

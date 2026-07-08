@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="sr-page">
@@ -18,6 +20,7 @@
             <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
             <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-chart-line"></i> Vollis Stats</a></li>
             <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-chart-pie"></i> Other Stats</a></li>
+            <li><a href="#" class="theme-toggle-link" onclick="srToggleTheme(); return false;"><i class="fas fa-sun"></i> Light Mode</a></li>
             <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
         </ul>
     </div>

@@ -1731,6 +1731,101 @@ def _calculate_trueskill_rankings_fresh(year=None):
 	
 	return all_rankings
 
+@cached(ttl=1800)
+def trueskill_rating_history(year=None):
+	"""Daily TrueSkill rating history for every player, replayed chronologically.
+
+	Returns (day_labels, series) where day_labels is a list of ISO dates
+	('YYYY-MM-DD') for every day with at least one game, and series is a list of
+	{'name', 'values', 'final', 'games'} dicts sorted by final rating (desc).
+	'values' has one conservative rating (mu - 3*sigma) per day: None before the
+	player's first game, forward-filled afterwards.
+	"""
+	import math
+	from collections import defaultdict
+
+	cur = set_cur()
+	if year and year != 'All years':
+		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date ASC", (str(year),))
+	else:
+		cur.execute("SELECT * FROM games ORDER BY game_date ASC")
+	games = cur.fetchall()
+
+	INITIAL_MU = 25.0
+	INITIAL_SIGMA = 8.333
+	BETA = 4.167
+	TAU = 0.0833
+
+	player_ratings = defaultdict(lambda: {'mu': INITIAL_MU, 'sigma': INITIAL_SIGMA})
+	player_game_counts = defaultdict(int)
+	player_first_day = {}
+	day_labels = []
+	day_snapshots = []
+	current_day = None
+
+	def snapshot():
+		return {p: round(r['mu'] - 3 * r['sigma'], 2) for p, r in player_ratings.items()}
+
+	for game in games:
+		day = str(game[1])[:10]
+		if day != current_day:
+			if current_day is not None:
+				day_labels.append(current_day)
+				day_snapshots.append(snapshot())
+			current_day = day
+
+		winners = [w for w in [game[2], game[3]] if '?' not in w]
+		losers = [l for l in [game[5], game[6]] if '?' not in l]
+		if not winners or not losers:
+			continue
+
+		for p in winners + losers:
+			player_game_counts[p] += 1
+			player_first_day.setdefault(p, day)
+
+		winner_team_mu = sum(player_ratings[w]['mu'] for w in winners)
+		winner_team_sigma = math.sqrt(sum(player_ratings[w]['sigma']**2 for w in winners))
+		loser_team_mu = sum(player_ratings[l]['mu'] for l in losers)
+		loser_team_sigma = math.sqrt(sum(player_ratings[l]['sigma']**2 for l in losers))
+
+		c = math.sqrt(winner_team_sigma**2 + loser_team_sigma**2 + 2 * BETA**2)
+		winner_v = v_win((winner_team_mu - loser_team_mu) / c)
+		loser_v = v_lose((loser_team_mu - winner_team_mu) / c)
+		winner_w = w_win((winner_team_mu - loser_team_mu) / c)
+		loser_w = w_lose((loser_team_mu - winner_team_mu) / c)
+
+		for p, v, w in [(w_, winner_v, winner_w) for w_ in winners] + [(l_, loser_v, loser_w) for l_ in losers]:
+			old_mu = player_ratings[p]['mu']
+			old_sigma = player_ratings[p]['sigma']
+			mu_multiplier = (old_sigma**2 + TAU**2) / c
+			sigma_multiplier = (old_sigma**2 + TAU**2) / (c**2)
+			player_ratings[p]['mu'] = old_mu + mu_multiplier * v
+			player_ratings[p]['sigma'] = math.sqrt((old_sigma**2 + TAU**2) * (1 - sigma_multiplier * w))
+
+	if current_day is not None:
+		day_labels.append(current_day)
+		day_snapshots.append(snapshot())
+
+	series = []
+	for player, counts in player_game_counts.items():
+		values = []
+		last = None
+		started = False
+		for day, snap in zip(day_labels, day_snapshots):
+			if not started and day >= player_first_day[player]:
+				started = True
+			if started:
+				last = snap.get(player, last)
+				values.append(last)
+			else:
+				values.append(None)
+		final = round(player_ratings[player]['mu'] - 3 * player_ratings[player]['sigma'], 2)
+		series.append({'name': player, 'values': values, 'final': final, 'games': counts})
+
+	series.sort(key=lambda s: s['final'], reverse=True)
+	return day_labels, series
+
+
 def v_win(t):
 	"""TrueSkill v function for winners"""
 	import math

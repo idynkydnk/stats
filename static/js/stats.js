@@ -318,12 +318,12 @@ let heroChart = null;
 
 function initChart() {
     const canvas = document.getElementById('heroChart');
-    if (!canvas) return;
+    if (!canvas || typeof Chart === 'undefined') return;
     
     const ctx = canvas.getContext('2d');
     const year = canvas.dataset.year || new Date().getFullYear();
     
-    fetchChartData(year, 'all').then(data => {
+    fetchChartData(year, '10').then(data => {
         renderChart(ctx, data);
     });
 }
@@ -347,18 +347,30 @@ function renderChart(ctx, data) {
         '#fb923c', '#38bdf8', '#34d399', '#facc15', '#f472b6'
     ];
     
-    // If no time series, render as bar chart
+    // If only one day of data, render as bar chart of final ratings
     const isBarChart = !data.labels || data.labels.length <= 1;
     
+    // Shorten ISO date labels (YYYY-MM-DD -> M/D)
+    const shortLabels = (data.labels || []).map(l => {
+        const parts = String(l).split('-');
+        return parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : l;
+    });
+    
     if (isBarChart && data.series && data.series.length > 0) {
-        // Bar chart for top players by rating
         heroChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: data.series.map(s => s.name),
                 datasets: [{
                     label: 'Rating',
-                    data: data.series.map(s => s.values[0] || s.value || 0),
+                    data: data.series.map(s => {
+                        if (Array.isArray(s.values)) {
+                            for (let i = s.values.length - 1; i >= 0; i--) {
+                                if (s.values[i] !== null) return s.values[i];
+                            }
+                        }
+                        return s.value || 0;
+                    }),
                     backgroundColor: colors.slice(0, data.series.length).map(c => c + '80'),
                     borderColor: colors.slice(0, data.series.length),
                     borderWidth: 2,
@@ -368,11 +380,11 @@ function renderChart(ctx, data) {
             options: getChartOptions('bar')
         });
     } else if (data.series && data.series.length > 0) {
-        // Line chart for time series
+        const manyPoints = data.labels.length > 25;
         heroChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.labels,
+                labels: shortLabels,
                 datasets: data.series.map((series, i) => ({
                     label: series.name,
                     data: series.values,
@@ -381,7 +393,8 @@ function renderChart(ctx, data) {
                     borderWidth: 2,
                     tension: 0.3,
                     fill: false,
-                    pointRadius: 3,
+                    spanGaps: true,
+                    pointRadius: manyPoints ? 0 : 3,
                     pointHoverRadius: 5
                 }))
             },
@@ -428,7 +441,9 @@ function getChartOptions(type) {
                 },
                 ticks: {
                     color: '#9aa4b2',
-                    font: { size: 11 }
+                    font: { size: 11 },
+                    maxTicksLimit: 12,
+                    maxRotation: 0
                 }
             },
             y: {

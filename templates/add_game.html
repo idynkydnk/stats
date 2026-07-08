@@ -165,6 +165,10 @@ textarea { resize: vertical; min-height: 60px; }
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn" id="add-game-submit-btn">Submit</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="sr-clear-btn" id="rematch-btn" style="flex: 1; display: none;" title="Fill in the same four players as the last game"><i class="fas fa-redo"></i> Rematch</button>
+                        <button type="button" class="sr-clear-btn" id="swap-teams-btn" style="flex: 1;" title="Swap winners and losers"><i class="fas fa-exchange-alt"></i> Swap W/L</button>
+                    </div>
                     <button type="button" class="sr-clear-btn" id="clear-form-btn"><i class="fas fa-eraser"></i> Clear form</button>
                 </div>
             </form>
@@ -459,6 +463,34 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     var w1 = document.getElementById('winner1'); if (w1) w1.focus();
 });
 setupClearButtons();
+// Rematch: refill the four players from the most recent game (same teams, empty scores)
+var lastGamePlayers = {{ ([games[0][2], games[0][3], games[0][5], games[0][6]]|tojson) if games else 'null' }};
+function showRematchBtn() {
+    var b = document.getElementById('rematch-btn');
+    if (b && lastGamePlayers) b.style.display = '';
+}
+document.getElementById('rematch-btn').addEventListener('click', function() {
+    if (!lastGamePlayers) return;
+    ['winner1', 'winner2', 'loser1', 'loser2'].forEach(function(id, i) {
+        var el = document.getElementById(id);
+        if (el) el.value = lastGamePlayers[i] || '';
+    });
+    var ws = document.getElementById('winner_score'); if (ws) ws.value = '';
+    var ls = document.getElementById('loser_score'); if (ls) ls.value = '';
+    document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
+    document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+    if (ws) ws.focus();
+});
+document.getElementById('swap-teams-btn').addEventListener('click', function() {
+    [['winner1', 'loser1'], ['winner2', 'loser2'], ['winner_score', 'loser_score']].forEach(function(pair) {
+        var a = document.getElementById(pair[0]);
+        var b = document.getElementById(pair[1]);
+        if (a && b) { var tmp = a.value; a.value = b.value; b.value = tmp; }
+    });
+    document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
+    document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
+});
+showRematchBtn();
 function clearAddGameForm() {
     ['winner1', 'winner2', 'loser1', 'loser2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
     var ws = document.getElementById('winner_score'); if (ws) ws.value = '';
@@ -494,6 +526,10 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
         (data.get('loser2') || '').trim()
     ];
     var saveSeq = ++doublesBackgroundSaveSeq;
+    if (priorityNames.every(function(n) { return n; })) {
+        lastGamePlayers = priorityNames.slice();
+        showRematchBtn();
+    }
     applyDoublesPlayerOrderAfterSave(priorityNames);
     var action = form.action;
     clearAddGameForm();

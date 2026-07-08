@@ -101,6 +101,8 @@
             </div>
         </header>
 
+        {% with active_tab = 'doubles' %}{% include 'partials/section_tabs.html' %}{% endwith %}
+
         {% if showing_previous_year %}
         <div class="sr-notice" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
             <i class="fas fa-info-circle" style="color: #fbbf24;"></i>
@@ -144,6 +146,26 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if stats %}
+        <section class="sr-chart-section">
+            <div class="sr-card sr-card-compact">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                    <p class="sr-section-label" style="margin: 0;">
+                        <i class="fas fa-chart-line" style="margin-right: 6px;"></i>Rating Over Time
+                    </p>
+                    <div class="sr-range-pills">
+                        <button class="sr-range-pill" data-range="5">Top 5</button>
+                        <button class="sr-range-pill active" data-range="10">Top 10</button>
+                        <button class="sr-range-pill" data-range="all">All</button>
+                    </div>
+                </div>
+                <div class="sr-chart-container">
+                    <canvas id="heroChart" data-year="{{ display_year|default(year) }}"></canvas>
                 </div>
             </div>
         </section>
@@ -218,7 +240,8 @@
         {% if rare_stats %}
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
-                <p class="sr-section-label">Fewer than {{ minimum_games }} games</p>
+                <p class="sr-section-label" style="margin-bottom: 2px;">Fewer than {{ minimum_games }} games</p>
+                <p style="font-size: 12px; color: var(--sr-muted); margin: 0 0 10px;">These players haven't played enough games this year to be ranked in the main table yet ({{ minimum_games }} game{{ 's' if minimum_games != 1 else '' }} needed{{ ', based on total games played this year' if minimum_games > 1 else '' }}).</p>
                 <div class="sr-table-wrap">
                     <table class="sr-table">
                         <thead>
@@ -263,5 +286,6 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 {% endblock %}

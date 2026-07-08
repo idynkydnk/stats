@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="sr-page">
     <style>
@@ -39,10 +41,43 @@
         }
         .sr-stat-cards {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
             gap: 8px;
+            margin-bottom: 16px;
+        }
+        .sr-stat-sub {
+            font-size: 11px;
+            color: var(--sr-muted);
+            margin-top: 2px;
+        }
+        .sr-form-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
             margin-bottom: 24px;
         }
+        .sr-form-label {
+            font-size: 12px;
+            color: var(--sr-muted);
+            text-transform: uppercase;
+        }
+        .sr-form-dots { display: flex; gap: 5px; }
+        .sr-form-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #0b0f14;
+        }
+        .sr-form-dot.w { background: var(--sr-win); }
+        .sr-form-dot.l { background: var(--sr-loss); }
+        .sr-sparkline-card { margin-bottom: 24px; }
+        .sr-sparkline-wrap { height: 140px; position: relative; }
         .sr-stat-card {
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -165,6 +200,39 @@
                 <div class="sr-stat-value">{{ stats[0][1] + stats[0][2] }}</div>
                 <div class="sr-stat-label">Games</div>
             </div>
+            {% if player_rating is not none %}
+            <div class="sr-stat-card">
+                <div class="sr-stat-value" style="color: var(--sr-accent);">{{ player_rating }}</div>
+                <div class="sr-stat-label">Rating</div>
+                {% if player_rank %}<div class="sr-stat-sub">#{{ player_rank }} of {{ total_ranked }}</div>{% endif %}
+            </div>
+            {% endif %}
+            {% if current_streak %}
+            <div class="sr-stat-card">
+                <div class="sr-stat-value {% if current_streak.type == 'W' %}win{% else %}loss{% endif %}">{{ current_streak.length }}{{ current_streak.type }}</div>
+                <div class="sr-stat-label">Streak</div>
+            </div>
+            {% endif %}
+        </div>
+        {% if recent_form %}
+        <div class="sr-form-row">
+            <span class="sr-form-label">Last {{ recent_form|length }} games</span>
+            <div class="sr-form-dots">
+                {% for r in recent_form %}
+                <span class="sr-form-dot {{ r|lower }}" title="{{ 'Win' if r == 'W' else 'Loss' }}">{{ r }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if games and games|length > 1 %}
+        <div class="sr-card sr-sparkline-card">
+            <h3 class="sr-section-title" style="margin-top: 0;">Rating Over Time</h3>
+            <div class="sr-sparkline-wrap">
+                <canvas id="playerSparkline"
+                        data-url="{{ url_for('api_player_rating_history', year=year, name=player) }}"></canvas>
+            </div>
         </div>
         {% endif %}
 
@@ -274,6 +342,75 @@
                 btn.textContent = `Show ${hidden.length} more`;
             }
         }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        (function() {
+            const canvas = document.getElementById('playerSparkline');
+            if (!canvas || typeof Chart === 'undefined') return;
+            fetch(canvas.dataset.url)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.labels || data.labels.length < 2) {
+                        canvas.closest('.sr-sparkline-card').style.display = 'none';
+                        return;
+                    }
+                    const shortLabels = data.labels.map(l => {
+                        const p = String(l).split('-');
+                        return p.length === 3 ? parseInt(p[1], 10) + '/' + parseInt(p[2], 10) : l;
+                    });
+                    new Chart(canvas.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: shortLabels,
+                            datasets: [{
+                                data: data.values,
+                                borderColor: '#6ee7ff',
+                                backgroundColor: 'rgba(110, 231, 255, 0.12)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true,
+                                spanGaps: true,
+                                pointRadius: data.labels.length > 25 ? 0 : 2,
+                                pointHoverRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 22, 32, 0.95)',
+                                    titleColor: '#e6edf3',
+                                    bodyColor: '#e6edf3',
+                                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderWidth: 1,
+                                    padding: 10,
+                                    cornerRadius: 8,
+                                    displayColors: false,
+                                    callbacks: { label: ctx => 'Rating: ' + ctx.parsed.y }
+                                }
+                            },
+                            interaction: { intersect: false, mode: 'index' },
+                            scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#9aa4b2', font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                    ticks: { color: '#9aa4b2', font: { size: 10 }, maxTicksLimit: 5 }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(() => {
+                    const card = canvas.closest('.sr-sparkline-card');
+                    if (card) card.style.display = 'none';
+                });
+        })();
     </script>
 </body>
 </html>

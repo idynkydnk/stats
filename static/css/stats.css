@@ -15,6 +15,80 @@
     --sr-gold: #fbbf24;
 }
 
+/* Light theme (toggled by adding .sr-light to <html>) */
+html.sr-light {
+    --sr-bg: #f4f6f9;
+    --sr-panel: #ffffff;
+    --sr-panel-hover: #eef2f6;
+    --sr-text: #1b2432;
+    --sr-muted: #5b6675;
+    --sr-line: rgba(15, 30, 50, 0.12);
+    --sr-accent: #0284c7;
+    --sr-accent-dim: rgba(2, 132, 199, 0.12);
+    --sr-win: #16a34a;
+    --sr-loss: #dc2626;
+    --sr-gold: #b45309;
+}
+
+html.sr-light .sr-page::before {
+    background: radial-gradient(ellipse at center, rgba(2, 132, 199, 0.06) 0%, transparent 70%);
+}
+
+html.sr-light .sr-table th {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+html.sr-light .sr-table td:nth-child(1),
+html.sr-light .sr-table th:nth-child(1),
+html.sr-light .sr-table td:nth-child(2),
+html.sr-light .sr-table th:nth-child(2) {
+    background: #ffffff;
+}
+
+html.sr-light .sr-table tbody tr:nth-child(even) {
+    background: rgba(15, 30, 50, 0.03);
+}
+
+html.sr-light .sr-table tbody tr:nth-child(odd) td:nth-child(1),
+html.sr-light .sr-table tbody tr:nth-child(odd) td:nth-child(2) {
+    background: #ffffff;
+}
+
+html.sr-light .sr-table td:nth-child(2),
+html.sr-light .sr-table th:nth-child(2) {
+    box-shadow: 4px 0 8px rgba(15, 30, 50, 0.08);
+}
+
+html.sr-light .sr-table tbody tr:nth-child(even) td:nth-child(1),
+html.sr-light .sr-table tbody tr:nth-child(even) td:nth-child(2) {
+    background: #f4f7fa;
+}
+
+html.sr-light .sr-table tbody tr:hover td:nth-child(1),
+html.sr-light .sr-table tbody tr:hover td:nth-child(2),
+html.sr-light .sr-table tbody tr:nth-child(even):hover td:nth-child(1),
+html.sr-light .sr-table tbody tr:nth-child(even):hover td:nth-child(2) {
+    background: #dcedf7;
+}
+
+html.sr-light .menu-sidebar {
+    background: #ffffff;
+}
+
+html.sr-light .sr-game-team.winners,
+html.sr-light .sr-team-block.winners {
+    background: rgba(22, 163, 74, 0.08);
+}
+
+html.sr-light .sr-game-team.losers,
+html.sr-light .sr-team-block.losers {
+    background: rgba(220, 38, 38, 0.08);
+}
+
+html.sr-light .sr-form-dot {
+    color: #ffffff;
+}
+
 /* Base Container */
 .sr-page {
     background: var(--sr-bg);
@@ -331,6 +405,41 @@ input[type=number] {
     background: var(--sr-accent-dim);
     color: var(--sr-accent);
     border-color: var(--sr-accent);
+}
+
+/* Cross-section tabs (Doubles / Vollis / Other) */
+.sr-section-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+
+.sr-section-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    background: var(--sr-panel);
+    color: var(--sr-muted);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.sr-section-tab:hover {
+    border-color: var(--sr-accent);
+    color: var(--sr-accent);
+}
+
+.sr-section-tab.active {
+    background: var(--sr-accent-dim);
+    border-color: var(--sr-accent);
+    color: var(--sr-accent);
 }
 
 /* Table Section */
@@ -742,6 +851,10 @@ input[type=number] {
     .sr-table-section .sr-table th:nth-child(6) { width: 14%; }
     .sr-table-section .sr-table td:nth-child(7),
     .sr-table-section .sr-table th:nth-child(7) { width: 10%; }
+
+    /* Hide the Games column on narrow screens (W + L already tell the story) */
+    .sr-table-section .sr-table#sr-table td:nth-child(7),
+    .sr-table-section .sr-table#sr-table th:nth-child(7) { display: none; }
     
     .sr-header-top {
         flex-direction: column;
