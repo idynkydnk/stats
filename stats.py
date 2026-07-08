@@ -67,6 +67,80 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'norep
 mail = Mail(app)
 
 
+def send_messages_with_retry(messages, max_attempts=3):
+    """Send email messages over a single SMTP connection, retrying transient failures.
+
+    PythonAnywhere's outbound network intermittently fails with errors like
+    '[Errno 101] Network is unreachable' or timeouts; a retry a moment later
+    almost always succeeds. Opening one connection for the whole batch (instead
+    of one per recipient) also avoids repeated connects, which is where that
+    error is raised. Permanent failures (refused recipients) are not retried.
+
+    Returns (sent_count, errors) where errors is a list of 'recipient: error'
+    strings for messages that could not be sent.
+    """
+    import smtplib
+    import socket
+    import time as _time
+    from contextlib import contextmanager
+
+    @contextmanager
+    def prefer_ipv4():
+        """Sort IPv4 results first in DNS lookups while connecting.
+
+        '[Errno 101] Network is unreachable' usually means the resolver returned
+        an IPv6 address first and the server has no IPv6 route. IPv6 results are
+        kept as a fallback, just tried last.
+        """
+        original = socket.getaddrinfo
+
+        def ipv4_first(*args, **kwargs):
+            results = original(*args, **kwargs)
+            return sorted(results, key=lambda r: 0 if r[0] == socket.AF_INET else 1)
+
+        socket.getaddrinfo = ipv4_first
+        try:
+            yield
+        finally:
+            socket.getaddrinfo = original
+
+    pending = list(messages)
+    last_error = {}  # id(msg) -> (msg, error string)
+    sent = 0
+
+    for attempt in range(1, max_attempts + 1):
+        if not pending:
+            break
+        if attempt > 1:
+            _time.sleep(2 * (attempt - 1))
+        try:
+            with prefer_ipv4(), mail.connect() as conn:
+                remaining = []
+                for msg in pending:
+                    try:
+                        conn.send(msg)
+                        sent += 1
+                        last_error.pop(id(msg), None)
+                    except smtplib.SMTPRecipientsRefused as e:
+                        # Permanent: bad recipient, don't retry
+                        last_error[id(msg)] = (msg, str(e))
+                    except Exception as e:
+                        # Transient (broken connection etc.): retry next attempt
+                        last_error[id(msg)] = (msg, str(e))
+                        remaining.append(msg)
+                pending = remaining
+        except Exception as e:
+            # Could not even connect; keep the whole batch for the next attempt
+            for msg in pending:
+                last_error[id(msg)] = (msg, str(e))
+
+    errors = []
+    for msg, err in last_error.values():
+        to = ', '.join(msg.recipients or ['(unknown)'])
+        errors.append(f'{to}: {err}')
+    return sent, errors
+
+
 def _supabase_flash_suffix(supabase_ok):
     """Return flash message suffix for Supabase sync status (True/False/None)."""
     if supabase_ok is True:
@@ -3128,8 +3202,10 @@ def test_email():
         
         msg.body = "I love you"
         
-        # Send the email
-        mail.send(msg)
+        # Send the email (with retry for flaky outbound network)
+        sent, errors = send_messages_with_retry([msg])
+        if errors:
+            raise Exception(errors[0])
         
         log_activity('Sent email', summary='Test email to acwodzinski@gmail.com')
         flash('Test email sent successfully to acwodzinski@gmail.com!', 'success')
@@ -3165,17 +3241,13 @@ def generate_and_email_today():
                 recipients.append(e)
     if not recipients:
         return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
-    emails_sent = 0
-    errors = []
+    messages = []
     for to_addr in recipients:
-        try:
-            msg = Message(subject=subject, recipients=[to_addr])
-            msg.html = email_html if email_html.strip() else '<p>No content.</p>'
-            msg.body = 'View the summary in HTML email.'
-            mail.send(msg)
-            emails_sent += 1
-        except Exception as e:
-            errors.append(f"{to_addr}: {str(e)}")
+        msg = Message(subject=subject, recipients=[to_addr])
+        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
+        msg.body = 'View the summary in HTML email.'
+        messages.append(msg)
+    emails_sent, errors = send_messages_with_retry(messages)
     log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     return jsonify({
         'success': True,
@@ -3207,17 +3279,13 @@ def send_ai_email_form():
         flash('No recipients selected.', 'error')
         return redirect(url_for('ai_summary'))
 
-    emails_sent = 0
-    errors = []
+    messages = []
     for to_addr in recipients:
-        try:
-            msg = Message(subject=subject, recipients=[to_addr])
-            msg.html = email_html if email_html.strip() else '<p>No content.</p>'
-            msg.body = 'View the summary in HTML email.'
-            mail.send(msg)
-            emails_sent += 1
-        except Exception as e:
-            errors.append(f"{to_addr}: {str(e)}")
+        msg = Message(subject=subject, recipients=[to_addr])
+        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
+        msg.body = 'View the summary in HTML email.'
+        messages.append(msg)
+    emails_sent, errors = send_messages_with_retry(messages)
 
     log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     if errors:
@@ -3260,52 +3328,43 @@ def send_daily_emails():
     # Get stats for that date
     stats, games = specific_date_stats(target_date)
     
-    # Send emails to each player
-    emails_sent = 0
-    errors = []
-    
+    # Build one message per player, then send them over a single connection with retries
+    messages = []
     for player in players:
-        try:
-            # Find player's stats for that day
-            player_stats = None
-            for stat in stats:
-                if stat[0] == player['name']:
-                    player_stats = stat
-                    break
+        # Find player's stats for that day
+        player_stats = None
+        for stat in stats:
+            if stat[0] == player['name']:
+                player_stats = stat
+                break
+        
+        msg = Message(
+            subject=f"Your Stats for {target_date}",
+            recipients=[player['email']]
+        )
+        
+        email_body = f"Hi {player['name']},\n\n"
+        email_body += f"Here are your stats for {target_date}:\n\n"
+        
+        if player_stats:
+            wins = player_stats[1]
+            losses = player_stats[2]
+            win_pct = player_stats[3] * 100
+            differential = player_stats[4]
             
-            # Create email message
-            msg = Message(
-                subject=f"Your Stats for {target_date}",
-                recipients=[player['email']]
-            )
-            
-            # Build email body
-            email_body = f"Hi {player['name']},\n\n"
-            email_body += f"Here are your stats for {target_date}:\n\n"
-            
-            if player_stats:
-                wins = player_stats[1]
-                losses = player_stats[2]
-                win_pct = player_stats[3] * 100
-                differential = player_stats[4]
-                
-                email_body += f"Record: {wins}-{losses} ({win_pct:.1f}%)\n"
-                email_body += f"Point Differential: {differential:+d}\n\n"
-            else:
-                email_body += "You played on this date!\n\n"
-            
-            email_body += f"Total games played on {target_date}: {len(games)}\n\n"
-            email_body += "Thanks for playing!\n\n"
-            email_body += "— Your Stats Team"
-            
-            msg.body = email_body
-            
-            # Send the email
-            mail.send(msg)
-            emails_sent += 1
-            
-        except Exception as e:
-            errors.append(f"Failed to send to {player['name']} ({player['email']}): {str(e)}")
+            email_body += f"Record: {wins}-{losses} ({win_pct:.1f}%)\n"
+            email_body += f"Point Differential: {differential:+d}\n\n"
+        else:
+            email_body += "You played on this date!\n\n"
+        
+        email_body += f"Total games played on {target_date}: {len(games)}\n\n"
+        email_body += "Thanks for playing!\n\n"
+        email_body += "— Your Stats Team"
+        
+        msg.body = email_body
+        messages.append(msg)
+    
+    emails_sent, errors = send_messages_with_retry(messages)
     
     # Flash success/error messages
     if emails_sent > 0:
