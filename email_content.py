@@ -15,16 +15,8 @@ from other_functions import set_cur
 
 SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://idynkydnk.pythonanywhere.com')
 
-# Image models to try for AI email illustrations (separate quotas from text models).
-GEMINI_IMAGE_MODELS = [
-    ('gemini-2.5-flash-image', None),
-    ('gemini-3.1-flash-image', '16:9'),
-    ('gemini-3.1-flash-image-preview', '16:9'),
-]
-IMAGEN_FALLBACK_MODELS = [
-    'imagen-4.0-fast-generate-001',
-    'imagen-3.0-generate-002',
-]
+# Free-tier image model for AI email illustrations (one API call per email).
+GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
 
 
 # Models to try in order. First is the best-quality current model (the
@@ -131,61 +123,11 @@ def _friendly_image_error(err):
     if _is_quota_error(err):
         return (
             'Daily free image quota is used up on the shared Gemini API key '
-            '(~500 images/day on gemini-2.5-flash-image). The text summary still works. '
-            'Try again tomorrow, or enable billing in Google AI Studio for more image generation.'
+            '(~500 images/day on gemini-2.5-flash-image, one API call per email). '
+            'The text summary still works. Try again tomorrow, or enable billing '
+            'in Google AI Studio for more image generation.'
         )
     return str(err)[:400]
-
-
-def _image_bytes_from_genai_response(response):
-    """Pull inline image bytes from a google.generativeai response."""
-    if not getattr(response, 'candidates', None):
-        pf = getattr(response, 'prompt_feedback', None)
-        raise ValueError(f'no candidates (prompt_feedback={pf})')
-    notes = []
-    for candidate in response.candidates:
-        content = getattr(candidate, 'content', None)
-        parts = getattr(content, 'parts', None) or []
-        for part in parts:
-            inline = getattr(part, 'inline_data', None)
-            if inline and getattr(inline, 'data', None):
-                mime = getattr(inline, 'mime_type', None) or 'image/png'
-                data = inline.data
-                if isinstance(data, str):
-                    data = base64.b64decode(data)
-                return data, mime
-        notes.append(str(getattr(candidate, 'finish_reason', 'unknown')))
-    raise ValueError(f'no image in response ({", ".join(notes)})')
-
-
-def _generate_image_bytes_genai(prompt, api_key):
-    """Generate image using google.generativeai (same SDK as text summaries)."""
-    import google.generativeai as genai
-
-    genai.configure(api_key=api_key)
-    errors = []
-    model_names = [
-        'models/gemini-2.5-flash-image',
-        'models/gemini-3.1-flash-image',
-        'models/gemini-3.1-flash-image-preview',
-    ]
-    for model_name in model_names:
-        try:
-            model = genai.GenerativeModel(model_name)
-            for modalities in (['IMAGE'], ['TEXT', 'IMAGE']):
-                try:
-                    response = model.generate_content(
-                        prompt,
-                        generation_config={'response_modalities': modalities},
-                    )
-                    return _image_bytes_from_genai_response(response)
-                except Exception as inner:
-                    errors.append(f'{model_name} {modalities}: {inner}')
-                    if _is_quota_error(inner):
-                        break
-        except Exception as e:
-            errors.append(f'{model_name}: {e}')
-    raise ValueError('genai: ' + ' | '.join(errors))
 
 
 def _rest_error_detail(resp):
@@ -196,93 +138,38 @@ def _rest_error_detail(resp):
         return resp.text[:300] if resp.text else f'HTTP {resp.status_code}'
 
 
-def _generate_image_bytes_rest(prompt, api_key):
-    """Generate one image via Gemini REST API. Returns (bytes, mime_type)."""
+def _generate_image_bytes(prompt, api_key):
+    """One API call to the free-tier Gemini image model."""
     import requests
 
-    errors = []
     headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
-
-    for model, model_aspect in GEMINI_IMAGE_MODELS:
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
-        for modalities in (['IMAGE'], ['TEXT', 'IMAGE']):
-            generation_config = {'responseModalities': modalities}
-            if model_aspect:
-                generation_config['imageConfig'] = {'aspectRatio': model_aspect}
-            payload = {
-                'contents': [{'parts': [{'text': prompt}]}],
-                'generationConfig': generation_config,
-            }
-            try:
-                resp = requests.post(url, headers=headers, json=payload, timeout=120)
-                if resp.status_code == 429:
-                    errors.append(f'{model}: rate limited')
-                    break
-                if resp.status_code >= 400:
-                    errors.append(f'{model} {modalities}: {_rest_error_detail(resp)}')
-                    continue
-                data = resp.json()
-                pf = data.get('promptFeedback') or data.get('prompt_feedback') or {}
-                block = pf.get('blockReason') or pf.get('block_reason')
-                if block:
-                    errors.append(f'{model}: blocked ({block})')
-                    continue
-                for candidate in data.get('candidates', []):
-                    for part in candidate.get('content', {}).get('parts', []):
-                        inline = part.get('inlineData') or part.get('inline_data')
-                        if inline and inline.get('data'):
-                            raw = base64.b64decode(inline['data'])
-                            mime = inline.get('mimeType') or inline.get('mime_type') or 'image/png'
-                            return raw, mime
-                fr = ''
-                if data.get('candidates'):
-                    fr = data['candidates'][0].get('finishReason') or data['candidates'][0].get('finish_reason') or ''
-                errors.append(f'{model} {modalities}: no image (finish={fr})')
-            except Exception as e:
-                errors.append(f'{model} {modalities}: {e}')
-
-    for imagen_model in IMAGEN_FALLBACK_MODELS:
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{imagen_model}:predict'
-        payload = {
-            'instances': [{'prompt': prompt}],
-            'parameters': {'sampleCount': 1},
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=120)
-            if resp.status_code == 429:
-                errors.append(f'{imagen_model}: rate limited')
-                continue
-            if resp.status_code >= 400:
-                errors.append(f'{imagen_model}: {_rest_error_detail(resp)}')
-                continue
-            data = resp.json()
-            for pred in data.get('predictions', []):
-                b64 = pred.get('bytesBase64Encoded') or pred.get('bytes_base64_encoded')
-                if b64:
-                    mime = pred.get('mimeType') or pred.get('mime_type') or 'image/png'
-                    return base64.b64decode(b64), mime
-            errors.append(f'{imagen_model}: no image in response')
-        except Exception as e:
-            errors.append(f'{imagen_model}: {e}')
-
-    raise ValueError(' | '.join(errors))
-
-
-def _generate_image_bytes(prompt, api_key):
-    """Try REST/Imagen first (if billing enabled), then Gemini image SDK."""
-    errors = []
-    try:
-        return _generate_image_bytes_rest(prompt, api_key)
-    except Exception as e:
-        errors.append(str(e))
-        if _is_quota_error(e):
-            raise ValueError(_friendly_image_error(e))
-    try:
-        return _generate_image_bytes_genai(prompt, api_key)
-    except Exception as e:
-        errors.append(str(e))
-    combined = ' || '.join(errors)
-    raise ValueError(_friendly_image_error(combined))
+    url = (
+        f'https://generativelanguage.googleapis.com/v1beta/models/'
+        f'{GEMINI_IMAGE_MODEL}:generateContent'
+    )
+    payload = {
+        'contents': [{'parts': [{'text': prompt}]}],
+        'generationConfig': {'responseModalities': ['IMAGE']},
+    }
+    resp = requests.post(url, headers=headers, json=payload, timeout=120)
+    if resp.status_code >= 400:
+        raise ValueError(_rest_error_detail(resp))
+    data = resp.json()
+    pf = data.get('promptFeedback') or data.get('prompt_feedback') or {}
+    block = pf.get('blockReason') or pf.get('block_reason')
+    if block:
+        raise ValueError(f'blocked ({block})')
+    for candidate in data.get('candidates', []):
+        for part in candidate.get('content', {}).get('parts', []):
+            inline = part.get('inlineData') or part.get('inline_data')
+            if inline and inline.get('data'):
+                raw = base64.b64decode(inline['data'])
+                mime = inline.get('mimeType') or inline.get('mime_type') or 'image/png'
+                return raw, mime
+    fr = ''
+    if data.get('candidates'):
+        fr = data['candidates'][0].get('finishReason') or data['candidates'][0].get('finish_reason') or ''
+    raise ValueError(f'no image in response (finish={fr})')
 
 
 def _save_email_image(image_bytes, ext):
