@@ -5,11 +5,23 @@ database, call Gemini for the summary text, and return HTML/payload dicts. Sendi
 the email (Flask-Mail) stays in stats.py.
 """
 import os
+import base64
+import io
+import uuid
 from datetime import datetime
 
 from flask import current_app
 
 from other_functions import set_cur
+
+SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://idynkydnk.pythonanywhere.com')
+
+# Image models to try for AI email illustrations (separate quotas from text models).
+GEMINI_IMAGE_MODELS = [
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-image',
+]
+IMAGEN_FALLBACK_MODEL = 'imagen-4.0-fast-generate-001'
 
 
 # Models to try in order. First is the best-quality current model (the
@@ -56,6 +68,192 @@ def generate_ai_text(prompt):
     raise ValueError(f'AI summary generation failed on all models: {" | ".join(errors)}')
 
 
+def _email_hero_styles():
+    return """
+                    .hero-image-card { padding: 0; overflow: hidden; text-align: center; }
+                    .hero-image-card img { width: 100%; max-width: 600px; height: auto; display: block; border-radius: 12px; }
+    """
+
+
+def _email_hero_html(hero_image_url):
+    if not hero_image_url:
+        return ''
+    return f"""
+                    <div class="card hero-image-card">
+                        <img src="{hero_image_url}" alt="AI game illustration">
+                    </div>
+    """
+
+
+def _games_highlight_for_image(game_type, games, max_games=3):
+    lines = []
+    if game_type == 'doubles':
+        for game in games[:max_games]:
+            lines.append(
+                f"{game[2]} & {game[3]} beat {game[5]} & {game[6]} ({game[4]}-{game[7]})"
+            )
+    elif game_type == 'vollis':
+        for game in games[:max_games]:
+            lines.append(f"{game[2]} beat {game[4]} ({game[3]}-{game[5]})")
+    elif game_type == 'other':
+        for game in games[:max_games]:
+            winners = ', '.join(w['name'] for w in game.get('winners', []) if w.get('name'))
+            losers = ', '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
+            game_name = game.get('game_name', 'game')
+            lines.append(f"{winners} beat {losers} in {game_name}")
+    return '; '.join(lines)
+
+
+def _build_email_image_prompt(game_type, games, summary, player_names):
+    sport_desc = {
+        'doubles': 'beach volleyball doubles match on sand courts',
+        'vollis': 'intense one-on-one vollis volleyball rally',
+        'other': 'fun recreational sports game session',
+    }.get(game_type, 'sports games')
+    names = ', '.join(sorted(player_names)[:10])
+    highlight = _games_highlight_for_image(game_type, games)
+    summary_snip = (summary or '')[:300]
+    return f"""Create a vibrant cartoon illustration for a sports recap email.
+
+Sport scene: {sport_desc}
+Key results: {highlight}
+Mood from recap: {summary_snip}
+
+Include these players as stylized cartoon characters with bold, expressive animated-cartoon faces (exaggerated emotions, big eyes, dynamic poses). Use fun generic cartoon avatars — NOT photorealistic, do NOT depict real people's likenesses.
+
+Composition: 2-panel comic strip in one wide image showing the dramatic rally moment and the celebration aftermath. Motion lines, energy effects, saturated colors, sports-anime highlight reel energy.
+
+No text, letters, numbers, captions, watermarks, or logos. Landscape 16:9 friendly framing.
+Players to feature: {names}"""
+
+
+def _generate_image_bytes_rest(prompt, api_key, aspect_ratio='16:9'):
+    """Generate one image via Gemini REST API. Returns (bytes, mime_type)."""
+    import requests
+
+    errors = []
+    for model in GEMINI_IMAGE_MODELS:
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+        payload = {
+            'contents': [{'parts': [{'text': prompt}]}],
+            'generationConfig': {
+                'responseModalities': ['IMAGE'],
+                'imageConfig': {'aspectRatio': aspect_ratio},
+            },
+        }
+        try:
+            resp = requests.post(
+                url, params={'key': api_key}, json=payload, timeout=120,
+            )
+            if resp.status_code == 429:
+                errors.append(f'{model}: rate limited')
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            for candidate in data.get('candidates', []):
+                for part in candidate.get('content', {}).get('parts', []):
+                    inline = part.get('inlineData') or part.get('inline_data')
+                    if inline and inline.get('data'):
+                        raw = base64.b64decode(inline['data'])
+                        mime = inline.get('mimeType') or inline.get('mime_type') or 'image/png'
+                        return raw, mime
+            errors.append(f'{model}: no image in response')
+        except Exception as e:
+            errors.append(f'{model}: {e}')
+
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{IMAGEN_FALLBACK_MODEL}:predict'
+    payload = {
+        'instances': [{'prompt': prompt}],
+        'parameters': {'sampleCount': 1},
+    }
+    try:
+        resp = requests.post(
+            url, params={'key': api_key}, json=payload, timeout=120,
+        )
+        if resp.status_code == 429:
+            errors.append(f'{IMAGEN_FALLBACK_MODEL}: rate limited')
+        else:
+            resp.raise_for_status()
+            data = resp.json()
+            for pred in data.get('predictions', []):
+                b64 = pred.get('bytesBase64Encoded') or pred.get('bytes_base64_encoded')
+                if b64:
+                    mime = pred.get('mimeType') or pred.get('mime_type') or 'image/png'
+                    return base64.b64decode(b64), mime
+            errors.append(f'{IMAGEN_FALLBACK_MODEL}: no image in response')
+    except Exception as e:
+        errors.append(f'{IMAGEN_FALLBACK_MODEL}: {e}')
+
+    raise ValueError(f'Image generation failed: {" | ".join(errors)}')
+
+
+def _frames_to_gif(frame_a, frame_b, duration_ms=900):
+    """Combine two image frames into a looping GIF for email clients."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return frame_a
+
+    imgs = [Image.open(io.BytesIO(frame_a)).convert('RGBA'),
+            Image.open(io.BytesIO(frame_b)).convert('RGBA')]
+    w, h = imgs[0].size
+    imgs = [im.resize((w, h)) if im.size != (w, h) else im for im in imgs]
+    rgb_imgs = [im.convert('RGB') for im in imgs]
+    out = io.BytesIO()
+    rgb_imgs[0].save(
+        out,
+        format='GIF',
+        save_all=True,
+        append_images=rgb_imgs[1:],
+        duration=duration_ms,
+        loop=0,
+        optimize=True,
+    )
+    return out.getvalue()
+
+
+def _save_email_image(image_bytes, ext):
+    base = os.path.dirname(os.path.abspath(__file__))
+    dest_dir = os.path.join(base, 'static', 'email_images')
+    os.makedirs(dest_dir, exist_ok=True)
+    filename = f'{uuid.uuid4().hex}.{ext}'
+    abs_path = os.path.join(dest_dir, filename)
+    with open(abs_path, 'wb') as f:
+        f.write(image_bytes)
+    return f'{SITE_BASE_URL}/static/email_images/{filename}'
+
+
+def generate_email_hero_image(api_key, game_type, games, summary, player_names):
+    """Generate an animated cartoon illustration for the AI email hero image."""
+    base_prompt = _build_email_image_prompt(game_type, games, summary, player_names)
+    frame_prompts = [
+        base_prompt + ' Single panel: peak action moment mid-rally, intense cartoon expressions.',
+        base_prompt + ' Single panel: winners celebrating, exaggerated joyful animated cartoon faces.',
+    ]
+
+    try:
+        frame_a, _ = _generate_image_bytes_rest(frame_prompts[0], api_key)
+        frame_b, _ = _generate_image_bytes_rest(frame_prompts[1], api_key)
+        gif_bytes = _frames_to_gif(frame_a, frame_b)
+        ext = 'gif' if gif_bytes != frame_a else 'png'
+        return _save_email_image(gif_bytes, ext)
+    except Exception:
+        raw, mime = _generate_image_bytes_rest(base_prompt, api_key)
+        ext = 'gif' if 'gif' in mime else 'png'
+        return _save_email_image(raw, ext)
+
+
+def _try_generate_email_hero_image(api_key, game_type, games, summary, player_names):
+    try:
+        return generate_email_hero_image(api_key, game_type, games, summary, player_names)
+    except Exception as e:
+        try:
+            current_app.logger.warning('AI email image generation failed: %s', e)
+        except Exception:
+            pass
+        return None
+
+
 def format_name_for_email(name):
     if not name:
         return ""
@@ -71,9 +269,11 @@ def format_name_for_email(name):
     return f"{name}<br>&nbsp;"
 
 
-def create_doubles_email_html(summary, stats, games, date_obj):
+def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=None):
     summary_html = summary.replace(chr(10), '<br>') if summary else ''
     formatted_date = date_obj.strftime('%m/%d/%Y')
+    hero_styles = _email_hero_styles() if hero_image_url else ''
+    hero_block = _email_hero_html(hero_image_url)
 
     html_body = f"""
             <html>
@@ -267,11 +467,13 @@ def create_doubles_email_html(summary, stats, games, date_obj):
                         font-size: 13px;
                         border: 1px solid rgba(102, 217, 239, 0.3);
                     }}
+                    {hero_styles}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>Volleyball Recap - {formatted_date}</h1>
+                    {hero_block}
                     
                     <div class="card">
                         <h2>AI Summary</h2>
@@ -664,7 +866,12 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    html_body = create_doubles_email_html(summary, stats, games, date_obj)
+    hero_image_url = _try_generate_email_hero_image(
+        api_key, 'doubles', games, summary, players_set,
+    )
+    html_body = create_doubles_email_html(
+        summary, stats, games, date_obj, hero_image_url=hero_image_url,
+    )
     subject = f"Vball Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
@@ -681,14 +888,17 @@ Write the recap:"""
         'all_emails': all_emails,
         'html_body': html_body,
         'subject': subject,
+        'hero_image_url': hero_image_url,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }
 
 
-def create_vollis_email_html(summary, stats, games, date_obj):
+def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=None):
     summary_html = summary.replace(chr(10), '<br>') if summary else ''
     formatted_date = date_obj.strftime('%m/%d/%Y')
+    hero_styles = _email_hero_styles() if hero_image_url else ''
+    hero_block = _email_hero_html(hero_image_url)
 
     html_body = f"""
             <html>
@@ -732,11 +942,13 @@ def create_vollis_email_html(summary, stats, games, date_obj):
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
                     .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
                     .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
+                    {hero_styles}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>Vollis Recap - {formatted_date}</h1>
+                    {hero_block}
                     
                     <div class="card">
                         <h2>AI Summary</h2>
@@ -843,10 +1055,12 @@ def create_vollis_email_html(summary, stats, games, date_obj):
     return html_body
 
 
-def create_other_email_html(summary, stats, games, date_obj, game_name_label=''):
+def create_other_email_html(summary, stats, games, date_obj, game_name_label='', hero_image_url=None):
     summary_html = summary.replace(chr(10), '<br>') if summary else ''
     formatted_date = date_obj.strftime('%m/%d/%Y')
     title_suffix = f" ({game_name_label})" if game_name_label else ""
+    hero_styles = _email_hero_styles() if hero_image_url else ''
+    hero_block = _email_hero_html(hero_image_url)
 
     html_body = f"""
             <html>
@@ -891,11 +1105,13 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='')
                     .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
                     .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
                     .game-label {{ font-size: 11px; color: #8b949e; font-style: italic; }}
+                    {hero_styles}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>Game Recap{title_suffix} - {formatted_date}</h1>
+                    {hero_block}
                     
                     <div class="card">
                         <h2>AI Summary</h2>
@@ -1165,7 +1381,12 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    html_body = create_vollis_email_html(summary, stats, games, date_obj)
+    hero_image_url = _try_generate_email_hero_image(
+        api_key, 'vollis', games, summary, players_set,
+    )
+    html_body = create_vollis_email_html(
+        summary, stats, games, date_obj, hero_image_url=hero_image_url,
+    )
     subject = f"Vollis Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
@@ -1182,6 +1403,7 @@ Write the recap:"""
         'all_emails': all_emails,
         'html_body': html_body,
         'subject': subject,
+        'hero_image_url': hero_image_url,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }
@@ -1366,7 +1588,13 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    html_body = create_other_email_html(summary, stats, games, date_obj, game_name_label)
+    hero_image_url = _try_generate_email_hero_image(
+        api_key, 'other', games, summary, players_set,
+    )
+    html_body = create_other_email_html(
+        summary, stats, games, date_obj, game_name_label,
+        hero_image_url=hero_image_url,
+    )
     subject = f"{game_name_label} Summary - {formatted_date}"
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
@@ -1383,6 +1611,7 @@ Write the recap:"""
         'all_emails': all_emails,
         'html_body': html_body,
         'subject': subject,
+        'hero_image_url': hero_image_url,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }

@@ -35,3 +35,11 @@ Thumbs.db
 .env.local
 run_with_email.sh
 
+# Uploaded player photos (stored on server)
+static/player_photos/*
+!static/player_photos/.gitkeep
+
+# AI-generated email illustrations (stored on server)
+static/email_images/*
+!static/email_images/.gitkeep
+

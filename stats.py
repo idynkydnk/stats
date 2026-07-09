@@ -484,6 +484,27 @@ init_notifications_db()
 init_auth_tokens_db()
 adminfx.init_activity_log_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
+from player_functions import init_players_photo_column
+init_players_photo_column()
+
+
+def player_photo_url_for(name):
+    """Static URL for a player's uploaded photo, or None."""
+    from player_functions import get_player_photo_path
+    path = get_player_photo_path(name)
+    if path:
+        return url_for('static', filename=path)
+    return None
+
+
+def _ensure_player_record(name):
+    """Return players row for name, creating a minimal record if needed."""
+    from player_functions import get_player_by_name, add_new_player
+    player = get_player_by_name(name)
+    if player:
+        return player
+    add_new_player(name)
+    return get_player_by_name(name)
 
 
 def log_activity(action, target=None, target_id=None, summary=None, before=None, after=None, username=None):
@@ -949,7 +970,10 @@ def preview_ai_summary_with_prompt():
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
 
-    log_activity('Generated AI summary', summary=f'{game_type} summary for {len(selected_game_ids)} game(s), style "{prompt_style}"')
+    log_activity('Generated AI summary', summary=(
+        f'{game_type} summary for {len(selected_game_ids)} game(s), style "{prompt_style}"'
+        + (' (with AI illustration)' if payload.get('hero_image_url') else '')
+    ))
 
     type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
     header_label = type_labels.get(game_type, 'Doubles')
@@ -964,6 +988,7 @@ def preview_ai_summary_with_prompt():
             header_title=f"{header_label} AI Summary Preview",
             subject=payload.get('subject') or '',
             email_html=payload.get('html_body') or '',
+            hero_image_url=payload.get('hero_image_url'),
             players=payload.get('players') or [],
             players_without_email=payload.get('players_without_email') or [],
             selected_game_ids_json=selected_game_ids_json,
@@ -1357,7 +1382,8 @@ def player_stats(year, name):
         partner_stats=partner_stats, year=year, player=name,
         all_years=all_years, stats=stats, games=games,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
-        current_streak=current_streak, recent_form=recent_form)
+        current_streak=current_streak, recent_form=recent_form,
+        player_photo_url=player_photo_url_for(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1366,8 +1392,9 @@ def vollis_player_stats(year, name):
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
     opponent_stats = vollis_opponent_stats_by_year(name, games)
-    return render_template('vollis_player.html', opponent_stats=opponent_stats, 
-        year=year, player=name, all_years=all_years, stats=stats)
+    return render_template('vollis_player.html', opponent_stats=opponent_stats,
+        year=year, player=name, all_years=all_years, stats=stats,
+        player_photo_url=player_photo_url_for(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1376,8 +1403,9 @@ def other_player_stats(year, name):
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
     opponent_stats = other_opponent_stats_by_year(name, games)
-    return render_template('other_player.html', opponent_stats=opponent_stats, 
-        year=year, player=name, all_years=all_years, stats=stats)
+    return render_template('other_player.html', opponent_stats=opponent_stats,
+        year=year, player=name, all_years=all_years, stats=stats,
+        player_photo_url=player_photo_url_for(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2668,40 +2696,101 @@ def add_tournament():
 @login_required
 def edit_player(player_id):
     """Edit player information page"""
-    from player_functions import get_player_by_id, update_player_info
-    
+    from player_functions import (
+        get_player_by_id, update_player_info,
+        save_player_photo_upload, remove_player_photo,
+    )
+
     player = get_player_by_id(player_id)
-    
+
     if not player:
         flash('Player not found')
         return redirect(url_for('player_list'))
-    
+
     if request.method == 'POST':
         full_name = request.form['full_name']
         email = request.form['email'] if request.form['email'] else None
         date_of_birth = request.form['date_of_birth'] if request.form['date_of_birth'] else None
         height = request.form['height'] if request.form['height'] else None
         notes = request.form['notes'] if request.form['notes'] else None
-        
+
         if not full_name:
             flash('Full name is required!')
         else:
             old_name = player[1]
             update_player_info(player_id, full_name, email, date_of_birth, height, notes)
-            
-            # Log the action for notifications
+
+            photo_msg = ''
+            try:
+                if request.form.get('remove_photo') == '1':
+                    remove_player_photo(player_id)
+                    photo_msg = ' Photo removed.'
+                elif request.files.get('photo') and request.files['photo'].filename:
+                    save_player_photo_upload(player_id, request.files['photo'])
+                    photo_msg = ' Photo updated.'
+            except ValueError as e:
+                flash(str(e), 'error')
+                return render_template(
+                    'edit_player.html',
+                    player=get_player_by_id(player_id),
+                    player_photo_url=player_photo_url_for(player[1]),
+                )
+
             user = session.get('username', 'unknown')
             if old_name != full_name:
                 log_user_action(user, 'Edited player', f'Renamed "{old_name}" to "{full_name}"')
-                log_activity('Edited player', summary=f'Renamed "{old_name}" to "{full_name}"')
-                flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.')
+                log_activity('Edited player', summary=f'Renamed "{old_name}" to "{full_name}"{photo_msg}')
+                flash(f'Player updated successfully! Name changed from "{old_name}" to "{full_name}" across all games.{photo_msg}')
             else:
                 log_user_action(user, 'Edited player', f'Updated info for "{full_name}"')
-                log_activity('Edited player', summary=f'Updated info for "{full_name}"')
-                flash('Player updated successfully!')
+                log_activity('Edited player', summary=f'Updated info for "{full_name}"{photo_msg}')
+                flash(f'Player updated successfully!{photo_msg}')
             return redirect(url_for('player_list'))
-    
-    return render_template('edit_player.html', player=player)
+
+    return render_template(
+        'edit_player.html',
+        player=player,
+        player_photo_url=player_photo_url_for(player[1]),
+    )
+
+
+@app.route('/api/player_photo/<path:name>/', methods=['POST'])
+@login_required
+def api_upload_player_photo(name):
+    """Upload or remove a player photo from a player stats page."""
+    from player_functions import save_player_photo_upload, remove_player_photo
+
+    name = name.strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    player = _ensure_player_record(name)
+    if not player or not player[0]:
+        return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
+
+    player_id = player[0]
+
+    try:
+        if request.form.get('remove') == '1':
+            remove_player_photo(player_id)
+            log_activity('Updated player photo', summary=f'Removed photo for {name}')
+            return jsonify({'success': True, 'photo_url': None})
+
+        file_storage = request.files.get('photo')
+        if not file_storage or not file_storage.filename:
+            return jsonify({'success': False, 'error': 'No photo file provided.'}), 400
+
+        rel_path = save_player_photo_upload(player_id, file_storage)
+        photo_url = url_for('static', filename=rel_path)
+        user = session.get('username', 'unknown')
+        log_user_action(user, 'Uploaded player photo', name)
+        log_activity('Updated player photo', summary=f'Uploaded photo for {name}')
+        return jsonify({'success': True, 'photo_url': photo_url})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.exception('Player photo upload failed')
+        return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
 
 @app.route('/benchmarks')
 def benchmarks():

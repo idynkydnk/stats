@@ -30,7 +30,33 @@
             font-size: 28px;
             font-weight: 700;
             color: var(--sr-accent);
+            flex-shrink: 0;
         }
+        .sr-player-avatar-wrap { position: relative; flex-shrink: 0; }
+        .sr-player-avatar.sr-player-photo {
+            display: block;
+            object-fit: cover;
+            border: 2px solid var(--sr-line);
+            background: var(--sr-panel);
+        }
+        .sr-photo-upload-btn {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--sr-accent);
+            color: #0b0f14;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            border: 2px solid var(--sr-bg);
+        }
+        .sr-photo-upload-btn:hover { opacity: 0.9; }
+        .sr-photo-upload-btn input { display: none; }
         .sr-player-info h1 {
             font-size: 24px;
             margin: 0 0 4px 0;
@@ -112,7 +138,7 @@
         </header>
 
         <div class="sr-player-header">
-            <div class="sr-player-avatar">{{ player[0] }}</div>
+            {% include 'partials/player_avatar.html' %}
             <div class="sr-player-info">
                 <h1>{{ player }}</h1>
                 <div class="sr-player-subtitle">{{ year }} Other Games Stats</div>

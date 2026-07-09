@@ -1,5 +1,104 @@
 from create_players_database import *
 from datetime import datetime
+import os
+
+ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+MAX_PHOTO_BYTES = 5 * 1024 * 1024
+
+
+def init_players_photo_column():
+    """Ensure players.photo_path exists (safe to call on every startup)."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    if conn is None:
+        return
+    cur = conn.cursor()
+    cur.execute('PRAGMA table_info(players)')
+    cols = [row[1] for row in cur.fetchall()]
+    if 'photo_path' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN photo_path TEXT')
+        conn.commit()
+    conn.close()
+
+
+def player_photos_dir():
+    """Absolute path to static/player_photos."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'static', 'player_photos')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def get_player_photo_path(full_name):
+    """Return stored photo_path (e.g. player_photos/3.jpg) or None."""
+    player = get_player_by_name(full_name)
+    if player and len(player) > 8 and player[8]:
+        return player[8]
+    return None
+
+
+def set_player_photo_path(player_id, photo_path):
+    """Update photo_path for a player."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    now = datetime.now()
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET photo_path = ?, updated_at = ? WHERE id = ?',
+            (photo_path, now, player_id),
+        )
+        conn.commit()
+
+
+def save_player_photo_upload(player_id, file_storage):
+    """Validate and save an uploaded image. Returns relative static path."""
+    if not file_storage or not file_storage.filename:
+        raise ValueError('No photo file provided.')
+
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        raise ValueError('Photo must be JPG, PNG, WebP, or GIF.')
+
+    file_storage.stream.seek(0, os.SEEK_END)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    if size > MAX_PHOTO_BYTES:
+        raise ValueError('Photo must be 5 MB or smaller.')
+
+    dest_dir = player_photos_dir()
+    filename = f'{player_id}{ext}'
+    abs_path = os.path.join(dest_dir, filename)
+    file_storage.save(abs_path)
+
+    rel_path = f'player_photos/{filename}'
+    set_player_photo_path(player_id, rel_path)
+    return rel_path
+
+
+def remove_player_photo(player_id):
+    """Delete photo file and clear photo_path."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    cur = conn.cursor()
+    cur.execute('SELECT photo_path FROM players WHERE id = ?', (player_id,))
+    row = cur.fetchone()
+    if row and row[0]:
+        base = os.path.dirname(os.path.abspath(__file__))
+        abs_path = os.path.join(base, 'static', row[0])
+        if os.path.isfile(abs_path):
+            os.remove(abs_path)
+    set_player_photo_path(player_id, None)
+
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -88,28 +187,25 @@ def get_all_players():
         # Build player record
         if player_record:
             # Player exists in database with their info
-            # Only take the first 8 fields to ensure consistent structure
-            player_list = list(player_record[:8])
+            player_list = list(player_record[:9])
         else:
             # Player doesn't exist in database, create minimal record
-            # Format: id, full_name, email, date_of_birth, height, notes, created_at, updated_at
             from datetime import datetime
             now = datetime.now()
-            player_list = [None, player_name, None, None, None, None, now, now]
+            player_list = [None, player_name, None, None, None, None, now, now, None]
         
-        # Ensure we have exactly 8 fields before appending
-        while len(player_list) < 8:
+        while len(player_list) < 9:
             player_list.append(None)
-        player_list = player_list[:8]
+        player_list = player_list[:9]
         
-        player_list.append(first_game_date)  # index 8
-        player_list.append(int(total_games))  # index 9 - ensure it's an integer
+        player_list.append(first_game_date)  # index 9
+        player_list.append(int(total_games))  # index 10
         players_with_stats.append(tuple(player_list))
     
     # Sort by total games (descending) - safely handle any type issues
     def safe_game_count(player):
         try:
-            return int(player[9]) if player[9] is not None else 0
+            return int(player[10]) if len(player) > 10 and player[10] is not None else 0
         except (ValueError, TypeError):
             return 0
     

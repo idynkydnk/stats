@@ -8,8 +8,31 @@
 </div>
 <div class="container">
     <h1>{% block title %} Edit Player {% endblock %}</h1>
-    
-    <form method="post">
+
+    <form method="post" enctype="multipart/form-data">
+        <div class="form-group photo-group">
+            <label>Photo</label>
+            <div class="edit-photo-row">
+                {% if player_photo_url %}
+                <img src="{{ player_photo_url }}" alt="{{ player[1] }}" class="edit-player-photo" id="edit-player-photo">
+                {% else %}
+                <div class="edit-player-photo edit-player-photo-fallback" id="edit-player-photo-fallback">{{ player[1][0] }}</div>
+                {% endif %}
+                <div class="edit-photo-actions">
+                    <label class="edit-photo-upload-label">
+                        <i class="fas fa-camera"></i> Upload photo
+                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif">
+                    </label>
+                    {% if player_photo_url %}
+                    <label class="edit-photo-remove-label">
+                        <input type="checkbox" name="remove_photo" value="1"> Remove photo
+                    </label>
+                    {% endif %}
+                    <p class="edit-photo-hint">JPG, PNG, WebP, or GIF. Max 5 MB.</p>
+                </div>
+            </div>
+        </div>
+
         <div class="form-group">
             <label for="full_name">Full Name *</label>
             <input type="text" name="full_name" id="full_name"
@@ -87,6 +110,58 @@
     font-family: inherit;
 }
 
+.photo-group { margin-bottom: 28px; }
+.edit-photo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.edit-player-photo {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+}
+.edit-player-photo-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--button-bg-1);
+    color: var(--button-text-1);
+    font-size: 36px;
+    font-weight: 700;
+}
+.edit-photo-actions {
+    text-align: left;
+    max-width: 220px;
+}
+.edit-photo-upload-label {
+    display: inline-block;
+    padding: 8px 14px;
+    background: var(--button-bg-1);
+    color: var(--button-text-1);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+.edit-photo-upload-label input { display: none; }
+.edit-photo-remove-label {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+}
+.edit-photo-hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--caption);
+}
+
 .button-group {
     text-align: center;
     margin-top: 30px;
@@ -128,4 +203,3 @@ h1 {
 }
 </style>
 {% endblock %}
-

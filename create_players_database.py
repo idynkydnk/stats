@@ -71,7 +71,8 @@ def main():
                                     height TEXT,
                                     notes TEXT,
                                     created_at DATETIME NOT NULL,
-                                    updated_at DATETIME NOT NULL
+                                    updated_at DATETIME NOT NULL,
+                                    photo_path TEXT
                                 );"""
 
     # create a database connection

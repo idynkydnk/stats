@@ -519,6 +519,11 @@
         <!-- Email Preview Card -->
         <div class="sr-card">
             <h2 class="sr-card-title">Email Preview</h2>
+            {% if hero_image_url %}
+            <p style="color: var(--sr-muted); font-size: 13px; margin: 0 0 12px 0;">
+                <i class="fas fa-image"></i> Includes an AI-generated cartoon illustration of the games.
+            </p>
+            {% endif %}
             <div class="sr-email-preview">
                 <iframe id="email-preview-frame" title="Email preview"></iframe>
             </div>
