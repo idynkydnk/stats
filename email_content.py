@@ -109,25 +109,32 @@ def _games_highlight_for_image(game_type, games, max_games=3):
 
 def _build_email_image_prompt(game_type, games, summary, player_names):
     sport_desc = {
-        'doubles': 'beach volleyball doubles match on sand courts',
-        'vollis': 'intense one-on-one vollis volleyball rally',
-        'other': 'fun recreational sports game session',
-    }.get(game_type, 'sports games')
-    names = ', '.join(sorted(player_names)[:10])
-    highlight = _games_highlight_for_image(game_type, games)
-    summary_snip = (summary or '')[:300]
-    return f"""Create a vibrant cartoon illustration for a sports recap email.
+        'doubles': 'beach volleyball doubles',
+        'vollis': 'one-on-one vollis volleyball',
+        'other': 'recreational sports games',
+    }.get(game_type, 'sports')
+    names = ', '.join(sorted(player_names)[:8])
+    highlight = _games_highlight_for_image(game_type, games, max_games=2)
+    summary_snip = (summary or '')[:180]
+    return f"""Cartoon sports illustration for an email recap.
+Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
+Show players ({names}) as stylized cartoon characters with expressive animated faces — generic avatars, not real likenesses.
+Wide comic-strip scene: intense rally and celebration. Bold colors, motion lines. No text or logos."""
 
-Sport scene: {sport_desc}
-Key results: {highlight}
-Mood from recap: {summary_snip}
 
-Include these players as stylized cartoon characters with bold, expressive animated-cartoon faces (exaggerated emotions, big eyes, dynamic poses). Use fun generic cartoon avatars — NOT photorealistic, do NOT depict real people's likenesses.
+def _is_quota_error(msg):
+    s = str(msg).lower()
+    return '429' in s or 'quota' in s or 'rate limit' in s or 'exceeded your current quota' in s
 
-Composition: 2-panel comic strip in one wide image showing the dramatic rally moment and the celebration aftermath. Motion lines, energy effects, saturated colors, sports-anime highlight reel energy.
 
-No text, letters, numbers, captions, watermarks, or logos. Landscape 16:9 friendly framing.
-Players to feature: {names}"""
+def _friendly_image_error(err):
+    if _is_quota_error(err):
+        return (
+            'Daily free image quota is used up on the shared Gemini API key '
+            '(~500 images/day on gemini-2.5-flash-image). The text summary still works. '
+            'Try again tomorrow, or enable billing in Google AI Studio for more image generation.'
+        )
+    return str(err)[:400]
 
 
 def _image_bytes_from_genai_response(response):
@@ -174,6 +181,8 @@ def _generate_image_bytes_genai(prompt, api_key):
                     return _image_bytes_from_genai_response(response)
                 except Exception as inner:
                     errors.append(f'{model_name} {modalities}: {inner}')
+                    if _is_quota_error(inner):
+                        break
         except Exception as e:
             errors.append(f'{model_name}: {e}')
     raise ValueError('genai: ' + ' | '.join(errors))
@@ -260,17 +269,20 @@ def _generate_image_bytes_rest(prompt, api_key):
 
 
 def _generate_image_bytes(prompt, api_key):
-    """Try SDK first, then REST/Imagen fallbacks."""
+    """Try REST/Imagen first (if billing enabled), then Gemini image SDK."""
     errors = []
-    try:
-        return _generate_image_bytes_genai(prompt, api_key)
-    except Exception as e:
-        errors.append(str(e))
     try:
         return _generate_image_bytes_rest(prompt, api_key)
     except Exception as e:
         errors.append(str(e))
-    raise ValueError(' || '.join(errors))
+        if _is_quota_error(e):
+            raise ValueError(_friendly_image_error(e))
+    try:
+        return _generate_image_bytes_genai(prompt, api_key)
+    except Exception as e:
+        errors.append(str(e))
+    combined = ' || '.join(errors)
+    raise ValueError(_friendly_image_error(combined))
 
 
 def _save_email_image(image_bytes, ext):
@@ -301,7 +313,7 @@ def _try_generate_email_hero_image(api_key, game_type, games, summary, player_na
     try:
         return generate_email_hero_image(api_key, game_type, games, summary, player_names), None
     except Exception as e:
-        err = str(e)
+        err = _friendly_image_error(e)
         try:
             current_app.logger.warning('AI email image generation failed: %s', err)
         except Exception:

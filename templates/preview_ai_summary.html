@@ -412,8 +412,7 @@
         <p class="sr-image-status ok"><i class="fas fa-image"></i> AI-generated game illustration included in email.</p>
         {% elif hero_image_error %}
         <p class="sr-image-status warn">
-            <i class="fas fa-exclamation-triangle"></i> AI illustration could not be generated — email will send without it.
-            <span style="display:block; margin-top:6px; font-size:12px; color:var(--sr-muted);">{{ hero_image_error[:400] }}</span>
+            <i class="fas fa-exclamation-triangle"></i> {{ hero_image_error }}
         </p>
         {% endif %}
 
