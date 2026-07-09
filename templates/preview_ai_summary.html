@@ -351,18 +351,27 @@
             font-size: 13px;
             margin-top: 12px;
         }
-        .sr-email-preview {
-            background: var(--sr-bg);
+        .sr-image-status {
+            font-size: 13px;
+            margin: 0 0 16px 0;
+            padding: 10px 14px;
+            border-radius: 8px;
             border: 1px solid var(--sr-line);
-            border-radius: 12px;
-            overflow: hidden;
-            height: 600px;
         }
-        .sr-email-preview iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #ffffff;
+        .sr-image-status.ok {
+            color: var(--sr-win);
+            background: rgba(74, 222, 128, 0.08);
+        }
+        .sr-image-status.warn {
+            color: #fbc02d;
+            background: rgba(251, 192, 45, 0.08);
+        }
+        .sr-email-inline-wrap {
+            margin-bottom: 24px;
+        }
+        .sr-email-inline {
+            max-width: 600px;
+            margin: 0 auto;
         }
         .sr-section-title {
             font-size: 14px;
@@ -398,6 +407,16 @@
                 </button>
             </div>
         </header>
+
+        {% if hero_image_url %}
+        <p class="sr-image-status ok"><i class="fas fa-image"></i> AI-generated game illustration included in email.</p>
+        {% elif hero_image_error %}
+        <p class="sr-image-status warn"><i class="fas fa-exclamation-triangle"></i> AI illustration could not be generated — email will send without it.</p>
+        {% endif %}
+
+        <div class="sr-email-inline-wrap">
+            {{ email_preview_html | safe }}
+        </div>
 
         <!-- Recipients Card -->
         <div class="sr-card">
@@ -515,19 +534,6 @@
                 </div>
             </form>
         </div>
-
-        <!-- Email Preview Card -->
-        <div class="sr-card">
-            <h2 class="sr-card-title">Email Preview</h2>
-            {% if hero_image_url %}
-            <p style="color: var(--sr-muted); font-size: 13px; margin: 0 0 12px 0;">
-                <i class="fas fa-image"></i> Includes an AI-generated cartoon illustration of the games.
-            </p>
-            {% endif %}
-            <div class="sr-email-preview">
-                <iframe id="email-preview-frame" title="Email preview"></iframe>
-            </div>
-        </div>
     </div>
 
     <form id="refresh-form" method="post" action="{{ url_for('preview_ai_summary_with_prompt') }}" style="display:none;">
@@ -537,7 +543,7 @@
         <input type="hidden" name="game_type" value="{{ game_type }}">
     </form>
 
-    <script id="page-data" type="application/json">{{ {'selectedGameIds': selected_game_ids|list, 'emailSubject': subject, 'gameType': game_type, 'emailHtml': email_html} | tojson | safe }}</script>
+    <script id="page-data" type="application/json">{{ {'selectedGameIds': selected_game_ids|list, 'gameType': game_type} | tojson | safe }}</script>
 
     <script>
         window.onerror = function(msg, url, line) { alert('JS error: ' + msg + ' at line ' + line); };
@@ -545,23 +551,14 @@
 
     <script>
     var selectedGameIds = [];
-    var emailSubject = '';
     var gameType = 'doubles';
-    var emailHtml = '';
     try {
         var _pd = JSON.parse(document.getElementById('page-data').textContent);
         selectedGameIds = _pd.selectedGameIds || [];
-        emailSubject = _pd.emailSubject || '';
         gameType = _pd.gameType || 'doubles';
-        emailHtml = _pd.emailHtml || '';
     } catch (e) {
         alert('Data load error: ' + e.message);
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        var frame = document.getElementById('email-preview-frame');
-        if (frame) { frame.srcdoc = emailHtml; }
-    });
 
     function refreshPreview() {
         document.getElementById('refresh-form').submit();

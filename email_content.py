@@ -6,7 +6,6 @@ the email (Flask-Mail) stays in stats.py.
 """
 import os
 import base64
-import io
 import uuid
 from datetime import datetime
 
@@ -187,31 +186,6 @@ def _generate_image_bytes_rest(prompt, api_key, aspect_ratio='16:9'):
     raise ValueError(f'Image generation failed: {" | ".join(errors)}')
 
 
-def _frames_to_gif(frame_a, frame_b, duration_ms=900):
-    """Combine two image frames into a looping GIF for email clients."""
-    try:
-        from PIL import Image
-    except ImportError:
-        return frame_a
-
-    imgs = [Image.open(io.BytesIO(frame_a)).convert('RGBA'),
-            Image.open(io.BytesIO(frame_b)).convert('RGBA')]
-    w, h = imgs[0].size
-    imgs = [im.resize((w, h)) if im.size != (w, h) else im for im in imgs]
-    rgb_imgs = [im.convert('RGB') for im in imgs]
-    out = io.BytesIO()
-    rgb_imgs[0].save(
-        out,
-        format='GIF',
-        save_all=True,
-        append_images=rgb_imgs[1:],
-        duration=duration_ms,
-        loop=0,
-        optimize=True,
-    )
-    return out.getvalue()
-
-
 def _save_email_image(image_bytes, ext):
     base = os.path.dirname(os.path.abspath(__file__))
     dest_dir = os.path.join(base, 'static', 'email_images')
@@ -224,34 +198,49 @@ def _save_email_image(image_bytes, ext):
 
 
 def generate_email_hero_image(api_key, game_type, games, summary, player_names):
-    """Generate an animated cartoon illustration for the AI email hero image."""
-    base_prompt = _build_email_image_prompt(game_type, games, summary, player_names)
-    frame_prompts = [
-        base_prompt + ' Single panel: peak action moment mid-rally, intense cartoon expressions.',
-        base_prompt + ' Single panel: winners celebrating, exaggerated joyful animated cartoon faces.',
-    ]
-
-    try:
-        frame_a, _ = _generate_image_bytes_rest(frame_prompts[0], api_key)
-        frame_b, _ = _generate_image_bytes_rest(frame_prompts[1], api_key)
-        gif_bytes = _frames_to_gif(frame_a, frame_b)
-        ext = 'gif' if gif_bytes != frame_a else 'png'
-        return _save_email_image(gif_bytes, ext)
-    except Exception:
-        raw, mime = _generate_image_bytes_rest(base_prompt, api_key)
-        ext = 'gif' if 'gif' in mime else 'png'
-        return _save_email_image(raw, ext)
+    """Generate a cartoon illustration for the AI email hero image."""
+    prompt = _build_email_image_prompt(game_type, games, summary, player_names)
+    raw, mime = _generate_image_bytes_rest(prompt, api_key)
+    if 'gif' in mime:
+        ext = 'gif'
+    elif 'jpeg' in mime or 'jpg' in mime:
+        ext = 'jpg'
+    else:
+        ext = 'png'
+    return _save_email_image(raw, ext)
 
 
 def _try_generate_email_hero_image(api_key, game_type, games, summary, player_names):
     try:
-        return generate_email_hero_image(api_key, game_type, games, summary, player_names)
+        return generate_email_hero_image(api_key, game_type, games, summary, player_names), None
     except Exception as e:
+        err = str(e)
         try:
-            current_app.logger.warning('AI email image generation failed: %s', e)
+            current_app.logger.warning('AI email image generation failed: %s', err)
         except Exception:
             pass
-        return None
+        return None, err
+
+
+def email_html_for_inline_preview(html_body):
+    """Extract email body with scoped styles for inline display on the preview page."""
+    import re
+    from bs4 import BeautifulSoup
+
+    if not html_body or not str(html_body).strip():
+        return '<p>No email content.</p>'
+
+    soup = BeautifulSoup(html_body, 'html.parser')
+    styles = []
+    for tag in soup.find_all('style'):
+        css = tag.get_text() or ''
+        css = re.sub(r'\bbody\b', '.sr-email-inline', css)
+        css = re.sub(r'\bhtml\b', '.sr-email-inline', css)
+        styles.append(css)
+    body = soup.find('body')
+    content = body.decode_contents() if body else html_body
+    style_block = f'<style>{"".join(styles)}</style>' if styles else ''
+    return f'{style_block}<div class="sr-email-inline">{content}</div>'
 
 
 def format_name_for_email(name):
@@ -866,7 +855,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url = _try_generate_email_hero_image(
+    hero_image_url, hero_image_error = _try_generate_email_hero_image(
         api_key, 'doubles', games, summary, players_set,
     )
     html_body = create_doubles_email_html(
@@ -889,6 +878,7 @@ Write the recap:"""
         'html_body': html_body,
         'subject': subject,
         'hero_image_url': hero_image_url,
+        'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }
@@ -1381,7 +1371,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url = _try_generate_email_hero_image(
+    hero_image_url, hero_image_error = _try_generate_email_hero_image(
         api_key, 'vollis', games, summary, players_set,
     )
     html_body = create_vollis_email_html(
@@ -1404,6 +1394,7 @@ Write the recap:"""
         'html_body': html_body,
         'subject': subject,
         'hero_image_url': hero_image_url,
+        'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }
@@ -1588,7 +1579,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url = _try_generate_email_hero_image(
+    hero_image_url, hero_image_error = _try_generate_email_hero_image(
         api_key, 'other', games, summary, players_set,
     )
     html_body = create_other_email_html(
@@ -1612,6 +1603,7 @@ Write the recap:"""
         'html_body': html_body,
         'subject': subject,
         'hero_image_url': hero_image_url,
+        'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date
     }

@@ -20,6 +20,7 @@ from email_content import (
     build_vollis_email_payload,
     build_other_email_payload,
     generate_ai_text,
+    email_html_for_inline_preview,
 )
 import admin_functions as adminfx
 import os
@@ -970,9 +971,14 @@ def preview_ai_summary_with_prompt():
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
 
+    img_note = ''
+    if payload.get('hero_image_url'):
+        img_note = ' (with AI illustration)'
+    elif payload.get('hero_image_error'):
+        img_note = f' (image failed: {payload["hero_image_error"][:120]})'
     log_activity('Generated AI summary', summary=(
         f'{game_type} summary for {len(selected_game_ids)} game(s), style "{prompt_style}"'
-        + (' (with AI illustration)' if payload.get('hero_image_url') else '')
+        + img_note
     ))
 
     type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
@@ -988,7 +994,9 @@ def preview_ai_summary_with_prompt():
             header_title=f"{header_label} AI Summary Preview",
             subject=payload.get('subject') or '',
             email_html=payload.get('html_body') or '',
+            email_preview_html=email_html_for_inline_preview(payload.get('html_body') or ''),
             hero_image_url=payload.get('hero_image_url'),
+            hero_image_error=payload.get('hero_image_error'),
             players=payload.get('players') or [],
             players_without_email=payload.get('players_without_email') or [],
             selected_game_ids_json=selected_game_ids_json,
