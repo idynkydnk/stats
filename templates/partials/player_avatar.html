@@ -1,14 +1,15 @@
 {# Player avatar: uploaded photo or initial letter. Logged-in users can upload. #}
 {% set display_name = player_name if player_name is defined else player %}
-<div class="sr-player-avatar-wrap" id="player-avatar-wrap">
+<div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if player_photo_url %}
     <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-player-avatar sr-player-photo" id="player-avatar-img">
     {% else %}
     <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
     {% endif %}
     {% if session.logged_in %}
-    <label class="sr-photo-upload-btn" title="Upload photo">
+    <label class="sr-photo-upload-btn" title="Change photo">
         <i class="fas fa-camera"></i>
+        <span>Photo</span>
         <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden
                onchange="uploadPlayerPhoto('{{ display_name|e }}', this)">
     </label>

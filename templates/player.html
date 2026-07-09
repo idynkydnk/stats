@@ -15,7 +15,7 @@
     <style>
         .sr-player-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 16px;
             margin-bottom: 20px;
         }
@@ -32,8 +32,11 @@
             color: var(--sr-accent);
             flex-shrink: 0;
         }
-        .sr-player-avatar-wrap {
-            position: relative;
+        .sr-player-avatar-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
             flex-shrink: 0;
         }
         .sr-player-avatar.sr-player-photo {
@@ -43,23 +46,19 @@
             background: var(--sr-panel);
         }
         .sr-photo-upload-btn {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            background: var(--sr-accent);
-            color: #0b0f14;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: var(--sr-accent-dim);
+            color: var(--sr-accent);
             font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
-            border: 2px solid var(--sr-bg);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            border: 1px solid var(--sr-line);
         }
-        .sr-photo-upload-btn:hover { opacity: 0.9; }
+        .sr-photo-upload-btn:hover { background: var(--sr-accent); color: #0b0f14; }
         .sr-photo-upload-btn input { display: none; }
         .sr-player-info h1 {
             font-size: 24px;
