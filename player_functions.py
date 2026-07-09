@@ -5,6 +5,13 @@ import os
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
+# Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
+PLAYERS_SELECT = """
+    SELECT id, full_name, email, date_of_birth, height, notes,
+           created_at, updated_at, photo_path
+    FROM players
+"""
+
 
 def init_players_photo_column():
     """Ensure players.photo_path exists (safe to call on every startup)."""
@@ -34,10 +41,13 @@ def player_photos_dir():
 
 def get_player_photo_path(full_name):
     """Return stored photo_path (e.g. player_photos/3.jpg) or None."""
-    player = get_player_by_name(full_name)
-    if player and len(player) > 8 and player[8]:
-        return player[8]
-    return None
+    cur = set_cur()
+    cur.execute(
+        'SELECT photo_path FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return row[0] if row and row[0] else None
 
 
 def set_player_photo_path(player_id, photo_path):
@@ -147,7 +157,7 @@ def get_all_players():
     players_with_stats = []
     for player_name in all_player_names:
         # Check if player exists in players table
-        cur.execute("SELECT * FROM players WHERE full_name = ?", (player_name,))
+        cur.execute(f"{PLAYERS_SELECT} WHERE full_name = ?", (player_name,))
         player_record = cur.fetchone()
         
         # Count doubles games
@@ -186,14 +196,12 @@ def get_all_players():
         
         # Build player record
         if player_record:
-            # Player exists in database with their info
-            player_list = list(player_record[:9])
+            player_list = list(player_record)
         else:
-            # Player doesn't exist in database, create minimal record
             from datetime import datetime
             now = datetime.now()
             player_list = [None, player_name, None, None, None, None, now, now, None]
-        
+
         while len(player_list) < 9:
             player_list.append(None)
         player_list = player_list[:9]
@@ -217,14 +225,14 @@ def get_all_players():
 def get_player_by_id(player_id):
     """Get a specific player by ID"""
     cur = set_cur()
-    cur.execute("SELECT * FROM players WHERE id=?", (player_id,))
+    cur.execute(f"{PLAYERS_SELECT} WHERE id=?", (player_id,))
     player = cur.fetchone()
     return player
 
 def get_player_by_name(full_name):
     """Get a specific player by full name"""
     cur = set_cur()
-    cur.execute("SELECT * FROM players WHERE full_name=?", (full_name,))
+    cur.execute(f"{PLAYERS_SELECT} WHERE full_name=?", (full_name,))
     player = cur.fetchone()
     return player
 
