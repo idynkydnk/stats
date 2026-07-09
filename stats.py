@@ -19,6 +19,7 @@ from email_content import (
     build_doubles_email_payload,
     build_vollis_email_payload,
     build_other_email_payload,
+    generate_ai_text,
 )
 import admin_functions as adminfx
 import os
@@ -939,12 +940,16 @@ def preview_ai_summary_with_prompt():
         else:
             payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
     except ValueError as ve:
+        log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(ve)[:200]}')
         flash(str(ve), 'error')
         return redirect(url_for('ai_summary'))
     except Exception as e:
         app.logger.exception('AI summary payload failed')
+        log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(e)[:200]}')
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
+
+    log_activity('Generated AI summary', summary=f'{game_type} summary for {len(selected_game_ids)} game(s), style "{prompt_style}"')
 
     type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
     header_label = type_labels.get(game_type, 'Doubles')
@@ -1085,10 +1090,6 @@ def api_parse_voice_doubles():
     players_str = ', '.join(recent_players) if recent_players else '(no players yet)'
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('models/gemini-flash-latest')
-
         prompt = f"""You are parsing a spoken doubles volleyball game result into structured data.
 
 Known players (use EXACT full names from this list): {players_str}
@@ -1105,8 +1106,7 @@ Rules:
 Respond with ONLY a JSON object, no other text, with these exact keys: winner1, winner2, loser1, loser2, winner_score, loser_score. Use strings for names (empty string "" if no match) and integers for scores.
 Example: {{"winner1": "Kyle Thomson", "winner2": "Aaron Plumb", "loser1": "Dan Ferris", "loser2": "Zac Prost", "winner_score": 21, "loser_score": 13}}"""
 
-        response = model.generate_content(prompt)
-        text = (response.text or '').strip()
+        text = generate_ai_text(prompt)
         # Strip markdown code fence if present
         if text.startswith('```'):
             lines = text.split('\n')
@@ -2904,13 +2904,7 @@ def generate_ai_summary():
             score = f"{game[4]}-{game[7]}"
             context += f"- {winners} def. {losers} ({score})\n"
         
-        # Configure Gemini with stable model
-        genai.configure(api_key=api_key)
-        
-        # Use the stable fast model from your available models list
-        model = genai.GenerativeModel('models/gemini-flash-latest')
-        
-        # Generate summary
+        # Generate summary (falls back to alternate models on quota errors)
         prompt = f"""Write a fun, engaging 1-2 paragraph summary of these volleyball games. 
         Each paragraph must be 2-3 sentences only. Total under 100 words.
         Highlight top performers and notable matches. Be concise—quick hit, not a long read.
@@ -2919,8 +2913,7 @@ def generate_ai_summary():
 
 Write the summary:"""
         
-        response = model.generate_content(prompt)
-        summary = response.text
+        summary = generate_ai_text(prompt)
         
         return jsonify({
             'success': True,
@@ -3248,7 +3241,10 @@ def generate_and_email_today():
         msg.body = 'View the summary in HTML email.'
         messages.append(msg)
     emails_sent, errors = send_messages_with_retry(messages)
-    log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
+    if errors:
+        log_activity('Email send failed', summary=f'AI summary "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}')
+    else:
+        log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     return jsonify({
         'success': True,
         'emails_sent': emails_sent,
@@ -3287,7 +3283,10 @@ def send_ai_email_form():
         messages.append(msg)
     emails_sent, errors = send_messages_with_retry(messages)
 
-    log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
+    if errors:
+        log_activity('Email send failed', summary=f'AI summary "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}')
+    else:
+        log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
     if errors:
         flash(f'Sent to {emails_sent} recipient(s), but {len(errors)} failed: {"; ".join(errors)}', 'error')
     else:

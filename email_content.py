@@ -12,6 +12,50 @@ from flask import current_app
 from other_functions import set_cur
 
 
+# Models to try in order. First is the best-quality current model (the
+# 'flash-latest' alias tracks Google's newest stable Flash, currently 3.5).
+# The rest are fallbacks with separate (and larger) free-tier quotas, so a
+# daily 429 on one model no longer kills the feature.
+GEMINI_MODELS = [
+    'models/gemini-flash-latest',
+    'models/gemini-3.1-flash-lite',
+    'models/gemini-2.5-flash',
+]
+
+
+def generate_ai_text(prompt):
+    """Generate text with Gemini, falling back to alternate models when the
+    primary is rate-limited (429) or unavailable. Quotas are tracked per model,
+    so a fallback usually succeeds even when the primary's daily cap is hit.
+
+    Returns the generated text (stripped). Raises ValueError with all
+    per-model errors if every model fails.
+    """
+    import google.generativeai as genai
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+    genai.configure(api_key=api_key)
+
+    errors = []
+    for model_name in GEMINI_MODELS:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            try:
+                text = (response.text or '') if hasattr(response, 'text') else ''
+            except Exception:
+                text = ''
+            text = (text or '').strip()
+            if text:
+                return text
+            errors.append(f'{model_name}: empty response')
+        except Exception as e:
+            errors.append(f'{model_name}: {e}')
+    raise ValueError(f'AI summary generation failed on all models: {" | ".join(errors)}')
+
+
 def format_name_for_email(name):
     if not name:
         return ""
@@ -353,7 +397,6 @@ def create_doubles_email_html(summary, stats, games, date_obj):
 
 
 def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
-    import google.generativeai as genai
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
 
@@ -565,10 +608,6 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
             comment_str = f" - Comment: {game[9]}"
         context += f"- {winners} def. {losers} ({score}){comment_str}\n"
 
-    import google.generativeai as genai
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-flash-latest')
-
     # Get the prompt style instructions
     if prompt_style == 'custom' and custom_prompt.strip():
         style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
@@ -587,16 +626,7 @@ Here is the game data:
 {context}
 
 Write the recap:"""
-    try:
-        response = model.generate_content(prompt)
-        try:
-            summary = (response.text or '') if hasattr(response, 'text') else ''
-        except Exception:
-            summary = ''
-    except Exception as e:
-        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
-
-    summary = (summary or '').strip()
+    summary = generate_ai_text(prompt)
 
     players_set = set()
     for game in games:
@@ -978,7 +1008,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='')
 
 
 def build_vollis_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
-    import google.generativeai as genai
     from vollis_functions import convert_vollis_ampm
     from player_functions import get_player_by_name
 
@@ -1081,9 +1110,6 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
         l_score = game[5]
         context += f"- {winner} def. {loser} ({w_score}-{l_score})\n"
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-flash-latest')
-
     if prompt_style == 'custom' and custom_prompt.strip():
         style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
     else:
@@ -1101,16 +1127,7 @@ Here is the game data:
 {context}
 
 Write the recap:"""
-    try:
-        response = model.generate_content(prompt)
-        try:
-            summary = (response.text or '') if hasattr(response, 'text') else ''
-        except Exception:
-            summary = ''
-    except Exception as e:
-        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
-
-    summary = (summary or '').strip()
+    summary = generate_ai_text(prompt)
 
     players_set = set()
     for game in games:
@@ -1171,7 +1188,6 @@ Write the recap:"""
 
 
 def build_other_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt=''):
-    import google.generativeai as genai
     from other_functions import readable_games_data, _is_valid_player_name
     from player_functions import get_player_by_name
 
@@ -1287,9 +1303,6 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
         comment_str = f" - Comment: {comment}" if comment else ""
         context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-flash-latest')
-
     if prompt_style == 'custom' and custom_prompt.strip():
         style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
     else:
@@ -1307,16 +1320,7 @@ Here is the game data:
 {context}
 
 Write the recap:"""
-    try:
-        response = model.generate_content(prompt)
-        try:
-            summary = (response.text or '') if hasattr(response, 'text') else ''
-        except Exception:
-            summary = ''
-    except Exception as e:
-        raise ValueError(f'AI summary generation failed: {str(e)}. Check GEMINI_API_KEY and network.')
-
-    summary = (summary or '').strip()
+    summary = generate_ai_text(prompt)
 
     players_set = set()
     for game in games:
