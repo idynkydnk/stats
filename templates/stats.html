@@ -151,26 +151,6 @@
         </section>
         {% endif %}
 
-        {% if stats %}
-        <section class="sr-chart-section">
-            <div class="sr-card sr-card-compact">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-                    <p class="sr-section-label" style="margin: 0;">
-                        <i class="fas fa-chart-line" style="margin-right: 6px;"></i>Rating Over Time
-                    </p>
-                    <div class="sr-range-pills">
-                        <button class="sr-range-pill" data-range="5">Top 5</button>
-                        <button class="sr-range-pill active" data-range="10">Top 10</button>
-                        <button class="sr-range-pill" data-range="all">All</button>
-                    </div>
-                </div>
-                <div class="sr-chart-container">
-                    <canvas id="heroChart" data-year="{{ display_year|default(year) }}"></canvas>
-                </div>
-            </div>
-        </section>
-        {% endif %}
-
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <div class="sr-search-wrap">
@@ -286,6 +266,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 {% endblock %}
