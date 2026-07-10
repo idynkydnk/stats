@@ -2,8 +2,10 @@
 {% set display_name = player_name if player_name is defined else player %}
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = '' %}{% endif %}
-{% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50} %}{% endif %}
+{% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50, 'z': 1} %}{% endif %}
 {% set face_pos = player_face_photo_focus.x ~ '% ' ~ player_face_photo_focus.y ~ '%' %}
+{% set face_zoom = player_face_photo_focus.z if player_face_photo_focus.z is defined else 1 %}
+{% set face_crop_style = 'object-position: ' ~ face_pos ~ '; transform: scale(' ~ face_zoom ~ '); transform-origin: ' ~ face_pos ~ ';' %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
@@ -11,7 +13,7 @@
     {% endif %}
         {% if player_photo_url %}
         <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-player-avatar sr-player-photo" id="player-avatar-img"
-             style="object-position: {{ face_pos }};">
+             style="{{ face_crop_style }}">
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
@@ -35,7 +37,7 @@
                          {% if not player_photo_url %}hidden{% endif %}>
                         <img src="{{ player_photo_url or '' }}" alt="Face photo"
                              class="sr-face-crop-img" id="modal-face-preview"
-                             style="object-position: {{ face_pos }};">
+                             style="{{ face_crop_style }}">
                     </div>
                     <div class="sr-face-photo-preview sr-face-photo-empty" id="modal-face-empty"
                          {% if player_photo_url %}hidden{% endif %}>{{ display_name[0] }}</div>
@@ -50,7 +52,13 @@
                                 {% if not player_photo_url %}hidden{% endif %}>Remove face</button>
                     </div>
                     <p class="sr-face-drag-hint" id="face-drag-hint"
-                       {% if not player_photo_url %}hidden{% endif %}>Drag photo to reposition in circle</p>
+                       {% if not player_photo_url %}hidden{% endif %}>Drag to reposition · scroll or +/− to zoom</p>
+                    <div class="sr-face-zoom-controls" id="face-zoom-controls"
+                         {% if not player_photo_url %}hidden{% endif %}>
+                        <button type="button" class="sr-face-zoom-btn" id="face-zoom-out" title="Zoom out">−</button>
+                        <span class="sr-face-zoom-label" id="face-zoom-label">{{ (face_zoom * 100)|round|int }}%</span>
+                        <button type="button" class="sr-face-zoom-btn" id="face-zoom-in" title="Zoom in">+</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -98,6 +106,7 @@
     cursor: pointer;
     border-radius: 50%;
     line-height: 0;
+    overflow: hidden;
 }
 .sr-avatar-clickable:focus-visible {
     outline: 2px solid var(--sr-accent);
@@ -207,6 +216,31 @@
     line-height: 1.4;
 }
 .sr-face-drag-hint[hidden] { display: none !important; }
+.sr-face-zoom-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.sr-face-zoom-controls[hidden] { display: none !important; }
+.sr-face-zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+}
+.sr-face-zoom-label {
+    min-width: 44px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--sr-muted);
+    font-weight: 600;
+}
 .sr-face-photo-actions,
 .sr-photo-modal-footer {
     display: flex;
@@ -306,13 +340,20 @@
 <script>
 (function() {
     var playerName = {{ display_name|tojson }};
-    var faceFocus = { x: {{ player_face_photo_focus.x }}, y: {{ player_face_photo_focus.y }} };
+    var faceFocus = { x: {{ player_face_photo_focus.x }}, y: {{ player_face_photo_focus.y }}, z: {{ player_face_photo_focus.z if player_face_photo_focus.z is defined else 1 }} };
     var modal = document.getElementById('player-photo-modal');
     var trigger = document.getElementById('player-avatar-trigger');
     var faceInput = document.getElementById('face-photo-input');
     var faceRemoveBtn = document.getElementById('face-photo-remove-btn');
     var faceCropFrame = document.getElementById('face-crop-frame');
     var faceDragHint = document.getElementById('face-drag-hint');
+    var faceZoomControls = document.getElementById('face-zoom-controls');
+    var faceZoomIn = document.getElementById('face-zoom-in');
+    var faceZoomOut = document.getElementById('face-zoom-out');
+    var faceZoomLabel = document.getElementById('face-zoom-label');
+    var MIN_FACE_ZOOM = 1;
+    var MAX_FACE_ZOOM = 3;
+    var FACE_ZOOM_STEP = 0.1;
     var bodyInput = document.getElementById('body-photo-input');
     var bodyGrid = document.getElementById('body-photo-grid');
     var bodyEmptyMsg = document.getElementById('body-photo-empty-msg');
@@ -326,35 +367,50 @@
     var faceDragging = false;
     var faceDragLastX = 0;
     var faceDragLastY = 0;
-    var faceFocusSaveTimer = null;
 
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
+    function clampZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
 
     function focusStyle() {
         return clampFocus(faceFocus.x) + '% ' + clampFocus(faceFocus.y) + '%';
     }
 
-    function applyFaceFocus(x, y) {
-        faceFocus.x = clampFocus(x);
-        faceFocus.y = clampFocus(y);
+    function applyFaceStyles(el) {
+        if (!el) return;
         var pos = focusStyle();
-        if (modalFacePreview) modalFacePreview.style.objectPosition = pos;
-        var header = document.getElementById('player-avatar-img');
-        if (header) header.style.objectPosition = pos;
+        el.style.objectPosition = pos;
+        el.style.transformOrigin = pos;
+        el.style.transform = 'scale(' + clampZoom(faceFocus.z) + ')';
     }
 
-    function scheduleFaceFocusSave() {
-        if (faceFocusSaveTimer) clearTimeout(faceFocusSaveTimer);
-        faceFocusSaveTimer = setTimeout(saveFaceFocus, 300);
+    function updateZoomLabel() {
+        if (faceZoomLabel) {
+            faceZoomLabel.textContent = Math.round(clampZoom(faceFocus.z) * 100) + '%';
+        }
+    }
+
+    function applyFaceCrop(x, y, z) {
+        if (typeof x === 'number') faceFocus.x = clampFocus(x);
+        if (typeof y === 'number') faceFocus.y = clampFocus(y);
+        if (typeof z === 'number') faceFocus.z = clampZoom(z);
+        applyFaceStyles(modalFacePreview);
+        applyFaceStyles(document.getElementById('player-avatar-img'));
+        updateZoomLabel();
     }
 
     function saveFaceFocus() {
         var fd = new FormData();
         fd.append('focus_x', faceFocus.x);
         fd.append('focus_y', faceFocus.y);
+        fd.append('focus_z', faceFocus.z);
         fetch('/api/player_photo/' + encodeURIComponent(playerName) + '/', {
             method: 'POST', body: fd, credentials: 'same-origin'
         }).catch(function() {});
+    }
+
+    function adjustFaceZoom(delta) {
+        applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z + delta);
+        saveFaceFocus();
     }
 
     function openModal() { if (modal) modal.hidden = false; }
@@ -362,7 +418,11 @@
 
     function setFacePreview(url, focus) {
         if (url) {
-            if (focus) applyFaceFocus(focus.x, focus.y);
+            if (focus) {
+                applyFaceCrop(focus.x, focus.y, focus.z != null ? focus.z : 1);
+            } else {
+                applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
+            }
             if (faceCropFrame) faceCropFrame.hidden = false;
             if (modalFacePreview) {
                 modalFacePreview.src = url + '?t=' + Date.now();
@@ -370,26 +430,28 @@
             if (modalFaceEmpty) modalFaceEmpty.hidden = true;
             if (faceRemoveBtn) faceRemoveBtn.hidden = false;
             if (faceDragHint) faceDragHint.hidden = false;
+            if (faceZoomControls) faceZoomControls.hidden = false;
             var header = document.getElementById('player-avatar-img');
             if (header) {
                 header.src = url + '?t=' + Date.now();
-                header.style.objectPosition = focusStyle();
+                applyFaceStyles(header);
             } else if (headerAvatarFallback) {
                 var img = document.createElement('img');
                 img.id = 'player-avatar-img';
                 img.className = 'sr-player-avatar sr-player-photo';
                 img.alt = playerName;
                 img.src = url + '?t=' + Date.now();
-                img.style.objectPosition = focusStyle();
+                applyFaceStyles(img);
                 headerAvatarFallback.replaceWith(img);
             }
         } else {
-            applyFaceFocus(50, 50);
+            applyFaceCrop(50, 50, 1);
             if (faceCropFrame) faceCropFrame.hidden = true;
             if (modalFacePreview) modalFacePreview.src = '';
             if (modalFaceEmpty) modalFaceEmpty.hidden = false;
             if (faceRemoveBtn) faceRemoveBtn.hidden = true;
             if (faceDragHint) faceDragHint.hidden = true;
+            if (faceZoomControls) faceZoomControls.hidden = true;
             var headerImg = document.getElementById('player-avatar-img');
             if (headerImg) {
                 var fb = document.createElement('div');
@@ -442,7 +504,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.success) { alert(data.error || 'Upload failed'); return; }
-            setFacePreview(data.photo_url || null, data.focus || { x: 50, y: 50 });
+            setFacePreview(data.photo_url || null, data.focus || { x: 50, y: 50, z: 1 });
         })
         .catch(function() { alert('Upload failed.'); });
     }
@@ -534,9 +596,10 @@
             var dy = e.clientY - faceDragLastY;
             faceDragLastX = e.clientX;
             faceDragLastY = e.clientY;
-            applyFaceFocus(
+            applyFaceCrop(
                 faceFocus.x + (dx / rect.width) * 100,
-                faceFocus.y + (dy / rect.height) * 100
+                faceFocus.y + (dy / rect.height) * 100,
+                faceFocus.z
             );
         });
         function endFaceDrag(e) {
@@ -549,7 +612,15 @@
         }
         faceCropFrame.addEventListener('pointerup', endFaceDrag);
         faceCropFrame.addEventListener('pointercancel', endFaceDrag);
+        faceCropFrame.addEventListener('wheel', function(e) {
+            if (!modalFacePreview || !modalFacePreview.src) return;
+            e.preventDefault();
+            var delta = e.deltaY > 0 ? -FACE_ZOOM_STEP : FACE_ZOOM_STEP;
+            adjustFaceZoom(delta);
+        }, { passive: false });
     }
+    if (faceZoomIn) faceZoomIn.addEventListener('click', function() { adjustFaceZoom(FACE_ZOOM_STEP); });
+    if (faceZoomOut) faceZoomOut.addEventListener('click', function() { adjustFaceZoom(-FACE_ZOOM_STEP); });
     if (traitsSaveBtn) traitsSaveBtn.addEventListener('click', saveTraits);
     if (bodyInput) {
         bodyInput.addEventListener('change', function() {

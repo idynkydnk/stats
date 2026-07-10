@@ -64,22 +64,29 @@ def get_player_photo_path(full_name):
     return row[0] if row and row[0] else None
 
 
+MIN_FACE_ZOOM = 1.0
+MAX_FACE_ZOOM = 3.0
+
+
 def _parse_face_photo_focus(raw):
     if not raw:
-        return 50.0, 50.0
+        return 50.0, 50.0, 1.0
     try:
-        parts = str(raw).split(',')
-        if len(parts) != 2:
-            return 50.0, 50.0
+        parts = [p.strip() for p in str(raw).split(',')]
+        if len(parts) < 2:
+            return 50.0, 50.0, 1.0
         x = max(0.0, min(100.0, float(parts[0])))
         y = max(0.0, min(100.0, float(parts[1])))
-        return x, y
+        z = 1.0
+        if len(parts) >= 3 and parts[2] != '':
+            z = max(MIN_FACE_ZOOM, min(MAX_FACE_ZOOM, float(parts[2])))
+        return x, y, z
     except (TypeError, ValueError):
-        return 50.0, 50.0
+        return 50.0, 50.0, 1.0
 
 
 def get_player_face_photo_focus(full_name):
-    """Return object-position focus (x%, y%) for the face circle crop."""
+    """Return face crop focus (x%, y%, zoom) for the circle avatar."""
     cur = set_cur()
     cur.execute(
         'SELECT face_photo_focus FROM players WHERE full_name = ?',
@@ -89,17 +96,23 @@ def get_player_face_photo_focus(full_name):
     return _parse_face_photo_focus(row[0] if row else None)
 
 
-def set_player_face_photo_focus(player_id, x, y):
-    """Save face crop focus as percentages for object-position."""
+def set_player_face_photo_focus(player_id, x, y, z=None):
+    """Save face crop focus and zoom for object-position + scale."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    cur = conn.cursor()
+    if z is None:
+        cur.execute('SELECT face_photo_focus FROM players WHERE id = ?', (player_id,))
+        row = cur.fetchone()
+        _, _, z = _parse_face_photo_focus(row[0] if row else None)
     x = max(0.0, min(100.0, float(x)))
     y = max(0.0, min(100.0, float(y)))
+    z = max(MIN_FACE_ZOOM, min(MAX_FACE_ZOOM, float(z)))
     now = datetime.now()
-    focus = f'{x:.1f},{y:.1f}'
+    focus = f'{x:.1f},{y:.1f},{z:.2f}'
     with conn:
         cur = conn.cursor()
         cur.execute(
@@ -107,7 +120,7 @@ def set_player_face_photo_focus(player_id, x, y):
             (focus, now, player_id),
         )
         conn.commit()
-    return x, y
+    return x, y, z
 
 
 def get_player_full_body_photo_path(full_name):
@@ -313,7 +326,7 @@ def save_player_photo_upload(player_id, file_storage):
 
     rel_path = f'player_photos/{filename}'
     set_player_photo_path(player_id, rel_path)
-    set_player_face_photo_focus(player_id, 50, 50)
+    set_player_face_photo_focus(player_id, 50, 50, 1.0)
     return rel_path
 
 
@@ -367,7 +380,7 @@ def remove_player_photo(player_id):
     if row and row[0]:
         _remove_stored_photo(row[0])
     set_player_photo_path(player_id, None)
-    set_player_face_photo_focus(player_id, 50, 50)
+    set_player_face_photo_focus(player_id, 50, 50, 1.0)
 
 
 def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):

@@ -525,8 +525,8 @@ def player_ai_image_traits_for(name):
 
 def player_face_photo_focus_for(name):
     from player_functions import get_player_face_photo_focus
-    x, y = get_player_face_photo_focus(name)
-    return {'x': x, 'y': y}
+    x, y, z = get_player_face_photo_focus(name)
+    return {'x': x, 'y': y, 'z': z}
 
 
 def _ensure_player_record(name):
@@ -2839,18 +2839,20 @@ def api_upload_player_photo(name):
 
     try:
         if request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
-            x, y = set_player_face_photo_focus(
+            z = request.form.get('focus_z')
+            x, y, z = set_player_face_photo_focus(
                 player_id,
                 request.form.get('focus_x', 50),
                 request.form.get('focus_y', 50),
+                z if z is not None else None,
             )
             log_activity('Updated player photo', summary=f'Adjusted face crop for {name}')
-            return jsonify({'success': True, 'focus': {'x': x, 'y': y}})
+            return jsonify({'success': True, 'focus': {'x': x, 'y': y, 'z': z}})
 
         if request.form.get('remove') == '1':
             remove_player_photo(player_id)
             log_activity('Updated player photo', summary=f'Removed photo for {name}')
-            return jsonify({'success': True, 'photo_url': None, 'focus': {'x': 50, 'y': 50}})
+            return jsonify({'success': True, 'photo_url': None, 'focus': {'x': 50, 'y': 50, 'z': 1}})
 
         file_storage = request.files.get('photo')
         if not file_storage or not file_storage.filename:
@@ -2858,14 +2860,14 @@ def api_upload_player_photo(name):
 
         rel_path = save_player_photo_upload(player_id, file_storage)
         photo_url = url_for('static', filename=rel_path)
-        fx, fy = get_player_face_photo_focus(name)
+        fx, fy, fz = get_player_face_photo_focus(name)
         user = session.get('username', 'unknown')
         log_user_action(user, 'Uploaded player photo', name)
         log_activity('Updated player photo', summary=f'Uploaded photo for {name}')
         return jsonify({
             'success': True,
             'photo_url': photo_url,
-            'focus': {'x': fx, 'y': fy},
+            'focus': {'x': fx, 'y': fy, 'z': fz},
         })
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
