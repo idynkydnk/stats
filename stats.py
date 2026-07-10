@@ -518,6 +518,11 @@ def player_full_body_photos_for(name):
     ]
 
 
+def player_ai_image_traits_for(name):
+    from player_functions import get_player_ai_image_traits
+    return get_player_ai_image_traits(name)
+
+
 def _ensure_player_record(name):
     """Return players row for name, creating a minimal record if needed."""
     from player_functions import get_player_by_name, add_new_player
@@ -1412,7 +1417,8 @@ def player_stats(year, name):
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name))
+        player_full_body_photos=player_full_body_photos_for(name),
+        player_ai_image_traits=player_ai_image_traits_for(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1424,7 +1430,8 @@ def vollis_player_stats(year, name):
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name))
+        player_full_body_photos=player_full_body_photos_for(name),
+        player_ai_image_traits=player_ai_image_traits_for(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1436,7 +1443,8 @@ def other_player_stats(year, name):
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name))
+        player_full_body_photos=player_full_body_photos_for(name),
+        player_ai_image_traits=player_ai_image_traits_for(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2775,6 +2783,7 @@ def edit_player(player_id):
                     player=get_player_by_id(player_id),
                     player_photo_url=player_photo_url_for(player[1]),
                     player_full_body_photos=player_full_body_photos_for(player[1]),
+                    player_ai_image_traits=player_ai_image_traits_for(player[1]),
                 )
 
             user = session.get('username', 'unknown')
@@ -2793,6 +2802,7 @@ def edit_player(player_id):
         player=player,
         player_photo_url=player_photo_url_for(player[1]),
         player_full_body_photos=player_full_body_photos_for(player[1]),
+        player_ai_image_traits=player_ai_image_traits_for(player[1]),
     )
 
 
@@ -2893,6 +2903,35 @@ def api_upload_player_full_body_photo(name):
     except Exception as e:
         app.logger.exception('Player full-body photo upload failed')
         return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
+
+
+@app.route('/api/player_ai_image_traits/<path:name>/', methods=['POST'])
+@login_required
+def api_save_player_ai_image_traits(name):
+    """Save signature traits for exaggerating a player in AI email images."""
+    from player_functions import set_player_ai_image_traits
+
+    name = name.strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    player = _ensure_player_record(name)
+    if not player or not player[0]:
+        return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
+
+    traits = (request.form.get('traits') or request.get_json(silent=True) or {}).get('traits', '')
+    if isinstance(traits, str):
+        traits = traits.strip()
+    else:
+        traits = str(traits).strip()
+
+    try:
+        set_player_ai_image_traits(player[0], traits)
+        log_activity('Updated player photo', summary=f'Updated AI image traits for {name}')
+        return jsonify({'success': True, 'traits': traits[:500]})
+    except Exception as e:
+        app.logger.exception('Player AI image traits save failed')
+        return jsonify({'success': False, 'error': f'Save failed: {e}'}), 500
 
 @app.route('/benchmarks')
 def benchmarks():

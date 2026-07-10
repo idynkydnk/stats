@@ -37,6 +37,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_path TEXT')
     if 'full_body_photo_paths' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_paths TEXT')
+    if 'ai_image_traits' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN ai_image_traits TEXT')
     conn.commit()
     conn.close()
 
@@ -147,6 +149,45 @@ def get_player_photo_paths(full_name):
     face = row[0] or None
     body_paths = _existing_body_paths(_body_paths_from_row(row[1], row[2]))
     return face, body_paths
+
+
+def get_player_ai_image_traits(full_name):
+    """Return free-text signature traits for AI image exaggeration."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT ai_image_traits FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return (row[0] or '').strip() if row and row[0] else ''
+
+
+def set_player_ai_image_traits(player_id, traits):
+    """Save signature traits used to exaggerate players in AI email images."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    now = datetime.now()
+    clean = (traits or '').strip()[:500] or None
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET ai_image_traits = ?, updated_at = ? WHERE id = ?',
+            (clean, now, player_id),
+        )
+        conn.commit()
+
+
+def collect_player_ai_image_traits(player_names):
+    """Traits to exaggerate for players in an AI email illustration."""
+    traits = []
+    for name in sorted(player_names):
+        text = get_player_ai_image_traits(name)
+        if text:
+            traits.append({'name': name, 'traits': text})
+    return traits
 
 
 def set_player_photo_path(player_id, photo_path):

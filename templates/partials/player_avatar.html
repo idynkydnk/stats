@@ -1,6 +1,7 @@
 {# Face circle opens photo manager when logged in. #}
 {% set display_name = player_name if player_name is defined else player %}
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
+{% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = '' %}{% endif %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
@@ -61,6 +62,17 @@
                 <i class="fas fa-plus"></i> Add full-body photo
                 <input type="file" id="body-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
             </label>
+        </section>
+
+        <section class="sr-photo-section">
+            <h4>Signature look</h4>
+            <p class="sr-traits-hint">AI will exaggerate these details in email illustrations (hats, poses, outfits).</p>
+            <textarea id="ai-image-traits" class="sr-traits-input" rows="3" maxlength="500"
+                      placeholder="e.g. always wears an oversized bucket hat">{{ player_ai_image_traits }}</textarea>
+            <div class="sr-traits-actions">
+                <button type="button" class="sr-photo-action-btn" id="ai-image-traits-save">Save signature look</button>
+                <span class="sr-traits-saved" id="ai-image-traits-saved" hidden>Saved!</span>
+            </div>
         </section>
 
         <div class="sr-photo-modal-footer">
@@ -216,6 +228,37 @@
     font-size: 13px;
     color: var(--sr-muted);
 }
+.sr-traits-hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.4;
+}
+.sr-traits-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 72px;
+}
+.sr-traits-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.sr-traits-saved {
+    font-size: 13px;
+    color: var(--sr-win);
+    font-weight: 600;
+}
+.sr-traits-saved[hidden] { display: none !important; }
 .sr-photo-modal-footer { justify-content: flex-end; margin-top: 8px; }
 </style>
 
@@ -233,6 +276,9 @@
     var modalFaceEmpty = document.getElementById('modal-face-empty');
     var headerAvatarImg = document.getElementById('player-avatar-img');
     var headerAvatarFallback = document.getElementById('player-avatar-fallback');
+    var traitsInput = document.getElementById('ai-image-traits');
+    var traitsSaveBtn = document.getElementById('ai-image-traits-save');
+    var traitsSaved = document.getElementById('ai-image-traits-saved');
 
     function openModal() { if (modal) modal.hidden = false; }
     function closeModal() { if (modal) modal.hidden = true; }
@@ -360,6 +406,24 @@
         .catch(function() { alert('Remove failed.'); });
     }
 
+    function saveTraits() {
+        if (!traitsInput) return;
+        var fd = new FormData();
+        fd.append('traits', traitsInput.value.trim());
+        fetch('/api/player_ai_image_traits/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) { alert(data.error || 'Save failed'); return; }
+            if (traitsSaved) {
+                traitsSaved.hidden = false;
+                setTimeout(function() { traitsSaved.hidden = true; }, 2000);
+            }
+        })
+        .catch(function() { alert('Save failed.'); });
+    }
+
     if (trigger) trigger.addEventListener('click', openModal);
     if (faceInput) {
         faceInput.addEventListener('change', function() {
@@ -368,6 +432,7 @@
         });
     }
     if (faceRemoveBtn) faceRemoveBtn.addEventListener('click', removeFace);
+    if (traitsSaveBtn) traitsSaveBtn.addEventListener('click', saveTraits);
     if (bodyInput) {
         bodyInput.addEventListener('change', function() {
             if (!bodyInput.files) return;

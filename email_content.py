@@ -99,7 +99,7 @@ def _games_highlight_for_image(game_type, games, max_games=3):
     return '; '.join(lines)
 
 
-def _build_email_image_prompt(game_type, games, summary, player_names, has_reference_photos=False):
+def _build_email_image_prompt(game_type, games, summary, player_names, has_reference_photos=False, trait_lines=None):
     sport_desc = {
         'doubles': 'beach volleyball doubles',
         'vollis': 'one-on-one vollis volleyball',
@@ -108,19 +108,28 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
     names = ', '.join(sorted(player_names)[:8])
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
-    if has_reference_photos:
+    trait_lines = trait_lines or []
+    if has_reference_photos or trait_lines:
         likeness = (
-            'Use the attached face and full-body reference photos for each labeled player. '
-            'Match their real appearance, hair, skin tone, and build. '
+            'Caricature sports illustration — use attached reference photos for each player\'s '
+            'general look, then exaggerate their signature details (hats, poses, outfits, habits) '
+            'so they are instantly recognizable and playful, not photorealistic. '
         )
     else:
         likeness = (
             'Show players as stylized cartoon characters with expressive animated faces — '
             'generic avatars, not real likenesses. '
         )
+    traits_block = ''
+    if trait_lines:
+        traits_block = (
+            '\nSignature exaggerations (make these obvious in the illustration):\n'
+            + '\n'.join(trait_lines)
+            + '\n'
+        )
     return f"""Sports illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-{likeness}Players in scene: {names}.
+{likeness}Players in scene: {names}.{traits_block}
 Wide comic-strip scene: intense rally and celebration. Bold colors, motion lines. No text or logos."""
 
 
@@ -209,11 +218,16 @@ def _save_email_image(image_bytes, ext):
 
 def generate_email_hero_image(api_key, game_type, games, summary, player_names):
     """Generate an illustration for the AI email hero image."""
+    from player_functions import collect_player_ai_image_traits
+
     player_names = player_names or set()
     reference_parts = _reference_parts_for_api(player_names)
+    trait_entries = collect_player_ai_image_traits(player_names)
+    trait_lines = [f"- {entry['name']}: {entry['traits']}" for entry in trait_entries]
     prompt = _build_email_image_prompt(
         game_type, games, summary, player_names,
         has_reference_photos=bool(reference_parts),
+        trait_lines=trait_lines,
     )
     raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
     if 'gif' in mime:
