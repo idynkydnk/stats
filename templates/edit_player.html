@@ -11,7 +11,7 @@
 
     <form method="post" enctype="multipart/form-data">
         <div class="form-group photo-group">
-            <label>Photo</label>
+            <label>Face photo</label>
             <div class="edit-photo-row">
                 {% if player_photo_url %}
                 <img src="{{ player_photo_url }}" alt="{{ player[1] }}" class="edit-player-photo" id="edit-player-photo">
@@ -20,15 +20,38 @@
                 {% endif %}
                 <div class="edit-photo-actions">
                     <label class="edit-photo-upload-label">
-                        <i class="fas fa-camera"></i> Upload photo
+                        <i class="fas fa-camera"></i> Upload face photo
                         <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif">
                     </label>
                     {% if player_photo_url %}
                     <label class="edit-photo-remove-label">
-                        <input type="checkbox" name="remove_photo" value="1"> Remove photo
+                        <input type="checkbox" name="remove_photo" value="1"> Remove face photo
                     </label>
                     {% endif %}
-                    <p class="edit-photo-hint">JPG, PNG, WebP, or GIF. Max 5 MB.</p>
+                    <p class="edit-photo-hint">Circle avatar on player pages. JPG, PNG, WebP, or GIF. Max 5 MB.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group photo-group">
+            <label>Full-body photo</label>
+            <div class="edit-photo-row">
+                {% if player_full_body_photo_url %}
+                <img src="{{ player_full_body_photo_url }}" alt="{{ player[1] }} full body" class="edit-player-full-body" id="edit-player-full-body">
+                {% else %}
+                <div class="edit-player-full-body edit-player-full-body-empty" id="edit-player-full-body-empty">No full-body photo</div>
+                {% endif %}
+                <div class="edit-photo-actions">
+                    <label class="edit-photo-upload-label">
+                        <i class="fas fa-user"></i> Upload full-body photo
+                        <input type="file" name="full_body_photo" accept="image/jpeg,image/png,image/webp,image/gif">
+                    </label>
+                    {% if player_full_body_photo_url %}
+                    <label class="edit-photo-remove-label">
+                        <input type="checkbox" name="remove_full_body_photo" value="1"> Remove full-body photo
+                    </label>
+                    {% endif %}
+                    <p class="edit-photo-hint">Used with the face photo for AI email illustrations.</p>
                 </div>
             </div>
         </div>
@@ -133,6 +156,27 @@
     color: var(--button-text-1);
     font-size: 36px;
     font-weight: 700;
+}
+.edit-player-full-body {
+    width: 120px;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: contain;
+    border: 2px solid var(--border);
+    background: var(--bg);
+}
+.edit-player-full-body-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    min-height: 160px;
+    font-size: 12px;
+    color: var(--caption);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
 }
 .edit-photo-actions {
     text-align: left;

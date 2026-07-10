@@ -99,7 +99,7 @@ def _games_highlight_for_image(game_type, games, max_games=3):
     return '; '.join(lines)
 
 
-def _build_email_image_prompt(game_type, games, summary, player_names):
+def _build_email_image_prompt(game_type, games, summary, player_names, has_reference_photos=False):
     sport_desc = {
         'doubles': 'beach volleyball doubles',
         'vollis': 'one-on-one vollis volleyball',
@@ -108,10 +108,31 @@ def _build_email_image_prompt(game_type, games, summary, player_names):
     names = ', '.join(sorted(player_names)[:8])
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
-    return f"""Cartoon sports illustration for an email recap.
+    if has_reference_photos:
+        likeness = (
+            'Use the attached face and full-body reference photos for each labeled player. '
+            'Match their real appearance, hair, skin tone, and build. '
+        )
+    else:
+        likeness = (
+            'Show players as stylized cartoon characters with expressive animated faces — '
+            'generic avatars, not real likenesses. '
+        )
+    return f"""Sports illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-Show players ({names}) as stylized cartoon characters with expressive animated faces — generic avatars, not real likenesses.
+{likeness}Players in scene: {names}.
 Wide comic-strip scene: intense rally and celebration. Bold colors, motion lines. No text or logos."""
+
+
+def _reference_parts_for_api(player_names, max_players=5):
+    from player_functions import collect_player_reference_images
+
+    parts = []
+    for entry in collect_player_reference_images(player_names, max_players=max_players):
+        for ref in entry['parts']:
+            parts.append({'text': ref['label']})
+            parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
+    return parts
 
 
 def _is_quota_error(msg):
@@ -138,9 +159,12 @@ def _rest_error_detail(resp):
         return resp.text[:300] if resp.text else f'HTTP {resp.status_code}'
 
 
-def _generate_image_bytes(prompt, api_key):
+def _generate_image_bytes(prompt, api_key, reference_parts=None):
     """One API call to the free-tier Gemini image model."""
     import requests
+
+    parts = list(reference_parts or [])
+    parts.append({'text': prompt})
 
     headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
     url = (
@@ -148,7 +172,7 @@ def _generate_image_bytes(prompt, api_key):
         f'{GEMINI_IMAGE_MODEL}:generateContent'
     )
     payload = {
-        'contents': [{'parts': [{'text': prompt}]}],
+        'contents': [{'parts': parts}],
         'generationConfig': {'responseModalities': ['IMAGE']},
     }
     resp = requests.post(url, headers=headers, json=payload, timeout=120)
@@ -184,9 +208,14 @@ def _save_email_image(image_bytes, ext):
 
 
 def generate_email_hero_image(api_key, game_type, games, summary, player_names):
-    """Generate a cartoon illustration for the AI email hero image."""
-    prompt = _build_email_image_prompt(game_type, games, summary, player_names)
-    raw, mime = _generate_image_bytes(prompt, api_key)
+    """Generate an illustration for the AI email hero image."""
+    player_names = player_names or set()
+    reference_parts = _reference_parts_for_api(player_names)
+    prompt = _build_email_image_prompt(
+        game_type, games, summary, player_names,
+        has_reference_photos=bool(reference_parts),
+    )
+    raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
     if 'gif' in mime:
         ext = 'gif'
     elif 'jpeg' in mime or 'jpg' in mime:

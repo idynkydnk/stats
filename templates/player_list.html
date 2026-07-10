@@ -282,8 +282,8 @@
                                     {% else %}-{% endif %}
                                 </td>
                                 <td>{{ player[4] if player[4] else '-' }}</td>
-                                <td class="sr-numeric">{% if player|length > 10 and player[10] is number %}{{ player[10] }}{% else %}0{% endif %}</td>
-                                <td>{% if player|length > 9 and player[9] %}{{ player[9][5:7] }}/{{ player[9][8:10] }}/{{ player[9][2:4] }}{% else %}-{% endif %}</td>
+                                <td class="sr-numeric">{% if player|length > 11 and player[11] is number %}{{ player[11] }}{% else %}0{% endif %}</td>
+                                <td>{% if player|length > 10 and player[10] %}{{ player[10][5:7] }}/{{ player[10][8:10] }}/{{ player[10][2:4] }}{% else %}-{% endif %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

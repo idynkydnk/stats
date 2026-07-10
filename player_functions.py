@@ -1,5 +1,6 @@
 from create_players_database import *
 from datetime import datetime
+import base64
 import os
 
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
@@ -8,13 +9,15 @@ MAX_PHOTO_BYTES = 5 * 1024 * 1024
 # Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
 PLAYERS_SELECT = """
     SELECT id, full_name, email, date_of_birth, height, notes,
-           created_at, updated_at, photo_path
+           created_at, updated_at, photo_path, full_body_photo_path
     FROM players
 """
 
+PLAYERS_SELECT_COLUMNS = 10
+
 
 def init_players_photo_column():
-    """Ensure players.photo_path exists (safe to call on every startup)."""
+    """Ensure players photo columns exist (safe to call on every startup)."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -27,7 +30,9 @@ def init_players_photo_column():
     cols = [row[1] for row in cur.fetchall()]
     if 'photo_path' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN photo_path TEXT')
-        conn.commit()
+    if 'full_body_photo_path' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_path TEXT')
+    conn.commit()
     conn.close()
 
 
@@ -50,6 +55,30 @@ def get_player_photo_path(full_name):
     return row[0] if row and row[0] else None
 
 
+def get_player_full_body_photo_path(full_name):
+    """Return stored full_body_photo_path or None."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT full_body_photo_path FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return row[0] if row and row[0] else None
+
+
+def get_player_photo_paths(full_name):
+    """Return face and full-body relative static paths for a player."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT photo_path, full_body_photo_path FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None, None
+    return row[0] or None, row[1] or None
+
+
 def set_player_photo_path(player_id, photo_path):
     """Update photo_path for a player."""
     database = '/home/Idynkydnk/stats/stats.db'
@@ -67,8 +96,7 @@ def set_player_photo_path(player_id, photo_path):
         conn.commit()
 
 
-def save_player_photo_upload(player_id, file_storage):
-    """Validate and save an uploaded image. Returns relative static path."""
+def _validate_photo_upload(file_storage):
     if not file_storage or not file_storage.filename:
         raise ValueError('No photo file provided.')
 
@@ -81,7 +109,44 @@ def save_player_photo_upload(player_id, file_storage):
     file_storage.stream.seek(0)
     if size > MAX_PHOTO_BYTES:
         raise ValueError('Photo must be 5 MB or smaller.')
+    return ext
 
+
+def _remove_stored_photo(rel_path):
+    if not rel_path:
+        return
+    base = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.join(base, 'static', rel_path)
+    if os.path.isfile(abs_path):
+        os.remove(abs_path)
+
+
+def _mime_for_photo_path(rel_path):
+    ext = os.path.splitext(rel_path or '')[1].lower()
+    return {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(ext, 'image/jpeg')
+
+
+def read_player_image_file(rel_path):
+    """Load bytes and mime type for a stored player photo, or (None, None)."""
+    if not rel_path:
+        return None, None
+    base = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.join(base, 'static', rel_path)
+    if not os.path.isfile(abs_path):
+        return None, None
+    with open(abs_path, 'rb') as f:
+        return f.read(), _mime_for_photo_path(rel_path)
+
+
+def save_player_photo_upload(player_id, file_storage):
+    """Validate and save a face photo upload. Returns relative static path."""
+    ext = _validate_photo_upload(file_storage)
     dest_dir = player_photos_dir()
     filename = f'{player_id}{ext}'
     abs_path = os.path.join(dest_dir, filename)
@@ -92,8 +157,38 @@ def save_player_photo_upload(player_id, file_storage):
     return rel_path
 
 
+def set_player_full_body_photo_path(player_id, photo_path):
+    """Update full_body_photo_path for a player."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    now = datetime.now()
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET full_body_photo_path = ?, updated_at = ? WHERE id = ?',
+            (photo_path, now, player_id),
+        )
+        conn.commit()
+
+
+def save_player_full_body_photo_upload(player_id, file_storage):
+    """Validate and save a full-body photo upload. Returns relative static path."""
+    ext = _validate_photo_upload(file_storage)
+    dest_dir = player_photos_dir()
+    filename = f'{player_id}_body{ext}'
+    abs_path = os.path.join(dest_dir, filename)
+    file_storage.save(abs_path)
+
+    rel_path = f'player_photos/{filename}'
+    set_player_full_body_photo_path(player_id, rel_path)
+    return rel_path
+
+
 def remove_player_photo(player_id):
-    """Delete photo file and clear photo_path."""
+    """Delete face photo file and clear photo_path."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -103,11 +198,54 @@ def remove_player_photo(player_id):
     cur.execute('SELECT photo_path FROM players WHERE id = ?', (player_id,))
     row = cur.fetchone()
     if row and row[0]:
-        base = os.path.dirname(os.path.abspath(__file__))
-        abs_path = os.path.join(base, 'static', row[0])
-        if os.path.isfile(abs_path):
-            os.remove(abs_path)
+        _remove_stored_photo(row[0])
     set_player_photo_path(player_id, None)
+
+
+def remove_player_full_body_photo(player_id):
+    """Delete full-body photo file and clear full_body_photo_path."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    cur = conn.cursor()
+    cur.execute('SELECT full_body_photo_path FROM players WHERE id = ?', (player_id,))
+    row = cur.fetchone()
+    if row and row[0]:
+        _remove_stored_photo(row[0])
+    set_player_full_body_photo_path(player_id, None)
+
+
+def collect_player_reference_images(player_names, max_players=5):
+    """Build Gemini reference image parts for AI email illustrations."""
+    references = []
+    for name in sorted(player_names):
+        if len(references) >= max_players:
+            break
+        face_path, body_path = get_player_photo_paths(name)
+        if not face_path and not body_path:
+            continue
+        entry = {'name': name, 'parts': []}
+        if face_path:
+            raw, mime = read_player_image_file(face_path)
+            if raw:
+                entry['parts'].append({
+                    'label': f'Face reference photo for {name}.',
+                    'mime': mime,
+                    'data_b64': base64.b64encode(raw).decode('ascii'),
+                })
+        if body_path:
+            raw, mime = read_player_image_file(body_path)
+            if raw:
+                entry['parts'].append({
+                    'label': f'Full-body reference photo for {name}.',
+                    'mime': mime,
+                    'data_b64': base64.b64encode(raw).decode('ascii'),
+                })
+        if entry['parts']:
+            references.append(entry)
+    return references
 
 
 def set_cur():
@@ -200,20 +338,20 @@ def get_all_players():
         else:
             from datetime import datetime
             now = datetime.now()
-            player_list = [None, player_name, None, None, None, None, now, now, None]
+            player_list = [None, player_name, None, None, None, None, now, now, None, None]
 
-        while len(player_list) < 9:
+        while len(player_list) < PLAYERS_SELECT_COLUMNS:
             player_list.append(None)
-        player_list = player_list[:9]
+        player_list = player_list[:PLAYERS_SELECT_COLUMNS]
         
-        player_list.append(first_game_date)  # index 9
-        player_list.append(int(total_games))  # index 10
+        player_list.append(first_game_date)  # index 10
+        player_list.append(int(total_games))  # index 11
         players_with_stats.append(tuple(player_list))
     
     # Sort by total games (descending) - safely handle any type issues
     def safe_game_count(player):
         try:
-            return int(player[10]) if len(player) > 10 and player[10] is not None else 0
+            return int(player[11]) if len(player) > 11 and player[11] is not None else 0
         except (ValueError, TypeError):
             return 0
     

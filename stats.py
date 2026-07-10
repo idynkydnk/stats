@@ -509,6 +509,15 @@ def player_photo_url_for(name):
     return None
 
 
+def player_full_body_photo_url_for(name):
+    """Static URL for a player's full-body photo, or None."""
+    from player_functions import get_player_full_body_photo_path
+    path = get_player_full_body_photo_path(name)
+    if path:
+        return url_for('static', filename=path)
+    return None
+
+
 def _ensure_player_record(name):
     """Return players row for name, creating a minimal record if needed."""
     from player_functions import get_player_by_name, add_new_player
@@ -1402,7 +1411,8 @@ def player_stats(year, name):
         all_years=all_years, stats=stats, games=games,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
-        player_photo_url=player_photo_url_for(name))
+        player_photo_url=player_photo_url_for(name),
+        player_full_body_photo_url=player_full_body_photo_url_for(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1413,7 +1423,8 @@ def vollis_player_stats(year, name):
     opponent_stats = vollis_opponent_stats_by_year(name, games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
-        player_photo_url=player_photo_url_for(name))
+        player_photo_url=player_photo_url_for(name),
+        player_full_body_photo_url=player_full_body_photo_url_for(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1424,7 +1435,8 @@ def other_player_stats(year, name):
     opponent_stats = other_opponent_stats_by_year(name, games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
-        player_photo_url=player_photo_url_for(name))
+        player_photo_url=player_photo_url_for(name),
+        player_full_body_photo_url=player_full_body_photo_url_for(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2718,6 +2730,7 @@ def edit_player(player_id):
     from player_functions import (
         get_player_by_id, update_player_info,
         save_player_photo_upload, remove_player_photo,
+        save_player_full_body_photo_upload, remove_player_full_body_photo,
     )
 
     player = get_player_by_id(player_id)
@@ -2747,12 +2760,19 @@ def edit_player(player_id):
                 elif request.files.get('photo') and request.files['photo'].filename:
                     save_player_photo_upload(player_id, request.files['photo'])
                     photo_msg = ' Photo updated.'
+                if request.form.get('remove_full_body_photo') == '1':
+                    remove_player_full_body_photo(player_id)
+                    photo_msg += ' Full-body photo removed.'
+                elif request.files.get('full_body_photo') and request.files['full_body_photo'].filename:
+                    save_player_full_body_photo_upload(player_id, request.files['full_body_photo'])
+                    photo_msg += ' Full-body photo updated.'
             except ValueError as e:
                 flash(str(e), 'error')
                 return render_template(
                     'edit_player.html',
                     player=get_player_by_id(player_id),
                     player_photo_url=player_photo_url_for(player[1]),
+                    player_full_body_photo_url=player_full_body_photo_url_for(player[1]),
                 )
 
             user = session.get('username', 'unknown')
@@ -2770,6 +2790,7 @@ def edit_player(player_id):
         'edit_player.html',
         player=player,
         player_photo_url=player_photo_url_for(player[1]),
+        player_full_body_photo_url=player_full_body_photo_url_for(player[1]),
     )
 
 
@@ -2809,6 +2830,45 @@ def api_upload_player_photo(name):
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         app.logger.exception('Player photo upload failed')
+        return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
+
+
+@app.route('/api/player_full_body_photo/<path:name>/', methods=['POST'])
+@login_required
+def api_upload_player_full_body_photo(name):
+    """Upload or remove a player's full-body photo from a player stats page."""
+    from player_functions import save_player_full_body_photo_upload, remove_player_full_body_photo
+
+    name = name.strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    player = _ensure_player_record(name)
+    if not player or not player[0]:
+        return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
+
+    player_id = player[0]
+
+    try:
+        if request.form.get('remove') == '1':
+            remove_player_full_body_photo(player_id)
+            log_activity('Updated player photo', summary=f'Removed full-body photo for {name}')
+            return jsonify({'success': True, 'photo_url': None})
+
+        file_storage = request.files.get('photo')
+        if not file_storage or not file_storage.filename:
+            return jsonify({'success': False, 'error': 'No photo file provided.'}), 400
+
+        rel_path = save_player_full_body_photo_upload(player_id, file_storage)
+        photo_url = url_for('static', filename=rel_path)
+        user = session.get('username', 'unknown')
+        log_user_action(user, 'Uploaded player full-body photo', name)
+        log_activity('Updated player photo', summary=f'Uploaded full-body photo for {name}')
+        return jsonify({'success': True, 'photo_url': photo_url})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.exception('Player full-body photo upload failed')
         return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
 
 @app.route('/benchmarks')
