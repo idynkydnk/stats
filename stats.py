@@ -65,8 +65,19 @@ app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True') == 'True'
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@stats.com')
+app.config['AI_EMAIL_COPY_TO'] = os.environ.get('AI_EMAIL_COPY_TO', 'idynkydnk@gmail.com')
 
 mail = Mail(app)
+
+
+def extend_ai_email_recipients(recipients):
+    """Append configured copy address(es) to every AI summary send."""
+    out = list(recipients)
+    for raw in (app.config.get('AI_EMAIL_COPY_TO') or '').replace(',', ' ').replace(';', ' ').split():
+        addr = raw.strip()
+        if addr and '@' in addr and addr not in out:
+            out.append(addr)
+    return out
 
 
 def send_messages_with_retry(messages, max_attempts=3):
@@ -3329,6 +3340,7 @@ def generate_and_email_today():
             e = e.strip()
             if e and '@' in e and e not in recipients:
                 recipients.append(e)
+    recipients = extend_ai_email_recipients(recipients)
     if not recipients:
         return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
     messages = []
@@ -3368,6 +3380,7 @@ def send_ai_email_form():
         if e and '@' in e and e not in recipients:
             recipients.append(e)
 
+    recipients = extend_ai_email_recipients(recipients)
     if not recipients:
         flash('No recipients selected.', 'error')
         return redirect(url_for('ai_summary'))
