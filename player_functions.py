@@ -1,10 +1,13 @@
 from create_players_database import *
 from datetime import datetime
 import base64
+import json
 import os
+import uuid
 
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
+MAX_FULL_BODY_PHOTOS = 10
 
 # Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
 PLAYERS_SELECT = """
@@ -32,6 +35,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN photo_path TEXT')
     if 'full_body_photo_path' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_path TEXT')
+    if 'full_body_photo_paths' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_paths TEXT')
     conn.commit()
     conn.close()
 
@@ -56,27 +61,92 @@ def get_player_photo_path(full_name):
 
 
 def get_player_full_body_photo_path(full_name):
-    """Return stored full_body_photo_path or None."""
-    cur = set_cur()
-    cur.execute(
-        'SELECT full_body_photo_path FROM players WHERE full_name = ?',
-        (full_name,),
-    )
-    row = cur.fetchone()
-    return row[0] if row and row[0] else None
+    """Return first full-body path (legacy helper)."""
+    paths = get_player_full_body_photo_paths(full_name)
+    return paths[0] if paths else None
 
 
-def get_player_photo_paths(full_name):
-    """Return face and full-body relative static paths for a player."""
+def _parse_body_paths_json(raw):
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [p for p in data if isinstance(p, str) and p.strip()]
+
+
+def _body_paths_from_row(paths_json, legacy_path):
+    paths = _parse_body_paths_json(paths_json)
+    if paths:
+        return paths
+    if legacy_path:
+        return [legacy_path]
+    return []
+
+
+def _existing_body_paths(paths):
+    return [p for p in paths if read_player_image_file(p)[0]]
+
+
+def get_player_full_body_photo_paths(full_name):
+    """Return all stored full-body photo paths for a player."""
     cur = set_cur()
     cur.execute(
-        'SELECT photo_path, full_body_photo_path FROM players WHERE full_name = ?',
+        'SELECT full_body_photo_paths, full_body_photo_path FROM players WHERE full_name = ?',
         (full_name,),
     )
     row = cur.fetchone()
     if not row:
-        return None, None
-    return row[0] or None, row[1] or None
+        return []
+    return _existing_body_paths(_body_paths_from_row(row[0], row[1]))
+
+
+def get_player_full_body_photo_paths_by_id(player_id):
+    cur = set_cur()
+    cur.execute(
+        'SELECT full_body_photo_paths, full_body_photo_path FROM players WHERE id = ?',
+        (player_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return []
+    return _existing_body_paths(_body_paths_from_row(row[0], row[1]))
+
+
+def set_player_full_body_photo_paths(player_id, paths):
+    """Persist full-body photo paths as JSON; clears legacy single-path column."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    now = datetime.now()
+    clean = [p for p in paths if p]
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET full_body_photo_paths = ?, full_body_photo_path = NULL, updated_at = ? WHERE id = ?',
+            (json.dumps(clean), now, player_id),
+        )
+        conn.commit()
+
+
+def get_player_photo_paths(full_name):
+    """Return face path and list of full-body paths for a player."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT photo_path, full_body_photo_paths, full_body_photo_path FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None, []
+    face = row[0] or None
+    body_paths = _existing_body_paths(_body_paths_from_row(row[1], row[2]))
+    return face, body_paths
 
 
 def set_player_photo_path(player_id, photo_path):
@@ -158,33 +228,40 @@ def save_player_photo_upload(player_id, file_storage):
 
 
 def set_player_full_body_photo_path(player_id, photo_path):
-    """Update full_body_photo_path for a player."""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    now = datetime.now()
-    with conn:
-        cur = conn.cursor()
-        cur.execute(
-            'UPDATE players SET full_body_photo_path = ?, updated_at = ? WHERE id = ?',
-            (photo_path, now, player_id),
-        )
-        conn.commit()
+    """Legacy: set a single full-body path (wraps paths list)."""
+    set_player_full_body_photo_paths(player_id, [photo_path] if photo_path else [])
 
 
 def save_player_full_body_photo_upload(player_id, file_storage):
-    """Validate and save a full-body photo upload. Returns relative static path."""
+    """Validate and append a full-body photo upload. Returns relative static path."""
     ext = _validate_photo_upload(file_storage)
+    paths = get_player_full_body_photo_paths_by_id(player_id)
+    if len(paths) >= MAX_FULL_BODY_PHOTOS:
+        raise ValueError(f'Maximum {MAX_FULL_BODY_PHOTOS} full-body photos per player.')
+
     dest_dir = player_photos_dir()
-    filename = f'{player_id}_body{ext}'
+    filename = f'{player_id}_body_{uuid.uuid4().hex[:12]}{ext}'
     abs_path = os.path.join(dest_dir, filename)
     file_storage.save(abs_path)
 
     rel_path = f'player_photos/{filename}'
-    set_player_full_body_photo_path(player_id, rel_path)
+    paths.append(rel_path)
+    set_player_full_body_photo_paths(player_id, paths)
     return rel_path
+
+
+def remove_player_full_body_photo(player_id, rel_path=None):
+    """Delete one full-body photo (by path) or all if rel_path is None."""
+    paths = get_player_full_body_photo_paths_by_id(player_id)
+    if rel_path:
+        if rel_path in paths:
+            _remove_stored_photo(rel_path)
+            paths = [p for p in paths if p != rel_path]
+            set_player_full_body_photo_paths(player_id, paths)
+        return
+    for path in paths:
+        _remove_stored_photo(path)
+    set_player_full_body_photo_paths(player_id, [])
 
 
 def remove_player_photo(player_id):
@@ -202,29 +279,14 @@ def remove_player_photo(player_id):
     set_player_photo_path(player_id, None)
 
 
-def remove_player_full_body_photo(player_id):
-    """Delete full-body photo file and clear full_body_photo_path."""
-    database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    cur = conn.cursor()
-    cur.execute('SELECT full_body_photo_path FROM players WHERE id = ?', (player_id,))
-    row = cur.fetchone()
-    if row and row[0]:
-        _remove_stored_photo(row[0])
-    set_player_full_body_photo_path(player_id, None)
-
-
-def collect_player_reference_images(player_names, max_players=5):
+def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):
     """Build Gemini reference image parts for AI email illustrations."""
     references = []
     for name in sorted(player_names):
         if len(references) >= max_players:
             break
-        face_path, body_path = get_player_photo_paths(name)
-        if not face_path and not body_path:
+        face_path, body_paths = get_player_photo_paths(name)
+        if not face_path and not body_paths:
             continue
         entry = {'name': name, 'parts': []}
         if face_path:
@@ -235,11 +297,11 @@ def collect_player_reference_images(player_names, max_players=5):
                     'mime': mime,
                     'data_b64': base64.b64encode(raw).decode('ascii'),
                 })
-        if body_path:
+        for idx, body_path in enumerate(body_paths[:max_body_per_player], start=1):
             raw, mime = read_player_image_file(body_path)
             if raw:
                 entry['parts'].append({
-                    'label': f'Full-body reference photo for {name}.',
+                    'label': f'Full-body reference photo {idx} for {name}.',
                     'mime': mime,
                     'data_b64': base64.b64encode(raw).decode('ascii'),
                 })

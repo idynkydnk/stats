@@ -34,24 +34,28 @@
         </div>
 
         <div class="form-group photo-group">
-            <label>Full-body photo</label>
-            <div class="edit-photo-row">
-                {% if player_full_body_photo_url %}
-                <img src="{{ player_full_body_photo_url }}" alt="{{ player[1] }} full body" class="edit-player-full-body" id="edit-player-full-body">
+            <label>Full-body photos</label>
+            <div class="edit-photo-row edit-photo-row-stack">
+                {% if player_full_body_photos %}
+                <div class="edit-body-photo-grid">
+                    {% for photo in player_full_body_photos %}
+                    <img src="{{ photo.url }}" alt="{{ player[1] }} full body" class="edit-player-full-body">
+                    {% endfor %}
+                </div>
                 {% else %}
-                <div class="edit-player-full-body edit-player-full-body-empty" id="edit-player-full-body-empty">No full-body photo</div>
+                <div class="edit-player-full-body edit-player-full-body-empty">No full-body photos</div>
                 {% endif %}
                 <div class="edit-photo-actions">
                     <label class="edit-photo-upload-label">
-                        <i class="fas fa-user"></i> Upload full-body photo
-                        <input type="file" name="full_body_photo" accept="image/jpeg,image/png,image/webp,image/gif">
+                        <i class="fas fa-user"></i> Add full-body photos
+                        <input type="file" name="full_body_photo" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
                     </label>
-                    {% if player_full_body_photo_url %}
+                    {% if player_full_body_photos %}
                     <label class="edit-photo-remove-label">
-                        <input type="checkbox" name="remove_full_body_photo" value="1"> Remove full-body photo
+                        <input type="checkbox" name="remove_full_body_photo" value="1"> Remove all full-body photos
                     </label>
                     {% endif %}
-                    <p class="edit-photo-hint">Used with the face photo for AI email illustrations.</p>
+                    <p class="edit-photo-hint">Add multiple photos. Used with the face photo for AI email illustrations.</p>
                 </div>
             </div>
         </div>
@@ -157,7 +161,17 @@
     font-size: 36px;
     font-weight: 700;
 }
-.edit-player-full-body {
+.edit-photo-row-stack {
+    flex-direction: column;
+    align-items: center;
+}
+.edit-body-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 320px;
+}
     width: 120px;
     max-height: 200px;
     border-radius: 8px;

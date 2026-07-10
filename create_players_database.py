@@ -73,7 +73,8 @@ def main():
                                     created_at DATETIME NOT NULL,
                                     updated_at DATETIME NOT NULL,
                                     photo_path TEXT,
-                                    full_body_photo_path TEXT
+                                    full_body_photo_path TEXT,
+                                    full_body_photo_paths TEXT
                                 );"""
 
     # create a database connection

@@ -509,13 +509,13 @@ def player_photo_url_for(name):
     return None
 
 
-def player_full_body_photo_url_for(name):
-    """Static URL for a player's full-body photo, or None."""
-    from player_functions import get_player_full_body_photo_path
-    path = get_player_full_body_photo_path(name)
-    if path:
-        return url_for('static', filename=path)
-    return None
+def player_full_body_photos_for(name):
+    """Full-body photos with static paths and URLs."""
+    from player_functions import get_player_full_body_photo_paths
+    return [
+        {'path': path, 'url': url_for('static', filename=path)}
+        for path in get_player_full_body_photo_paths(name)
+    ]
 
 
 def _ensure_player_record(name):
@@ -1412,7 +1412,7 @@ def player_stats(year, name):
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photo_url=player_full_body_photo_url_for(name))
+        player_full_body_photos=player_full_body_photos_for(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1424,7 +1424,7 @@ def vollis_player_stats(year, name):
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photo_url=player_full_body_photo_url_for(name))
+        player_full_body_photos=player_full_body_photos_for(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1436,7 +1436,7 @@ def other_player_stats(year, name):
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
-        player_full_body_photo_url=player_full_body_photo_url_for(name))
+        player_full_body_photos=player_full_body_photos_for(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2762,17 +2762,19 @@ def edit_player(player_id):
                     photo_msg = ' Photo updated.'
                 if request.form.get('remove_full_body_photo') == '1':
                     remove_player_full_body_photo(player_id)
-                    photo_msg += ' Full-body photo removed.'
-                elif request.files.get('full_body_photo') and request.files['full_body_photo'].filename:
-                    save_player_full_body_photo_upload(player_id, request.files['full_body_photo'])
-                    photo_msg += ' Full-body photo updated.'
+                    photo_msg += ' Full-body photos removed.'
+                elif request.files.getlist('full_body_photo'):
+                    for f in request.files.getlist('full_body_photo'):
+                        if f and f.filename:
+                            save_player_full_body_photo_upload(player_id, f)
+                    photo_msg += ' Full-body photo(s) updated.'
             except ValueError as e:
                 flash(str(e), 'error')
                 return render_template(
                     'edit_player.html',
                     player=get_player_by_id(player_id),
                     player_photo_url=player_photo_url_for(player[1]),
-                    player_full_body_photo_url=player_full_body_photo_url_for(player[1]),
+                    player_full_body_photos=player_full_body_photos_for(player[1]),
                 )
 
             user = session.get('username', 'unknown')
@@ -2790,7 +2792,7 @@ def edit_player(player_id):
         'edit_player.html',
         player=player,
         player_photo_url=player_photo_url_for(player[1]),
-        player_full_body_photo_url=player_full_body_photo_url_for(player[1]),
+        player_full_body_photos=player_full_body_photos_for(player[1]),
     )
 
 
@@ -2836,8 +2838,12 @@ def api_upload_player_photo(name):
 @app.route('/api/player_full_body_photo/<path:name>/', methods=['POST'])
 @login_required
 def api_upload_player_full_body_photo(name):
-    """Upload or remove a player's full-body photo from a player stats page."""
-    from player_functions import save_player_full_body_photo_upload, remove_player_full_body_photo
+    """Upload or remove a player's full-body photo(s) from a player stats page."""
+    from player_functions import (
+        save_player_full_body_photo_upload,
+        remove_player_full_body_photo,
+        get_player_full_body_photo_paths,
+    )
 
     name = name.strip()
     if not name:
@@ -2849,11 +2855,26 @@ def api_upload_player_full_body_photo(name):
 
     player_id = player[0]
 
+    def _photo_payload():
+        paths = get_player_full_body_photo_paths(name)
+        urls = [url_for('static', filename=p) for p in paths]
+        return {'photo_urls': urls, 'photo_paths': paths}
+
     try:
         if request.form.get('remove') == '1':
             remove_player_full_body_photo(player_id)
-            log_activity('Updated player photo', summary=f'Removed full-body photo for {name}')
-            return jsonify({'success': True, 'photo_url': None})
+            log_activity('Updated player photo', summary=f'Removed all full-body photos for {name}')
+            payload = _photo_payload()
+            payload.update({'success': True, 'added_url': None})
+            return jsonify(payload)
+
+        remove_path = (request.form.get('remove_path') or '').strip()
+        if remove_path:
+            remove_player_full_body_photo(player_id, remove_path)
+            log_activity('Updated player photo', summary=f'Removed a full-body photo for {name}')
+            payload = _photo_payload()
+            payload.update({'success': True, 'added_url': None})
+            return jsonify(payload)
 
         file_storage = request.files.get('photo')
         if not file_storage or not file_storage.filename:
@@ -2864,7 +2885,9 @@ def api_upload_player_full_body_photo(name):
         user = session.get('username', 'unknown')
         log_user_action(user, 'Uploaded player full-body photo', name)
         log_activity('Updated player photo', summary=f'Uploaded full-body photo for {name}')
-        return jsonify({'success': True, 'photo_url': photo_url})
+        payload = _photo_payload()
+        payload.update({'success': True, 'added_url': photo_url})
+        return jsonify(payload)
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
