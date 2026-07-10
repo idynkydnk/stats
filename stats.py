@@ -154,6 +154,112 @@ def send_messages_with_retry(messages, max_attempts=3):
     return sent, errors
 
 
+def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt):
+    """Build AI email payload for doubles, vollis, or other games."""
+    if game_type == 'vollis':
+        return build_vollis_email_payload(
+            selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+        )
+    if game_type == 'other':
+        return build_other_email_payload(
+            selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+        )
+    return build_doubles_email_payload(
+        selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+    )
+
+
+def _send_ai_summary_payload(payload, username='unknown'):
+    """Email an AI summary payload to all players with addresses plus copy-to."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        raise ValueError('Email not configured.')
+
+    subject = payload.get('subject') or 'Vball Summary'
+    email_html = payload.get('html_body') or ''
+    recipients = [
+        p['email'].strip()
+        for p in payload.get('players', [])
+        if p.get('email') and str(p['email']).strip()
+    ]
+    recipients = extend_ai_email_recipients(recipients)
+    if not recipients:
+        raise ValueError('No recipients with email addresses for the selected games.')
+
+    messages = []
+    for to_addr in recipients:
+        msg = Message(subject=subject, recipients=[to_addr])
+        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
+        msg.body = 'View the summary in HTML email.'
+        messages.append(msg)
+
+    emails_sent, errors = send_messages_with_retry(messages)
+    if errors:
+        log_activity(
+            'Email send failed',
+            summary=f'AI auto-send "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}',
+            username=username,
+        )
+    else:
+        log_activity(
+            'Sent email',
+            summary=f'AI auto-send "{subject}" to {emails_sent} recipient(s)',
+            username=username,
+        )
+    return emails_sent, errors
+
+
+def _background_generate_and_send_ai_summary(
+    flask_app, username, game_ids, game_type, prompt_style, custom_prompt,
+):
+    """Generate AI summary and email recipients (runs after HTTP response returns)."""
+    with flask_app.app_context():
+        try:
+            payload = _build_ai_summary_payload(
+                game_type, game_ids, prompt_style, custom_prompt,
+            )
+            img_note = ''
+            if payload.get('hero_image_url'):
+                img_note = ' (with AI illustration)'
+            elif payload.get('hero_image_error'):
+                img_note = f' (image failed: {payload["hero_image_error"][:80]})'
+            log_activity(
+                'Generated AI summary',
+                summary=(
+                    f'{game_type} auto-send for {len(game_ids)} game(s), style "{prompt_style}"'
+                    + img_note
+                ),
+                username=username,
+            )
+            emails_sent, errors = _send_ai_summary_payload(payload, username=username)
+            if errors:
+                flask_app.logger.warning(
+                    'AI auto-send completed with errors: %s', '; '.join(errors),
+                )
+            else:
+                flask_app.logger.info(
+                    'AI auto-send completed: %s emails for "%s"',
+                    emails_sent, payload.get('subject'),
+                )
+        except Exception as e:
+            flask_app.logger.exception('Background AI generate-and-send failed')
+            log_activity(
+                'AI summary failed',
+                summary=f'{game_type} auto-send for {len(game_ids)} game(s): {str(e)[:200]}',
+                username=username,
+            )
+
+
+def _start_background_ai_generate_and_send(
+    username, game_ids, game_type, prompt_style, custom_prompt,
+):
+    thread = threading.Thread(
+        target=_background_generate_and_send_ai_summary,
+        args=(app, username, game_ids, game_type, prompt_style, custom_prompt),
+        daemon=True,
+    )
+    thread.start()
+
+
 def _supabase_flash_suffix(supabase_ok):
     """Return flash message suffix for Supabase sync status (True/False/None)."""
     if supabase_ok is True:
@@ -1040,6 +1146,39 @@ def preview_ai_summary_with_prompt():
         app.logger.exception('AI summary template render failed')
         flash(f'Failed to show preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
+
+
+@app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
+@login_required
+def api_generate_and_send_ai_summary():
+    """Queue AI summary generation and email delivery in the background."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        return jsonify({'success': False, 'error': 'Email not configured.'}), 400
+
+    game_type = request.form.get('game_type', 'doubles')
+    prompt_style = request.form.get('prompt_style', 'funny')
+    custom_prompt = request.form.get('custom_prompt', '')
+    game_ids = request.form.getlist('game_ids')
+    if not game_ids:
+        return jsonify({'success': False, 'error': 'No games selected.'}), 400
+
+    username = session.get('username', 'unknown')
+    log_activity(
+        'Queued AI summary auto-send',
+        summary=f'{game_type} for {len(game_ids)} game(s), style "{prompt_style}"',
+        username=username,
+    )
+    _start_background_ai_generate_and_send(
+        username, game_ids, game_type, prompt_style, custom_prompt,
+    )
+    return jsonify({
+        'success': True,
+        'message': (
+            'Generating and sending your AI summary in the background. '
+            'You can close this page — check the activity log for results.'
+        ),
+    })
+
 
 def _add_doubles_game_view(redirect_to):
     """Shared logic for add_game and add_game_voice (same page, different URLs)."""
