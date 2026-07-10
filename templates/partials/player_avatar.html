@@ -31,23 +31,19 @@
         <h3 id="body-photo-title">Full-body photo</h3>
         <p class="sr-body-photo-hint">Used with your face photo to generate AI email illustrations. The circle photo above is your face.</p>
         <div class="sr-body-photo-preview-wrap">
-            {% if player_full_body_photo_url %}
-            <img src="{{ player_full_body_photo_url }}" alt="Full-body photo" class="sr-body-photo-preview" id="body-photo-preview">
-            {% else %}
-            <div class="sr-body-photo-preview sr-body-photo-empty" id="body-photo-preview-empty">No full-body photo yet</div>
-            <img src="" alt="Full-body photo" class="sr-body-photo-preview" id="body-photo-preview" hidden>
-            {% endif %}
+            <div class="sr-body-photo-preview sr-body-photo-empty" id="body-photo-preview-empty"
+                 {% if player_full_body_photo_url %}hidden{% endif %}>No full-body photo yet</div>
+            <img src="{{ player_full_body_photo_url or '' }}" alt="Full-body photo"
+                 class="sr-body-photo-preview" id="body-photo-preview"
+                 {% if not player_full_body_photo_url %}hidden{% endif %}>
         </div>
         <label class="sr-body-photo-upload-label">
             <i class="fas fa-upload"></i> Upload full-body photo
             <input type="file" id="body-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
         </label>
         <div class="sr-body-photo-actions">
-            {% if player_full_body_photo_url %}
-            <button type="button" class="sr-body-photo-remove" id="body-photo-remove-btn">Remove</button>
-            {% else %}
-            <button type="button" class="sr-body-photo-remove" id="body-photo-remove-btn" hidden>Remove</button>
-            {% endif %}
+            <button type="button" class="sr-body-photo-remove" id="body-photo-remove-btn"
+                    {% if not player_full_body_photo_url %}hidden{% endif %}>Remove</button>
             <button type="button" class="sr-body-photo-close" data-close-body-modal>Close</button>
         </div>
     </div>
@@ -104,6 +100,7 @@
 .sr-body-photo-preview-wrap {
     margin-bottom: 14px;
     text-align: center;
+    min-height: 160px;
 }
 .sr-body-photo-preview {
     max-width: 100%;
@@ -112,6 +109,11 @@
     border: 1px solid var(--sr-line);
     object-fit: contain;
     background: var(--sr-bg);
+}
+.sr-body-photo-preview[hidden],
+.sr-body-photo-empty[hidden],
+.sr-body-photo-remove[hidden] {
+    display: none !important;
 }
 .sr-body-photo-empty {
     display: flex;
