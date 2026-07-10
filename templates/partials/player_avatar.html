@@ -413,15 +413,18 @@
         fetch('/api/player_ai_image_traits/' + encodeURIComponent(playerName) + '/', {
             method: 'POST', body: fd, credentials: 'same-origin'
         })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.success) { alert(data.error || 'Save failed'); return; }
+        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+        .then(function(res) {
+            if (!res.ok || !res.data.success) {
+                alert(res.data && res.data.error ? res.data.error : 'Save failed');
+                return;
+            }
             if (traitsSaved) {
                 traitsSaved.hidden = false;
                 setTimeout(function() { traitsSaved.hidden = true; }, 2000);
             }
         })
-        .catch(function() { alert('Save failed.'); });
+        .catch(function() { alert('Save failed. Check your connection and try again.'); });
     }
 
     if (trigger) trigger.addEventListener('click', openModal);

@@ -2919,11 +2919,12 @@ def api_save_player_ai_image_traits(name):
     if not player or not player[0]:
         return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
 
-    traits = (request.form.get('traits') or request.get_json(silent=True) or {}).get('traits', '')
-    if isinstance(traits, str):
-        traits = traits.strip()
+    if request.form.get('traits') is not None:
+        traits = request.form.get('traits', '')
     else:
-        traits = str(traits).strip()
+        data = request.get_json(silent=True) or {}
+        traits = data.get('traits', '') if isinstance(data, dict) else ''
+    traits = (traits or '').strip()
 
     try:
         set_player_ai_image_traits(player[0], traits)
