@@ -74,7 +74,8 @@ def main():
                                     updated_at DATETIME NOT NULL,
                                     photo_path TEXT,
                                     full_body_photo_path TEXT,
-                                    full_body_photo_paths TEXT
+                                    full_body_photo_paths TEXT,
+                                    face_photo_focus TEXT
                                 );"""
 
     # create a database connection

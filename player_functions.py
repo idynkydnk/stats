@@ -39,6 +39,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_paths TEXT')
     if 'ai_image_traits' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN ai_image_traits TEXT')
+    if 'face_photo_focus' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN face_photo_focus TEXT')
     conn.commit()
     conn.close()
 
@@ -60,6 +62,52 @@ def get_player_photo_path(full_name):
     )
     row = cur.fetchone()
     return row[0] if row and row[0] else None
+
+
+def _parse_face_photo_focus(raw):
+    if not raw:
+        return 50.0, 50.0
+    try:
+        parts = str(raw).split(',')
+        if len(parts) != 2:
+            return 50.0, 50.0
+        x = max(0.0, min(100.0, float(parts[0])))
+        y = max(0.0, min(100.0, float(parts[1])))
+        return x, y
+    except (TypeError, ValueError):
+        return 50.0, 50.0
+
+
+def get_player_face_photo_focus(full_name):
+    """Return object-position focus (x%, y%) for the face circle crop."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT face_photo_focus FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return _parse_face_photo_focus(row[0] if row else None)
+
+
+def set_player_face_photo_focus(player_id, x, y):
+    """Save face crop focus as percentages for object-position."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    x = max(0.0, min(100.0, float(x)))
+    y = max(0.0, min(100.0, float(y)))
+    now = datetime.now()
+    focus = f'{x:.1f},{y:.1f}'
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET face_photo_focus = ?, updated_at = ? WHERE id = ?',
+            (focus, now, player_id),
+        )
+        conn.commit()
+    return x, y
 
 
 def get_player_full_body_photo_path(full_name):
@@ -265,6 +313,7 @@ def save_player_photo_upload(player_id, file_storage):
 
     rel_path = f'player_photos/{filename}'
     set_player_photo_path(player_id, rel_path)
+    set_player_face_photo_focus(player_id, 50, 50)
     return rel_path
 
 
@@ -318,6 +367,7 @@ def remove_player_photo(player_id):
     if row and row[0]:
         _remove_stored_photo(row[0])
     set_player_photo_path(player_id, None)
+    set_player_face_photo_focus(player_id, 50, 50)
 
 
 def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):

@@ -523,6 +523,12 @@ def player_ai_image_traits_for(name):
     return get_player_ai_image_traits(name)
 
 
+def player_face_photo_focus_for(name):
+    from player_functions import get_player_face_photo_focus
+    x, y = get_player_face_photo_focus(name)
+    return {'x': x, 'y': y}
+
+
 def _ensure_player_record(name):
     """Return players row for name, creating a minimal record if needed."""
     from player_functions import get_player_by_name, add_new_player
@@ -1418,7 +1424,8 @@ def player_stats(year, name):
         current_streak=current_streak, recent_form=recent_form,
         player_photo_url=player_photo_url_for(name),
         player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name))
+        player_ai_image_traits=player_ai_image_traits_for(name),
+        player_face_photo_focus=player_face_photo_focus_for(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1431,7 +1438,8 @@ def vollis_player_stats(year, name):
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
         player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name))
+        player_ai_image_traits=player_ai_image_traits_for(name),
+        player_face_photo_focus=player_face_photo_focus_for(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1444,7 +1452,8 @@ def other_player_stats(year, name):
         year=year, player=name, all_years=all_years, stats=stats,
         player_photo_url=player_photo_url_for(name),
         player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name))
+        player_ai_image_traits=player_ai_image_traits_for(name),
+        player_face_photo_focus=player_face_photo_focus_for(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2784,6 +2793,7 @@ def edit_player(player_id):
                     player_photo_url=player_photo_url_for(player[1]),
                     player_full_body_photos=player_full_body_photos_for(player[1]),
                     player_ai_image_traits=player_ai_image_traits_for(player[1]),
+                    player_face_photo_focus=player_face_photo_focus_for(player[1]),
                 )
 
             user = session.get('username', 'unknown')
@@ -2810,7 +2820,12 @@ def edit_player(player_id):
 @login_required
 def api_upload_player_photo(name):
     """Upload or remove a player photo from a player stats page."""
-    from player_functions import save_player_photo_upload, remove_player_photo
+    from player_functions import (
+        save_player_photo_upload,
+        remove_player_photo,
+        set_player_face_photo_focus,
+        get_player_face_photo_focus,
+    )
 
     name = name.strip()
     if not name:
@@ -2823,10 +2838,19 @@ def api_upload_player_photo(name):
     player_id = player[0]
 
     try:
+        if request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
+            x, y = set_player_face_photo_focus(
+                player_id,
+                request.form.get('focus_x', 50),
+                request.form.get('focus_y', 50),
+            )
+            log_activity('Updated player photo', summary=f'Adjusted face crop for {name}')
+            return jsonify({'success': True, 'focus': {'x': x, 'y': y}})
+
         if request.form.get('remove') == '1':
             remove_player_photo(player_id)
             log_activity('Updated player photo', summary=f'Removed photo for {name}')
-            return jsonify({'success': True, 'photo_url': None})
+            return jsonify({'success': True, 'photo_url': None, 'focus': {'x': 50, 'y': 50}})
 
         file_storage = request.files.get('photo')
         if not file_storage or not file_storage.filename:
@@ -2834,10 +2858,15 @@ def api_upload_player_photo(name):
 
         rel_path = save_player_photo_upload(player_id, file_storage)
         photo_url = url_for('static', filename=rel_path)
+        fx, fy = get_player_face_photo_focus(name)
         user = session.get('username', 'unknown')
         log_user_action(user, 'Uploaded player photo', name)
         log_activity('Updated player photo', summary=f'Uploaded photo for {name}')
-        return jsonify({'success': True, 'photo_url': photo_url})
+        return jsonify({
+            'success': True,
+            'photo_url': photo_url,
+            'focus': {'x': fx, 'y': fy},
+        })
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:

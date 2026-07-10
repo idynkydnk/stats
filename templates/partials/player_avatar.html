@@ -2,13 +2,16 @@
 {% set display_name = player_name if player_name is defined else player %}
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = '' %}{% endif %}
+{% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50} %}{% endif %}
+{% set face_pos = player_face_photo_focus.x ~ '% ' ~ player_face_photo_focus.y ~ '%' %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
             title="Manage player photos" aria-label="Manage player photos">
     {% endif %}
         {% if player_photo_url %}
-        <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-player-avatar sr-player-photo" id="player-avatar-img">
+        <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-player-avatar sr-player-photo" id="player-avatar-img"
+             style="object-position: {{ face_pos }};">
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
@@ -28,20 +31,26 @@
             <h4>Face photo</h4>
             <div class="sr-face-photo-row">
                 <div class="sr-face-photo-preview-wrap">
-                    {% if player_photo_url %}
-                    <img src="{{ player_photo_url }}" alt="Face photo" class="sr-face-photo-preview" id="modal-face-preview">
-                    {% else %}
-                    <div class="sr-face-photo-preview sr-face-photo-empty" id="modal-face-empty">{{ display_name[0] }}</div>
-                    <img src="" alt="Face photo" class="sr-face-photo-preview" id="modal-face-preview" hidden>
-                    {% endif %}
+                    <div class="sr-face-crop-frame" id="face-crop-frame"
+                         {% if not player_photo_url %}hidden{% endif %}>
+                        <img src="{{ player_photo_url or '' }}" alt="Face photo"
+                             class="sr-face-crop-img" id="modal-face-preview"
+                             style="object-position: {{ face_pos }};">
+                    </div>
+                    <div class="sr-face-photo-preview sr-face-photo-empty" id="modal-face-empty"
+                         {% if player_photo_url %}hidden{% endif %}>{{ display_name[0] }}</div>
                 </div>
-                <div class="sr-face-photo-actions">
-                    <label class="sr-photo-action-btn">
-                        <i class="fas fa-camera"></i> Upload face
-                        <input type="file" id="face-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
-                    </label>
-                    <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="face-photo-remove-btn"
-                            {% if not player_photo_url %}hidden{% endif %}>Remove face</button>
+                <div class="sr-face-photo-actions-col">
+                    <div class="sr-face-photo-actions">
+                        <label class="sr-photo-action-btn">
+                            <i class="fas fa-camera"></i> Upload face
+                            <input type="file" id="face-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                        </label>
+                        <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="face-photo-remove-btn"
+                                {% if not player_photo_url %}hidden{% endif %}>Remove face</button>
+                    </div>
+                    <p class="sr-face-drag-hint" id="face-drag-hint"
+                       {% if not player_photo_url %}hidden{% endif %}>Drag photo to reposition in circle</p>
                 </div>
             </div>
         </section>
@@ -143,6 +152,26 @@
     flex-wrap: wrap;
 }
 .sr-face-photo-preview-wrap { flex-shrink: 0; }
+.sr-face-crop-frame {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-bg);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.sr-face-crop-frame:active { cursor: grabbing; }
+.sr-face-crop-frame[hidden] { display: none !important; }
+.sr-face-crop-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
 .sr-face-photo-preview {
     width: 72px;
     height: 72px;
@@ -166,6 +195,18 @@
 .sr-photo-action-btn[hidden] {
     display: none !important;
 }
+.sr-face-photo-actions-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sr-face-drag-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.4;
+}
+.sr-face-drag-hint[hidden] { display: none !important; }
 .sr-face-photo-actions,
 .sr-photo-modal-footer {
     display: flex;
@@ -265,10 +306,13 @@
 <script>
 (function() {
     var playerName = {{ display_name|tojson }};
+    var faceFocus = { x: {{ player_face_photo_focus.x }}, y: {{ player_face_photo_focus.y }} };
     var modal = document.getElementById('player-photo-modal');
     var trigger = document.getElementById('player-avatar-trigger');
     var faceInput = document.getElementById('face-photo-input');
     var faceRemoveBtn = document.getElementById('face-photo-remove-btn');
+    var faceCropFrame = document.getElementById('face-crop-frame');
+    var faceDragHint = document.getElementById('face-drag-hint');
     var bodyInput = document.getElementById('body-photo-input');
     var bodyGrid = document.getElementById('body-photo-grid');
     var bodyEmptyMsg = document.getElementById('body-photo-empty-msg');
@@ -279,41 +323,80 @@
     var traitsInput = document.getElementById('ai-image-traits');
     var traitsSaveBtn = document.getElementById('ai-image-traits-save');
     var traitsSaved = document.getElementById('ai-image-traits-saved');
+    var faceDragging = false;
+    var faceDragLastX = 0;
+    var faceDragLastY = 0;
+    var faceFocusSaveTimer = null;
+
+    function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
+
+    function focusStyle() {
+        return clampFocus(faceFocus.x) + '% ' + clampFocus(faceFocus.y) + '%';
+    }
+
+    function applyFaceFocus(x, y) {
+        faceFocus.x = clampFocus(x);
+        faceFocus.y = clampFocus(y);
+        var pos = focusStyle();
+        if (modalFacePreview) modalFacePreview.style.objectPosition = pos;
+        var header = document.getElementById('player-avatar-img');
+        if (header) header.style.objectPosition = pos;
+    }
+
+    function scheduleFaceFocusSave() {
+        if (faceFocusSaveTimer) clearTimeout(faceFocusSaveTimer);
+        faceFocusSaveTimer = setTimeout(saveFaceFocus, 300);
+    }
+
+    function saveFaceFocus() {
+        var fd = new FormData();
+        fd.append('focus_x', faceFocus.x);
+        fd.append('focus_y', faceFocus.y);
+        fetch('/api/player_photo/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        }).catch(function() {});
+    }
 
     function openModal() { if (modal) modal.hidden = false; }
     function closeModal() { if (modal) modal.hidden = true; }
 
-    function setFacePreview(url) {
+    function setFacePreview(url, focus) {
         if (url) {
+            if (focus) applyFaceFocus(focus.x, focus.y);
+            if (faceCropFrame) faceCropFrame.hidden = false;
             if (modalFacePreview) {
                 modalFacePreview.src = url + '?t=' + Date.now();
-                modalFacePreview.hidden = false;
             }
             if (modalFaceEmpty) modalFaceEmpty.hidden = true;
             if (faceRemoveBtn) faceRemoveBtn.hidden = false;
-            if (headerAvatarImg) {
-                headerAvatarImg.src = url + '?t=' + Date.now();
+            if (faceDragHint) faceDragHint.hidden = false;
+            var header = document.getElementById('player-avatar-img');
+            if (header) {
+                header.src = url + '?t=' + Date.now();
+                header.style.objectPosition = focusStyle();
             } else if (headerAvatarFallback) {
                 var img = document.createElement('img');
                 img.id = 'player-avatar-img';
                 img.className = 'sr-player-avatar sr-player-photo';
                 img.alt = playerName;
                 img.src = url + '?t=' + Date.now();
+                img.style.objectPosition = focusStyle();
                 headerAvatarFallback.replaceWith(img);
             }
         } else {
-            if (modalFacePreview) {
-                modalFacePreview.src = '';
-                modalFacePreview.hidden = true;
-            }
+            applyFaceFocus(50, 50);
+            if (faceCropFrame) faceCropFrame.hidden = true;
+            if (modalFacePreview) modalFacePreview.src = '';
             if (modalFaceEmpty) modalFaceEmpty.hidden = false;
             if (faceRemoveBtn) faceRemoveBtn.hidden = true;
-            if (headerAvatarImg) {
+            if (faceDragHint) faceDragHint.hidden = true;
+            var headerImg = document.getElementById('player-avatar-img');
+            if (headerImg) {
                 var fb = document.createElement('div');
                 fb.id = 'player-avatar-fallback';
                 fb.className = 'sr-player-avatar';
                 fb.textContent = playerName.charAt(0);
-                headerAvatarImg.replaceWith(fb);
+                headerImg.replaceWith(fb);
             }
         }
     }
@@ -359,7 +442,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.success) { alert(data.error || 'Upload failed'); return; }
-            setFacePreview(data.photo_url || null);
+            setFacePreview(data.photo_url || null, data.focus || { x: 50, y: 50 });
         })
         .catch(function() { alert('Upload failed.'); });
     }
@@ -435,6 +518,38 @@
         });
     }
     if (faceRemoveBtn) faceRemoveBtn.addEventListener('click', removeFace);
+    if (faceCropFrame) {
+        faceCropFrame.addEventListener('pointerdown', function(e) {
+            if (!modalFacePreview || !modalFacePreview.src) return;
+            faceDragging = true;
+            faceDragLastX = e.clientX;
+            faceDragLastY = e.clientY;
+            faceCropFrame.setPointerCapture(e.pointerId);
+        });
+        faceCropFrame.addEventListener('pointermove', function(e) {
+            if (!faceDragging) return;
+            var rect = faceCropFrame.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            var dx = e.clientX - faceDragLastX;
+            var dy = e.clientY - faceDragLastY;
+            faceDragLastX = e.clientX;
+            faceDragLastY = e.clientY;
+            applyFaceFocus(
+                faceFocus.x + (dx / rect.width) * 100,
+                faceFocus.y + (dy / rect.height) * 100
+            );
+        });
+        function endFaceDrag(e) {
+            if (!faceDragging) return;
+            faceDragging = false;
+            if (faceCropFrame.hasPointerCapture(e.pointerId)) {
+                faceCropFrame.releasePointerCapture(e.pointerId);
+            }
+            saveFaceFocus();
+        }
+        faceCropFrame.addEventListener('pointerup', endFaceDrag);
+        faceCropFrame.addEventListener('pointercancel', endFaceDrag);
+    }
     if (traitsSaveBtn) traitsSaveBtn.addEventListener('click', saveTraits);
     if (bodyInput) {
         bodyInput.addEventListener('change', function() {
