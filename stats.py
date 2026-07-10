@@ -25,6 +25,7 @@ from email_content import (
 import admin_functions as adminfx
 import os
 import subprocess
+import sys
 import sqlite3
 import secrets
 import hashlib
@@ -208,11 +209,9 @@ def _send_ai_summary_payload(payload, username='unknown'):
     return emails_sent, errors
 
 
-def _background_generate_and_send_ai_summary(
-    flask_app, username, game_ids, game_type, prompt_style, custom_prompt,
-):
-    """Generate AI summary and email recipients (runs after HTTP response returns)."""
-    with flask_app.app_context():
+def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_prompt):
+    """Generate AI summary and email recipients (runs in a detached worker process)."""
+    with app.app_context():
         try:
             payload = _build_ai_summary_payload(
                 game_type, game_ids, prompt_style, custom_prompt,
@@ -232,16 +231,16 @@ def _background_generate_and_send_ai_summary(
             )
             emails_sent, errors = _send_ai_summary_payload(payload, username=username)
             if errors:
-                flask_app.logger.warning(
+                app.logger.warning(
                     'AI auto-send completed with errors: %s', '; '.join(errors),
                 )
             else:
-                flask_app.logger.info(
+                app.logger.info(
                     'AI auto-send completed: %s emails for "%s"',
                     emails_sent, payload.get('subject'),
                 )
         except Exception as e:
-            flask_app.logger.exception('Background AI generate-and-send failed')
+            app.logger.exception('AI auto-send worker failed')
             log_activity(
                 'AI summary failed',
                 summary=f'{game_type} auto-send for {len(game_ids)} game(s): {str(e)[:200]}',
@@ -249,15 +248,37 @@ def _background_generate_and_send_ai_summary(
             )
 
 
+def _ai_auto_send_worker_log_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_auto_send_worker.log')
+
+
 def _start_background_ai_generate_and_send(
     username, game_ids, game_type, prompt_style, custom_prompt,
 ):
-    thread = threading.Thread(
-        target=_background_generate_and_send_ai_summary,
-        args=(app, username, game_ids, game_type, prompt_style, custom_prompt),
-        daemon=True,
-    )
-    thread.start()
+    """Spawn a detached process so work continues after the HTTP response."""
+    job = {
+        'username': username,
+        'game_ids': game_ids,
+        'game_type': game_type,
+        'prompt_style': prompt_style,
+        'custom_prompt': custom_prompt,
+    }
+    worker_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_auto_send_worker.py')
+    log_path = _ai_auto_send_worker_log_path()
+    with open(log_path, 'a', encoding='utf-8') as log_file:
+        log_file.write(f'\n--- spawn {datetime.utcnow().isoformat()}Z user={username} games={len(game_ids)} ---\n')
+        log_file.flush()
+        proc = subprocess.Popen(
+            [sys.executable, worker_script, json.dumps(job)],
+            cwd=os.path.dirname(worker_script),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            close_fds=True,
+            env=os.environ.copy(),
+        )
+    app.logger.info('AI auto-send worker started (pid %s)', proc.pid)
+    return True
 
 
 def _supabase_flash_suffix(supabase_ok):
@@ -1163,13 +1184,23 @@ def api_generate_and_send_ai_summary():
         return jsonify({'success': False, 'error': 'No games selected.'}), 400
 
     username = session.get('username', 'unknown')
+    try:
+        _start_background_ai_generate_and_send(
+            username, game_ids, game_type, prompt_style, custom_prompt,
+        )
+    except Exception as e:
+        app.logger.exception('Failed to spawn AI auto-send worker')
+        log_activity(
+            'AI summary failed',
+            summary=f'Could not start auto-send worker: {str(e)[:200]}',
+            username=username,
+        )
+        return jsonify({'success': False, 'error': 'Could not start background job.'}), 500
+
     log_activity(
         'Queued AI summary auto-send',
         summary=f'{game_type} for {len(game_ids)} game(s), style "{prompt_style}"',
         username=username,
-    )
-    _start_background_ai_generate_and_send(
-        username, game_ids, game_type, prompt_style, custom_prompt,
     )
     return jsonify({
         'success': True,
