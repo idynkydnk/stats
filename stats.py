@@ -23,6 +23,7 @@ from email_content import (
     email_html_for_inline_preview,
 )
 import admin_functions as adminfx
+import ai_auto_send_jobs as ai_jobs
 import os
 import subprocess
 import sqlite3
@@ -594,6 +595,7 @@ def mark_notifications_read(notification_ids):
 init_notifications_db()
 init_auth_tokens_db()
 adminfx.init_activity_log_db()
+ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 from player_functions import init_players_photo_column
 init_players_photo_column()
@@ -1144,7 +1146,7 @@ def preview_ai_summary_with_prompt():
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
 @login_required
 def api_generate_and_send_ai_summary():
-    """Generate AI summary and send email before returning (required on PythonAnywhere)."""
+    """Queue AI summary generation; an Always-on daemon sends it in the background."""
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
         return jsonify({'success': False, 'error': 'Email not configured.'}), 400
 
@@ -1156,26 +1158,32 @@ def api_generate_and_send_ai_summary():
         return jsonify({'success': False, 'error': 'No games selected.'}), 400
 
     username = session.get('username', 'unknown')
-    result = run_ai_auto_send_job(
+    job_id = ai_jobs.enqueue_job(
         username, game_ids, game_type, prompt_style, custom_prompt,
     )
-    if not result.get('success'):
-        return jsonify({
-            'success': False,
-            'error': result.get('error') or 'Generation or send failed.',
-        }), 500
+    worker_alive = ai_jobs.daemon_is_alive()
+    log_activity(
+        'Queued AI summary auto-send',
+        summary=f'job #{job_id}: {game_type} for {len(game_ids)} game(s), style "{prompt_style}"',
+        username=username,
+    )
 
-    emails_sent = result.get('emails_sent', 0)
-    subject = result.get('subject') or 'Vball Summary'
-    errors = result.get('errors') or []
-    message = f'Sent "{subject}" to {emails_sent} recipient(s).'
-    if errors:
-        message += f' {len(errors)} address(es) failed.'
+    if worker_alive:
+        message = (
+            f'Queued (job #{job_id}). Generating and sending in the background — '
+            'you can close this page. Check your email or /admin/ activity in a few minutes.'
+        )
+    else:
+        message = (
+            f'Queued (job #{job_id}), but the background worker is not running. '
+            'Enable the Always-on task on PythonAnywhere (see wsgi_config.py), '
+            'or use Generate Summary and send from the preview page.'
+        )
     return jsonify({
         'success': True,
+        'job_id': job_id,
+        'worker_alive': worker_alive,
         'message': message,
-        'emails_sent': emails_sent,
-        'subject': subject,
     })
 
 

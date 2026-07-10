@@ -39,6 +39,9 @@ run_with_email.sh
 static/player_photos/*
 !static/player_photos/.gitkeep
 
+# AI auto-send daemon runtime files
+ai_auto_send_daemon.heartbeat
+
 # AI-generated email illustrations (stored on server)
 static/email_images/*
 !static/email_images/.gitkeep
