@@ -25,7 +25,6 @@ from email_content import (
 import admin_functions as adminfx
 import os
 import subprocess
-import sys
 import sqlite3
 import secrets
 import hashlib
@@ -210,7 +209,7 @@ def _send_ai_summary_payload(payload, username='unknown'):
 
 
 def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_prompt):
-    """Generate AI summary and email recipients (runs in a detached worker process)."""
+    """Generate AI summary and email recipients. Returns a result dict for the API."""
     with app.app_context():
         try:
             payload = _build_ai_summary_payload(
@@ -230,55 +229,28 @@ def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_pro
                 username=username,
             )
             emails_sent, errors = _send_ai_summary_payload(payload, username=username)
-            if errors:
-                app.logger.warning(
-                    'AI auto-send completed with errors: %s', '; '.join(errors),
-                )
-            else:
-                app.logger.info(
-                    'AI auto-send completed: %s emails for "%s"',
-                    emails_sent, payload.get('subject'),
-                )
+            subject = payload.get('subject') or 'Vball Summary'
+            if errors and emails_sent == 0:
+                return {
+                    'success': False,
+                    'error': '; '.join(errors)[:300],
+                    'emails_sent': 0,
+                    'subject': subject,
+                }
+            return {
+                'success': True,
+                'emails_sent': emails_sent,
+                'errors': errors,
+                'subject': subject,
+            }
         except Exception as e:
-            app.logger.exception('AI auto-send worker failed')
+            app.logger.exception('AI auto-send failed')
             log_activity(
                 'AI summary failed',
                 summary=f'{game_type} auto-send for {len(game_ids)} game(s): {str(e)[:200]}',
                 username=username,
             )
-
-
-def _ai_auto_send_worker_log_path():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_auto_send_worker.log')
-
-
-def _start_background_ai_generate_and_send(
-    username, game_ids, game_type, prompt_style, custom_prompt,
-):
-    """Spawn a detached process so work continues after the HTTP response."""
-    job = {
-        'username': username,
-        'game_ids': game_ids,
-        'game_type': game_type,
-        'prompt_style': prompt_style,
-        'custom_prompt': custom_prompt,
-    }
-    worker_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_auto_send_worker.py')
-    log_path = _ai_auto_send_worker_log_path()
-    with open(log_path, 'a', encoding='utf-8') as log_file:
-        log_file.write(f'\n--- spawn {datetime.utcnow().isoformat()}Z user={username} games={len(game_ids)} ---\n')
-        log_file.flush()
-        proc = subprocess.Popen(
-            [sys.executable, worker_script, json.dumps(job)],
-            cwd=os.path.dirname(worker_script),
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-            close_fds=True,
-            env=os.environ.copy(),
-        )
-    app.logger.info('AI auto-send worker started (pid %s)', proc.pid)
-    return True
+            return {'success': False, 'error': str(e)[:300], 'emails_sent': 0}
 
 
 def _supabase_flash_suffix(supabase_ok):
@@ -1172,7 +1144,7 @@ def preview_ai_summary_with_prompt():
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
 @login_required
 def api_generate_and_send_ai_summary():
-    """Queue AI summary generation and email delivery in the background."""
+    """Generate AI summary and send email before returning (required on PythonAnywhere)."""
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
         return jsonify({'success': False, 'error': 'Email not configured.'}), 400
 
@@ -1184,30 +1156,26 @@ def api_generate_and_send_ai_summary():
         return jsonify({'success': False, 'error': 'No games selected.'}), 400
 
     username = session.get('username', 'unknown')
-    try:
-        _start_background_ai_generate_and_send(
-            username, game_ids, game_type, prompt_style, custom_prompt,
-        )
-    except Exception as e:
-        app.logger.exception('Failed to spawn AI auto-send worker')
-        log_activity(
-            'AI summary failed',
-            summary=f'Could not start auto-send worker: {str(e)[:200]}',
-            username=username,
-        )
-        return jsonify({'success': False, 'error': 'Could not start background job.'}), 500
-
-    log_activity(
-        'Queued AI summary auto-send',
-        summary=f'{game_type} for {len(game_ids)} game(s), style "{prompt_style}"',
-        username=username,
+    result = run_ai_auto_send_job(
+        username, game_ids, game_type, prompt_style, custom_prompt,
     )
+    if not result.get('success'):
+        return jsonify({
+            'success': False,
+            'error': result.get('error') or 'Generation or send failed.',
+        }), 500
+
+    emails_sent = result.get('emails_sent', 0)
+    subject = result.get('subject') or 'Vball Summary'
+    errors = result.get('errors') or []
+    message = f'Sent "{subject}" to {emails_sent} recipient(s).'
+    if errors:
+        message += f' {len(errors)} address(es) failed.'
     return jsonify({
         'success': True,
-        'message': (
-            'Generating and sending your AI summary in the background. '
-            'You can close this page — check the activity log for results.'
-        ),
+        'message': message,
+        'emails_sent': emails_sent,
+        'subject': subject,
     })
 
 
