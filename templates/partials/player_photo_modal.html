@@ -857,20 +857,26 @@ window.PlayerPhotoManager = (function() {
         relayoutHeaderAvatar();
     }
 
+    function openPlayerFromCard(card) {
+        var raw = card.getAttribute('data-player-profile');
+        if (!raw) return;
+        var profile = JSON.parse(raw);
+        profile.listAvatarWrap = card.querySelector('.pl-avatar');
+        profile.listMetaEls = {
+            email: card.querySelector('[data-pl-email]'),
+            height: card.querySelector('[data-pl-height]'),
+            birthday: card.querySelector('[data-pl-birthday]'),
+        };
+        loadPlayer(profile);
+        openModal();
+    }
+
     function initList() {
-        document.querySelectorAll('[data-player-profile]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var raw = btn.getAttribute('data-player-profile');
-                if (!raw) return;
-                var profile = JSON.parse(raw);
-                profile.listAvatarWrap = btn.querySelector('.pl-avatar');
-                profile.listMetaEls = {
-                    email: btn.querySelector('[data-pl-email]'),
-                    height: btn.querySelector('[data-pl-height]'),
-                    birthday: btn.querySelector('[data-pl-birthday]'),
-                };
-                loadPlayer(profile);
-                openModal();
+        document.querySelectorAll('.pl-card[data-player-profile]').forEach(function(card) {
+            card.querySelectorAll('.pl-open-profile').forEach(function(trigger) {
+                trigger.addEventListener('click', function() {
+                    openPlayerFromCard(card);
+                });
             });
         });
     }
@@ -1151,12 +1157,12 @@ window.PlayerPhotoManager = (function() {
     }
 
     function layoutListAvatars() {
-        document.querySelectorAll('[data-player-profile]').forEach(function(btn) {
-            var raw = btn.getAttribute('data-player-profile');
+        document.querySelectorAll('.pl-card[data-player-profile]').forEach(function(card) {
+            var raw = card.getAttribute('data-player-profile');
             if (!raw) return;
             try {
                 var profile = JSON.parse(raw);
-                var img = btn.querySelector('.pl-avatar img.sr-crop-positioned-img');
+                var img = card.querySelector('.pl-avatar img.sr-crop-positioned-img');
                 if (img && profile.photoUrl) {
                     relayoutCropSoon(img, profile.faceFocus || { x: 50, y: 50, z: 1 }, false);
                 }

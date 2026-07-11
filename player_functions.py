@@ -5,6 +5,8 @@ import json
 import os
 import uuid
 
+from stat_functions import cached
+
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
 MAX_FULL_BODY_PHOTOS = 10
@@ -706,106 +708,149 @@ def set_cur():
     cur = conn.cursor()
     return cur
 
-def get_all_players():
-    """Get all players from the database with their first game date and game count"""
+
+def _players_db_connection():
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    return conn
+
+
+def _game_stats_by_player(cur):
+    """Return per-player (count, first_date) for each game type in three dicts."""
+    cur.execute("""
+        SELECT player, COUNT(*), MIN(game_date)
+        FROM (
+            SELECT winner1 AS player, game_date FROM games
+                WHERE winner1 IS NOT NULL AND winner1 != ''
+            UNION ALL
+            SELECT winner2, game_date FROM games
+                WHERE winner2 IS NOT NULL AND winner2 != ''
+            UNION ALL
+            SELECT loser1, game_date FROM games
+                WHERE loser1 IS NOT NULL AND loser1 != ''
+            UNION ALL
+            SELECT loser2, game_date FROM games
+                WHERE loser2 IS NOT NULL AND loser2 != ''
+        )
+        GROUP BY player
+    """)
+    doubles = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
+
+    cur.execute("""
+        SELECT player, COUNT(*), MIN(game_date)
+        FROM (
+            SELECT winner AS player, game_date FROM vollis_games
+                WHERE winner IS NOT NULL AND winner != ''
+            UNION ALL
+            SELECT loser, game_date FROM vollis_games
+                WHERE loser IS NOT NULL AND loser != ''
+        )
+        GROUP BY player
+    """)
+    vollis = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
+
+    other_positions = [
+        'winner1', 'winner2', 'winner3', 'winner4', 'winner5', 'winner6',
+        'loser1', 'loser2', 'loser3', 'loser4', 'loser5', 'loser6',
+    ]
+    union_parts = ' UNION ALL '.join(
+        f"SELECT {pos} AS player, game_date FROM other_games "
+        f"WHERE {pos} IS NOT NULL AND {pos} != ''"
+        for pos in other_positions
+    )
+    cur.execute(f"""
+        SELECT player, COUNT(*), MIN(game_date)
+        FROM ({union_parts})
+        GROUP BY player
+    """)
+    other = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
+    return doubles, vollis, other
+
+
+def get_players_list_extras(names):
+    """Batch-fetch list-card photo metadata for many players in one query."""
+    if not names:
+        return {}
+
+    conn = _players_db_connection()
+    if conn is None:
+        return {}
+
     cur = conn.cursor()
-    
-    # Get all unique player names from all game tables
-    all_player_names = set()
-    
-    # From doubles games
-    cur.execute("SELECT DISTINCT winner1 FROM games WHERE winner1 IS NOT NULL AND winner1 != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    cur.execute("SELECT DISTINCT winner2 FROM games WHERE winner2 IS NOT NULL AND winner2 != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    cur.execute("SELECT DISTINCT loser1 FROM games WHERE loser1 IS NOT NULL AND loser1 != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    cur.execute("SELECT DISTINCT loser2 FROM games WHERE loser2 IS NOT NULL AND loser2 != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    
-    # From vollis games
-    cur.execute("SELECT DISTINCT winner FROM vollis_games WHERE winner IS NOT NULL AND winner != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    cur.execute("SELECT DISTINCT loser FROM vollis_games WHERE loser IS NOT NULL AND loser != ''")
-    all_player_names.update([row[0] for row in cur.fetchall()])
-    
-    # From other games
-    for position in ['winner1', 'winner2', 'winner3', 'winner4', 'winner5', 'winner6', 
-                     'loser1', 'loser2', 'loser3', 'loser4', 'loser5', 'loser6']:
-        cur.execute(f"SELECT DISTINCT {position} FROM other_games WHERE {position} IS NOT NULL AND {position} != ''")
-        all_player_names.update([row[0] for row in cur.fetchall()])
-    
-    # For each player name, build their stats
+    placeholders = ','.join('?' * len(names))
+    cur.execute(
+        f"""
+        SELECT full_name, full_body_photo_paths, full_body_photo_path,
+               ai_image_traits, face_photo_focus, full_body_photo_crops
+        FROM players
+        WHERE full_name IN ({placeholders})
+        """,
+        list(names),
+    )
+
+    extras = {}
+    for row in cur.fetchall():
+        name, paths_json, legacy_path, traits_raw, face_raw, crops_raw = row
+        x, y, z = _parse_face_photo_focus(face_raw)
+        extras[name] = {
+            'body_paths': _body_paths_from_row(paths_json, legacy_path),
+            'body_crops': _parse_body_crops_json(crops_raw),
+            'traits': normalize_player_ai_image_traits(traits_raw),
+            'face_focus': {'x': x, 'y': y, 'z': z},
+        }
+
+    conn.close()
+    return extras
+
+
+@cached(ttl=1800)
+def get_all_players():
+    """Get all players from the database with their first game date and game count."""
+    conn = _players_db_connection()
+    if conn is None:
+        return []
+
+    cur = conn.cursor()
+    doubles, vollis, other = _game_stats_by_player(cur)
+    all_player_names = set(doubles) | set(vollis) | set(other)
+
+    cur.execute(PLAYERS_SELECT)
+    players_by_name = {row[1]: row for row in cur.fetchall()}
+
     players_with_stats = []
+    now = datetime.now()
     for player_name in all_player_names:
-        # Check if player exists in players table
-        cur.execute(f"{PLAYERS_SELECT} WHERE full_name = ?", (player_name,))
-        player_record = cur.fetchone()
-        
-        # Count doubles games
-        cur.execute("""
-            SELECT COUNT(*), MIN(game_date) FROM games 
-            WHERE winner1 = ? OR winner2 = ? OR loser1 = ? OR loser2 = ?
-        """, (player_name, player_name, player_name, player_name))
-        doubles_result = cur.fetchone()
-        doubles_count = doubles_result[0] if doubles_result and doubles_result[0] else 0
-        doubles_date = doubles_result[1] if doubles_result else None
-        
-        # Count vollis games
-        cur.execute("""
-            SELECT COUNT(*), MIN(game_date) FROM vollis_games 
-            WHERE winner = ? OR loser = ?
-        """, (player_name, player_name))
-        vollis_result = cur.fetchone()
-        vollis_count = vollis_result[0] if vollis_result and vollis_result[0] else 0
-        vollis_date = vollis_result[1] if vollis_result else None
-        
-        # Count other games
-        cur.execute("""
-            SELECT COUNT(*), MIN(game_date) FROM other_games 
-            WHERE winner1 = ? OR winner2 = ? OR winner3 = ? OR winner4 = ? OR winner5 = ? OR winner6 = ?
-               OR loser1 = ? OR loser2 = ? OR loser3 = ? OR loser4 = ? OR loser5 = ? OR loser6 = ?
-        """, (player_name, player_name, player_name, player_name, player_name, player_name,
-              player_name, player_name, player_name, player_name, player_name, player_name))
-        other_result = cur.fetchone()
-        other_count = other_result[0] if other_result and other_result[0] else 0
-        other_date = other_result[1] if other_result else None
-        
-        # Calculate total games and earliest date
+        doubles_count, doubles_date = doubles.get(player_name, (0, None))
+        vollis_count, vollis_date = vollis.get(player_name, (0, None))
+        other_count, other_date = other.get(player_name, (0, None))
+
         total_games = int(doubles_count + vollis_count + other_count)
         dates = [d for d in [doubles_date, vollis_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
-        
-        # Build player record
+
+        player_record = players_by_name.get(player_name)
         if player_record:
             player_list = list(player_record)
         else:
-            from datetime import datetime
-            now = datetime.now()
             player_list = [None, player_name, None, None, None, None, now, now, None, None]
 
         while len(player_list) < PLAYERS_SELECT_COLUMNS:
             player_list.append(None)
         player_list = player_list[:PLAYERS_SELECT_COLUMNS]
-        
         player_list.append(first_game_date)  # index 10
         player_list.append(int(total_games))  # index 11
         players_with_stats.append(tuple(player_list))
-    
-    # Sort by total games (descending) - safely handle any type issues
+
     def safe_game_count(player):
         try:
             return int(player[11]) if len(player) > 11 and player[11] is not None else 0
         except (ValueError, TypeError):
             return 0
-    
+
     players_with_stats.sort(key=safe_game_count, reverse=True)
-    
     conn.close()
     return players_with_stats
 

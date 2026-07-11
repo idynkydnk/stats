@@ -133,18 +133,30 @@
     background: var(--sr-panel);
     border: 1px solid var(--sr-line);
     border-radius: 12px;
-    cursor: pointer;
-    text-align: left;
-    color: inherit;
     transition: border-color 0.2s, background 0.2s;
 }
 .pl-card:hover {
     border-color: rgba(102, 217, 239, 0.45);
     background: rgba(102, 217, 239, 0.04);
 }
-.pl-card:focus-visible {
+.pl-open-profile {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+.pl-open-profile:focus-visible {
     outline: 2px solid var(--sr-accent);
     outline-offset: 2px;
+    border-radius: 8px;
+}
+.pl-avatar-btn {
+    flex-shrink: 0;
+    border-radius: 50%;
+    line-height: 0;
 }
 .pl-avatar {
     flex-shrink: 0;
@@ -184,6 +196,8 @@
 .pl-info {
     flex: 1;
     min-width: 0;
+    display: block;
+    width: 100%;
 }
 .pl-name {
     font-size: 15px;
@@ -193,6 +207,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.pl-open-profile:hover .pl-name {
+    color: var(--sr-accent);
 }
 .pl-meta {
     font-size: 12px;
@@ -239,18 +256,22 @@
         {% if player_cards %}
         <div class="pl-grid" id="player-grid">
             {% for card in player_cards %}
-            <button type="button" class="pl-card" data-player-profile='{{ card | tojson }}'
-                    data-search="{{ card.name|lower }} {{ card.email|lower }}">
-                <div class="pl-avatar">
-                    {% if card.photoUrl %}
-                    <div class="pl-avatar-frame sr-avatar-crop-frame">
-                        <img src="{{ card.photoUrl }}" alt="{{ card.name }}" class="sr-crop-positioned-img">
+            <div class="pl-card" data-player-profile='{{ card | tojson }}'
+                 data-search="{{ card.name|lower }} {{ card.email|lower }}">
+                <button type="button" class="pl-avatar-btn pl-open-profile"
+                        aria-label="Manage {{ card.name }}">
+                    <div class="pl-avatar">
+                        {% if card.photoUrl %}
+                        <div class="pl-avatar-frame sr-avatar-crop-frame">
+                            <img src="{{ card.photoUrl }}" alt="{{ card.name }}" class="sr-crop-positioned-img">
+                        </div>
+                        {% else %}
+                        <div class="pl-avatar-fallback">{{ card.name[0] }}</div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="pl-avatar-fallback">{{ card.name[0] }}</div>
-                    {% endif %}
-                </div>
-                <div class="pl-info">
+                </button>
+                <button type="button" class="pl-info pl-open-profile"
+                        aria-label="Manage {{ card.name }}">
                     <div class="pl-name">{{ card.name }}</div>
                     <div class="pl-meta">
                         <div class="pl-meta-row" data-pl-email>{{ card.email or '—' }}</div>
@@ -260,8 +281,8 @@
                         </div>
                     </div>
                     <div class="pl-stats">{{ card.games }} game{{ 's' if card.games != 1 else '' }}{% if card.firstGame %} · since {{ card.firstGame[5:7] }}/{{ card.firstGame[2:4] }}{% endif %}</div>
-                </div>
-            </button>
+                </button>
+            </div>
             {% endfor %}
         </div>
         {% else %}

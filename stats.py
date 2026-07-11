@@ -836,20 +836,51 @@ def player_avatar_context(name):
 
 def player_list_card_data(player_row):
     """One player row for the list page (clickable avatar + profile JSON)."""
-    name = player_row[1]
-    _ensure_player_record(name)
-    return {
-        'name': name,
-        'email': player_row[2] or '',
-        'dateOfBirth': player_row[3] or '',
-        'height': player_row[4] or '',
-        'games': int(player_row[11]) if len(player_row) > 11 and player_row[11] is not None else 0,
-        'firstGame': player_row[10] if len(player_row) > 10 and player_row[10] else '',
-        'photoUrl': player_photo_url_for(name),
-        'fullBodyPhotos': player_full_body_photos_for(name),
-        'aiImageTraits': player_ai_image_traits_for(name),
-        'faceFocus': player_face_photo_focus_for(name),
-    }
+    return build_player_list_cards([player_row])[0]
+
+
+def build_player_list_cards(players):
+    """Build list-page card payloads for many players with batched DB lookups."""
+    from player_functions import get_players_list_extras
+
+    if not players:
+        return []
+
+    names = [player_row[1] for player_row in players]
+    extras = get_players_list_extras(names)
+    default_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
+    default_body_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
+    cards = []
+
+    for player_row in players:
+        name = player_row[1]
+        meta = extras.get(name, {})
+        photo_path = player_row[8] if len(player_row) > 8 and player_row[8] else None
+        body_paths = meta.get('body_paths', [])
+        body_crops = meta.get('body_crops', {})
+        face_focus = meta.get('face_focus', default_focus)
+
+        cards.append({
+            'name': name,
+            'email': player_row[2] or '',
+            'dateOfBirth': player_row[3] or '',
+            'height': player_row[4] or '',
+            'games': int(player_row[11]) if len(player_row) > 11 and player_row[11] is not None else 0,
+            'firstGame': player_row[10] if len(player_row) > 10 and player_row[10] else '',
+            'photoUrl': url_for('static', filename=photo_path) if photo_path else None,
+            'fullBodyPhotos': [
+                {
+                    'path': path,
+                    'url': url_for('static', filename=path),
+                    'focus': body_crops.get(path, default_body_focus),
+                }
+                for path in body_paths
+            ],
+            'aiImageTraits': meta.get('traits', []),
+            'faceFocus': face_focus,
+        })
+
+    return cards
 
 
 def _ensure_player_record(name):
@@ -1769,8 +1800,8 @@ def player_list():
     """Player list page."""
     from player_functions import get_all_players
     players = get_all_players()
-    all_unique_players = sorted(get_all_unique_players())
-    player_cards = [player_list_card_data(p) for p in players]
+    all_unique_players = sorted(player_row[1] for player_row in players)
+    player_cards = build_player_list_cards(players)
     return render_template(
         'player_list.html',
         players=players,
@@ -3232,11 +3263,13 @@ def api_upload_player_photo(name):
                 z if z is not None else None,
             )
             log_activity('Updated player photo', summary=f'Adjusted face crop for {name}')
+            clear_stats_cache()
             return jsonify({'success': True, 'focus': {'x': x, 'y': y, 'z': z}})
 
         if request.form.get('remove') == '1':
             remove_player_photo(player_id)
             log_activity('Updated player photo', summary=f'Removed photo for {name}')
+            clear_stats_cache()
             return jsonify({'success': True, 'photo_url': None, 'focus': {'x': 50, 'y': 50, 'z': 1}})
 
         file_storage = request.files.get('photo')
@@ -3249,6 +3282,7 @@ def api_upload_player_photo(name):
         user = session.get('username', 'unknown')
         log_user_action(user, 'Uploaded player photo', name)
         log_activity('Updated player photo', summary=f'Uploaded photo for {name}')
+        clear_stats_cache()
         return jsonify({
             'success': True,
             'photo_url': photo_url,
@@ -3308,6 +3342,7 @@ def api_upload_player_full_body_photo(name):
                 z if z is not None else None,
             )
             log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
+            clear_stats_cache()
             payload = _photo_payload()
             payload.update({'success': True, 'focus': {'x': x, 'y': y, 'z': z}})
             return jsonify(payload)
@@ -3315,6 +3350,7 @@ def api_upload_player_full_body_photo(name):
         if request.form.get('remove') == '1':
             remove_player_full_body_photo(player_id)
             log_activity('Updated player photo', summary=f'Removed all full-body photos for {name}')
+            clear_stats_cache()
             payload = _photo_payload()
             payload.update({'success': True, 'added_url': None})
             return jsonify(payload)
@@ -3323,6 +3359,7 @@ def api_upload_player_full_body_photo(name):
         if remove_path:
             remove_player_full_body_photo(player_id, remove_path)
             log_activity('Updated player photo', summary=f'Removed a full-body photo for {name}')
+            clear_stats_cache()
             payload = _photo_payload()
             payload.update({'success': True, 'added_url': None})
             return jsonify(payload)
@@ -3336,6 +3373,7 @@ def api_upload_player_full_body_photo(name):
         user = session.get('username', 'unknown')
         log_user_action(user, 'Uploaded player full-body photo', name)
         log_activity('Updated player photo', summary=f'Uploaded full-body photo for {name}')
+        clear_stats_cache()
         payload = _photo_payload()
         payload.update({'success': True, 'added_url': photo_url})
         return jsonify(payload)
@@ -3378,6 +3416,7 @@ def api_save_player_ai_image_traits(name):
     try:
         phrases = set_player_ai_image_traits(player[0], traits)
         log_activity('Updated signature look', summary=f'Updated AI image traits for {name}')
+        clear_stats_cache()
         return jsonify({
             'success': True,
             'phrases': phrases,
@@ -3642,6 +3681,7 @@ def api_add_player():
     user = session.get('username', 'unknown')
     log_user_action(user, 'Added new player', f'{full_name} ({email or "no email"})')
     log_activity('Added new player', summary=f'{full_name} ({email or "no email"})')
+    clear_stats_cache()
 
     return jsonify({'success': True, 'player_id': player_id})
 
@@ -3706,6 +3746,7 @@ def add_player_email():
     user = session.get('username', 'unknown')
     log_user_action(user, 'Updated player email', f'{player_name} -> {email}')
     log_activity('Updated player email', summary=f'{player_name} -> {email}')
+    clear_stats_cache()
 
     return jsonify({'success': True, 'email': email})
 
@@ -3755,6 +3796,7 @@ def api_update_player_info():
     if height: updates.append(f'height={height}')
     log_user_action(user, 'Updated player info', f'{player_name}: {", ".join(updates)}')
     log_activity('Updated player info', summary=f'{player_name}: {", ".join(updates)}')
+    clear_stats_cache()
 
     return jsonify({'success': True})
 
