@@ -137,6 +137,24 @@
             text-align: center;
             margin: 12px 0;
         }
+        .sr-show-more {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: transparent;
+            border: 1px dashed var(--sr-line);
+            border-radius: 8px;
+            color: var(--sr-muted);
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .sr-show-more:hover {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+        }
+        .sr-hidden { display: none; }
         
         .sr-game-card-section {
             margin-bottom: 16px;
@@ -370,9 +388,9 @@
                                 <th class="sr-numeric">Games</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="game-card-tbody-{{ loop.index }}">
                             {% for stat in card.stats %}
-                            <tr>
+                            <tr class="{% if card.is_consolidated and loop.index > 5 %}sr-hidden{% endif %}">
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
                                 {% if card.is_consolidated %}
                                 <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
@@ -388,6 +406,11 @@
                         </tbody>
                     </table>
                 </div>
+                {% if card.is_consolidated and card.stats|length > 5 %}
+                <button type="button" class="sr-show-more" onclick="toggleCardRows('game-card-tbody-{{ loop.index }}', this)">
+                    Show all {{ card.stats|length }} players
+                </button>
+                {% endif %}
             </div>
         </section>
         {% endfor %}
@@ -423,6 +446,22 @@
         menuToggle.addEventListener('click', openMenu);
         menuOverlay.addEventListener('click', closeMenu);
         menuClose.addEventListener('click', closeMenu);
+
+        function toggleCardRows(tbodyId, btn) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            const hidden = tbody.querySelectorAll('.sr-hidden');
+            if (!btn.dataset.expandLabel) btn.dataset.expandLabel = btn.textContent;
+            if (hidden.length > 0) {
+                hidden.forEach(row => row.classList.remove('sr-hidden'));
+                btn.textContent = 'Show less';
+            } else {
+                tbody.querySelectorAll('tr').forEach((row, i) => {
+                    if (i >= 5) row.classList.add('sr-hidden');
+                });
+                btn.textContent = btn.dataset.expandLabel;
+            }
+        }
     </script>
 </body>
 </html>
