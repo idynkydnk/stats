@@ -124,6 +124,19 @@ def plain_text_fallback_from_html(html_body):
     return '\n'.join(line for line in lines if line)
 
 
+def _ordered_email_image_players(player_names):
+    """Unique, stable player list for email illustrations."""
+    seen = set()
+    ordered = []
+    for name in sorted(player_names or []):
+        clean = (name or '').strip()
+        if not clean or clean in seen:
+            continue
+        seen.add(clean)
+        ordered.append(clean)
+    return ordered
+
+
 def _games_highlight_for_image(game_type, games, max_games=3):
     lines = []
     if game_type == 'doubles':
@@ -149,7 +162,9 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
         'vollis': 'one-on-one vollis volleyball',
         'other': 'recreational sports games',
     }.get(game_type, 'sports')
-    names = ', '.join(sorted(player_names)[:8])
+    players = _ordered_email_image_players(player_names)
+    player_count = len(players)
+    roster_lines = '\n'.join(f'{index}. {name}' for index, name in enumerate(players, start=1))
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
     trait_lines = trait_lines or []
@@ -158,6 +173,7 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
             'Caricature sports illustration — use attached reference photos for each player\'s '
             'general look, then exaggerate their signature details (hats, poses, outfits, habits) '
             'so they are instantly recognizable and playful, not photorealistic. '
+            'Each reference photo label names exactly one roster player — match one photo to one character. '
         )
     else:
         likeness = (
@@ -167,23 +183,68 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
     traits_block = ''
     if trait_lines:
         traits_block = (
-            '\nSignature exaggerations (make these obvious in the illustration):\n'
+            '\nSignature exaggerations (one line per roster player):\n'
             + '\n'.join(trait_lines)
             + '\n'
         )
+    roster_block = (
+        f'\nROSTER — exactly {player_count} players, each must appear once:\n'
+        f'{roster_lines}\n'
+    )
+    rules_block = (
+        f'\nCRITICAL ROSTER RULES:\n'
+        f'- Draw exactly {player_count} distinct characters — one per numbered roster player.\n'
+        f'- Never duplicate the same person. Never omit a roster player.\n'
+        f'- Every roster name must map to exactly one visible character in the scene.\n'
+    )
     return f"""Sports illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-{likeness}Players in scene: {names}.{traits_block}
+{likeness}{roster_block}{rules_block}{traits_block}
 Wide comic-strip scene: intense rally and celebration. Bold colors, motion lines. No text or logos."""
 
 
-def _reference_parts_for_api(player_names, max_players=5):
+def _reference_parts_for_api(player_names):
     from player_functions import collect_player_reference_images
 
-    parts = []
-    for entry in collect_player_reference_images(player_names, max_players=max_players):
+    players = _ordered_email_image_players(player_names)
+    if not players:
+        return []
+
+    player_count = len(players)
+    # Keep payload size reasonable: one body photo per player when 5+, face only when crowded.
+    if player_count > 6:
+        max_body_per_player = 0
+    elif player_count > 3:
+        max_body_per_player = 1
+    else:
+        max_body_per_player = 3
+
+    references = collect_player_reference_images(
+        players,
+        max_players=player_count,
+        max_body_per_player=max_body_per_player,
+    )
+    refs_by_name = {entry['name']: entry for entry in references}
+
+    parts = [{
+        'text': (
+            f'ROSTER: Illustrate exactly {player_count} different people. '
+            'Each numbered player below must appear once — no duplicates, no omissions.'
+        ),
+    }]
+    for index, name in enumerate(players, start=1):
+        parts.append({'text': f'Roster player {index}/{player_count}: {name}.'})
+        entry = refs_by_name.get(name)
+        if not entry or not entry.get('parts'):
+            parts.append({
+                'text': (
+                    f'No reference photo for {name}. Draw one unique stylized character for '
+                    f'roster player {index} only — clearly different from every other roster player.'
+                ),
+            })
+            continue
         for ref in entry['parts']:
-            parts.append({'text': ref['label']})
+            parts.append({'text': f'{ref["label"]} Roster player {index}/{player_count}: {name}.'})
             parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
     return parts
 
@@ -265,18 +326,29 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names):
     """Generate an illustration for the AI email hero image."""
     from player_functions import collect_player_ai_image_traits
 
-    player_names = player_names or set()
-    reference_parts = _reference_parts_for_api(player_names)
-    trait_entries = collect_player_ai_image_traits(player_names)
-    trait_lines = [
-        f"- {entry['name']}: {phrase}"
-        for entry in trait_entries
-        for phrase in entry.get('phrases', [entry.get('traits', '')])
-        if phrase
-    ]
+    players = _ordered_email_image_players(player_names)
+    reference_parts = _reference_parts_for_api(players)
+    has_reference_photos = any(
+        part.get('inline_data') for part in reference_parts
+    )
+    trait_entries = collect_player_ai_image_traits(players)
+    traits_by_name = {entry['name']: entry for entry in trait_entries}
+    trait_lines = []
+    for index, name in enumerate(players, start=1):
+        entry = traits_by_name.get(name)
+        phrases = entry.get('phrases', [entry.get('traits', '')]) if entry else []
+        added = False
+        for phrase in phrases:
+            if phrase:
+                trait_lines.append(f'- Player {index} ({name}): {phrase}')
+                added = True
+        if not added:
+            trait_lines.append(
+                f'- Player {index} ({name}): distinct look — exactly one character in the scene'
+            )
     prompt = _build_email_image_prompt(
-        game_type, games, summary, player_names,
-        has_reference_photos=bool(reference_parts),
+        game_type, games, summary, players,
+        has_reference_photos=has_reference_photos,
         trait_lines=trait_lines,
     )
     raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
