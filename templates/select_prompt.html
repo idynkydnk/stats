@@ -191,55 +191,6 @@
             cursor: not-allowed;
             transform: none;
         }
-        .sr-auto-send-btn {
-            background: transparent;
-            border: 2px solid var(--sr-accent);
-            color: var(--sr-accent);
-            padding: 12px 26px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .sr-auto-send-btn:hover:not(:disabled) {
-            background: var(--sr-accent-dim);
-            transform: translateY(-1px);
-        }
-        .sr-auto-send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .sr-auto-send-status {
-            display: none;
-            margin-top: 16px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .sr-auto-send-status.visible {
-            display: block;
-        }
-        .sr-auto-send-status.success {
-            background: rgba(34, 197, 94, 0.15);
-            border: 1px solid rgba(34, 197, 94, 0.4);
-            color: #86efac;
-        }
-        .sr-auto-send-status.error {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
-        }
-        .sr-auto-send-status.warning {
-            background: rgba(234, 179, 8, 0.15);
-            border: 1px solid rgba(234, 179, 8, 0.4);
-            color: #fde047;
-        }
         .sr-back-btn {
             background: transparent;
             border: 1px solid var(--sr-line);
@@ -387,36 +338,22 @@
                     <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
                         <i class="fas fa-magic" id="generate-icon"></i> <span id="generate-text">Generate Summary</span>
                     </button>
-                    <button type="button" class="sr-auto-send-btn" id="auto-send-btn" disabled onclick="startAutoSend()">
-                        <i class="fas fa-paper-plane" id="auto-send-icon"></i> <span id="auto-send-text">Generate &amp; Send (walk away)</span>
-                    </button>
                     <a href="{{ url_for('ai_summary') }}" class="sr-back-btn">
                         <i class="fas fa-arrow-left"></i> Back
                     </a>
                 </div>
-                <div id="auto-send-status" class="sr-auto-send-status" role="status"></div>
             </form>
         </div>
     </div>
 
     <script>
         let selectedPrompt = null;
-        let autoSendStarted = false;
 
         function syncCustomPrompt() {
             var customText = document.getElementById('custom-prompt-text');
             if (customText) {
                 document.getElementById('custom-prompt-hidden').value = customText.value;
             }
-        }
-
-        function showAutoSendStatus(message, status) {
-            var el = document.getElementById('auto-send-status');
-            el.textContent = message;
-            var cls = 'success';
-            if (status === true || status === 'error') cls = 'error';
-            else if (status === 'warning') cls = 'warning';
-            el.className = 'sr-auto-send-status visible ' + cls;
         }
 
         function selectPrompt(promptId) {
@@ -433,51 +370,7 @@
             
             selectedPrompt = promptId;
             document.getElementById('selected-prompt').value = promptId;
-            if (!autoSendStarted) {
-                document.getElementById('generate-btn').disabled = false;
-                document.getElementById('auto-send-btn').disabled = false;
-            }
-        }
-
-        async function startAutoSend() {
-            if (!selectedPrompt || autoSendStarted) return;
-            syncCustomPrompt();
-            autoSendStarted = true;
-            var btn = document.getElementById('auto-send-btn');
-            var genBtn = document.getElementById('generate-btn');
-            btn.disabled = true;
-            genBtn.disabled = true;
-            document.getElementById('auto-send-icon').className = 'fas fa-spinner fa-spin';
-            document.getElementById('auto-send-text').textContent = 'Queuing...';
-
-            try {
-                var fd = new FormData(document.getElementById('generate-form'));
-                var res = await fetch('{{ url_for("api_generate_and_send_ai_summary") }}', {
-                    method: 'POST',
-                    body: fd,
-                });
-                var data = await res.json();
-                if (data.success) {
-                    document.getElementById('auto-send-icon').className = 'fas fa-check';
-                    document.getElementById('auto-send-text').textContent = 'Queued';
-                    var isWarning = data.worker_alive === false;
-                    showAutoSendStatus(data.message || 'Queued — you can close this page.', isWarning ? 'warning' : false);
-                } else {
-                    autoSendStarted = false;
-                    btn.disabled = false;
-                    genBtn.disabled = false;
-                    document.getElementById('auto-send-icon').className = 'fas fa-paper-plane';
-                    document.getElementById('auto-send-text').textContent = 'Generate & Send (walk away)';
-                    showAutoSendStatus(data.error || 'Could not queue job.', true);
-                }
-            } catch (err) {
-                autoSendStarted = false;
-                btn.disabled = false;
-                genBtn.disabled = false;
-                document.getElementById('auto-send-icon').className = 'fas fa-paper-plane';
-                document.getElementById('auto-send-text').textContent = 'Generate & Send (walk away)';
-                showAutoSendStatus('Network error — please try again.', true);
-            }
+            document.getElementById('generate-btn').disabled = false;
         }
 
         // Copy custom prompt to hidden field on form submit + show loading
@@ -485,7 +378,6 @@
             syncCustomPrompt();
             var btn = document.getElementById('generate-btn');
             btn.disabled = true;
-            document.getElementById('auto-send-btn').disabled = true;
             document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
             document.getElementById('generate-text').textContent = 'Generating...';
         });
