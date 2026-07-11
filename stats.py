@@ -313,6 +313,83 @@ def _ai_image_log_note(payload):
     return ''
 
 
+def _ai_summary_header_label(game_type):
+    type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
+    return type_labels.get(game_type, 'Doubles')
+
+
+def _render_ai_summary_preview_page(
+    game_type,
+    subject,
+    email_html,
+    plain_text_body,
+    players,
+    players_without_email,
+    selected_game_ids,
+    hero_image_url='',
+    hero_image_path='',
+    hero_image_error='',
+    image_mode='two_pass',
+    checked_emails=None,
+    additional_emails_value='',
+):
+    """Render the AI summary preview page (used after generation and after send failures)."""
+    selected_game_ids = [str(gid) for gid in (selected_game_ids or [])]
+    checked_emails = set(checked_emails or [])
+    can_send = len(players) > 0 or bool(additional_emails_value.strip())
+    return render_template(
+        'preview_ai_summary.html',
+        game_type=game_type,
+        header_title=f"{_ai_summary_header_label(game_type)} AI Summary Preview",
+        subject=subject or '',
+        email_html=email_html or '',
+        plain_text_body=plain_text_body or '',
+        email_preview_html=email_html_for_inline_preview(email_html or ''),
+        hero_image_url=hero_image_url or '',
+        hero_image_path=hero_image_path or '',
+        hero_image_error=hero_image_error or '',
+        image_mode=_normalize_image_mode(image_mode),
+        players=players or [],
+        players_without_email=players_without_email or [],
+        selected_game_ids_json=json.dumps(selected_game_ids),
+        selected_game_ids=selected_game_ids,
+        send_url=url_for('generate_and_email_today'),
+        back_url=url_for('ai_summary'),
+        can_send=can_send,
+        checked_emails=checked_emails,
+        additional_emails_value=additional_emails_value or '',
+    )
+
+
+def _ai_summary_preview_from_form(form):
+    """Rebuild preview page context from the send-email form (preserves generated content)."""
+    players = []
+    players_without_email = []
+    try:
+        players = json.loads(form.get('players_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        pass
+    try:
+        players_without_email = json.loads(form.get('players_without_email_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return {
+        'game_type': form.get('game_type') or 'doubles',
+        'subject': form.get('subject') or 'Vball Summary',
+        'email_html': form.get('email_html') or '',
+        'plain_text_body': form.get('plain_text_body') or '',
+        'players': players,
+        'players_without_email': players_without_email,
+        'selected_game_ids': form.getlist('selected_game_ids'),
+        'hero_image_url': form.get('hero_image_url') or '',
+        'hero_image_path': form.get('hero_image_path') or '',
+        'hero_image_error': form.get('hero_image_error') or '',
+        'image_mode': form.get('image_mode') or 'two_pass',
+        'checked_emails': form.getlist('recipient_emails'),
+        'additional_emails_value': form.get('additional_emails') or '',
+    }
+
+
 def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='two_pass'):
     """Build AI email payload for doubles, vollis, or other games."""
     kwargs = {
@@ -1463,32 +1540,19 @@ def preview_ai_summary_with_prompt():
         + img_note
     ))
 
-    type_labels = {'doubles': 'Doubles', 'vollis': 'Vollis', 'other': 'Other'}
-    header_label = type_labels.get(game_type, 'Doubles')
-
-    selected_game_ids_json = json.dumps([str(gid) for gid in selected_game_ids])
-    can_send = len(payload.get('players', [])) > 0 and len(payload.get('all_emails', [])) > 0
-
     try:
-        return render_template(
-            'preview_ai_summary.html',
+        return _render_ai_summary_preview_page(
             game_type=game_type,
-            header_title=f"{header_label} AI Summary Preview",
             subject=payload.get('subject') or '',
             email_html=payload.get('html_body') or '',
             plain_text_body=payload.get('plain_text_body') or '',
-            email_preview_html=email_html_for_inline_preview(payload.get('html_body') or ''),
+            players=payload.get('players') or [],
+            players_without_email=payload.get('players_without_email') or [],
+            selected_game_ids=selected_game_ids,
             hero_image_url=payload.get('hero_image_url'),
             hero_image_path=payload.get('hero_image_path'),
             hero_image_error=payload.get('hero_image_error'),
             image_mode=payload.get('image_mode', image_mode),
-            players=payload.get('players') or [],
-            players_without_email=payload.get('players_without_email') or [],
-            selected_game_ids_json=selected_game_ids_json,
-            selected_game_ids=selected_game_ids,
-            send_url=url_for('generate_and_email_today'),
-            back_url=url_for('ai_summary'),
-            can_send=can_send
         )
     except Exception as e:
         app.logger.exception('AI summary template render failed')
@@ -4135,19 +4199,20 @@ def generate_and_email_today():
 @login_required
 def send_ai_email_form():
     """Send the AI summary email via plain HTML form (no JS needed)."""
+    preview_ctx = _ai_summary_preview_from_form(request.form)
+
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
         flash('Email not configured.', 'error')
-        return redirect(url_for('ai_summary'))
+        return _render_ai_summary_preview_page(**preview_ctx)
 
-    email_html = request.form.get('email_html') or ''
-    plain_text_body = request.form.get('plain_text_body') or ''
-    hero_image_url = request.form.get('hero_image_url') or ''
-    hero_image_path = request.form.get('hero_image_path') or ''
-    subject = request.form.get('subject') or 'Vball Summary'
-    recipient_emails = request.form.getlist('recipient_emails')
-    additional_raw = request.form.get('additional_emails') or ''
+    email_html = preview_ctx['email_html']
+    plain_text_body = preview_ctx['plain_text_body']
+    hero_image_url = preview_ctx['hero_image_url']
+    hero_image_path = preview_ctx['hero_image_path']
+    subject = preview_ctx['subject']
+    additional_raw = preview_ctx['additional_emails_value']
 
-    recipients = [e.strip() for e in recipient_emails if e and e.strip()]
+    recipients = [e.strip() for e in preview_ctx['checked_emails'] if e and e.strip()]
     for e in additional_raw.replace(',', ' ').replace(';', ' ').replace('\n', ' ').split():
         e = e.strip()
         if e and '@' in e and e not in recipients:
@@ -4155,7 +4220,7 @@ def send_ai_email_form():
 
     if not recipients:
         flash('No recipients selected.', 'error')
-        return redirect(url_for('ai_summary'))
+        return _render_ai_summary_preview_page(**preview_ctx)
 
     emails_sent, errors = send_ai_summary_messages(
         subject,
@@ -4168,13 +4233,12 @@ def send_ai_email_form():
 
     if errors:
         log_activity('Email send failed', summary=f'AI summary "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}')
+        flash(f'Sent to {emails_sent} recipient(s), but {len(errors)} failed: {"; ".join(errors)}', 'error')
+        return _render_ai_summary_preview_page(**preview_ctx)
     else:
         log_activity('Sent email', summary=f'AI summary "{subject}" to {emails_sent} recipient(s)')
-    if errors:
-        flash(f'Sent to {emails_sent} recipient(s), but {len(errors)} failed: {"; ".join(errors)}', 'error')
-    else:
         flash(f'Email sent to {emails_sent} recipient(s)!', 'success')
-    return redirect(url_for('ai_summary'))
+        return redirect(url_for('ai_summary'))
 
 
 @app.route('/send_daily_emails', methods=['POST'])

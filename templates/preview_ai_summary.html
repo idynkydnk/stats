@@ -393,14 +393,22 @@
                 <textarea name="plain_text_body" style="display:none;">{{ plain_text_body | e }}</textarea>
                 <input type="hidden" name="hero_image_url" value="{{ hero_image_url or '' }}">
                 <input type="hidden" name="hero_image_path" value="{{ hero_image_path or '' }}">
+                <input type="hidden" name="hero_image_error" value="{{ hero_image_error or '' }}">
+                <input type="hidden" name="image_mode" value="{{ image_mode | default('two_pass') }}">
+                <input type="hidden" name="game_type" value="{{ game_type }}">
+                <textarea name="players_json" style="display:none;">{{ players | tojson }}</textarea>
+                <textarea name="players_without_email_json" style="display:none;">{{ players_without_email | tojson }}</textarea>
+                {% for gid in selected_game_ids %}
+                <input type="hidden" name="selected_game_ids" value="{{ gid }}">
+                {% endfor %}
                 <input type="hidden" name="subject" value="{{ subject | e }}">
 
                 {% if players %}
                 <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email (<span id="recipient-count">{{ players|length }}</span>)</p>
                 {% for player in players %}
-                <div class="sr-recipient-card" id="recipient-card-{{ loop.index0 }}">
+                <div class="sr-recipient-card{% if checked_emails is defined and player.email not in checked_emails %} excluded{% endif %}" id="recipient-card-{{ loop.index0 }}">
                     <div class="sr-recipient-header">
-                        <input type="checkbox" class="sr-recipient-checkbox" name="recipient_emails" id="recipient-checkbox-{{ loop.index0 }}" value="{{ player.email }}" checked onchange="toggleRecipientIncluded({{ loop.index0 }})">
+                        <input type="checkbox" class="sr-recipient-checkbox" name="recipient_emails" id="recipient-checkbox-{{ loop.index0 }}" value="{{ player.email }}" {% if checked_emails is not defined or player.email in checked_emails %}checked{% endif %} onchange="toggleRecipientIncluded({{ loop.index0 }})">
                         <div class="sr-recipient-info">
                             <div class="sr-recipient-name">{{ player.name }}</div>
                             <div class="sr-recipient-email" id="recipient-email-display-{{ loop.index0 }}">{{ player.email }}</div>
@@ -480,7 +488,7 @@
                                autocomplete="off">
                         <div id="additional-recipient-dropdown" class="sr-recipient-dropdown"></div>
                     </div>
-                    <textarea id="additional-emails" name="additional_emails" placeholder="friend@example.com, coach@example.com" oninput="updateRecipientCount()"></textarea>
+                    <textarea id="additional-emails" name="additional_emails" placeholder="friend@example.com, coach@example.com" oninput="updateRecipientCount()">{{ additional_emails_value | default('') }}</textarea>
                     <p class="sr-recipient-hint">Pick from suggestions above or type comma-separated emails.</p>
                 </div>
 
