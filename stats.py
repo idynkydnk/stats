@@ -178,10 +178,29 @@ def build_ai_summary_message(subject, html_body, plain_text_body, to_addr,
     return msg
 
 
+def _ai_email_public_recipients(recipients):
+    """Recipients shown in send counts (excludes configured copy addresses)."""
+    copy_addrs = _ai_email_copy_addresses()
+    return [r for r in recipients if r not in copy_addrs]
+
+
+def _ai_email_public_sent_count(public_recipients, errors):
+    """Successful sends among public recipients only."""
+    failed = set()
+    for err in errors:
+        for addr in public_recipients:
+            if err.startswith(f'{addr}:'):
+                failed.add(addr)
+                break
+    return len(public_recipients) - len(failed)
+
+
 def send_ai_summary_messages(subject, html_body, plain_text_body, recipients,
                              hero_image_url=None, hero_image_path=None):
-    recipients = _filter_ai_email_opt_outs(extend_ai_email_recipients(recipients))
-    if not recipients:
+    recipients = _filter_ai_email_opt_outs(recipients)
+    public_recipients = _ai_email_public_recipients(recipients)
+    all_recipients = extend_ai_email_recipients(recipients)
+    if not all_recipients:
         return 0, ['No recipients after filtering opt-outs.']
     messages = [
         build_ai_summary_message(
@@ -192,9 +211,10 @@ def send_ai_summary_messages(subject, html_body, plain_text_body, recipients,
             hero_image_url=hero_image_url,
             hero_image_path=hero_image_path,
         )
-        for to_addr in recipients
+        for to_addr in all_recipients
     ]
-    return send_messages_with_retry(messages)
+    _, errors = send_messages_with_retry(messages)
+    return _ai_email_public_sent_count(public_recipients, errors), errors
 
 
 def extend_ai_email_recipients(recipients):
