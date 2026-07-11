@@ -302,7 +302,11 @@
             </div>
         </header>
 
-        {% if hero_image_url %}
+        {% if image_mode is defined and image_mode == 'none' %}
+        <p class="sr-image-status ok"><i class="fas fa-file-alt"></i> No illustration (text-only email).</p>
+        {% elif hero_image_url and image_mode is defined and image_mode == 'single' %}
+        <p class="sr-image-status ok"><i class="fas fa-image"></i> One AI-generated group illustration included in email.</p>
+        {% elif hero_image_url %}
         <p class="sr-image-status ok"><i class="fas fa-image"></i> AI-generated game illustration included in email (one image per player plus a final scene).</p>
         {% elif hero_image_error %}
         <p class="sr-image-status warn">

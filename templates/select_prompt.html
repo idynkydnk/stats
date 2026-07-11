@@ -88,6 +88,41 @@
             cursor: not-allowed;
             transform: none;
         }
+        .sr-generate-btn-outline {
+            background: transparent;
+            border: 1px solid var(--sr-line);
+            color: var(--sr-text);
+        }
+        .sr-generate-btn-outline:hover:not(:disabled) {
+            border-color: var(--sr-accent);
+            color: var(--sr-accent);
+            filter: none;
+        }
+        .sr-illustration-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--sr-line);
+        }
+        .sr-illustration-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .sr-illustration-btn {
+            flex: 1 1 160px;
+            min-width: 140px;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 12px 16px;
+            height: auto;
+        }
+        .sr-illustration-btn span {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--sr-muted);
+            margin-top: 4px;
+        }
         .sr-back-btn {
             background: transparent;
             border: 1px solid var(--sr-line);
@@ -267,11 +302,28 @@
                 <input type="hidden" name="game_type" value="{{ game_type }}">
                 <input type="hidden" name="prompt_style" id="selected-prompt" value="">
                 <input type="hidden" name="custom_prompt" id="custom-prompt-hidden" value="">
+                <input type="hidden" name="image_mode" id="image-mode" value="">
                 
+                <div class="sr-illustration-section">
+                    <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Choose speed vs quality for the email hero image</p>
+                    <div class="sr-illustration-options">
+                        <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
+                            <strong><i class="fas fa-bolt"></i> Text only</strong>
+                            <span>Fastest — summary only</span>
+                        </button>
+                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-single" disabled onclick="setImageMode('single')">
+                            <strong><i class="fas fa-image"></i> One illustration</strong>
+                            <span>~30 sec — single group image</span>
+                        </button>
+                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-best" disabled onclick="setImageMode('two_pass')">
+                            <strong><i class="fas fa-star"></i> Best quality</strong>
+                            <span>Slowest — image per player, then scene</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="sr-action-bar">
-                    <button type="submit" class="sr-generate-btn" id="generate-btn" disabled>
-                        <i class="fas fa-magic" id="generate-icon"></i> <span id="generate-text">Generate Summary</span>
-                    </button>
                     <a href="{{ url_for('ai_summary') }}" class="sr-back-btn">
                         <i class="fas fa-arrow-left"></i> Back
                     </a>
@@ -282,14 +334,40 @@
         <div id="generate-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
             <div class="sr-generate-loading-card">
                 <i class="fas fa-spinner fa-spin"></i>
-                <strong>Generating your summary...</strong>
-                <p>This may take a minute or two while we write the recap and create the illustration. Please don't close this page.</p>
+                <strong id="loading-title">Generating your summary...</strong>
+                <p id="loading-detail">Please don't close this page.</p>
             </div>
         </div>
 {% endblock %}
 {% block extra_js %}
 <script>
 let selectedPrompt = null;
+
+        var loadingCopy = {
+            none: {
+                title: 'Writing your recap...',
+                detail: 'Text only — no illustration. This is the fastest option.'
+            },
+            single: {
+                title: 'Writing recap and one illustration...',
+                detail: 'Usually under a minute. Please don\'t close this page.'
+            },
+            two_pass: {
+                title: 'Creating best-quality illustrations...',
+                detail: 'One image per player, then the final scene. This may take several minutes.'
+            }
+        };
+
+        function setImageMode(mode) {
+            document.getElementById('image-mode').value = mode;
+        }
+
+        function setGenerateButtonsEnabled(enabled) {
+            ['generate-btn-none', 'generate-btn-single', 'generate-btn-best'].forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) btn.disabled = !enabled;
+            });
+        }
 
         function syncCustomPrompt() {
             var customText = document.getElementById('custom-prompt-text');
@@ -299,12 +377,10 @@ let selectedPrompt = null;
         }
 
         function selectPrompt(promptId) {
-            // Remove selection from all cards
             document.querySelectorAll('.sr-prompt-card').forEach(card => {
                 card.classList.remove('selected');
             });
             
-            // Select the clicked card
             const card = document.querySelector(`.sr-prompt-card[data-prompt="${promptId}"]`);
             if (card) {
                 card.classList.add('selected');
@@ -312,16 +388,16 @@ let selectedPrompt = null;
             
             selectedPrompt = promptId;
             document.getElementById('selected-prompt').value = promptId;
-            document.getElementById('generate-btn').disabled = false;
+            setGenerateButtonsEnabled(true);
         }
 
-        // Copy custom prompt to hidden field on form submit + show loading
         document.getElementById('generate-form').addEventListener('submit', function() {
             syncCustomPrompt();
-            var btn = document.getElementById('generate-btn');
-            btn.disabled = true;
-            document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
-            document.getElementById('generate-text').textContent = 'Generating...';
+            var mode = document.getElementById('image-mode').value || 'two_pass';
+            var copy = loadingCopy[mode] || loadingCopy.two_pass;
+            setGenerateButtonsEnabled(false);
+            document.getElementById('loading-title').textContent = copy.title;
+            document.getElementById('loading-detail').textContent = copy.detail;
             document.getElementById('generate-loading').classList.add('show');
         });
 </script>

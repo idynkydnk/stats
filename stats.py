@@ -23,6 +23,8 @@ from email_content import (
     email_html_for_inline_preview,
     personalize_ai_email_content,
     plain_text_fallback_from_html,
+    image_mode_label,
+    _normalize_image_mode,
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
@@ -279,19 +281,30 @@ def send_messages_with_retry(messages, max_attempts=3):
     return sent, errors
 
 
-def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt):
+def _ai_image_log_note(payload):
+    """Short illustration note for activity log entries."""
+    mode = _normalize_image_mode(payload.get('image_mode'))
+    if mode == 'none':
+        return ' (text only)'
+    if payload.get('hero_image_url'):
+        return f' ({image_mode_label(mode)})'
+    if payload.get('hero_image_error'):
+        return f' (image failed: {payload["hero_image_error"][:120]})'
+    return ''
+
+
+def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='two_pass'):
     """Build AI email payload for doubles, vollis, or other games."""
+    kwargs = {
+        'prompt_style': prompt_style,
+        'custom_prompt': custom_prompt,
+        'image_mode': image_mode,
+    }
     if game_type == 'vollis':
-        return build_vollis_email_payload(
-            selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-        )
+        return build_vollis_email_payload(selected_game_ids, **kwargs)
     if game_type == 'other':
-        return build_other_email_payload(
-            selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-        )
-    return build_doubles_email_payload(
-        selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-    )
+        return build_other_email_payload(selected_game_ids, **kwargs)
+    return build_doubles_email_payload(selected_game_ids, **kwargs)
 
 
 def _send_ai_summary_payload(payload, username='unknown'):
@@ -343,11 +356,7 @@ def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_pro
                 game_type, game_ids, prompt_style, custom_prompt,
             )
             _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=username)
-            img_note = ''
-            if payload.get('hero_image_url'):
-                img_note = ' (with AI illustration)'
-            elif payload.get('hero_image_error'):
-                img_note = f' (image failed: {payload["hero_image_error"][:80]})'
+            img_note = _ai_image_log_note(payload)
             log_activity(
                 'Generated AI summary',
                 summary=(
@@ -1294,6 +1303,7 @@ def preview_ai_summary_with_prompt():
     prompt_style = request.form.get('prompt_style', 'announcer')
     custom_prompt = request.form.get('custom_prompt', '')
     game_type = request.form.get('game_type', 'doubles')
+    image_mode = _normalize_image_mode(request.form.get('image_mode'))
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
@@ -1301,11 +1311,20 @@ def preview_ai_summary_with_prompt():
 
     try:
         if game_type == 'vollis':
-            payload = build_vollis_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+            payload = build_vollis_email_payload(
+                selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+                image_mode=image_mode,
+            )
         elif game_type == 'other':
-            payload = build_other_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+            payload = build_other_email_payload(
+                selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+                image_mode=image_mode,
+            )
         else:
-            payload = build_doubles_email_payload(selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt)
+            payload = build_doubles_email_payload(
+                selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
+                image_mode=image_mode,
+            )
     except ValueError as ve:
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(ve)[:200]}')
         flash(str(ve), 'error')
@@ -1318,11 +1337,7 @@ def preview_ai_summary_with_prompt():
 
     _save_ai_prompt_log(payload, prompt_style, custom_prompt, selected_game_ids)
 
-    img_note = ''
-    if payload.get('hero_image_url'):
-        img_note = ' (with AI illustration)'
-    elif payload.get('hero_image_error'):
-        img_note = f' (image failed: {payload["hero_image_error"][:120]})'
+    img_note = _ai_image_log_note(payload)
     log_activity('Generated AI summary', summary=(
         f'{game_type} summary for {len(selected_game_ids)} game(s), style "{prompt_style}"'
         + img_note
@@ -1346,6 +1361,7 @@ def preview_ai_summary_with_prompt():
             hero_image_url=payload.get('hero_image_url'),
             hero_image_path=payload.get('hero_image_path'),
             hero_image_error=payload.get('hero_image_error'),
+            image_mode=payload.get('image_mode', image_mode),
             players=payload.get('players') or [],
             players_without_email=payload.get('players_without_email') or [],
             selected_game_ids_json=selected_game_ids_json,
