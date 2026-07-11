@@ -173,7 +173,7 @@ def build_ai_summary_message(subject, html_body, plain_text_body, to_addr,
             _hero_mime_type(hero_path),
             data,
             'inline',
-            headers=[('Content-ID', f'<{HERO_IMAGE_CID}>')],
+            headers={'Content-ID': f'<{HERO_IMAGE_CID}>'},
         )
     return msg
 
@@ -335,30 +335,30 @@ def _render_ai_summary_preview_page(
 ):
     """Render the AI summary preview page (used after generation and after send failures)."""
     selected_game_ids = [str(gid) for gid in (selected_game_ids or [])]
-    checked_emails = set(checked_emails or [])
     can_send = len(players) > 0 or bool(additional_emails_value.strip())
-    return render_template(
-        'preview_ai_summary.html',
-        game_type=game_type,
-        header_title=f"{_ai_summary_header_label(game_type)} AI Summary Preview",
-        subject=subject or '',
-        email_html=email_html or '',
-        plain_text_body=plain_text_body or '',
-        email_preview_html=email_html_for_inline_preview(email_html or ''),
-        hero_image_url=hero_image_url or '',
-        hero_image_path=hero_image_path or '',
-        hero_image_error=hero_image_error or '',
-        image_mode=_normalize_image_mode(image_mode),
-        players=players or [],
-        players_without_email=players_without_email or [],
-        selected_game_ids_json=json.dumps(selected_game_ids),
-        selected_game_ids=selected_game_ids,
-        send_url=url_for('generate_and_email_today'),
-        back_url=url_for('ai_summary'),
-        can_send=can_send,
-        checked_emails=checked_emails,
-        additional_emails_value=additional_emails_value or '',
-    )
+    template_ctx = {
+        'game_type': game_type,
+        'header_title': f"{_ai_summary_header_label(game_type)} AI Summary Preview",
+        'subject': subject or '',
+        'email_html': email_html or '',
+        'plain_text_body': plain_text_body or '',
+        'email_preview_html': email_html_for_inline_preview(email_html or ''),
+        'hero_image_url': hero_image_url or '',
+        'hero_image_path': hero_image_path or '',
+        'hero_image_error': hero_image_error or '',
+        'image_mode': _normalize_image_mode(image_mode),
+        'players': players or [],
+        'players_without_email': players_without_email or [],
+        'selected_game_ids_json': json.dumps(selected_game_ids),
+        'selected_game_ids': selected_game_ids,
+        'send_url': url_for('generate_and_email_today'),
+        'back_url': url_for('ai_summary'),
+        'can_send': can_send,
+        'additional_emails_value': additional_emails_value or '',
+    }
+    if checked_emails is not None:
+        template_ctx['checked_emails'] = set(checked_emails)
+    return render_template('preview_ai_summary.html', **template_ctx)
 
 
 def _ai_summary_preview_from_form(form):
