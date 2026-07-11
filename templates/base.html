@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stats{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="sr-page">
+    {% block active_tab %}{% endblock %}
+    {% block header_mode %}stats{% endblock %}
+    {% set active_tab = self.active_tab()|trim or none %}
+    {% set header_mode = self.header_mode()|trim or 'stats' %}
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close" type="button" aria-label="Close menu">✕</button>
+        {% include 'partials/menu_sidebar.html' %}
+    </div>
+
+    <div class="sr-container">
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <div class="sr-flash" style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; {% if category == 'error' %}background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);{% elif category == 'success' %}background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);{% else %}background: rgba(102, 217, 239, 0.15); color: #66d9ef; border: 1px solid rgba(102, 217, 239, 0.3);{% endif %}">{{ message }}</div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

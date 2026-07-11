@@ -18,7 +18,7 @@
     <h1 class="sr-title">Add Tournament</h1>
     <div class="sr-header-actions">
         <a href="{{ url_for('tournaments') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Tournaments</a>
-        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+        {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 <div class="sr-form-container" style="margin-top: 20px;">

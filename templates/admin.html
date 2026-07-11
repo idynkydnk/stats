@@ -47,7 +47,7 @@
     <h1 class="sr-title">Admin Dashboard</h1>
     <div class="sr-header-actions">
         <a href="{{ url_for('notifications') }}" class="sr-link-btn"><i class="fas fa-bell"></i> Notifications{% if unread_count %} ({{ unread_count }}){% endif %}</a>
-        <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+        {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 

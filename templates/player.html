@@ -1,18 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ player }} {{ year }} Stats</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-</head>
-<body class="sr-page">
-    <style>
+{% extends base_template %}
+{% block title %}{{ player }} {{ year }} Stats{% endblock %}
+{% block extra_css %}
+<style>
         .sr-player-header {
             display: flex;
             align-items: flex-start;
@@ -170,9 +159,8 @@
             .sr-game-team { flex-direction: column; text-align: center; gap: 4px; }
         }
     </style>
-
-    <div class="sr-container">
-        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
+{% endblock %}
+{% block content %}
         <header class="sr-header sr-header-compact">
             <a href="{{ url_for('stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
             <div class="sr-header-actions">
@@ -183,6 +171,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
@@ -318,6 +307,8 @@
         {% endif %}
     </div>
 
+{% endblock %}
+{% block extra_js %}
     <script>
         function toggleRows(tbodyId, btn) {
             const tbody = document.getElementById(tbodyId);
@@ -345,5 +336,4 @@
             }
         }
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% block active_tab %}doubles{% endblock %}
 {% block title %}{{ display_year|default(year) }} Doubles Stats{% endblock %}
 {% block extra_css %}
 <style>
@@ -87,21 +88,11 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">{{ display_year|default(year) }} Doubles Stats</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('games', year=display_year|default(year)) }}" class="sr-link-btn">
-                    <i class="fas fa-list-alt"></i> Games
-                </a>
-                <div class="sr-year-select-wrap">
-                    <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
-                        {% for yr in all_years %}
-                        <option value="{{ url_for('stats', year=yr) }}" {% if yr|string == (display_year|default(year))|string %}selected{% endif %}>{{ yr }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
-        {% with active_tab = 'doubles' %}{% include 'partials/section_tabs.html' %}{% endwith %}
+        {% include 'partials/section_tabs.html' %}
 
         {% if showing_previous_year %}
         <div class="sr-notice" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">

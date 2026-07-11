@@ -1,17 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Game</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-</head>
-<body class="sr-page">
-    <style>
-        .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
+{% extends base_template %}
+{% block title %}Edit Game{% endblock %}
+{% block extra_css %}
+<style>
+.sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
         .autocomplete input, .autocomplete textarea {
             width: 100%;
@@ -56,10 +47,10 @@
         .sr-form-container .autocomplete:has(textarea) { position: relative; z-index: 15; }
         textarea { resize: vertical; min-height: 60px; }
         .sr-date-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-    </style>
+</style>
+{% endblock %}
+{% block content %}
 
-    <div class="sr-container">
-        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit Game</h1>
             <div class="sr-header-actions">
@@ -68,6 +59,8 @@
                 {% else %}
                 <a href="{{ url_for('edit_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Edit Games</a>
                 {% endif %}
+            
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
@@ -131,8 +124,8 @@
             <a href="{{ url_for('edit_games', year=year) }}" style="color: var(--sr-muted);">Edit all games</a>
         </p>
         {% endif %}
-    </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
 // Set user timezone so updated_at timestamps use correct local time (including DST)
 (function() {
@@ -263,5 +256,4 @@ document.querySelectorAll('.autocomplete.has-clear').forEach(wrap => {
     });
 })();
 </script>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,43 @@
+{# Contextual header actions. Set active_tab ('doubles'|'vollis'|'other') for stats pages. #}
+{# Optional: header_mode ('games' shows Stats back link), year, display_year, all_years #}
+{% set tab = active_tab|default(none) %}
+{% set yr = display_year|default(year)|default(none) %}
+
+{% if tab == 'doubles' %}
+    {% set add_url = url_for('add_game') %}
+    {% set games_url = url_for('games', year=yr) if yr else url_for('games_default') %}
+    {% set stats_url = url_for('stats', year=yr) if yr else url_for('stats_default') %}
+    {% set year_base = 'stats' %}
+{% elif tab == 'vollis' %}
+    {% set add_url = url_for('add_vollis_game') %}
+    {% set games_url = url_for('vollis_games', year=yr) if yr else url_for('vollis_games_default') %}
+    {% set stats_url = url_for('vollis_stats', year=yr) if yr else url_for('vollis_stats_default') %}
+    {% set year_base = 'vollis_stats' %}
+{% elif tab == 'other' %}
+    {% set add_url = url_for('add_other_game') %}
+    {% set games_url = url_for('other_games', year=yr) if yr else url_for('other_games_default') %}
+    {% set stats_url = url_for('other_stats', year=yr) if yr else url_for('other_stats_default') %}
+    {% set year_base = 'other_stats' %}
+{% endif %}
+
+{% if header_mode|default('stats') == 'games' and stats_url is defined %}
+<a href="{{ stats_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+{% elif tab and games_url is defined %}
+<a href="{{ games_url }}" class="sr-link-btn"><i class="fas fa-list-alt"></i> Games</a>
+{% endif %}
+
+{% if all_years is defined and year_base is defined and yr is not none %}
+<div class="sr-year-select-wrap">
+    <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
+        {% for yr_option in all_years %}
+        <option value="{% if header_mode|default('stats') == 'games' %}{{ url_for('games', year=yr_option, page=1) if tab == 'doubles' else (url_for('vollis_games', year=yr_option) if tab == 'vollis' else url_for('other_games', year=yr_option)) }}{% else %}{{ url_for(year_base, year=yr_option) }}{% endif %}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if session.logged_in and tab and add_url is defined %}
+<a href="{{ add_url }}" class="sr-link-btn sr-link-btn-accent"><i class="fas fa-plus"></i> Add</a>
+{% endif %}
+
+<button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu"><i class="fas fa-bars"></i> Menu</button>

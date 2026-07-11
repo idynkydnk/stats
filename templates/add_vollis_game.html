@@ -1,17 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Vollis Game</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-</head>
-<body class="sr-page">
-    <style>
-        .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
+{% extends base_template %}
+{% block active_tab %}vollis{% endblock %}
+{% block title %}Add Vollis Game{% endblock %}
+{% block extra_css %}
+<style>
+.sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
         .autocomplete input {
             width: 100%;
@@ -109,14 +101,16 @@
         .sr-team-block.losers .sr-team-score { color: var(--sr-loss); }
         .sr-vs { color: var(--sr-muted); font-size: 12px; }
         @media (max-width: 500px) { .sr-game-body { grid-template-columns: 1fr 1fr; } .sr-vs { display: none; } }
-    </style>
+</style>
+{% endblock %}
+{% block content %}
 
-    <div class="sr-container">
-        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Vollis</h1>
             <div class="sr-header-actions">
                 <a href="{{ url_for('vollis_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+            
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
@@ -202,8 +196,8 @@
             </div>
         </div>
         {% endif %}
-    </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
 // Set user timezone so game timestamps use correct local time (including DST)
 (function() {
@@ -335,5 +329,4 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => document.getElementById('winner')?.focus(), 100);
 });
 </script>
-</body>
-</html>
+{% endblock %}

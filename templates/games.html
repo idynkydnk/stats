@@ -1,4 +1,6 @@
 {% extends base_template %}
+{% block active_tab %}doubles{% endblock %}
+{% block header_mode %}games{% endblock %}
 {% block title %}{{ year }} Doubles Games{% endblock %}
 {% block extra_css %}
 <style>
@@ -160,17 +162,7 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">{{ year }} Doubles Games</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('stats', year=year) }}" class="sr-link-btn">
-                    <i class="fas fa-arrow-left"></i> Stats
-                </a>
-                <div class="sr-year-select-wrap">
-                    <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
-                        {% for yr in all_years %}
-                        <option value="{{ url_for('games', year=yr, page=1) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 

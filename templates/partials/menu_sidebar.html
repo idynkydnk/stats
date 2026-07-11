@@ -1,0 +1,41 @@
+<ul class="menu-list">
+    {% if active_tab is not defined %}
+    <li class="menu-section-label">Browse</li>
+    <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
+    <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Stats</a></li>
+    <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-dice"></i> Other Stats</a></li>
+    {% endif %}
+
+    {% if session.logged_in %}
+    <li class="menu-section-label">Manage</li>
+    {% if active_tab is defined and active_tab == 'vollis' %}
+    <li><a href="{{ url_for('edit_vollis_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
+    {% elif active_tab is defined and active_tab == 'other' %}
+    <li><a href="{{ url_for('edit_other_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
+    {% elif active_tab is defined %}
+    <li><a href="{{ url_for('edit_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
+    {% else %}
+    <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
+    {% endif %}
+    <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
+    <li><a href="{{ url_for('ai_summary') }}"><i class="fas fa-robot"></i> AI Summary</a></li>
+    <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
+
+    {% if is_admin_user %}
+    <li class="menu-section-label">Admin</li>
+    <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin Dashboard</a></li>
+    <li><a href="{{ url_for('notifications') }}" id="menu-link-notifications"><i class="fas fa-bell"></i> Notifications<span class="notification-badge" id="notification-badge" aria-label="Unread count"></span></a></li>
+    <li><a href="{{ url_for('add_game_voice') }}"><i class="fas fa-microphone"></i> Add Doubles (Voice)</a></li>
+    <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
+    <li><a href="{{ url_for('testing_lab') }}"><i class="fas fa-flask"></i> Testing Lab</a></li>
+    {% endif %}
+
+    <li class="menu-section-label">Account</li>
+    <li><a href="#" class="theme-toggle-link" onclick="srToggleTheme(); return false;"><i class="fas fa-sun"></i> Light Mode</a></li>
+    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout{% if session.username %} ({{ session.username }}){% endif %}</a></li>
+    {% else %}
+    <li class="menu-section-label">Account</li>
+    <li><a href="#" class="theme-toggle-link" onclick="srToggleTheme(); return false;"><i class="fas fa-sun"></i> Light Mode</a></li>
+    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+    {% endif %}
+</ul>

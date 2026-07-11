@@ -482,12 +482,11 @@ def _stats_db_path():
 
 @app.context_processor
 def inject_base_template():
-    """Inject which base template to use: guest, logged-in, or admin (Kyle)."""
-    if not session.get('logged_in'):
-        return {'base_template': 'base_guest.html'}
-    if is_admin():
-        return {'base_template': 'base_kyle.html'}
-    return {'base_template': 'base_logged_in.html'}
+    """Inject base template and admin flag for shared navigation."""
+    return {
+        'base_template': 'base.html',
+        'is_admin_user': is_admin() if session.get('logged_in') else False,
+    }
 
 
 def init_notifications_db():

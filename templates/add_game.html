@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% block active_tab %}doubles{% endblock %}
 {% block title %}Add Doubles Game{% endblock %}
 {% block extra_css %}
 <style>
@@ -99,7 +100,7 @@ textarea { resize: vertical; min-height: 60px; }
             <h1 class="sr-title">Add Doubles</h1>
             <div class="sr-header-actions">
                 <a href="{{ url_for('stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
-                <button class="menu-toggle" id="menu-toggle" type="button"><i class="fas fa-bars"></i> Menu</button>
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
         <div class="sr-form-container">

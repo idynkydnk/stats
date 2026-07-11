@@ -1,17 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Other Game</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-</head>
-<body class="sr-page">
-    <style>
-        .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
+{% extends base_template %}
+{% block title %}Edit Other Game{% endblock %}
+{% block extra_css %}
+<style>
+.sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
         .autocomplete input {
             width: 100%;
@@ -140,14 +131,16 @@
             text-align: center;
         }
         .team-score-entry input:focus { outline: none; border-color: var(--sr-accent); }
-    </style>
+</style>
+{% endblock %}
+{% block content %}
 
-    <div class="sr-container">
-        {% if session.logged_in %}{% include 'partials/logged_in_actions_bar.html' %}{% endif %}
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit Other Game</h1>
             <div class="sr-header-actions">
                 <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Back</a>
+            
+                {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
@@ -273,8 +266,8 @@
             </form>
             <div id="common_score_dropdown" class="autocomplete-list" style="display: none; position: fixed; z-index: 1000;"></div>
         </div>
-    </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);
@@ -573,5 +566,4 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('game_name').focus();
 });
 </script>
-</body>
-</html>
+{% endblock %}
