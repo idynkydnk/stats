@@ -43,6 +43,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN ai_image_traits TEXT')
     if 'face_photo_focus' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN face_photo_focus TEXT')
+    if 'full_body_photo_crops' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_crops TEXT')
     conn.commit()
     conn.close()
 
@@ -66,11 +68,18 @@ def get_player_photo_path(full_name):
     return row[0] if row and row[0] else None
 
 
-MIN_FACE_ZOOM = 1.0
-MAX_FACE_ZOOM = 3.0
+MIN_PHOTO_ZOOM = 0.25
+MAX_PHOTO_ZOOM = 3.0
+MIN_FACE_ZOOM = MIN_PHOTO_ZOOM
+MAX_FACE_ZOOM = MAX_PHOTO_ZOOM
+BODY_CROP_ASPECT = 3 / 4  # width / height for full-body thumbnails
 
 
-def _parse_face_photo_focus(raw):
+def _clamp_photo_zoom(zoom):
+    return max(MIN_PHOTO_ZOOM, min(MAX_PHOTO_ZOOM, float(zoom)))
+
+
+def _parse_photo_focus(raw):
     if not raw:
         return 50.0, 50.0, 1.0
     try:
@@ -81,10 +90,14 @@ def _parse_face_photo_focus(raw):
         y = max(0.0, min(100.0, float(parts[1])))
         z = 1.0
         if len(parts) >= 3 and parts[2] != '':
-            z = max(MIN_FACE_ZOOM, min(MAX_FACE_ZOOM, float(parts[2])))
+            z = _clamp_photo_zoom(parts[2])
         return x, y, z
     except (TypeError, ValueError):
         return 50.0, 50.0, 1.0
+
+
+def _parse_face_photo_focus(raw):
+    return _parse_photo_focus(raw)
 
 
 def get_player_face_photo_focus(full_name):
@@ -112,7 +125,7 @@ def set_player_face_photo_focus(player_id, x, y, z=None):
         _, _, z = _parse_face_photo_focus(row[0] if row else None)
     x = max(0.0, min(100.0, float(x)))
     y = max(0.0, min(100.0, float(y)))
-    z = max(MIN_FACE_ZOOM, min(MAX_FACE_ZOOM, float(z)))
+    z = _clamp_photo_zoom(z)
     now = datetime.now()
     focus = f'{x:.1f},{y:.1f},{z:.2f}'
     with conn:
@@ -156,6 +169,148 @@ def _existing_body_paths(paths):
     return [p for p in paths if read_player_image_file(p)[0]]
 
 
+def _parse_body_crops_json(raw):
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    crops = {}
+    for path, focus_raw in data.items():
+        if not isinstance(path, str) or not path.strip():
+            continue
+        if isinstance(focus_raw, dict):
+            x, y, z = _parse_photo_focus(
+                f"{focus_raw.get('x', 50)},{focus_raw.get('y', 50)},{focus_raw.get('z', 1)}"
+            )
+        else:
+            x, y, z = _parse_photo_focus(focus_raw)
+        crops[path] = {'x': x, 'y': y, 'z': z}
+    return crops
+
+
+def _get_body_crops_by_id(player_id):
+    cur = set_cur()
+    cur.execute('SELECT full_body_photo_crops FROM players WHERE id = ?', (player_id,))
+    row = cur.fetchone()
+    return _parse_body_crops_json(row[0] if row else None)
+
+
+def get_player_full_body_photo_crops(full_name):
+    cur = set_cur()
+    cur.execute(
+        'SELECT full_body_photo_crops FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return _parse_body_crops_json(row[0] if row else None)
+
+
+def get_full_body_photo_crop(full_name, rel_path):
+    crops = get_player_full_body_photo_crops(full_name)
+    return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
+
+
+def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
+    """Save pan/zoom crop for one full-body photo."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    cur = conn.cursor()
+    crops = _get_body_crops_by_id(player_id)
+    if z is None:
+        z = crops.get(rel_path, {}).get('z', 1.0)
+    x = max(0.0, min(100.0, float(x)))
+    y = max(0.0, min(100.0, float(y)))
+    z = _clamp_photo_zoom(z)
+    crops[rel_path] = {'x': x, 'y': y, 'z': z}
+    now = datetime.now()
+    with conn:
+        cur.execute(
+            'UPDATE players SET full_body_photo_crops = ?, updated_at = ? WHERE id = ?',
+            (json.dumps(crops), now, player_id),
+        )
+        conn.commit()
+    return x, y, z
+
+
+def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, max_pixels=768):
+    """Export a crop matching CSS object-fit:cover + object-position + scale."""
+    import io
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode not in ('RGB', 'L'):
+        img = img.convert('RGB')
+    iw, ih = img.size
+    if not iw or not ih:
+        return image_bytes, 'image/jpeg'
+
+    aspect = max(float(output_aspect), 0.1)
+    if aspect >= 1:
+        out_h = max_pixels
+        out_w = max(1, int(max_pixels * aspect))
+    else:
+        out_w = max_pixels
+        out_h = max(1, int(max_pixels / aspect))
+
+    cover_scale = max(out_w / iw, out_h / ih)
+    zoom = _clamp_photo_zoom(zoom)
+    crop_w = out_w / (cover_scale * zoom)
+    crop_h = out_h / (cover_scale * zoom)
+
+    cx = (float(x_pct) / 100.0) * iw
+    cy = (float(y_pct) / 100.0) * ih
+    left = cx - crop_w / 2
+    top = cy - crop_h / 2
+    right = left + crop_w
+    bottom = top + crop_h
+
+    if left < 0:
+        right -= left
+        left = 0
+    if top < 0:
+        bottom -= top
+        top = 0
+    if right > iw:
+        shift = right - iw
+        left = max(0.0, left - shift)
+        right = iw
+    if bottom > ih:
+        shift = bottom - ih
+        top = max(0.0, top - shift)
+        bottom = ih
+
+    cropped = img.crop((int(left), int(top), int(right), int(bottom)))
+    cropped = cropped.resize((out_w, out_h), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    cropped.save(buf, format='JPEG', quality=90)
+    return buf.getvalue(), 'image/jpeg'
+
+
+def read_cropped_player_image(rel_path, focus, output_aspect=1.0):
+    """Load a stored photo with pan/zoom crop applied for AI reference images."""
+    raw, _mime = read_player_image_file(rel_path)
+    if not raw:
+        return None, None
+    focus = focus or {'x': 50, 'y': 50, 'z': 1}
+    try:
+        return crop_image_with_focus(
+            raw,
+            focus.get('x', 50),
+            focus.get('y', 50),
+            focus.get('z', 1),
+            output_aspect=output_aspect,
+        )
+    except Exception:
+        return raw, _mime
+
+
 def get_player_full_body_photo_paths(full_name):
     """Return all stored full-body photo paths for a player."""
     cur = set_cur()
@@ -190,11 +345,19 @@ def set_player_full_body_photo_paths(player_id, paths):
         conn = create_connection(database)
     now = datetime.now()
     clean = [p for p in paths if p]
+    crops = _get_body_crops_by_id(player_id)
+    keep_crops = {p: crops[p] for p in clean if p in crops}
     with conn:
         cur = conn.cursor()
         cur.execute(
-            'UPDATE players SET full_body_photo_paths = ?, full_body_photo_path = NULL, updated_at = ? WHERE id = ?',
-            (json.dumps(clean), now, player_id),
+            'UPDATE players SET full_body_photo_paths = ?, full_body_photo_path = NULL, '
+            'full_body_photo_crops = ?, updated_at = ? WHERE id = ?',
+            (
+                json.dumps(clean) if clean else None,
+                json.dumps(keep_crops) if keep_crops else None,
+                now,
+                player_id,
+            ),
         )
         conn.commit()
 
@@ -437,15 +600,22 @@ def collect_player_reference_images(player_names, max_players=5, max_body_per_pl
             continue
         entry = {'name': name, 'parts': []}
         if face_path:
-            raw, mime = read_player_image_file(face_path)
+            fx, fy, fz = get_player_face_photo_focus(name)
+            raw, mime = read_cropped_player_image(
+                face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
+            )
             if raw:
                 entry['parts'].append({
                     'label': f'Face reference photo for {name}.',
                     'mime': mime,
                     'data_b64': base64.b64encode(raw).decode('ascii'),
                 })
+        crops = get_player_full_body_photo_crops(name)
         for idx, body_path in enumerate(body_paths[:max_body_per_player], start=1):
-            raw, mime = read_player_image_file(body_path)
+            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
+            raw, mime = read_cropped_player_image(
+                body_path, focus, output_aspect=BODY_CROP_ASPECT,
+            )
             if raw:
                 entry['parts'].append({
                     'label': f'Full-body reference photo {idx} for {name}.',

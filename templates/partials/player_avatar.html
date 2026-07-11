@@ -65,13 +65,33 @@
 
         <section class="sr-photo-section">
             <h4>Full-body photos</h4>
+            <p class="sr-body-crop-hint">Tap a photo to crop and pick one person in group shots.</p>
             <div class="sr-body-photo-grid" id="body-photo-grid">
                 {% for photo in player_full_body_photos %}
+                {% set bf = photo.focus if photo.focus is defined else {'x': 50, 'y': 50, 'z': 1} %}
+                {% set body_pos = bf.x ~ '% ' ~ bf.y ~ '%' %}
+                {% set body_crop_style = 'object-position: ' ~ body_pos ~ '; transform: scale(' ~ bf.z ~ '); transform-origin: ' ~ body_pos ~ ';' %}
                 <div class="sr-body-photo-item" data-path="{{ photo.path }}">
-                    <img src="{{ photo.url }}" alt="Full-body photo">
+                    <button type="button" class="sr-body-crop-trigger" data-path="{{ photo.path }}"
+                            title="Crop photo" aria-label="Crop full-body photo">
+                        <img src="{{ photo.url }}" alt="Full-body photo" style="{{ body_crop_style }}">
+                    </button>
                     <button type="button" class="sr-body-photo-delete" data-path="{{ photo.path }}" title="Remove">&times;</button>
                 </div>
                 {% endfor %}
+            </div>
+            <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
+                <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
+                <div class="sr-body-crop-frame" id="body-crop-frame">
+                    <img src="" alt="Crop preview" class="sr-body-crop-img" id="body-crop-preview">
+                </div>
+                <p class="sr-face-drag-hint">Drag to reposition · scroll or +/− to zoom</p>
+                <div class="sr-face-zoom-controls">
+                    <button type="button" class="sr-face-zoom-btn" id="body-zoom-out" title="Zoom out">−</button>
+                    <span class="sr-face-zoom-label" id="body-zoom-label">100%</span>
+                    <button type="button" class="sr-face-zoom-btn" id="body-zoom-in" title="Zoom in">+</button>
+                </div>
+                <button type="button" class="sr-photo-action-btn" id="body-crop-done">Done cropping</button>
             </div>
             <p class="sr-body-photo-empty-msg" id="body-photo-empty-msg"
                {% if player_full_body_photos %}hidden{% endif %}>No full-body photos yet</p>
@@ -269,6 +289,12 @@
     background: rgba(248, 81, 73, 0.12);
     color: #f85149;
 }
+.sr-body-crop-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.4;
+}
 .sr-body-photo-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -282,12 +308,55 @@
     border: 1px solid var(--sr-line);
     background: var(--sr-bg);
 }
-.sr-body-photo-item img {
+.sr-body-crop-trigger {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    overflow: hidden;
+}
+.sr-body-crop-trigger:focus-visible {
+    outline: 2px solid var(--sr-accent);
+    outline-offset: 2px;
+}
+.sr-body-photo-item img,
+.sr-body-crop-img {
     width: 100%;
     height: 130px;
     object-fit: cover;
     display: block;
+    pointer-events: none;
 }
+.sr-body-crop-editor {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    background: var(--sr-bg);
+}
+.sr-body-crop-editor[hidden] { display: none !important; }
+.sr-body-crop-editor-label {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sr-text);
+}
+.sr-body-crop-frame {
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 3 / 4;
+    margin: 0 auto 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-panel);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.sr-body-crop-frame:active { cursor: grabbing; }
 .sr-body-photo-delete {
     position: absolute;
     top: 4px;
@@ -395,12 +464,25 @@
     var faceZoomIn = document.getElementById('face-zoom-in');
     var faceZoomOut = document.getElementById('face-zoom-out');
     var faceZoomLabel = document.getElementById('face-zoom-label');
-    var MIN_FACE_ZOOM = 1;
+    var MIN_FACE_ZOOM = 0.25;
     var MAX_FACE_ZOOM = 3;
     var FACE_ZOOM_STEP = 0.1;
     var bodyInput = document.getElementById('body-photo-input');
     var bodyGrid = document.getElementById('body-photo-grid');
     var bodyEmptyMsg = document.getElementById('body-photo-empty-msg');
+    var bodyCropEditor = document.getElementById('body-crop-editor');
+    var bodyCropFrame = document.getElementById('body-crop-frame');
+    var bodyCropPreview = document.getElementById('body-crop-preview');
+    var bodyZoomIn = document.getElementById('body-zoom-in');
+    var bodyZoomOut = document.getElementById('body-zoom-out');
+    var bodyZoomLabel = document.getElementById('body-zoom-label');
+    var bodyCropDone = document.getElementById('body-crop-done');
+    var bodyPhotos = {{ player_full_body_photos|tojson }};
+    var activeBodyPath = null;
+    var bodyFocus = { x: 50, y: 50, z: 1 };
+    var bodyDragging = false;
+    var bodyDragLastX = 0;
+    var bodyDragLastY = 0;
     var modalFacePreview = document.getElementById('modal-face-preview');
     var modalFaceEmpty = document.getElementById('modal-face-empty');
     var headerAvatarImg = document.getElementById('player-avatar-img');
@@ -420,22 +502,30 @@
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
     function clampZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
 
-    function focusStyle() {
-        return clampFocus(faceFocus.x) + '% ' + clampFocus(faceFocus.y) + '%';
+    function applyPhotoStyles(el, focus) {
+        if (!el || !focus) return;
+        var pos = clampFocus(focus.x) + '% ' + clampFocus(focus.y) + '%';
+        el.style.objectPosition = pos;
+        el.style.transformOrigin = pos;
+        el.style.transform = 'scale(' + clampZoom(focus.z) + ')';
     }
 
     function applyFaceStyles(el) {
-        if (!el) return;
-        var pos = focusStyle();
-        el.style.objectPosition = pos;
-        el.style.transformOrigin = pos;
-        el.style.transform = 'scale(' + clampZoom(faceFocus.z) + ')';
+        applyPhotoStyles(el, faceFocus);
     }
 
-    function updateZoomLabel() {
-        if (faceZoomLabel) {
-            faceZoomLabel.textContent = Math.round(clampZoom(faceFocus.z) * 100) + '%';
+    function updateZoomLabel(labelEl, zoom) {
+        if (labelEl) {
+            labelEl.textContent = Math.round(clampZoom(zoom) * 100) + '%';
         }
+    }
+
+    function updateFaceZoomLabel() {
+        updateZoomLabel(faceZoomLabel, faceFocus.z);
+    }
+
+    function updateBodyZoomLabel() {
+        updateZoomLabel(bodyZoomLabel, bodyFocus.z);
     }
 
     function applyFaceCrop(x, y, z) {
@@ -444,7 +534,64 @@
         if (typeof z === 'number') faceFocus.z = clampZoom(z);
         applyFaceStyles(modalFacePreview);
         applyFaceStyles(document.getElementById('player-avatar-img'));
-        updateZoomLabel();
+        updateFaceZoomLabel();
+    }
+
+    function applyBodyCrop(x, y, z) {
+        if (typeof x === 'number') bodyFocus.x = clampFocus(x);
+        if (typeof y === 'number') bodyFocus.y = clampFocus(y);
+        if (typeof z === 'number') bodyFocus.z = clampZoom(z);
+        applyPhotoStyles(bodyCropPreview, bodyFocus);
+        updateBodyZoomLabel();
+        syncBodyThumbStyles();
+    }
+
+    function syncBodyThumbStyles() {
+        if (!activeBodyPath || !bodyGrid) return;
+        var item = bodyGrid.querySelector('.sr-body-photo-item[data-path="' + CSS.escape(activeBodyPath) + '"] img');
+        if (item) applyPhotoStyles(item, bodyFocus);
+    }
+
+    function saveBodyFocus() {
+        if (!activeBodyPath) return;
+        var fd = new FormData();
+        fd.append('crop_path', activeBodyPath);
+        fd.append('focus_x', bodyFocus.x);
+        fd.append('focus_y', bodyFocus.y);
+        fd.append('focus_z', bodyFocus.z);
+        fetch('/api/player_full_body_photo/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) return;
+            bodyPhotos = bodyPhotosFromResponse(data);
+            if (activeBodyPath) {
+                var photo = bodyPhotos.find(function(p) { return p.path === activeBodyPath; });
+                if (photo && photo.focus) applyBodyCrop(photo.focus.x, photo.focus.y, photo.focus.z);
+            }
+        })
+        .catch(function() {});
+    }
+
+    function closeBodyCropEditor() {
+        if (bodyCropEditor) bodyCropEditor.hidden = true;
+        activeBodyPath = null;
+    }
+
+    function openBodyCrop(photo) {
+        if (!photo || !bodyCropEditor || !bodyCropPreview) return;
+        activeBodyPath = photo.path;
+        var focus = photo.focus || { x: 50, y: 50, z: 1 };
+        bodyCropPreview.src = photo.url.split('?')[0] + '?t=' + Date.now();
+        applyBodyCrop(focus.x, focus.y, focus.z);
+        bodyCropEditor.hidden = false;
+        bodyCropEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function adjustBodyZoom(delta) {
+        applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.z + delta);
+        saveBodyFocus();
     }
 
     function saveFaceFocus() {
@@ -514,33 +661,53 @@
 
     function renderBodyPhotos(photos) {
         if (!bodyGrid) return;
+        bodyPhotos = photos || [];
         bodyGrid.innerHTML = '';
-        (photos || []).forEach(function(photo) {
+        bodyPhotos.forEach(function(photo) {
+            var focus = photo.focus || { x: 50, y: 50, z: 1 };
             var item = document.createElement('div');
             item.className = 'sr-body-photo-item';
             item.dataset.path = photo.path;
+            var trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'sr-body-crop-trigger';
+            trigger.title = 'Crop photo';
+            trigger.setAttribute('aria-label', 'Crop full-body photo');
+            trigger.dataset.path = photo.path;
             var img = document.createElement('img');
             img.src = photo.url + '?t=' + Date.now();
             img.alt = 'Full-body photo';
+            applyPhotoStyles(img, focus);
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'sr-body-photo-delete';
             btn.title = 'Remove';
             btn.dataset.path = photo.path;
             btn.textContent = '\u00d7';
-            btn.addEventListener('click', function() { removeBodyPhoto(photo.path); });
-            item.appendChild(img);
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeBodyPhoto(photo.path);
+            });
+            trigger.addEventListener('click', function() { openBodyCrop(photo); });
+            trigger.appendChild(img);
+            item.appendChild(trigger);
             item.appendChild(btn);
             bodyGrid.appendChild(item);
         });
-        if (bodyEmptyMsg) bodyEmptyMsg.hidden = photos && photos.length > 0;
+        if (bodyEmptyMsg) bodyEmptyMsg.hidden = bodyPhotos.length > 0;
+        if (activeBodyPath) {
+            var stillThere = bodyPhotos.some(function(p) { return p.path === activeBodyPath; });
+            if (!stillThere) closeBodyCropEditor();
+        }
     }
 
     function bodyPhotosFromResponse(data) {
         var paths = data.photo_paths || [];
         var urls = data.photo_urls || [];
+        var focuses = data.photo_focuses || [];
         return paths.map(function(path, i) {
-            return { path: path, url: urls[i] || '' };
+            var focus = focuses[i] || { x: 50, y: 50, z: 1 };
+            return { path: path, url: urls[i] || '', focus: focus };
         });
     }
 
@@ -725,6 +892,55 @@
     }
     if (faceZoomIn) faceZoomIn.addEventListener('click', function() { adjustFaceZoom(FACE_ZOOM_STEP); });
     if (faceZoomOut) faceZoomOut.addEventListener('click', function() { adjustFaceZoom(-FACE_ZOOM_STEP); });
+    if (bodyCropFrame) {
+        bodyCropFrame.addEventListener('pointerdown', function(e) {
+            if (!bodyCropPreview || !bodyCropPreview.src) return;
+            bodyDragging = true;
+            bodyDragLastX = e.clientX;
+            bodyDragLastY = e.clientY;
+            bodyCropFrame.setPointerCapture(e.pointerId);
+        });
+        bodyCropFrame.addEventListener('pointermove', function(e) {
+            if (!bodyDragging) return;
+            var rect = bodyCropFrame.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            var dx = e.clientX - bodyDragLastX;
+            var dy = e.clientY - bodyDragLastY;
+            bodyDragLastX = e.clientX;
+            bodyDragLastY = e.clientY;
+            applyBodyCrop(
+                bodyFocus.x + (dx / rect.width) * 100,
+                bodyFocus.y + (dy / rect.height) * 100,
+                bodyFocus.z
+            );
+        });
+        function endBodyDrag(e) {
+            if (!bodyDragging) return;
+            bodyDragging = false;
+            if (bodyCropFrame.hasPointerCapture(e.pointerId)) {
+                bodyCropFrame.releasePointerCapture(e.pointerId);
+            }
+            saveBodyFocus();
+        }
+        bodyCropFrame.addEventListener('pointerup', endBodyDrag);
+        bodyCropFrame.addEventListener('pointercancel', endBodyDrag);
+        bodyCropFrame.addEventListener('wheel', function(e) {
+            if (!bodyCropPreview || !bodyCropPreview.src) return;
+            e.preventDefault();
+            var delta = e.deltaY > 0 ? -FACE_ZOOM_STEP : FACE_ZOOM_STEP;
+            adjustBodyZoom(delta);
+        }, { passive: false });
+    }
+    if (bodyZoomIn) bodyZoomIn.addEventListener('click', function() { adjustBodyZoom(FACE_ZOOM_STEP); });
+    if (bodyZoomOut) bodyZoomOut.addEventListener('click', function() { adjustBodyZoom(-FACE_ZOOM_STEP); });
+    if (bodyCropDone) bodyCropDone.addEventListener('click', closeBodyCropEditor);
+    bodyGrid && bodyGrid.querySelectorAll('.sr-body-crop-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var path = btn.dataset.path;
+            var photo = bodyPhotos.find(function(p) { return p.path === path; });
+            if (photo) openBodyCrop(photo);
+        });
+    });
     renderTraits();
     if (traitsAddBtn) traitsAddBtn.addEventListener('click', addTrait);
     if (traitsInput) traitsInput.addEventListener('keydown', function(e) {
@@ -741,7 +957,10 @@
         });
     }
     bodyGrid && bodyGrid.querySelectorAll('.sr-body-photo-delete').forEach(function(btn) {
-        btn.addEventListener('click', function() { removeBodyPhoto(btn.dataset.path); });
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            removeBodyPhoto(btn.dataset.path);
+        });
     });
     document.querySelectorAll('[data-close-photo-modal]').forEach(function(el) {
         el.addEventListener('click', closeModal);

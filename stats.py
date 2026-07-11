@@ -611,12 +611,17 @@ def player_photo_url_for(name):
 
 
 def player_full_body_photos_for(name):
-    """Full-body photos with static paths and URLs."""
-    from player_functions import get_player_full_body_photo_paths
-    return [
-        {'path': path, 'url': url_for('static', filename=path)}
-        for path in get_player_full_body_photo_paths(name)
-    ]
+    """Full-body photos with static paths, URLs, and crop focus."""
+    from player_functions import get_player_full_body_photo_paths, get_full_body_photo_crop
+    photos = []
+    for path in get_player_full_body_photo_paths(name):
+        focus = get_full_body_photo_crop(name, path)
+        photos.append({
+            'path': path,
+            'url': url_for('static', filename=path),
+            'focus': {'x': focus['x'], 'y': focus['y'], 'z': focus['z']},
+        })
+    return photos
 
 
 def player_ai_image_traits_for(name):
@@ -3030,6 +3035,8 @@ def api_upload_player_full_body_photo(name):
         save_player_full_body_photo_upload,
         remove_player_full_body_photo,
         get_player_full_body_photo_paths,
+        get_full_body_photo_crop,
+        set_player_full_body_photo_crop,
     )
 
     name = name.strip()
@@ -3045,9 +3052,32 @@ def api_upload_player_full_body_photo(name):
     def _photo_payload():
         paths = get_player_full_body_photo_paths(name)
         urls = [url_for('static', filename=p) for p in paths]
-        return {'photo_urls': urls, 'photo_paths': paths}
+        focuses = [
+            {
+                'x': get_full_body_photo_crop(name, p)['x'],
+                'y': get_full_body_photo_crop(name, p)['y'],
+                'z': get_full_body_photo_crop(name, p)['z'],
+            }
+            for p in paths
+        ]
+        return {'photo_urls': urls, 'photo_paths': paths, 'photo_focuses': focuses}
 
     try:
+        crop_path = (request.form.get('crop_path') or '').strip()
+        if crop_path and request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
+            z = request.form.get('focus_z')
+            x, y, z = set_player_full_body_photo_crop(
+                player_id,
+                crop_path,
+                request.form.get('focus_x', 50),
+                request.form.get('focus_y', 50),
+                z if z is not None else None,
+            )
+            log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
+            payload = _photo_payload()
+            payload.update({'success': True, 'focus': {'x': x, 'y': y, 'z': z}})
+            return jsonify(payload)
+
         if request.form.get('remove') == '1':
             remove_player_full_body_photo(player_id)
             log_activity('Updated player photo', summary=f'Removed all full-body photos for {name}')
