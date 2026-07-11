@@ -475,7 +475,8 @@
     var faceZoomOut = document.getElementById('face-zoom-out');
     var faceZoomLabel = document.getElementById('face-zoom-label');
     var MIN_FACE_ZOOM = 0.25;
-    var MAX_FACE_ZOOM = 3;
+    var MAX_FACE_ZOOM = 6;
+    var MAX_BODY_ZOOM = 3;
     var FACE_ZOOM_STEP = 0.1;
     var bodyInput = document.getElementById('body-photo-input');
     var bodyGrid = document.getElementById('body-photo-grid');
@@ -511,7 +512,8 @@
     var orientedSizeCache = {};
 
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
-    function clampZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
+    function clampFaceZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
+    function clampBodyZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_BODY_ZOOM, v)); }
 
     function orientedImageSize(img, callback) {
         var key = img.currentSrc || img.src;
@@ -544,8 +546,9 @@
         return img.closest('.sr-face-crop-frame, .sr-avatar-crop-frame, .sr-body-crop-frame, .sr-body-crop-thumb');
     }
 
-    function layoutCropImage(img, frameEl, focus) {
+    function layoutCropImage(img, frameEl, focus, maxZoom) {
         if (!img || !frameEl || !focus) return;
+        var clampZoom = maxZoom === MAX_BODY_ZOOM ? clampBodyZoom : clampFaceZoom;
         function applyWithSize(iw, ih) {
             var rect = frameEl.getBoundingClientRect();
             var frameW = rect.width;
@@ -585,41 +588,42 @@
         }
     }
 
-    function relayoutCropSoon(img, focus) {
-        applyPhotoCrop(img, focus);
+    function relayoutCropSoon(img, focus, isBody) {
+        applyPhotoCrop(img, focus, isBody);
         requestAnimationFrame(function() {
             requestAnimationFrame(function() {
-                applyPhotoCrop(img, focus);
+                applyPhotoCrop(img, focus, isBody);
             });
         });
     }
 
-    function applyPhotoCrop(img, focus) {
-        layoutCropImage(img, cropFrameFor(img), focus);
+    function applyPhotoCrop(img, focus, isBody) {
+        var maxZoom = isBody ? MAX_BODY_ZOOM : MAX_FACE_ZOOM;
+        layoutCropImage(img, cropFrameFor(img), focus, maxZoom);
     }
 
     function applyFaceStyles(el) {
-        applyPhotoCrop(el, faceFocus);
+        applyPhotoCrop(el, faceFocus, false);
     }
 
-    function updateZoomLabel(labelEl, zoom) {
+    function updateZoomLabel(labelEl, zoom, clampFn) {
         if (labelEl) {
-            labelEl.textContent = Math.round(clampZoom(zoom) * 100) + '%';
+            labelEl.textContent = Math.round(clampFn(zoom) * 100) + '%';
         }
     }
 
     function updateFaceZoomLabel() {
-        updateZoomLabel(faceZoomLabel, faceFocus.z);
+        updateZoomLabel(faceZoomLabel, faceFocus.z, clampFaceZoom);
     }
 
     function updateBodyZoomLabel() {
-        updateZoomLabel(bodyZoomLabel, bodyFocus.z);
+        updateZoomLabel(bodyZoomLabel, bodyFocus.z, clampBodyZoom);
     }
 
     function applyFaceCrop(x, y, z) {
         if (typeof x === 'number') faceFocus.x = clampFocus(x);
         if (typeof y === 'number') faceFocus.y = clampFocus(y);
-        if (typeof z === 'number') faceFocus.z = clampZoom(z);
+        if (typeof z === 'number') faceFocus.z = clampFaceZoom(z);
         applyFaceStyles(modalFacePreview);
         applyFaceStyles(document.getElementById('player-avatar-img'));
         updateFaceZoomLabel();
@@ -628,8 +632,8 @@
     function applyBodyCrop(x, y, z) {
         if (typeof x === 'number') bodyFocus.x = clampFocus(x);
         if (typeof y === 'number') bodyFocus.y = clampFocus(y);
-        if (typeof z === 'number') bodyFocus.z = clampZoom(z);
-        applyPhotoCrop(bodyCropPreview, bodyFocus);
+        if (typeof z === 'number') bodyFocus.z = clampBodyZoom(z);
+        applyPhotoCrop(bodyCropPreview, bodyFocus, true);
         updateBodyZoomLabel();
         syncBodyThumbStyles();
     }
@@ -637,7 +641,7 @@
     function syncBodyThumbStyles() {
         if (!activeBodyPath || !bodyGrid) return;
         var item = bodyGrid.querySelector('.sr-body-photo-item[data-path="' + CSS.escape(activeBodyPath) + '"] img');
-        if (item) applyPhotoCrop(item, bodyFocus);
+        if (item) applyPhotoCrop(item, bodyFocus, true);
     }
 
     function saveBodyFocus() {
@@ -674,7 +678,7 @@
         bodyCropPreview.src = photo.url.split('?')[0] + '?t=' + Date.now();
         bodyCropEditor.hidden = false;
         applyBodyCrop(focus.x, focus.y, focus.z);
-        relayoutCropSoon(bodyCropPreview, bodyFocus);
+        relayoutCropSoon(bodyCropPreview, bodyFocus, true);
         bodyCropEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
@@ -701,7 +705,7 @@
     function openModal() {
         if (modal) modal.hidden = false;
         if (bodyCropPreview && activeBodyPath) {
-            relayoutCropSoon(bodyCropPreview, bodyFocus);
+            relayoutCropSoon(bodyCropPreview, bodyFocus, true);
         }
     }
     function closeModal() { if (modal) modal.hidden = true; }
@@ -736,7 +740,7 @@
                 img.src = url + '?t=' + Date.now();
                 frame.appendChild(img);
                 headerAvatarFallback.replaceWith(frame);
-                applyPhotoCrop(img, focus || { x: 50, y: 50, z: 1 });
+                applyPhotoCrop(img, focus || { x: 50, y: 50, z: 1 }, false);
             }
         } else {
             applyFaceCrop(50, 50, 1);
@@ -778,7 +782,7 @@
             img.src = photo.url + '?t=' + Date.now();
             img.alt = 'Full-body photo';
             img.className = 'sr-crop-positioned-img';
-            applyPhotoCrop(img, focus);
+            applyPhotoCrop(img, focus, true);
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'sr-body-photo-delete';
@@ -951,26 +955,26 @@
             var img = item.querySelector('img');
             var path = item.dataset.path;
             var photo = bodyPhotos.find(function(p) { return p.path === path; });
-            if (img && photo) applyPhotoCrop(img, photo.focus || { x: 50, y: 50, z: 1 });
+            if (img && photo) applyPhotoCrop(img, photo.focus || { x: 50, y: 50, z: 1 }, true);
         });
     }
 
     if (modalFacePreview && faceCropFrame) {
-        applyPhotoCrop(modalFacePreview, faceFocus);
+        applyPhotoCrop(modalFacePreview, faceFocus, false);
     }
     var headerFrame = document.getElementById('player-avatar-frame');
     var headerImg = document.getElementById('player-avatar-img');
     if (headerImg && headerFrame) {
-        applyPhotoCrop(headerImg, faceFocus);
+        applyPhotoCrop(headerImg, faceFocus, false);
     }
     layoutAllBodyThumbs();
     window.addEventListener('resize', function() {
-        if (modalFacePreview) applyPhotoCrop(modalFacePreview, faceFocus);
+        if (modalFacePreview) applyPhotoCrop(modalFacePreview, faceFocus, false);
         var hi = document.getElementById('player-avatar-img');
         var hf = document.getElementById('player-avatar-frame');
-        if (hi && hf) applyPhotoCrop(hi, faceFocus);
+        if (hi && hf) applyPhotoCrop(hi, faceFocus, false);
         layoutAllBodyThumbs();
-        if (bodyCropPreview && activeBodyPath) applyPhotoCrop(bodyCropPreview, bodyFocus);
+        if (bodyCropPreview && activeBodyPath) applyPhotoCrop(bodyCropPreview, bodyFocus, true);
     });
 
     if (trigger) trigger.addEventListener('click', openModal);

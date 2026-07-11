@@ -69,17 +69,25 @@ def get_player_photo_path(full_name):
 
 
 MIN_PHOTO_ZOOM = 0.25
-MAX_PHOTO_ZOOM = 3.0
+MAX_BODY_ZOOM = 3.0
+MAX_FACE_ZOOM = 6.0
 MIN_FACE_ZOOM = MIN_PHOTO_ZOOM
-MAX_FACE_ZOOM = MAX_PHOTO_ZOOM
 BODY_CROP_ASPECT = 3 / 4  # width / height for full-body thumbnails
 
 
+def _clamp_body_zoom(zoom):
+    return max(MIN_PHOTO_ZOOM, min(MAX_BODY_ZOOM, float(zoom)))
+
+
+def _clamp_face_zoom(zoom):
+    return max(MIN_PHOTO_ZOOM, min(MAX_FACE_ZOOM, float(zoom)))
+
+
 def _clamp_photo_zoom(zoom):
-    return max(MIN_PHOTO_ZOOM, min(MAX_PHOTO_ZOOM, float(zoom)))
+    return _clamp_body_zoom(zoom)
 
 
-def _parse_photo_focus(raw):
+def _parse_photo_focus(raw, max_zoom=MAX_BODY_ZOOM):
     if not raw:
         return 50.0, 50.0, 1.0
     try:
@@ -90,14 +98,14 @@ def _parse_photo_focus(raw):
         y = max(0.0, min(100.0, float(parts[1])))
         z = 1.0
         if len(parts) >= 3 and parts[2] != '':
-            z = _clamp_photo_zoom(parts[2])
+            z = max(MIN_PHOTO_ZOOM, min(max_zoom, float(parts[2])))
         return x, y, z
     except (TypeError, ValueError):
         return 50.0, 50.0, 1.0
 
 
 def _parse_face_photo_focus(raw):
-    return _parse_photo_focus(raw)
+    return _parse_photo_focus(raw, max_zoom=MAX_FACE_ZOOM)
 
 
 def get_player_face_photo_focus(full_name):
@@ -125,7 +133,7 @@ def set_player_face_photo_focus(player_id, x, y, z=None):
         _, _, z = _parse_face_photo_focus(row[0] if row else None)
     x = max(0.0, min(100.0, float(x)))
     y = max(0.0, min(100.0, float(y)))
-    z = _clamp_photo_zoom(z)
+    z = _clamp_face_zoom(z)
     now = datetime.now()
     focus = f'{x:.1f},{y:.1f},{z:.2f}'
     with conn:
@@ -227,7 +235,7 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
         z = crops.get(rel_path, {}).get('z', 1.0)
     x = max(0.0, min(100.0, float(x)))
     y = max(0.0, min(100.0, float(y)))
-    z = _clamp_photo_zoom(z)
+    z = _clamp_body_zoom(z)
     crops[rel_path] = {'x': x, 'y': y, 'z': z}
     now = datetime.now()
     with conn:
@@ -239,10 +247,13 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
     return x, y, z
 
 
-def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, max_pixels=768):
+def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, max_pixels=768, max_zoom=None):
     """Export a crop matching CSS object-fit:cover + object-position + scale."""
     import io
     from PIL import Image, ImageOps
+
+    if max_zoom is None:
+        max_zoom = MAX_FACE_ZOOM if output_aspect == 1.0 else MAX_BODY_ZOOM
 
     img = Image.open(io.BytesIO(image_bytes))
     img = ImageOps.exif_transpose(img)
@@ -261,7 +272,7 @@ def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, ma
         out_h = max(1, int(max_pixels / aspect))
 
     cover_scale = max(out_w / iw, out_h / ih)
-    zoom = _clamp_photo_zoom(zoom)
+    zoom = max(MIN_PHOTO_ZOOM, min(max_zoom, float(zoom)))
     crop_w = out_w / (cover_scale * zoom)
     crop_h = out_h / (cover_scale * zoom)
 
