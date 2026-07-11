@@ -1128,3 +1128,22 @@ input[type=number] {
         font-size: 12px;
     }
 }
+
+.sr-show-more {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px dashed var(--sr-line);
+    border-radius: 8px;
+    color: var(--sr-muted);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+}
+.sr-show-more:hover {
+    border-color: var(--sr-accent);
+    color: var(--sr-accent);
+}
+.sr-hidden { display: none; }

@@ -48,9 +48,9 @@
                             <th class="sr-numeric">Games</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="volleyball-card-tbody-{{ loop.index }}">
                         {% for stat in card.stats %}
-                        <tr>
+                        <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                             <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
                             <td class="sr-player"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
                             <td class="sr-numeric sr-win">{{ stat[1] }}</td>
@@ -62,6 +62,11 @@
                     </tbody>
                 </table>
             </div>
+            {% if card.stats|length > 5 %}
+            <button type="button" class="sr-show-more" onclick="toggleCardRows('volleyball-card-tbody-{{ loop.index }}', this)">
+                Show all {{ card.stats|length }} players
+            </button>
+            {% endif %}
         </div>
     </section>
     {% endfor %}
@@ -77,4 +82,7 @@
     </section>
     {% endif %}
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 {% endblock %}

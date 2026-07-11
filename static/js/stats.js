@@ -308,3 +308,20 @@ function updateSortIndicators(headers, activeIndex, direction) {
         }
     });
 }
+
+function toggleCardRows(tbodyId, btn, limit) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    const maxRows = limit || 5;
+    const hidden = tbody.querySelectorAll('.sr-hidden');
+    if (!btn.dataset.expandLabel) btn.dataset.expandLabel = btn.textContent;
+    if (hidden.length > 0) {
+        hidden.forEach(row => row.classList.remove('sr-hidden'));
+        btn.textContent = 'Show less';
+    } else {
+        tbody.querySelectorAll('tr').forEach((row, i) => {
+            if (i >= maxRows) row.classList.add('sr-hidden');
+        });
+        btn.textContent = btn.dataset.expandLabel;
+    }
+}
