@@ -82,6 +82,68 @@ app.config['SITE_BASE_URL'] = os.environ.get('SITE_BASE_URL', EMAIL_SITE_BASE_UR
 mail = Mail(app)
 
 
+class InlineImageMessage(Message):
+    """Flask-Mail Message that uses multipart/related for inline images.
+
+    Flask-Mail nests inline CID images as siblings of multipart/alternative
+    inside multipart/mixed. Mobile clients (Gmail iOS, Apple Mail iOS) often
+    fail to resolve cid: references in that layout; desktop clients are more
+    forgiving. Restructuring to multipart/related fixes mobile rendering.
+    """
+
+    def _message(self):
+        msg = super()._message()
+        return _restructure_inline_image_mime(msg)
+
+
+def _restructure_inline_image_mime(msg):
+    """Move inline image parts under multipart/related with the HTML body."""
+    from email.mime.multipart import MIMEMultipart
+
+    if not hasattr(msg, 'get_payload'):
+        return msg
+
+    parts = msg.get_payload()
+    if not isinstance(parts, list) or len(parts) < 2:
+        return msg
+
+    alternative_parts = []
+    inline_parts = []
+    attachment_parts = []
+
+    for part in parts:
+        disposition = (part.get('Content-Disposition') or '').lower()
+        if part.get_content_type() == 'multipart/alternative':
+            alternative_parts.append(part)
+        elif disposition.startswith('inline'):
+            inline_parts.append(part)
+        else:
+            attachment_parts.append(part)
+
+    if not inline_parts:
+        return msg
+
+    if attachment_parts:
+        outer = MIMEMultipart('mixed')
+        related = MIMEMultipart('related')
+        for part in alternative_parts + inline_parts:
+            related.attach(part)
+        outer.attach(related)
+        for part in attachment_parts:
+            outer.attach(part)
+        new_root = outer
+    else:
+        related = MIMEMultipart('related')
+        for part in alternative_parts + inline_parts:
+            related.attach(part)
+        new_root = related
+
+    for key, value in msg.items():
+        if key not in new_root:
+            new_root[key] = value
+    return new_root
+
+
 def _ai_email_copy_addresses():
     addrs = set()
     for raw in (app.config.get('AI_EMAIL_COPY_TO') or '').replace(',', ' ').replace(';', ' ').split():
@@ -148,7 +210,7 @@ def build_ai_summary_message(subject, html_body, plain_text_body, to_addr,
     if not (body or '').strip():
         body = plain_text_fallback_from_html(html) or 'Your game recap is in the HTML version of this email.'
 
-    msg = Message(subject=subject, recipients=[to_addr])
+    msg = InlineImageMessage(subject=subject, recipients=[to_addr])
     msg.html = html if html.strip() else '<p>No content.</p>'
     msg.body = body
 

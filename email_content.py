@@ -87,7 +87,7 @@ def generate_ai_text(prompt):
 
 def _email_hero_styles():
     return """
-                    .hero-image-card { padding: 0; overflow: hidden; text-align: center; }
+                    .hero-image-card { padding: 0; text-align: center; }
                     .hero-image-card img { width: 100%; max-width: 600px; height: auto; display: block; border-radius: 12px; }
     """
 
@@ -96,9 +96,14 @@ def _email_hero_html(hero_image_url, use_cid=False):
     if not hero_image_url and not use_cid:
         return ''
     src = f'cid:{HERO_IMAGE_CID}' if use_cid else hero_image_url
+    img_style = (
+        'display:block;width:100%;max-width:600px;height:auto;border:0;'
+        'border-radius:12px;margin:0 auto;'
+    )
     return f"""
                     <div class="card hero-image-card">
-                        <img src="{src}" alt="AI game illustration">
+                        <img src="{src}" alt="AI game illustration" width="600" border="0"
+                             style="{img_style}">
                     </div>
     """
 
