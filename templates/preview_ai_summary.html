@@ -314,90 +314,6 @@
             {{ email_preview_html | safe }}
         </div>
 
-        <!-- Recipients Card -->
-        <div class="sr-card">
-            <h2 class="sr-card-title">Recipients</h2>
-            
-            {% if players %}
-            <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email (<span id="recipient-count">{{ players|length }}</span>)</p>
-            {% for player in players %}
-            <div class="sr-recipient-card" id="recipient-card-{{ loop.index0 }}">
-                <div class="sr-recipient-header">
-                    <input type="checkbox" class="sr-recipient-checkbox" id="recipient-checkbox-{{ loop.index0 }}" data-email="{{ player.email }}" checked onchange="toggleRecipientIncluded({{ loop.index0 }})">
-                    <div class="sr-recipient-info">
-                        <div class="sr-recipient-name">{{ player.name }}</div>
-                        <div class="sr-recipient-email" id="recipient-email-display-{{ loop.index0 }}">{{ player.email }}</div>
-                    </div>
-                    <div class="sr-recipient-actions">
-                        <button class="sr-edit-btn" onclick="toggleRecipientEdit({{ loop.index0 }})">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <i class="fas fa-check-circle sr-recipient-check"></i>
-                    </div>
-                </div>
-                <div class="sr-recipient-form" id="recipient-form-{{ loop.index0 }}">
-                    <div class="sr-player-form">
-                        <div class="sr-form-field wide">
-                            <label>Email Address</label>
-                            <input type="email" id="recipient-email-{{ loop.index0 }}" value="{{ player.email }}" placeholder="player@example.com">
-                        </div>
-                        <div class="sr-form-field">
-                            <label>Birthday</label>
-                            <input type="date" id="recipient-birthday-{{ loop.index0 }}">
-                        </div>
-                        <div class="sr-form-field">
-                            <label>Height</label>
-                            <input type="text" id="recipient-height-{{ loop.index0 }}" placeholder="5'10&quot;">
-                        </div>
-                    </div>
-                    <button class="sr-save-btn" onclick="saveRecipient('{{ player.name }}', {{ loop.index0 }})">
-                        <i class="fas fa-save"></i> Save Changes
-                    </button>
-                    <div class="sr-saved-indicator" id="recipient-saved-{{ loop.index0 }}">
-                        <i class="fas fa-check-circle"></i> Saved!
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <p style="color: var(--sr-muted); font-size: 14px;">No players with email addresses found.</p>
-            {% endif %}
-
-            {% if players_without_email %}
-            <p class="sr-section-title" style="margin-top: 24px;"><i class="fas fa-exclamation-triangle" style="color: var(--sr-loss);"></i> Missing email ({{ players_without_email|length }})</p>
-            {% for player in players_without_email %}
-            <div class="sr-missing-card" id="player-card-{{ loop.index0 }}">
-                <div class="sr-missing-header">
-                    <span class="sr-missing-name">{{ player }}</span>
-                    <span class="sr-missing-badge">No Email</span>
-                </div>
-                <div class="sr-player-form">
-                    <div class="sr-form-field wide">
-                        <label>Email Address</label>
-                        <input type="email" id="email-{{ loop.index0 }}" placeholder="player@example.com">
-                    </div>
-                    <div class="sr-form-field">
-                        <label>Birthday</label>
-                        <input type="date" id="birthday-{{ loop.index0 }}">
-                    </div>
-                    <div class="sr-form-field">
-                        <label>Height</label>
-                        <input type="text" id="height-{{ loop.index0 }}" placeholder="5'10&quot;">
-                    </div>
-                </div>
-                <button class="sr-save-btn" onclick="savePlayer('{{ player }}', {{ loop.index0 }})">
-                    <i class="fas fa-save"></i> Save Player Info
-                </button>
-                <div class="sr-saved-indicator" id="saved-{{ loop.index0 }}">
-                    <i class="fas fa-check-circle"></i> Saved!
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-
-        </div>
-
-        <!-- Send Email Form (plain HTML, no JS needed) -->
         <div class="sr-card">
             <h2 class="sr-card-title">Send Email</h2>
             <form method="POST" action="{{ url_for('send_ai_email_form') }}">
@@ -408,23 +324,89 @@
                 <input type="hidden" name="subject" value="{{ subject | e }}">
 
                 {% if players %}
-                <p class="sr-section-title"><i class="fas fa-envelope"></i> Recipients</p>
+                <p class="sr-section-title"><i class="fas fa-check-circle"></i> Will receive email (<span id="recipient-count">{{ players|length }}</span>)</p>
                 {% for player in players %}
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--sr-line); font-size:14px; color:var(--sr-text); cursor:pointer;">
-                    <input type="checkbox" name="recipient_emails" value="{{ player.email }}" checked style="width:18px; height:18px; accent-color:var(--sr-win);">
-                    <span>{{ player.name }}</span>
-                    <span style="color:var(--sr-muted); font-size:12px;">{{ player.email }}</span>
-                </label>
+                <div class="sr-recipient-card" id="recipient-card-{{ loop.index0 }}">
+                    <div class="sr-recipient-header">
+                        <input type="checkbox" class="sr-recipient-checkbox" name="recipient_emails" id="recipient-checkbox-{{ loop.index0 }}" value="{{ player.email }}" checked onchange="toggleRecipientIncluded({{ loop.index0 }})">
+                        <div class="sr-recipient-info">
+                            <div class="sr-recipient-name">{{ player.name }}</div>
+                            <div class="sr-recipient-email" id="recipient-email-display-{{ loop.index0 }}">{{ player.email }}</div>
+                        </div>
+                        <div class="sr-recipient-actions">
+                            <button type="button" class="sr-edit-btn" onclick="toggleRecipientEdit({{ loop.index0 }})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <i class="fas fa-check-circle sr-recipient-check"></i>
+                        </div>
+                    </div>
+                    <div class="sr-recipient-form" id="recipient-form-{{ loop.index0 }}">
+                        <div class="sr-player-form">
+                            <div class="sr-form-field wide">
+                                <label>Email Address</label>
+                                <input type="email" id="recipient-email-{{ loop.index0 }}" value="{{ player.email }}" placeholder="player@example.com">
+                            </div>
+                            <div class="sr-form-field">
+                                <label>Birthday</label>
+                                <input type="date" id="recipient-birthday-{{ loop.index0 }}">
+                            </div>
+                            <div class="sr-form-field">
+                                <label>Height</label>
+                                <input type="text" id="recipient-height-{{ loop.index0 }}" placeholder="5'10&quot;">
+                            </div>
+                        </div>
+                        <button type="button" class="sr-save-btn" onclick="saveRecipient('{{ player.name }}', {{ loop.index0 }})">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <div class="sr-saved-indicator" id="recipient-saved-{{ loop.index0 }}">
+                            <i class="fas fa-check-circle"></i> Saved!
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p style="color: var(--sr-muted); font-size: 14px;">No players with email addresses found.</p>
+                {% endif %}
+
+                {% if players_without_email %}
+                <p class="sr-section-title" style="margin-top: 24px;"><i class="fas fa-exclamation-triangle" style="color: var(--sr-loss);"></i> Missing email ({{ players_without_email|length }})</p>
+                {% for player in players_without_email %}
+                <div class="sr-missing-card" id="player-card-{{ loop.index0 }}">
+                    <div class="sr-missing-header">
+                        <span class="sr-missing-name">{{ player }}</span>
+                        <span class="sr-missing-badge">No Email</span>
+                    </div>
+                    <div class="sr-player-form">
+                        <div class="sr-form-field wide">
+                            <label>Email Address</label>
+                            <input type="email" id="email-{{ loop.index0 }}" placeholder="player@example.com">
+                        </div>
+                        <div class="sr-form-field">
+                            <label>Birthday</label>
+                            <input type="date" id="birthday-{{ loop.index0 }}">
+                        </div>
+                        <div class="sr-form-field">
+                            <label>Height</label>
+                            <input type="text" id="height-{{ loop.index0 }}" placeholder="5'10&quot;">
+                        </div>
+                    </div>
+                    <button type="button" class="sr-save-btn" onclick="savePlayer('{{ player }}', {{ loop.index0 }})">
+                        <i class="fas fa-save"></i> Save Player Info
+                    </button>
+                    <div class="sr-saved-indicator" id="saved-{{ loop.index0 }}">
+                        <i class="fas fa-check-circle"></i> Saved!
+                    </div>
+                </div>
                 {% endfor %}
                 {% endif %}
 
                 <div class="sr-extra-box">
-                    <label>Additional recipients (comma separated)</label>
-                    <textarea name="additional_emails" placeholder="friend@example.com, coach@example.com" style="width:100%; padding:12px; background:var(--sr-bg); border:1px solid var(--sr-line); border-radius:8px; color:var(--sr-text); font-size:14px; resize:vertical; min-height:60px; box-sizing:border-box;"></textarea>
+                    <label for="additional-emails">Additional recipients (comma separated)</label>
+                    <textarea id="additional-emails" name="additional_emails" placeholder="friend@example.com, coach@example.com" oninput="updateRecipientCount()"></textarea>
                 </div>
 
                 <div class="sr-action-bar">
-                    <button type="submit" class="sr-send-btn">
+                    <button type="submit" class="sr-send-btn" id="send-btn">
                         <i class="fas fa-paper-plane"></i> Send Email
                     </button>
                     <a href="{{ back_url }}" class="sr-back-btn">
@@ -517,6 +499,8 @@ var selectedGameIds = [];
                 if (data.success) {
                     document.getElementById('recipient-saved-' + index).classList.add('show');
                     document.getElementById('recipient-email-display-' + index).textContent = email;
+                    var checkbox = document.getElementById('recipient-checkbox-' + index);
+                    if (checkbox) checkbox.value = email;
                     btn.innerHTML = '<i class="fas fa-check"></i> Saved';
                     setTimeout(() => {
                         document.getElementById('recipient-form-' + index).classList.remove('show');
