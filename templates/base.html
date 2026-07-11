@@ -11,6 +11,10 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block extra_css %}{% endblock %}
+    <template id="sr-nav-context" hidden aria-hidden="true">
+        {% block active_tab %}{% endblock %}
+        {% block header_mode %}stats{% endblock %}
+    </template>
 </head>
 <body class="sr-page">
     {% set active_tab = self.active_tab()|trim or none %}
