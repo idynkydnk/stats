@@ -59,27 +59,16 @@
             <div class="sr-body-photo-grid" id="body-photo-grid"></div>
             <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
                 <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
-                <div class="sr-body-aspect-controls" id="body-aspect-controls" role="group" aria-label="Crop shape">
-                    <button type="button" class="sr-body-aspect-btn" data-aspect="free">Free</button>
-                    <button type="button" class="sr-body-aspect-btn is-active" data-aspect="0.75">Portrait</button>
-                    <button type="button" class="sr-body-aspect-btn" data-aspect="1">Square</button>
-                    <button type="button" class="sr-body-aspect-btn" data-aspect="1.333">Landscape</button>
-                    <button type="button" class="sr-body-aspect-btn" data-aspect="1.778">Wide</button>
-                </div>
                 <div class="sr-body-crop-workspace" id="body-crop-workspace">
                     <img src="" alt="Crop preview" class="sr-body-crop-source" id="body-crop-preview">
                     <div class="sr-body-crop-box" id="body-crop-box" hidden>
-                        <span class="sr-body-crop-handle" data-handle="n"></span>
-                        <span class="sr-body-crop-handle" data-handle="e"></span>
-                        <span class="sr-body-crop-handle" data-handle="s"></span>
-                        <span class="sr-body-crop-handle" data-handle="w"></span>
                         <span class="sr-body-crop-handle" data-handle="nw"></span>
                         <span class="sr-body-crop-handle" data-handle="ne"></span>
                         <span class="sr-body-crop-handle" data-handle="sw"></span>
                         <span class="sr-body-crop-handle" data-handle="se"></span>
                     </div>
                 </div>
-                <p class="sr-face-drag-hint">Drag photo to reposition · drag edges or corners to resize freely · scroll or +/− to zoom</p>
+                <p class="sr-face-drag-hint">Drag the box to move · drag any corner to resize · scroll or +/− to zoom</p>
                 <div class="sr-face-zoom-controls">
                     <button type="button" class="sr-face-zoom-btn" id="body-zoom-out" title="Zoom out">−</button>
                     <span class="sr-face-zoom-label" id="body-zoom-label">100%</span>
@@ -355,7 +344,7 @@
     display: block;
     position: relative;
     width: 100%;
-    aspect-ratio: 3 / 4;
+    min-height: 100px;
     overflow: hidden;
     background: var(--sr-bg);
 }
@@ -373,27 +362,6 @@
     font-weight: 600;
     color: var(--sr-text);
 }
-.sr-body-aspect-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-.sr-body-aspect-btn {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--sr-line);
-    background: var(--sr-panel);
-    color: var(--sr-muted);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.sr-body-aspect-btn.is-active {
-    background: var(--sr-accent-dim);
-    color: var(--sr-accent);
-    border-color: var(--sr-accent);
-}
 .sr-body-crop-workspace {
     position: relative;
     width: 100%;
@@ -405,9 +373,7 @@
     background: #111;
     touch-action: none;
     user-select: none;
-    cursor: grab;
 }
-.sr-body-crop-workspace:active { cursor: grabbing; }
 .sr-body-crop-source {
     position: absolute;
     top: 0;
@@ -426,49 +392,18 @@
 .sr-body-crop-box[hidden] { display: none !important; }
 .sr-body-crop-handle {
     position: absolute;
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
     background: #fff;
     border: 2px solid var(--sr-accent);
-    border-radius: 3px;
+    border-radius: 4px;
     box-sizing: border-box;
+    z-index: 2;
 }
-.sr-body-crop-handle[data-handle="nw"] { top: -8px; left: -8px; cursor: nwse-resize; }
-.sr-body-crop-handle[data-handle="ne"] { top: -8px; right: -8px; cursor: nesw-resize; }
-.sr-body-crop-handle[data-handle="sw"] { bottom: -8px; left: -8px; cursor: nesw-resize; }
-.sr-body-crop-handle[data-handle="se"] { bottom: -8px; right: -8px; cursor: nwse-resize; }
-.sr-body-crop-handle[data-handle="n"] {
-    top: -7px;
-    left: 50%;
-    width: 22px;
-    height: 10px;
-    transform: translateX(-50%);
-    cursor: ns-resize;
-}
-.sr-body-crop-handle[data-handle="s"] {
-    bottom: -7px;
-    left: 50%;
-    width: 22px;
-    height: 10px;
-    transform: translateX(-50%);
-    cursor: ns-resize;
-}
-.sr-body-crop-handle[data-handle="e"] {
-    right: -7px;
-    top: 50%;
-    width: 10px;
-    height: 22px;
-    transform: translateY(-50%);
-    cursor: ew-resize;
-}
-.sr-body-crop-handle[data-handle="w"] {
-    left: -7px;
-    top: 50%;
-    width: 10px;
-    height: 22px;
-    transform: translateY(-50%);
-    cursor: ew-resize;
-}
+.sr-body-crop-handle[data-handle="nw"] { top: -10px; left: -10px; cursor: nwse-resize; }
+.sr-body-crop-handle[data-handle="ne"] { top: -10px; right: -10px; cursor: nesw-resize; }
+.sr-body-crop-handle[data-handle="sw"] { bottom: -10px; left: -10px; cursor: nesw-resize; }
+.sr-body-crop-handle[data-handle="se"] { bottom: -10px; right: -10px; cursor: nwse-resize; }
 .sr-body-photo-delete {
     position: absolute;
     top: 4px;
@@ -612,7 +547,6 @@ window.PlayerPhotoManager = (function() {
     var bodyCropWorkspace = document.getElementById('body-crop-workspace');
     var bodyCropPreview = document.getElementById('body-crop-preview');
     var bodyCropBox = document.getElementById('body-crop-box');
-    var bodyAspectControls = document.getElementById('body-aspect-controls');
     var bodyZoomIn = document.getElementById('body-zoom-in');
     var bodyZoomOut = document.getElementById('body-zoom-out');
     var bodyZoomLabel = document.getElementById('body-zoom-label');
@@ -626,7 +560,6 @@ window.PlayerPhotoManager = (function() {
     var bodyDragLastY = 0;
     var bodyResizing = false;
     var bodyResizeHandle = null;
-    var bodyResizeAnchor = null;
     var modalFacePreview = document.getElementById('modal-face-preview');
     var modalFaceEmpty = document.getElementById('modal-face-empty');
     var headerAvatarImg = null;
@@ -691,12 +624,7 @@ window.PlayerPhotoManager = (function() {
         if (iw && ih) {
             return legacyFocusToRect(focus, iw, ih);
         }
-        return legacyFocusToRect({
-            x: x,
-            y: y,
-            z: focus.z != null ? focus.z : 1,
-            aspect: focus.aspect != null ? focus.aspect : DEFAULT_BODY_ASPECT,
-        }, 1000, 1000 * (DEFAULT_BODY_ASPECT / 1));
+        return { x: 50, y: 50, w: 75, h: 90 };
     }
 
     function bodyFocusVisualAspect(focus, iw, ih) {
@@ -774,26 +702,6 @@ window.PlayerPhotoManager = (function() {
         layoutBodyCropEditor();
         requestAnimationFrame(function() {
             requestAnimationFrame(layoutBodyCropEditor);
-        });
-    }
-
-    function updateBodyAspectButtons() {
-        if (!bodyAspectControls || !bodyCropLayout) return;
-        var current = bodyFocusVisualAspect(bodyFocus, bodyCropLayout.iw, bodyCropLayout.ih);
-        bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(btn) {
-            if (btn.dataset.aspect === 'free') {
-                var matchesPreset = false;
-                bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(other) {
-                    if (other === btn || other.dataset.aspect === 'free') return;
-                    if (Math.abs(parseFloat(other.dataset.aspect) - current) < 0.04) {
-                        matchesPreset = true;
-                    }
-                });
-                btn.classList.toggle('is-active', !matchesPreset);
-                return;
-            }
-            var aspect = parseFloat(btn.dataset.aspect);
-            btn.classList.toggle('is-active', Math.abs(aspect - current) < 0.04);
         });
     }
 
@@ -1014,7 +922,6 @@ window.PlayerPhotoManager = (function() {
         if (typeof h === 'number') bodyFocus.h = clampCropPct(h);
         layoutBodyCropEditor();
         updateBodyZoomLabel();
-        updateBodyAspectButtons();
         syncBodyThumbStyles();
     }
 
@@ -1076,22 +983,6 @@ window.PlayerPhotoManager = (function() {
         applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.w, bodyFocus.h);
         relayoutBodyCropEditorSoon();
         bodyCropEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-
-    function setBodyAspect(aspect) {
-        if (!bodyCropLayout || aspect === 'free') return;
-        var preset = parseFloat(aspect);
-        if (!preset) return;
-        var iw = bodyCropLayout.iw;
-        var ih = bodyCropLayout.ih;
-        var w = bodyFocus.w;
-        var h = w * iw / (preset * ih);
-        if (h > 100) {
-            h = 100;
-            w = h * preset * ih / iw;
-        }
-        applyBodyCrop(bodyFocus.x, bodyFocus.y, w, h);
-        saveBodyFocus();
     }
 
     function adjustBodyZoom(delta) {
@@ -1613,40 +1504,32 @@ window.PlayerPhotoManager = (function() {
         var wsRect = bodyCropWorkspace.getBoundingClientRect();
         var mx = pointerX - wsRect.left;
         var my = pointerY - wsRect.top;
+        var minSize = 24;
         var left = box.left;
         var top = box.top;
-        var width = box.width;
-        var height = box.height;
         var right = box.left + box.width;
         var bottom = box.top + box.height;
-        if (handle === 'e') {
-            width = Math.max(24, mx - box.left);
-        } else if (handle === 'w') {
-            width = Math.max(24, right - mx);
-            left = right - width;
-        } else if (handle === 's') {
-            height = Math.max(24, my - box.top);
-        } else if (handle === 'n') {
-            height = Math.max(24, bottom - my);
-            top = bottom - height;
-        } else if (handle === 'se') {
-            width = Math.max(24, mx - box.left);
-            height = Math.max(24, my - box.top);
-        } else if (handle === 'nw') {
-            width = Math.max(24, right - mx);
-            height = Math.max(24, bottom - my);
-            left = right - width;
-            top = bottom - height;
+        if (handle === 'nw') {
+            left = Math.min(mx, right - minSize);
+            top = Math.min(my, bottom - minSize);
         } else if (handle === 'ne') {
-            width = Math.max(24, mx - box.left);
-            height = Math.max(24, bottom - my);
-            top = bottom - height;
+            right = Math.max(mx, left + minSize);
+            top = Math.min(my, bottom - minSize);
         } else if (handle === 'sw') {
-            width = Math.max(24, right - mx);
-            height = Math.max(24, my - box.top);
-            left = right - width;
+            left = Math.min(mx, right - minSize);
+            bottom = Math.max(my, top + minSize);
+        } else if (handle === 'se') {
+            right = Math.max(mx, left + minSize);
+            bottom = Math.max(my, top + minSize);
+        } else {
+            return null;
         }
-        return clampBoxToImage({ left: left, top: top, width: width, height: height }, bodyCropLayout);
+        return clampBoxToImage({
+            left: left,
+            top: top,
+            width: right - left,
+            height: bottom - top,
+        }, bodyCropLayout);
     }
 
     function endBodyInteraction(e, targetEl) {
@@ -1664,57 +1547,7 @@ window.PlayerPhotoManager = (function() {
         }
     }
 
-    if (bodyAspectControls) {
-        bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                setBodyAspect(btn.dataset.aspect);
-            });
-        });
-    }
     if (bodyCropWorkspace) {
-        bodyCropWorkspace.addEventListener('pointerdown', function(e) {
-            if (!bodyCropPreview || !bodyCropPreview.src || !bodyCropLayout) return;
-            if (e.target.closest('.sr-body-crop-handle')) return;
-            if (e.target.closest('.sr-body-crop-box')) {
-                bodyDragging = true;
-                bodyDragLastX = e.clientX;
-                bodyDragLastY = e.clientY;
-                bodyCropBox.setPointerCapture(e.pointerId);
-                return;
-            }
-            bodyDragging = true;
-            bodyDragLastX = e.clientX;
-            bodyDragLastY = e.clientY;
-            bodyCropWorkspace.setPointerCapture(e.pointerId);
-        });
-        bodyCropWorkspace.addEventListener('pointermove', function(e) {
-            if (!bodyDragging || !bodyCropLayout) return;
-            var dx = e.clientX - bodyDragLastX;
-            var dy = e.clientY - bodyDragLastY;
-            bodyDragLastX = e.clientX;
-            bodyDragLastY = e.clientY;
-            if (bodyCropBox && bodyCropBox.hasPointerCapture(e.pointerId)) {
-                var box = focusToBoxRect(bodyFocus, bodyCropLayout);
-                box.left += dx;
-                box.top += dy;
-                box = clampBoxToImage(box, bodyCropLayout);
-                var moved = boxRectToFocus(box, bodyCropLayout);
-                applyBodyCrop(moved.x, moved.y, moved.w, moved.h);
-            } else {
-                applyBodyCrop(
-                    bodyFocus.x - (dx / bodyCropLayout.dispW) * 100,
-                    bodyFocus.y - (dy / bodyCropLayout.dispH) * 100,
-                    bodyFocus.w,
-                    bodyFocus.h
-                );
-            }
-        });
-        bodyCropWorkspace.addEventListener('pointerup', function(e) {
-            endBodyInteraction(e, bodyResizing ? bodyCropBox : bodyCropWorkspace);
-        });
-        bodyCropWorkspace.addEventListener('pointercancel', function(e) {
-            endBodyInteraction(e, bodyResizing ? bodyCropBox : bodyCropWorkspace);
-        });
         bodyCropWorkspace.addEventListener('wheel', function(e) {
             if (!bodyCropPreview || !bodyCropPreview.src) return;
             e.preventDefault();
@@ -1723,12 +1556,21 @@ window.PlayerPhotoManager = (function() {
         }, { passive: false });
     }
     if (bodyCropBox) {
+        bodyCropBox.addEventListener('pointerdown', function(e) {
+            if (!bodyCropLayout || e.target.closest('.sr-body-crop-handle')) return;
+            bodyDragging = true;
+            bodyDragLastX = e.clientX;
+            bodyDragLastY = e.clientY;
+            bodyCropBox.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
         bodyCropBox.querySelectorAll('.sr-body-crop-handle').forEach(function(handle) {
             handle.addEventListener('pointerdown', function(e) {
                 if (!bodyCropLayout) return;
                 bodyResizing = true;
                 bodyResizeHandle = handle.dataset.handle;
                 bodyCropBox.setPointerCapture(e.pointerId);
+                e.preventDefault();
                 e.stopPropagation();
             });
         });

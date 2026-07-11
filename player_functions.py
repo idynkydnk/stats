@@ -243,7 +243,7 @@ def get_player_full_body_photo_crops(full_name):
 
 def get_full_body_photo_crop(full_name, rel_path):
     crops = get_player_full_body_photo_crops(full_name)
-    return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
+    return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0})
 
 
 def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None, aspect=None, w=None, h=None):
@@ -749,7 +749,7 @@ def collect_solo_reference_images(name):
             })
     crops = get_player_full_body_photo_crops(name)
     for idx, body_path in enumerate(body_paths, start=1):
-        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
+        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0})
         raw, mime = read_cropped_player_image(body_path, focus)
         if raw:
             entry['parts'].append({
@@ -783,7 +783,7 @@ def collect_player_reference_images(player_names, max_players=5, max_body_per_pl
                 })
         crops = get_player_full_body_photo_crops(name)
         for idx, body_path in enumerate(body_paths[:max_body_per_player], start=1):
-            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
+            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0})
             raw, mime = read_cropped_player_image(body_path, focus)
             if raw:
                 entry['parts'].append({

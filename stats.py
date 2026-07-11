@@ -856,7 +856,7 @@ def build_player_list_cards(players):
     names = [player_row[1] for player_row in players]
     extras = get_players_list_extras(names)
     default_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
-    default_body_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': 0.75}
+    default_body_focus = {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0}
     cards = []
 
     for player_row in players:
