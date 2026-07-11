@@ -71,14 +71,20 @@ def get_player_photo_path(full_name):
 
 
 MIN_PHOTO_ZOOM = 0.25
-MAX_BODY_ZOOM = 3.0
+MAX_BODY_ZOOM = 6.0
 MAX_FACE_ZOOM = 6.0
 MIN_FACE_ZOOM = MIN_PHOTO_ZOOM
 BODY_CROP_ASPECT = 3 / 4  # width / height for full-body thumbnails
+MIN_BODY_ASPECT = 0.45
+MAX_BODY_ASPECT = 2.5
 
 
 def _clamp_body_zoom(zoom):
     return max(MIN_PHOTO_ZOOM, min(MAX_BODY_ZOOM, float(zoom)))
+
+
+def _clamp_body_aspect(aspect):
+    return max(MIN_BODY_ASPECT, min(MAX_BODY_ASPECT, float(aspect)))
 
 
 def _clamp_face_zoom(zoom):
@@ -192,13 +198,19 @@ def _parse_body_crops_json(raw):
     for path, focus_raw in data.items():
         if not isinstance(path, str) or not path.strip():
             continue
+        aspect = BODY_CROP_ASPECT
         if isinstance(focus_raw, dict):
             x, y, z = _parse_photo_focus(
                 f"{focus_raw.get('x', 50)},{focus_raw.get('y', 50)},{focus_raw.get('z', 1)}"
             )
+            if focus_raw.get('aspect') is not None:
+                try:
+                    aspect = _clamp_body_aspect(focus_raw['aspect'])
+                except (TypeError, ValueError):
+                    aspect = BODY_CROP_ASPECT
         else:
             x, y, z = _parse_photo_focus(focus_raw)
-        crops[path] = {'x': x, 'y': y, 'z': z}
+        crops[path] = {'x': x, 'y': y, 'z': z, 'aspect': aspect}
     return crops
 
 
@@ -221,10 +233,10 @@ def get_player_full_body_photo_crops(full_name):
 
 def get_full_body_photo_crop(full_name, rel_path):
     crops = get_player_full_body_photo_crops(full_name)
-    return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
+    return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
 
 
-def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
+def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None, aspect=None):
     """Save pan/zoom crop for one full-body photo."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -233,12 +245,16 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
         conn = create_connection(database)
     cur = conn.cursor()
     crops = _get_body_crops_by_id(player_id)
+    existing = crops.get(rel_path, {})
     if z is None:
-        z = crops.get(rel_path, {}).get('z', 1.0)
+        z = existing.get('z', 1.0)
+    if aspect is None:
+        aspect = existing.get('aspect', BODY_CROP_ASPECT)
     x = max(0.0, min(100.0, float(x)))
     y = max(0.0, min(100.0, float(y)))
     z = _clamp_body_zoom(z)
-    crops[rel_path] = {'x': x, 'y': y, 'z': z}
+    aspect = _clamp_body_aspect(aspect)
+    crops[rel_path] = {'x': x, 'y': y, 'z': z, 'aspect': aspect}
     now = datetime.now()
     with conn:
         cur.execute(
@@ -246,7 +262,7 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
             (json.dumps(crops), now, player_id),
         )
         conn.commit()
-    return x, y, z
+    return x, y, z, aspect
 
 
 def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, max_pixels=768, max_zoom=None):
@@ -313,6 +329,8 @@ def read_cropped_player_image(rel_path, focus, output_aspect=1.0, max_pixels=768
     if not raw:
         return None, None
     focus = focus or {'x': 50, 'y': 50, 'z': 1}
+    if focus.get('aspect') is not None:
+        output_aspect = focus.get('aspect')
     try:
         return crop_image_with_focus(
             raw,
@@ -648,10 +666,8 @@ def collect_solo_reference_images(name):
             })
     crops = get_player_full_body_photo_crops(name)
     for idx, body_path in enumerate(body_paths, start=1):
-        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
-        raw, mime = read_cropped_player_image(
-            body_path, focus, output_aspect=BODY_CROP_ASPECT,
-        )
+        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
+        raw, mime = read_cropped_player_image(body_path, focus)
         if raw:
             entry['parts'].append({
                 'label': f'Full-body reference photo {idx} for {name}.',
@@ -684,10 +700,8 @@ def collect_player_reference_images(player_names, max_players=5, max_body_per_pl
                 })
         crops = get_player_full_body_photo_crops(name)
         for idx, body_path in enumerate(body_paths[:max_body_per_player], start=1):
-            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
-            raw, mime = read_cropped_player_image(
-                body_path, focus, output_aspect=BODY_CROP_ASPECT,
-            )
+            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
+            raw, mime = read_cropped_player_image(body_path, focus)
             if raw:
                 entry['parts'].append({
                     'label': f'Full-body reference photo {idx} for {name}.',

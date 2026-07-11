@@ -794,7 +794,12 @@ def player_full_body_photos_for(name):
         photos.append({
             'path': path,
             'url': url_for('static', filename=path),
-            'focus': {'x': focus['x'], 'y': focus['y'], 'z': focus['z']},
+            'focus': {
+                'x': focus['x'],
+                'y': focus['y'],
+                'z': focus['z'],
+                'aspect': focus.get('aspect'),
+            },
         })
     return photos
 
@@ -849,7 +854,7 @@ def build_player_list_cards(players):
     names = [player_row[1] for player_row in players]
     extras = get_players_list_extras(names)
     default_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
-    default_body_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
+    default_body_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': 0.75}
     cards = []
 
     for player_row in players:
@@ -3340,6 +3345,7 @@ def api_upload_player_full_body_photo(name):
                 'x': get_full_body_photo_crop(name, p)['x'],
                 'y': get_full_body_photo_crop(name, p)['y'],
                 'z': get_full_body_photo_crop(name, p)['z'],
+                'aspect': get_full_body_photo_crop(name, p).get('aspect'),
             }
             for p in paths
         ]
@@ -3349,17 +3355,19 @@ def api_upload_player_full_body_photo(name):
         crop_path = (request.form.get('crop_path') or '').strip()
         if crop_path and request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
             z = request.form.get('focus_z')
-            x, y, z = set_player_full_body_photo_crop(
+            aspect = request.form.get('focus_aspect')
+            x, y, z, aspect = set_player_full_body_photo_crop(
                 player_id,
                 crop_path,
                 request.form.get('focus_x', 50),
                 request.form.get('focus_y', 50),
                 z if z is not None else None,
+                aspect if aspect is not None else None,
             )
             log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
             clear_stats_cache()
             payload = _photo_payload()
-            payload.update({'success': True, 'focus': {'x': x, 'y': y, 'z': z}})
+            payload.update({'success': True, 'focus': {'x': x, 'y': y, 'z': z, 'aspect': aspect}})
             return jsonify(payload)
 
         if request.form.get('remove') == '1':
