@@ -8,6 +8,8 @@ import uuid
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
 MAX_FULL_BODY_PHOTOS = 10
+MAX_AI_IMAGE_TRAITS = 12
+MAX_AI_IMAGE_TRAITS_CHARS = 500
 
 # Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
 PLAYERS_SELECT = """
@@ -212,26 +214,62 @@ def get_player_photo_paths(full_name):
     return face, body_paths
 
 
+def normalize_player_ai_image_traits(value):
+    """Return a clean phrase list, including values saved by the old text UI."""
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        try:
+            decoded = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            decoded = None
+        values = decoded if isinstance(decoded, list) else [raw]
+    elif isinstance(value, (list, tuple)):
+        values = value
+    else:
+        return []
+
+    phrases = []
+    seen = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        phrase = ' '.join(value.split())
+        key = phrase.casefold()
+        if phrase and key not in seen:
+            phrases.append(phrase)
+            seen.add(key)
+    return phrases
+
+
 def get_player_ai_image_traits(full_name):
-    """Return free-text signature traits for AI image exaggeration."""
+    """Return signature-look phrases for AI image exaggeration."""
     cur = set_cur()
     cur.execute(
         'SELECT ai_image_traits FROM players WHERE full_name = ?',
         (full_name,),
     )
     row = cur.fetchone()
-    return (row[0] or '').strip() if row and row[0] else ''
+    return normalize_player_ai_image_traits(row[0] if row else None)
 
 
 def set_player_ai_image_traits(player_id, traits):
-    """Save signature traits used to exaggerate players in AI email images."""
+    """Save signature-look phrases used in AI email images."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
     now = datetime.now()
-    clean = (traits or '').strip()[:500] or None
+    phrases = normalize_player_ai_image_traits(traits)
+    if len(phrases) > MAX_AI_IMAGE_TRAITS:
+        raise ValueError(f'Add no more than {MAX_AI_IMAGE_TRAITS} signature-look phrases.')
+    if sum(len(phrase) for phrase in phrases) > MAX_AI_IMAGE_TRAITS_CHARS:
+        raise ValueError(
+            f'Signature-look phrases can contain up to {MAX_AI_IMAGE_TRAITS_CHARS} characters total.'
+        )
+    clean = json.dumps(phrases, ensure_ascii=False) if phrases else None
     with conn:
         cur = conn.cursor()
         cur.execute(
@@ -239,15 +277,20 @@ def set_player_ai_image_traits(player_id, traits):
             (clean, now, player_id),
         )
         conn.commit()
+    return phrases
 
 
 def collect_player_ai_image_traits(player_names):
     """Traits to exaggerate for players in an AI email illustration."""
     traits = []
     for name in sorted(player_names):
-        text = get_player_ai_image_traits(name)
-        if text:
-            traits.append({'name': name, 'traits': text})
+        phrases = get_player_ai_image_traits(name)
+        if phrases:
+            traits.append({
+                'name': name,
+                'phrases': phrases,
+                'traits': '; '.join(phrases),
+            })
     return traits
 
 
@@ -612,4 +655,3 @@ def search_players(search_term):
                 (f'%{search_term}%', f'%{search_term}%'))
     players = cur.fetchall()
     return players
-

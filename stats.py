@@ -3085,7 +3085,7 @@ def api_upload_player_full_body_photo(name):
 @app.route('/api/player_ai_image_traits/<path:name>/', methods=['POST'])
 @login_required
 def api_save_player_ai_image_traits(name):
-    """Save signature traits for exaggerating a player in AI email images."""
+    """Save a player's signature-look phrase list for AI email images."""
     from player_functions import set_player_ai_image_traits
 
     name = name.strip()
@@ -3096,17 +3096,31 @@ def api_save_player_ai_image_traits(name):
     if not player or not player[0]:
         return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
 
-    if request.form.get('traits') is not None:
+    data = request.get_json(silent=True) or {}
+    if isinstance(data, dict) and 'phrases' in data:
+        traits = data.get('phrases')
+        if not isinstance(traits, list):
+            return jsonify({'success': False, 'error': 'Phrases must be a list.'}), 400
+    elif request.form.get('phrases') is not None:
+        try:
+            traits = json.loads(request.form.get('phrases', '[]'))
+        except json.JSONDecodeError:
+            return jsonify({'success': False, 'error': 'Invalid phrase list.'}), 400
+    elif request.form.get('traits') is not None:
         traits = request.form.get('traits', '')
     else:
-        data = request.get_json(silent=True) or {}
         traits = data.get('traits', '') if isinstance(data, dict) else ''
-    traits = (traits or '').strip()
 
     try:
-        set_player_ai_image_traits(player[0], traits)
-        log_activity('Updated player photo', summary=f'Updated AI image traits for {name}')
-        return jsonify({'success': True, 'traits': traits[:500]})
+        phrases = set_player_ai_image_traits(player[0], traits)
+        log_activity('Updated signature look', summary=f'Updated AI image traits for {name}')
+        return jsonify({
+            'success': True,
+            'phrases': phrases,
+            'traits': '; '.join(phrases),
+        })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         app.logger.exception('Player AI image traits save failed')
         return jsonify({'success': False, 'error': f'Save failed: {e}'}), 500

@@ -223,7 +223,12 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names):
     player_names = player_names or set()
     reference_parts = _reference_parts_for_api(player_names)
     trait_entries = collect_player_ai_image_traits(player_names)
-    trait_lines = [f"- {entry['name']}: {entry['traits']}" for entry in trait_entries]
+    trait_lines = [
+        f"- {entry['name']}: {phrase}"
+        for entry in trait_entries
+        for phrase in entry.get('phrases', [entry.get('traits', '')])
+        if phrase
+    ]
     prompt = _build_email_image_prompt(
         game_type, games, summary, player_names,
         has_reference_photos=bool(reference_parts),

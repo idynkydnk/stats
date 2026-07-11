@@ -1,7 +1,7 @@
 {# Face circle opens photo manager when logged in. #}
 {% set display_name = player_name if player_name is defined else player %}
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
-{% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = '' %}{% endif %}
+{% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = [] %}{% endif %}
 {% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50, 'z': 1} %}{% endif %}
 {% set face_pos = player_face_photo_focus.x ~ '% ' ~ player_face_photo_focus.y ~ '%' %}
 {% set face_zoom = player_face_photo_focus.z if player_face_photo_focus.z is defined else 1 %}
@@ -83,13 +83,17 @@
 
         <section class="sr-photo-section">
             <h4>Signature look</h4>
-            <p class="sr-traits-hint">AI will exaggerate these details in email illustrations (hats, poses, outfits).</p>
-            <textarea id="ai-image-traits" class="sr-traits-input" rows="3" maxlength="500"
-                      placeholder="e.g. always wears an oversized bucket hat">{{ player_ai_image_traits }}</textarea>
-            <div class="sr-traits-actions">
-                <button type="button" class="sr-photo-action-btn" id="ai-image-traits-save">Save signature look</button>
-                <span class="sr-traits-saved" id="ai-image-traits-saved" hidden>Saved!</span>
+            <p class="sr-traits-hint">Add separate details for the AI to exaggerate in email illustrations.</p>
+            <div class="sr-traits-list" id="ai-image-traits-list"></div>
+            <p class="sr-traits-empty" id="ai-image-traits-empty">No signature-look phrases yet</p>
+            <div class="sr-traits-add-row">
+                <input id="ai-image-traits-input" class="sr-traits-input" type="text" maxlength="200"
+                       placeholder="e.g. always wears an oversized bucket hat">
+                <button type="button" class="sr-photo-action-btn" id="ai-image-traits-add">
+                    <i class="fas fa-plus"></i> Add phrase
+                </button>
             </div>
+            <span class="sr-traits-saved" id="ai-image-traits-saved" hidden>Saved!</span>
         </section>
 
         <div class="sr-photo-modal-footer">
@@ -310,7 +314,8 @@
     line-height: 1.4;
 }
 .sr-traits-input {
-    width: 100%;
+    flex: 1 1 220px;
+    min-width: 0;
     box-sizing: border-box;
     padding: 10px 12px;
     border-radius: 8px;
@@ -319,16 +324,55 @@
     color: var(--sr-text);
     font-size: 14px;
     font-family: inherit;
-    resize: vertical;
-    min-height: 72px;
 }
-.sr-traits-actions {
+.sr-traits-add-row {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 10px;
+    flex-wrap: wrap;
+}
+.sr-traits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sr-trait-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px 9px 12px;
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 13px;
+    line-height: 1.35;
+}
+.sr-trait-item-text { overflow-wrap: anywhere; }
+.sr-trait-delete {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    border-radius: 50%;
+    background: rgba(248, 113, 113, 0.12);
+    color: var(--sr-loss);
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 1;
+}
+.sr-trait-delete:hover { background: rgba(248, 113, 113, 0.22); }
+.sr-traits-empty {
+    margin: 0;
+    color: var(--sr-muted);
+    font-size: 13px;
 }
 .sr-traits-saved {
+    display: inline-block;
+    margin-top: 8px;
     font-size: 13px;
     color: var(--sr-win);
     font-weight: 600;
@@ -361,9 +405,14 @@
     var modalFaceEmpty = document.getElementById('modal-face-empty');
     var headerAvatarImg = document.getElementById('player-avatar-img');
     var headerAvatarFallback = document.getElementById('player-avatar-fallback');
-    var traitsInput = document.getElementById('ai-image-traits');
-    var traitsSaveBtn = document.getElementById('ai-image-traits-save');
+    var traitsList = document.getElementById('ai-image-traits-list');
+    var traitsEmpty = document.getElementById('ai-image-traits-empty');
+    var traitsInput = document.getElementById('ai-image-traits-input');
+    var traitsAddBtn = document.getElementById('ai-image-traits-add');
     var traitsSaved = document.getElementById('ai-image-traits-saved');
+    var signaturePhrases = {{ player_ai_image_traits|tojson }};
+    if (!Array.isArray(signaturePhrases)) signaturePhrases = signaturePhrases ? [signaturePhrases] : [];
+    var traitsSaving = false;
     var faceDragging = false;
     var faceDragLastX = 0;
     var faceDragLastY = 0;
@@ -551,12 +600,46 @@
         .catch(function() { alert('Remove failed.'); });
     }
 
-    function saveTraits() {
-        if (!traitsInput) return;
-        var fd = new FormData();
-        fd.append('traits', traitsInput.value.trim());
+    function renderTraits() {
+        if (!traitsList) return;
+        traitsList.textContent = '';
+        signaturePhrases.forEach(function(phrase, index) {
+            var item = document.createElement('div');
+            item.className = 'sr-trait-item';
+            var text = document.createElement('span');
+            text.className = 'sr-trait-item-text';
+            text.textContent = phrase;
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'sr-trait-delete';
+            remove.title = 'Delete phrase';
+            remove.setAttribute('aria-label', 'Delete signature-look phrase');
+            remove.innerHTML = '&times;';
+            remove.addEventListener('click', function() { deleteTrait(index); });
+            item.appendChild(text);
+            item.appendChild(remove);
+            traitsList.appendChild(item);
+        });
+        if (traitsEmpty) traitsEmpty.hidden = signaturePhrases.length > 0;
+    }
+
+    function setTraitsBusy(busy) {
+        traitsSaving = busy;
+        if (traitsAddBtn) traitsAddBtn.disabled = busy;
+        if (traitsInput) traitsInput.disabled = busy;
+        if (traitsList) {
+            traitsList.querySelectorAll('.sr-trait-delete').forEach(function(btn) { btn.disabled = busy; });
+        }
+    }
+
+    function saveTraits(nextPhrases, afterSave) {
+        if (traitsSaving) return;
+        setTraitsBusy(true);
         fetch('/api/player_ai_image_traits/' + encodeURIComponent(playerName) + '/', {
-            method: 'POST', body: fd, credentials: 'same-origin'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phrases: nextPhrases }),
+            credentials: 'same-origin'
         })
         .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
         .then(function(res) {
@@ -564,12 +647,33 @@
                 alert(res.data && res.data.error ? res.data.error : 'Save failed');
                 return;
             }
+            signaturePhrases = res.data.phrases || nextPhrases;
+            renderTraits();
+            if (afterSave) afterSave();
             if (traitsSaved) {
                 traitsSaved.hidden = false;
                 setTimeout(function() { traitsSaved.hidden = true; }, 2000);
             }
         })
-        .catch(function() { alert('Save failed. Check your connection and try again.'); });
+        .catch(function() { alert('Save failed. Check your connection and try again.'); })
+        .finally(function() { setTraitsBusy(false); });
+    }
+
+    function addTrait() {
+        if (!traitsInput || traitsSaving) return;
+        var phrase = traitsInput.value.trim();
+        if (!phrase) return;
+        saveTraits(signaturePhrases.concat([phrase]), function() {
+            traitsInput.value = '';
+            traitsInput.focus();
+        });
+    }
+
+    function deleteTrait(index) {
+        if (traitsSaving) return;
+        var nextPhrases = signaturePhrases.slice();
+        nextPhrases.splice(index, 1);
+        saveTraits(nextPhrases);
     }
 
     if (trigger) trigger.addEventListener('click', openModal);
@@ -621,7 +725,14 @@
     }
     if (faceZoomIn) faceZoomIn.addEventListener('click', function() { adjustFaceZoom(FACE_ZOOM_STEP); });
     if (faceZoomOut) faceZoomOut.addEventListener('click', function() { adjustFaceZoom(-FACE_ZOOM_STEP); });
-    if (traitsSaveBtn) traitsSaveBtn.addEventListener('click', saveTraits);
+    renderTraits();
+    if (traitsAddBtn) traitsAddBtn.addEventListener('click', addTrait);
+    if (traitsInput) traitsInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addTrait();
+        }
+    });
     if (bodyInput) {
         bodyInput.addEventListener('change', function() {
             if (!bodyInput.files) return;
