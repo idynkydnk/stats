@@ -209,8 +209,12 @@
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     max-width: none;
     max-height: none;
+    object-fit: cover;
+    object-position: 50% 50%;
     pointer-events: none;
 }
 .sr-face-photo-preview {
@@ -517,28 +521,36 @@
 
     function orientedImageSize(img, callback) {
         var key = img.currentSrc || img.src;
+        var nw = img.naturalWidth;
+        var nh = img.naturalHeight;
+        if (!nw || !nh) return;
+
         if (orientedSizeCache[key]) {
             var cached = orientedSizeCache[key];
             callback(cached.w, cached.h);
             return;
         }
-        if (window.createImageBitmap && key) {
-            fetch(key, { credentials: 'same-origin' })
-                .then(function(r) { return r.blob(); })
-                .then(function(blob) { return createImageBitmap(blob); })
-                .then(function(bitmap) {
-                    orientedSizeCache[key] = { w: bitmap.width, h: bitmap.height };
-                    callback(bitmap.width, bitmap.height);
-                    bitmap.close();
-                })
-                .catch(function() {
-                    orientedSizeCache[key] = { w: img.naturalWidth, h: img.naturalHeight };
-                    callback(img.naturalWidth, img.naturalHeight);
-                });
-        } else {
-            orientedSizeCache[key] = { w: img.naturalWidth, h: img.naturalHeight };
-            callback(img.naturalWidth, img.naturalHeight);
+
+        // Lay out immediately so photos are visible, then refine for EXIF if needed.
+        callback(nw, nh);
+
+        if (!window.createImageBitmap || !key) {
+            orientedSizeCache[key] = { w: nw, h: nh };
+            return;
         }
+        fetch(key, { credentials: 'same-origin' })
+            .then(function(r) { return r.blob(); })
+            .then(function(blob) { return createImageBitmap(blob); })
+            .then(function(bitmap) {
+                orientedSizeCache[key] = { w: bitmap.width, h: bitmap.height };
+                if (bitmap.width !== nw || bitmap.height !== nh) {
+                    callback(bitmap.width, bitmap.height);
+                }
+                bitmap.close();
+            })
+            .catch(function() {
+                orientedSizeCache[key] = { w: nw, h: nh };
+            });
     }
 
     function cropFrameFor(img) {
@@ -553,7 +565,11 @@
             var rect = frameEl.getBoundingClientRect();
             var frameW = rect.width;
             var frameH = rect.height;
-            if (!iw || !ih || frameW < 1 || frameH < 1) return false;
+            if (!iw || !ih) return false;
+            if (frameW < 1 || frameH < 1) {
+                requestAnimationFrame(function() { applyWithSize(iw, ih); });
+                return false;
+            }
 
             var z = clampZoom(focus.z);
             var fx = clampFocus(focus.x) / 100;
@@ -702,11 +718,26 @@
         saveFaceFocus();
     }
 
-    function openModal() {
-        if (modal) modal.hidden = false;
+    function relayoutModalPhotos() {
+        if (modalFacePreview) relayoutCropSoon(modalFacePreview, faceFocus, false);
+        if (bodyGrid) {
+            bodyGrid.querySelectorAll('.sr-body-photo-item').forEach(function(item) {
+                var img = item.querySelector('img');
+                var path = item.dataset.path;
+                var photo = bodyPhotos.find(function(p) { return p.path === path; });
+                if (img && photo) relayoutCropSoon(img, photo.focus || { x: 50, y: 50, z: 1 }, true);
+            });
+        }
         if (bodyCropPreview && activeBodyPath) {
             relayoutCropSoon(bodyCropPreview, bodyFocus, true);
         }
+    }
+
+    function openModal() {
+        if (modal) modal.hidden = false;
+        requestAnimationFrame(function() {
+            requestAnimationFrame(relayoutModalPhotos);
+        });
     }
     function closeModal() { if (modal) modal.hidden = true; }
 
@@ -959,22 +990,18 @@
         });
     }
 
-    if (modalFacePreview && faceCropFrame) {
-        applyPhotoCrop(modalFacePreview, faceFocus, false);
-    }
     var headerFrame = document.getElementById('player-avatar-frame');
     var headerImg = document.getElementById('player-avatar-img');
     if (headerImg && headerFrame) {
         applyPhotoCrop(headerImg, faceFocus, false);
     }
-    layoutAllBodyThumbs();
     window.addEventListener('resize', function() {
         if (modalFacePreview) applyPhotoCrop(modalFacePreview, faceFocus, false);
         var hi = document.getElementById('player-avatar-img');
         var hf = document.getElementById('player-avatar-frame');
         if (hi && hf) applyPhotoCrop(hi, faceFocus, false);
-        layoutAllBodyThumbs();
-        if (bodyCropPreview && activeBodyPath) applyPhotoCrop(bodyCropPreview, bodyFocus, true);
+        if (!modal || modal.hidden) return;
+        relayoutModalPhotos();
     });
 
     if (trigger) trigger.addEventListener('click', openModal);
