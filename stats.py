@@ -2121,7 +2121,11 @@ def volleyball_player_stats(year, name):
         all_years=all_years,
         stats=overall_stats,
         game_cards=game_cards,
-        total_games=total_games)
+        total_games=total_games,
+        player_photo_url=player_photo_url_for(name),
+        player_full_body_photos=player_full_body_photos_for(name),
+        player_ai_image_traits=player_ai_image_traits_for(name),
+        player_face_photo_focus=player_face_photo_focus_for(name))
 
 
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
@@ -2299,7 +2303,11 @@ def player_game_stats(year, game_name, player_name):
         year=year,
         all_years=all_years,
         stats=stats,
-        games=games)
+        games=games,
+        player_photo_url=player_photo_url_for(player_name),
+        player_full_body_photos=player_full_body_photos_for(player_name),
+        player_ai_image_traits=player_ai_image_traits_for(player_name),
+        player_face_photo_focus=player_face_photo_focus_for(player_name))
 
 
 # Authentication routes
