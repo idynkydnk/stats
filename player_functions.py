@@ -305,7 +305,7 @@ def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, ma
     return buf.getvalue(), 'image/jpeg'
 
 
-def read_cropped_player_image(rel_path, focus, output_aspect=1.0):
+def read_cropped_player_image(rel_path, focus, output_aspect=1.0, max_pixels=768):
     """Load a stored photo with pan/zoom crop applied for AI reference images."""
     raw, _mime = read_player_image_file(rel_path)
     if not raw:
@@ -318,9 +318,24 @@ def read_cropped_player_image(rel_path, focus, output_aspect=1.0):
             focus.get('y', 50),
             focus.get('z', 1),
             output_aspect=output_aspect,
+            max_pixels=max_pixels,
         )
     except Exception:
         return raw, _mime
+
+
+def read_face_avatar_image(full_name, max_pixels=128):
+    """Square cropped face avatar bytes for public player pages."""
+    path = get_player_photo_path(full_name)
+    if not path:
+        return None, None
+    x, y, z = get_player_face_photo_focus(full_name)
+    return read_cropped_player_image(
+        path,
+        {'x': x, 'y': y, 'z': z},
+        output_aspect=1.0,
+        max_pixels=max_pixels,
+    )
 
 
 def get_player_full_body_photo_paths(full_name):

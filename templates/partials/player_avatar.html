@@ -7,7 +7,6 @@
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
             title="Manage player photos" aria-label="Manage player photos">
-    {% endif %}
         {% if player_photo_url %}
         <div class="sr-avatar-crop-frame" id="player-avatar-frame">
             <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img">
@@ -15,10 +14,35 @@
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
-    {% if session.logged_in %}
     </button>
+    {% else %}
+        {% if player_photo_url %}
+        <img src="{{ url_for('player_face_thumb', name=display_name) }}" alt="{{ display_name }}"
+             class="sr-player-avatar sr-player-photo" width="64" height="64" loading="lazy">
+        {% else %}
+        <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
+        {% endif %}
     {% endif %}
 </div>
+
+<style>
+.sr-player-avatar.sr-player-photo {
+    display: block;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-panel);
+    flex-shrink: 0;
+}
+@media (max-width: 480px) {
+    .sr-player-avatar.sr-player-photo {
+        width: 48px;
+        height: 48px;
+    }
+}
+</style>
 
 {% if session.logged_in %}
 <div class="sr-photo-modal" id="player-photo-modal" hidden>
@@ -119,6 +143,7 @@
 </div>
 {% endif %}
 
+{% if session.logged_in %}
 <style>
 .sr-avatar-clickable {
     padding: 0;
@@ -1157,3 +1182,4 @@
     });
 })();
 </script>
+{% endif %}

@@ -610,6 +610,25 @@ def player_photo_url_for(name):
     return None
 
 
+@app.route('/player_face_thumb/<path:name>')
+def player_face_thumb(name):
+    """Serve a small server-cropped face avatar for public player pages."""
+    from flask import Response, abort
+    from player_functions import read_face_avatar_image
+
+    name = name.strip()
+    if not name:
+        abort(404)
+    data, mime = read_face_avatar_image(name)
+    if not data:
+        abort(404)
+    return Response(
+        data,
+        mimetype=mime or 'image/jpeg',
+        headers={'Cache-Control': 'public, max-age=3600'},
+    )
+
+
 def player_full_body_photos_for(name):
     """Full-body photos with static paths, URLs, and crop focus."""
     from player_functions import get_player_full_body_photo_paths, get_full_body_photo_crop
