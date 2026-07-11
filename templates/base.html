@@ -13,8 +13,6 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="sr-page">
-    {% block active_tab %}{% endblock %}
-    {% block header_mode %}stats{% endblock %}
     {% set active_tab = self.active_tab()|trim or none %}
     {% set header_mode = self.header_mode()|trim or 'stats' %}
     <div class="menu-overlay" id="menu-overlay"></div>
