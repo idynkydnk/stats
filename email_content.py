@@ -128,13 +128,76 @@ def _ordered_email_image_players(player_names):
     """Unique, stable player list for email illustrations."""
     seen = set()
     ordered = []
-    for name in sorted(player_names or []):
+    for name in sorted(player_names or [], key=lambda n: (n or '').strip().lower()):
         clean = (name or '').strip()
-        if not clean or clean in seen:
+        key = clean.lower()
+        if not clean or key in seen:
             continue
-        seen.add(clean)
+        seen.add(key)
         ordered.append(clean)
     return ordered
+
+
+def _reference_photo_kind(label):
+    """Classify a reference label for clearer multi-photo grouping."""
+    lower = (label or '').lower()
+    if 'face reference' in lower:
+        return 'face'
+    if 'full-body reference' in lower:
+        return 'body'
+    return 'other'
+
+
+def _reference_photo_instruction(kind, index, player_count, name):
+    """Explain how each photo type should be used for one roster slot."""
+    if kind == 'face':
+        return (
+            f'Face reference for player {index}/{player_count} ({name}). '
+            f'Use for facial features and expression. Same person as character #{index}.'
+        )
+    if kind == 'body':
+        return (
+            f'Full-body reference for player {index}/{player_count} ({name}). '
+            f'Use for outfit, pose, and body type. Same person as character #{index} — '
+            f'NOT a second character.'
+        )
+    return (
+        f'Reference photo for player {index}/{player_count} ({name}). '
+        f'Same person as character #{index} — NOT a separate character.'
+    )
+
+
+def _reference_parts_for_player(index, player_count, name, entry):
+    """Build grouped reference parts so face/body photos map to one roster slot."""
+    parts = [{
+        'text': (
+            f'=== PLAYER {index} OF {player_count}: {name} ===\n'
+            f'All images in this group are the SAME person. '
+            f'Draw {name} exactly once as character #{index}. '
+            f'Do not draw them again anywhere else in the scene.'
+        ),
+    }]
+    if not entry or not entry.get('parts'):
+        parts.append({
+            'text': (
+                f'No reference photos for {name}. Invent one unique stylized character for '
+                f'player {index}/{player_count} — clearly different from every other player.'
+            ),
+        })
+        parts.append({'text': f'=== END PLAYER {index} — one character only ==='})
+        return parts
+
+    for ref in entry['parts']:
+        kind = _reference_photo_kind(ref['label'])
+        parts.append({'text': _reference_photo_instruction(kind, index, player_count, name)})
+        parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
+
+    parts.append({
+        'text': (
+            f'=== END PLAYER {index} ({name}) — exactly one character in the final illustration ==='
+        ),
+    })
+    return parts
 
 
 def _games_highlight_for_image(game_type, games, max_games=3):
@@ -170,10 +233,12 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
     trait_lines = trait_lines or []
     if has_reference_photos or trait_lines:
         likeness = (
-            'Caricature sports illustration — use attached reference photos for each player\'s '
-            'general look, then exaggerate their signature details (hats, poses, outfits, habits) '
-            'so they are instantly recognizable and playful, not photorealistic. '
-            'Each reference photo label names exactly one roster player — match one photo to one character. '
+            'Caricature sports illustration — reference photos are grouped by player. '
+            'For each roster number, use every attached face and body photo to capture that '
+            'one person\'s look, then exaggerate their signature details (hats, poses, outfits, '
+            'habits) so they are instantly recognizable and playful, not photorealistic. '
+            'Multiple photos for the same roster number are different views of ONE person — '
+            'never draw them as separate characters. '
         )
     else:
         likeness = (
@@ -193,9 +258,11 @@ def _build_email_image_prompt(game_type, games, summary, player_names, has_refer
     )
     rules_block = (
         f'\nCRITICAL ROSTER RULES:\n'
-        f'- Draw exactly {player_count} distinct characters — one per numbered roster player.\n'
-        f'- Never duplicate the same person. Never omit a roster player.\n'
+        f'- Draw exactly {player_count} distinct characters total — one per numbered roster player.\n'
+        f'- Never duplicate the same person. Never omit a roster player. No extra bystanders.\n'
         f'- Every roster name must map to exactly one visible character in the scene.\n'
+        f'- Face and body reference photos for the same player are the same person — combine them '
+        f'into one character, never two.\n'
     )
     return f"""Sports illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
@@ -211,7 +278,6 @@ def _reference_parts_for_api(player_names):
         return []
 
     player_count = len(players)
-    # Keep payload size reasonable: one body photo per player when 5+, face only when crowded.
     if player_count > 6:
         max_body_per_player = 0
     elif player_count > 3:
@@ -228,24 +294,21 @@ def _reference_parts_for_api(player_names):
 
     parts = [{
         'text': (
-            f'ROSTER: Illustrate exactly {player_count} different people. '
-            'Each numbered player below must appear once — no duplicates, no omissions.'
+            f'ROSTER: Illustrate exactly {player_count} different people — no more, no fewer.\n'
+            f'Reference photos are grouped under each player heading. '
+            f'All photos under one heading = one person = one character in the scene.'
         ),
     }]
     for index, name in enumerate(players, start=1):
-        parts.append({'text': f'Roster player {index}/{player_count}: {name}.'})
-        entry = refs_by_name.get(name)
-        if not entry or not entry.get('parts'):
-            parts.append({
-                'text': (
-                    f'No reference photo for {name}. Draw one unique stylized character for '
-                    f'roster player {index} only — clearly different from every other roster player.'
-                ),
-            })
-            continue
-        for ref in entry['parts']:
-            parts.append({'text': f'{ref["label"]} Roster player {index}/{player_count}: {name}.'})
-            parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
+        parts.extend(_reference_parts_for_player(
+            index, player_count, name, refs_by_name.get(name),
+        ))
+    parts.append({
+        'text': (
+            f'FINAL CHECK: The scene must contain exactly {player_count} human characters. '
+            f'Each roster player appears once. No duplicate people.'
+        ),
+    })
     return parts
 
 
