@@ -11,6 +11,8 @@
 #   export MAIL_PASSWORD='your_gmail_app_password'
 #   export MAIL_DEFAULT_SENDER='kt.vball.summary@gmail.com'
 #   export AI_EMAIL_COPY_TO='idynkydnk@gmail.com'
+#   export AI_EMAIL_REPLY_TO='idynkydnk@gmail.com'
+#   export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com'
 #   export SECRET_KEY='your_secret_key'
 #   bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
 #

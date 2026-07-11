@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsubscribed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1d23 0%, #2d3748 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #e2e8f0;
+        }
+        .card {
+            background: rgba(45, 55, 72, 0.8);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #66d9ef;
+        }
+        h1 {
+            color: #66d9ef;
+            font-size: 28px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .message {
+            color: #e2e8f0;
+            font-size: 18px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .email-display {
+            background: rgba(102, 217, 239, 0.1);
+            border: 1px solid rgba(102, 217, 239, 0.3);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 30px;
+            color: #66d9ef;
+            font-size: 14px;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #66d9ef 0%, #4fb8d9 100%);
+            color: #1a1d23;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon"><i class="fas fa-envelope-open-text"></i></div>
+        <h1>Unsubscribed</h1>
+        <p class="message">You will no longer receive AI summary emails at this address.</p>
+        <div class="email-display">
+            <i class="fas fa-envelope"></i> {{ email }}
+        </div>
+        <a href="/" class="btn">
+            <i class="fas fa-chart-bar"></i> View Stats
+        </a>
+    </div>
+</body>
+</html>

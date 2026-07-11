@@ -14,6 +14,8 @@ from flask import current_app
 from other_functions import set_cur
 
 SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://idynkydnk.pythonanywhere.com')
+EMAIL_PLACEHOLDER = '{{EMAIL_PLACEHOLDER}}'
+HERO_IMAGE_CID = 'hero-image'
 
 # Free-tier image model for AI email illustrations (one API call per email).
 GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
@@ -70,14 +72,56 @@ def _email_hero_styles():
     """
 
 
-def _email_hero_html(hero_image_url):
-    if not hero_image_url:
+def _email_hero_html(hero_image_url, use_cid=False):
+    if not hero_image_url and not use_cid:
         return ''
+    src = f'cid:{HERO_IMAGE_CID}' if use_cid else hero_image_url
     return f"""
                     <div class="card hero-image-card">
-                        <img src="{hero_image_url}" alt="AI game illustration">
+                        <img src="{src}" alt="AI game illustration">
                     </div>
     """
+
+
+def ai_email_subject(game_type, date_obj, game_name_label=''):
+    """Human-friendly subject line for better inbox placement."""
+    date_label = date_obj.strftime('%b ') + str(date_obj.day)
+    if game_type == 'doubles':
+        return f'Volleyball recap – {date_label} (your group)'
+    if game_type == 'vollis':
+        return f'Vollis recap – {date_label} (your group)'
+    label = (game_name_label or 'Game').strip()
+    return f'{label} recap – {date_label} (your group)'
+
+
+def personalize_ai_email_content(html_body, plain_text_body, recipient_email, hero_image_url=None, embed_hero=False):
+    """Per-recipient HTML/plain text with encoded opt-in/unsubscribe links."""
+    from urllib.parse import quote
+
+    email_param = quote(recipient_email.strip(), safe='')
+    replacements = {EMAIL_PLACEHOLDER: email_param}
+    html = html_body or ''
+    text = plain_text_body or ''
+    for old, new in replacements.items():
+        html = html.replace(old, new)
+        text = text.replace(old, new)
+    if embed_hero and hero_image_url and html:
+        html = html.replace(hero_image_url, f'cid:{HERO_IMAGE_CID}')
+    return html, text
+
+
+def plain_text_fallback_from_html(html_body):
+    """Best-effort plain text when only HTML is available (legacy preview sends)."""
+    from bs4 import BeautifulSoup
+
+    if not html_body or not str(html_body).strip():
+        return ''
+    soup = BeautifulSoup(html_body, 'html.parser')
+    for tag in soup(['style', 'script']):
+        tag.decompose()
+    text = soup.get_text('\n')
+    lines = [line.strip() for line in text.splitlines()]
+    return '\n'.join(line for line in lines if line)
 
 
 def _games_highlight_for_image(game_type, games, max_games=3):
@@ -213,7 +257,8 @@ def _save_email_image(image_bytes, ext):
     abs_path = os.path.join(dest_dir, filename)
     with open(abs_path, 'wb') as f:
         f.write(image_bytes)
-    return f'{SITE_BASE_URL}/static/email_images/{filename}'
+    url = f'{SITE_BASE_URL}/static/email_images/{filename}'
+    return url, abs_path
 
 
 def generate_email_hero_image(api_key, game_type, games, summary, player_names):
@@ -246,14 +291,15 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names):
 
 def _try_generate_email_hero_image(api_key, game_type, games, summary, player_names):
     try:
-        return generate_email_hero_image(api_key, game_type, games, summary, player_names), None
+        url, path = generate_email_hero_image(api_key, game_type, games, summary, player_names)
+        return url, path, None
     except Exception as e:
         err = _friendly_image_error(e)
         try:
             current_app.logger.warning('AI email image generation failed: %s', err)
         except Exception:
             pass
-        return None, err
+        return None, None, err
 
 
 def email_html_for_inline_preview(html_body):
@@ -290,6 +336,141 @@ def format_name_for_email(name):
         mid = len(name) // 2
         return f"{name[:mid]}<br>{name[mid:]}"
     return f"{name}<br>&nbsp;"
+
+
+def _plain_footer_lines(stats_link, date_obj):
+    return [
+        '',
+        f'View {date_obj.year} stats: {stats_link}',
+        f'Get all future summaries: {SITE_BASE_URL}/opt_in_ai_emails?email={EMAIL_PLACEHOLDER}',
+        f'Unsubscribe: {SITE_BASE_URL}/opt_out_ai_emails?email={EMAIL_PLACEHOLDER}',
+    ]
+
+
+def _format_recap_date_long(date_obj):
+    return date_obj.strftime('%B ') + str(date_obj.day) + f', {date_obj.year}'
+
+
+def _plain_game_time(game):
+    if len(game) > 1 and game[1]:
+        date_time_str = str(game[1]).strip()
+        parts = date_time_str.split()
+        if len(parts) > 1:
+            return ' '.join(parts[1:]).strip()
+        if parts:
+            return parts[0]
+    return '-'
+
+
+def _plain_game_time_dict(game):
+    game_date = game.get('game_date', '')
+    if game_date:
+        parts = str(game_date).strip().split()
+        if len(parts) > 1:
+            return ' '.join(parts[1:]).strip()
+        if parts:
+            return parts[0]
+    return '-'
+
+
+def create_doubles_email_plain_text(summary, stats, games, date_obj):
+    formatted_date = _format_recap_date_long(date_obj)
+    lines = [f'Volleyball Recap — {formatted_date}', '']
+
+    if summary:
+        lines.append('SUMMARY')
+        lines.append(summary.strip())
+        lines.append('')
+
+    lines.append('PLAYER STATS')
+    for index, stat in enumerate(stats, start=1):
+        player_name = stat[0]
+        wins, losses = stat[1], stat[2]
+        win_pct = stat[3] * 100
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+        lines.append(
+            f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%), {diff_sign}{differential}'
+        )
+    lines.append('')
+
+    lines.append(f'GAMES ({len(games)})')
+    for game in games:
+        time_display = _plain_game_time(game)
+        w1, w2 = game[2] or '', game[3] or ''
+        l1, l2 = game[5] or '', game[6] or ''
+        w_score = game[4] if len(game) > 4 and game[4] is not None else ''
+        l_score = game[7] if len(game) > 7 and game[7] is not None else ''
+        lines.append(
+            f'- {time_display}: {w1} & {w2} beat {l1} & {l2} ({w_score}-{l_score})'
+        )
+
+    lines.extend(_plain_footer_lines(f'{SITE_BASE_URL}/stats/{date_obj.year}/', date_obj))
+    return '\n'.join(lines)
+
+
+def create_vollis_email_plain_text(summary, stats, games, date_obj):
+    formatted_date = _format_recap_date_long(date_obj)
+    lines = [f'Vollis Recap — {formatted_date}', '']
+
+    if summary:
+        lines.append('SUMMARY')
+        lines.append(summary.strip())
+        lines.append('')
+
+    lines.append('PLAYER STATS')
+    for index, stat in enumerate(stats, start=1):
+        player_name = stat[0]
+        wins, losses = stat[1], stat[2]
+        win_pct = stat[3] * 100
+        lines.append(f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%)')
+    lines.append('')
+
+    lines.append(f'GAMES ({len(games)})')
+    for game in games:
+        time_display = _plain_game_time(game)
+        winner = game[2] or ''
+        loser = game[4] or ''
+        w_score = game[3] if len(game) > 3 and game[3] is not None else ''
+        l_score = game[5] if len(game) > 5 and game[5] is not None else ''
+        lines.append(f'- {time_display}: {winner} beat {loser} ({w_score}-{l_score})')
+
+    lines.extend(_plain_footer_lines(f'{SITE_BASE_URL}/vollis_stats/{date_obj.year}/', date_obj))
+    return '\n'.join(lines)
+
+
+def create_other_email_plain_text(summary, stats, games, date_obj, game_name_label=''):
+    formatted_date = _format_recap_date_long(date_obj)
+    title = game_name_label or 'Game'
+    lines = [f'{title} Recap — {formatted_date}', '']
+
+    if summary:
+        lines.append('SUMMARY')
+        lines.append(summary.strip())
+        lines.append('')
+
+    lines.append('PLAYER STATS')
+    for index, stat in enumerate(stats, start=1):
+        player_name = stat[0]
+        wins, losses = stat[1], stat[2]
+        win_pct = stat[3] * 100
+        lines.append(f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%)')
+    lines.append('')
+
+    lines.append(f'GAMES ({len(games)})')
+    for game in games:
+        time_display = _plain_game_time_dict(game)
+        game_name = game.get('game_name', '')
+        winners = ', '.join(w['name'] for w in game.get('winners', []) if w.get('name'))
+        losers = ', '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
+        w_score = game.get('winner_score') or ''
+        l_score = game.get('loser_score') or ''
+        lines.append(
+            f'- {time_display}: {winners} beat {losers} in {game_name} ({w_score}-{l_score})'
+        )
+
+    lines.extend(_plain_footer_lines(f'{SITE_BASE_URL}/other_stats/{date_obj.year}/', date_obj))
+    return '\n'.join(lines)
 
 
 def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=None):
@@ -607,10 +788,10 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
 
     html_body += f"""
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/stats/{stats_year}/" class="link-button">View {stats_year} Stats</a>
+                        <a href="{SITE_BASE_URL}/stats/{stats_year}/" class="link-button">View {stats_year} Stats</a>
                         <div class="opt-in-section">
                             <p class="opt-in-text">Want all future AI summaries?</p>
-                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                            <a href="{SITE_BASE_URL}/opt_in_ai_emails?email={EMAIL_PLACEHOLDER}" class="opt-in-button">Yes, include me</a>
                         </div>
                     </div>
                 </div>
@@ -889,13 +1070,14 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
         api_key, 'doubles', games, summary, players_set,
     )
     html_body = create_doubles_email_html(
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
-    subject = f"Vball Summary - {formatted_date}"
+    plain_text_body = create_doubles_email_plain_text(summary, stats, games, date_obj)
+    subject = ai_email_subject('doubles', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -910,8 +1092,11 @@ Write the recap:"""
         'players_without_email': players_without_email,
         'all_emails': all_emails,
         'html_body': html_body,
+        'plain_text_body': plain_text_body,
         'subject': subject,
+        'game_type': 'doubles',
         'hero_image_url': hero_image_url,
+        'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date
@@ -1065,10 +1250,10 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                         </table>
                     </div>
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/vollis_stats/{stats_year}/" class="link-button">View {stats_year} Vollis Stats</a>
+                        <a href="{SITE_BASE_URL}/vollis_stats/{stats_year}/" class="link-button">View {stats_year} Vollis Stats</a>
                         <div class="opt-in-section">
                             <p class="opt-in-text">Want all future AI summaries?</p>
-                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                            <a href="{SITE_BASE_URL}/opt_in_ai_emails?email={EMAIL_PLACEHOLDER}" class="opt-in-button">Yes, include me</a>
                         </div>
                     </div>
                 </div>
@@ -1233,10 +1418,10 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                         </table>
                     </div>
                     <div class="footer">
-                        <a href="https://idynkydnk.pythonanywhere.com/other_stats/{stats_year}/" class="link-button">View {stats_year} Other Stats</a>
+                        <a href="{SITE_BASE_URL}/other_stats/{stats_year}/" class="link-button">View {stats_year} Other Stats</a>
                         <div class="opt-in-section">
                             <p class="opt-in-text">Want all future AI summaries?</p>
-                            <a href="https://idynkydnk.pythonanywhere.com/opt_in_ai_emails?email={{{{EMAIL_PLACEHOLDER}}}}" class="opt-in-button">Yes, include me</a>
+                            <a href="{SITE_BASE_URL}/opt_in_ai_emails?email={EMAIL_PLACEHOLDER}" class="opt-in-button">Yes, include me</a>
                         </div>
                     </div>
                 </div>
@@ -1405,13 +1590,14 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
         api_key, 'vollis', games, summary, players_set,
     )
     html_body = create_vollis_email_html(
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
-    subject = f"Vollis Summary - {formatted_date}"
+    plain_text_body = create_vollis_email_plain_text(summary, stats, games, date_obj)
+    subject = ai_email_subject('vollis', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -1426,8 +1612,11 @@ Write the recap:"""
         'players_without_email': players_without_email,
         'all_emails': all_emails,
         'html_body': html_body,
+        'plain_text_body': plain_text_body,
         'subject': subject,
+        'game_type': 'vollis',
         'hero_image_url': hero_image_url,
+        'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date
@@ -1613,14 +1802,17 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
         api_key, 'other', games, summary, players_set,
     )
     html_body = create_other_email_html(
         summary, stats, games, date_obj, game_name_label,
         hero_image_url=hero_image_url,
     )
-    subject = f"{game_name_label} Summary - {formatted_date}"
+    plain_text_body = create_other_email_plain_text(
+        summary, stats, games, date_obj, game_name_label,
+    )
+    subject = ai_email_subject('other', date_obj, game_name_label)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -1635,8 +1827,11 @@ Write the recap:"""
         'players_without_email': players_without_email,
         'all_emails': all_emails,
         'html_body': html_body,
+        'plain_text_body': plain_text_body,
         'subject': subject,
+        'game_type': 'other',
         'hero_image_url': hero_image_url,
+        'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
         'formatted_date': formatted_date

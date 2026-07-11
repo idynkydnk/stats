@@ -34,6 +34,8 @@ from stats import app as application
 #      os.environ['MAIL_PASSWORD'] = 'your_gmail_app_password_here'
 #      os.environ['MAIL_DEFAULT_SENDER'] = 'kt.vball.summary@gmail.com'
 #      os.environ['AI_EMAIL_COPY_TO'] = 'idynkydnk@gmail.com'
+#      os.environ['AI_EMAIL_REPLY_TO'] = 'idynkydnk@gmail.com'
+#      os.environ['SITE_BASE_URL'] = 'https://idynkydnk.pythonanywhere.com'
 #
 #      os.environ['SUPABASE_URL'] = 'https://your-project.supabase.co'
 #      os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'your_service_role_key_here'

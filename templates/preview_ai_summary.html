@@ -508,6 +508,9 @@
             <h2 class="sr-card-title">Send Email</h2>
             <form method="POST" action="{{ url_for('send_ai_email_form') }}">
                 <textarea name="email_html" style="display:none;">{{ email_html | e }}</textarea>
+                <textarea name="plain_text_body" style="display:none;">{{ plain_text_body | e }}</textarea>
+                <input type="hidden" name="hero_image_url" value="{{ hero_image_url or '' }}">
+                <input type="hidden" name="hero_image_path" value="{{ hero_image_path or '' }}">
                 <input type="hidden" name="subject" value="{{ subject | e }}">
 
                 {% if players %}

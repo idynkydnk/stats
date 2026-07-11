@@ -21,6 +21,10 @@ from email_content import (
     build_other_email_payload,
     generate_ai_text,
     email_html_for_inline_preview,
+    personalize_ai_email_content,
+    plain_text_fallback_from_html,
+    EMAIL_PLACEHOLDER,
+    SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
@@ -67,8 +71,128 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@stats.com')
 app.config['AI_EMAIL_COPY_TO'] = os.environ.get('AI_EMAIL_COPY_TO', 'idynkydnk@gmail.com')
+app.config['AI_EMAIL_REPLY_TO'] = (
+    os.environ.get('AI_EMAIL_REPLY_TO', '').strip()
+    or os.environ.get('AI_EMAIL_COPY_TO', 'idynkydnk@gmail.com').split(',')[0].strip()
+)
+app.config['SITE_BASE_URL'] = os.environ.get('SITE_BASE_URL', EMAIL_SITE_BASE_URL)
 
 mail = Mail(app)
+
+
+def _ai_email_copy_addresses():
+    addrs = set()
+    for raw in (app.config.get('AI_EMAIL_COPY_TO') or '').replace(',', ' ').replace(';', ' ').split():
+        addr = raw.strip()
+        if addr and '@' in addr:
+            addrs.add(addr)
+    return addrs
+
+
+def _filter_ai_email_opt_outs(recipients):
+    """Skip players who unsubscribed; always keep configured copy addresses."""
+    copy_addrs = _ai_email_copy_addresses()
+    cur = set_cur()
+    out = []
+    for addr in recipients:
+        if addr in copy_addrs:
+            out.append(addr)
+            continue
+        cur.execute("SELECT notes FROM players WHERE email = ?", (addr,))
+        row = cur.fetchone()
+        if row and 'AI_EMAILS_OPT_OUT' in (row[0] or ''):
+            continue
+        out.append(addr)
+    return out
+
+
+def _hero_image_path_from_url(hero_image_url, hero_image_path=None):
+    if hero_image_path and os.path.isfile(hero_image_path):
+        return hero_image_path
+    if not hero_image_url:
+        return None
+    marker = '/static/email_images/'
+    if marker not in hero_image_url:
+        return None
+    filename = hero_image_url.split(marker, 1)[1].split('?', 1)[0]
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'static', 'email_images', filename)
+    return path if os.path.isfile(path) else None
+
+
+def _hero_mime_type(path):
+    ext = os.path.splitext(path)[1].lower()
+    return {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+    }.get(ext, 'image/png')
+
+
+def build_ai_summary_message(subject, html_body, plain_text_body, to_addr,
+                             hero_image_url=None, hero_image_path=None):
+    from email_content import HERO_IMAGE_CID
+    from urllib.parse import quote
+
+    hero_path = _hero_image_path_from_url(hero_image_url, hero_image_path)
+    html, body = personalize_ai_email_content(
+        html_body,
+        plain_text_body,
+        to_addr,
+        hero_image_url=hero_image_url,
+        embed_hero=bool(hero_path),
+    )
+    if not (body or '').strip():
+        body = plain_text_fallback_from_html(html) or 'Your game recap is in the HTML version of this email.'
+
+    msg = Message(subject=subject, recipients=[to_addr])
+    msg.html = html if html.strip() else '<p>No content.</p>'
+    msg.body = body
+
+    reply_to = (app.config.get('AI_EMAIL_REPLY_TO') or '').strip()
+    if reply_to:
+        msg.reply_to = reply_to
+
+    email_param = quote(to_addr.strip(), safe='')
+    site_base = app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL
+    unsub_url = f'{site_base}/opt_out_ai_emails?email={email_param}'
+    msg.extra_headers = {
+        'List-Unsubscribe': f'<{unsub_url}>',
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    }
+
+    if hero_path:
+        ext = os.path.splitext(hero_path)[1] or '.png'
+        with open(hero_path, 'rb') as fp:
+            data = fp.read()
+        msg.attach(
+            f'hero{ext}',
+            _hero_mime_type(hero_path),
+            data,
+            'inline',
+            headers=[('Content-ID', f'<{HERO_IMAGE_CID}>')],
+        )
+    return msg
+
+
+def send_ai_summary_messages(subject, html_body, plain_text_body, recipients,
+                             hero_image_url=None, hero_image_path=None):
+    recipients = _filter_ai_email_opt_outs(extend_ai_email_recipients(recipients))
+    if not recipients:
+        return 0, ['No recipients after filtering opt-outs.']
+    messages = [
+        build_ai_summary_message(
+            subject,
+            html_body,
+            plain_text_body,
+            to_addr,
+            hero_image_url=hero_image_url,
+            hero_image_path=hero_image_path,
+        )
+        for to_addr in recipients
+    ]
+    return send_messages_with_retry(messages)
 
 
 def extend_ai_email_recipients(recipients):
@@ -177,23 +301,25 @@ def _send_ai_summary_payload(payload, username='unknown'):
 
     subject = payload.get('subject') or 'Vball Summary'
     email_html = payload.get('html_body') or ''
+    plain_text_body = payload.get('plain_text_body') or ''
+    hero_image_url = payload.get('hero_image_url')
+    hero_image_path = payload.get('hero_image_path')
     recipients = [
         p['email'].strip()
         for p in payload.get('players', [])
         if p.get('email') and str(p['email']).strip()
     ]
-    recipients = extend_ai_email_recipients(recipients)
     if not recipients:
         raise ValueError('No recipients with email addresses for the selected games.')
 
-    messages = []
-    for to_addr in recipients:
-        msg = Message(subject=subject, recipients=[to_addr])
-        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
-        msg.body = 'View the summary in HTML email.'
-        messages.append(msg)
-
-    emails_sent, errors = send_messages_with_retry(messages)
+    emails_sent, errors = send_ai_summary_messages(
+        subject,
+        email_html,
+        plain_text_body,
+        recipients,
+        hero_image_url=hero_image_url,
+        hero_image_path=hero_image_path,
+    )
     if errors:
         log_activity(
             'Email send failed',
@@ -1150,8 +1276,10 @@ def preview_ai_summary_with_prompt():
             header_title=f"{header_label} AI Summary Preview",
             subject=payload.get('subject') or '',
             email_html=payload.get('html_body') or '',
+            plain_text_body=payload.get('plain_text_body') or '',
             email_preview_html=email_html_for_inline_preview(payload.get('html_body') or ''),
             hero_image_url=payload.get('hero_image_url'),
+            hero_image_path=payload.get('hero_image_path'),
             hero_image_error=payload.get('hero_image_error'),
             players=payload.get('players') or [],
             players_without_email=payload.get('players_without_email') or [],
@@ -3545,7 +3673,7 @@ def opt_in_ai_emails():
     email = request.args.get('email', '').strip()
     
     # Handle case where user clicked link in preview (placeholder not replaced)
-    if not email or email == '{{EMAIL_PLACEHOLDER}}' or 'EMAIL_PLACEHOLDER' in email:
+    if not email or email == EMAIL_PLACEHOLDER or 'EMAIL_PLACEHOLDER' in email:
         return render_template('opt_in_error.html', error='This link only works from the actual email. When you receive the AI summary email, the link will be personalized for you.')
     
     if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
@@ -3580,6 +3708,48 @@ def opt_in_ai_emails():
         success = True
     
     return render_template('opt_in_success.html', email=email, success=success)
+
+
+def _apply_ai_email_opt_out(email):
+    from player_functions import update_player_info
+
+    cur = set_cur()
+    cur.execute("SELECT id, full_name, email, notes FROM players WHERE email = ?", (email,))
+    player = cur.fetchone()
+    if not player:
+        return True
+
+    player_id, full_name, existing_email, existing_notes = player
+    notes = existing_notes or ''
+    if 'AI_EMAILS_OPT_IN' in notes:
+        notes = notes.replace('AI_EMAILS_OPT_IN', '').strip()
+    if 'AI_EMAILS_OPT_OUT' not in notes:
+        notes = notes + ("\n" if notes else "") + "AI_EMAILS_OPT_OUT"
+    update_player_info(player_id, full_name, email=existing_email, notes=notes.strip())
+    return True
+
+
+@app.route('/opt_out_ai_emails', methods=['GET', 'POST'])
+def opt_out_ai_emails():
+    """One-click unsubscribe from AI summary emails (List-Unsubscribe)."""
+    email = (request.args.get('email') or request.form.get('email') or '').strip()
+
+    if not email or email == EMAIL_PLACEHOLDER or 'EMAIL_PLACEHOLDER' in email:
+        if request.method == 'POST':
+            return 'Invalid unsubscribe link.', 400
+        return render_template('opt_in_error.html', error='This unsubscribe link only works from the actual email.')
+
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        if request.method == 'POST':
+            return 'Invalid email address.', 400
+        return render_template('opt_in_error.html', error='Invalid email address.')
+
+    _apply_ai_email_opt_out(email)
+
+    if request.method == 'POST':
+        return 'You have been unsubscribed from AI summary emails.', 200
+
+    return render_template('opt_out_success.html', email=email)
 
 
 @app.route('/cleanup_tokens')
@@ -3691,6 +3861,9 @@ def generate_and_email_today():
     selected_emails = data.get('selected_emails') or []
     additional_emails = data.get('additional_emails') or []
     email_html = data.get('email_html') or ''
+    plain_text_body = data.get('plain_text_body') or ''
+    hero_image_url = data.get('hero_image_url') or ''
+    hero_image_path = data.get('hero_image_path') or ''
     subject = data.get('subject') or 'Vball Summary'
     recipients = [e.strip() for e in selected_emails if e and str(e).strip()]
     for raw in additional_emails:
@@ -3698,16 +3871,16 @@ def generate_and_email_today():
             e = e.strip()
             if e and '@' in e and e not in recipients:
                 recipients.append(e)
-    recipients = extend_ai_email_recipients(recipients)
     if not recipients:
         return jsonify({'success': False, 'error': 'No recipients selected.'}), 400
-    messages = []
-    for to_addr in recipients:
-        msg = Message(subject=subject, recipients=[to_addr])
-        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
-        msg.body = 'View the summary in HTML email.'
-        messages.append(msg)
-    emails_sent, errors = send_messages_with_retry(messages)
+    emails_sent, errors = send_ai_summary_messages(
+        subject,
+        email_html,
+        plain_text_body,
+        recipients,
+        hero_image_url=hero_image_url or None,
+        hero_image_path=hero_image_path or None,
+    )
     if errors:
         log_activity('Email send failed', summary=f'AI summary "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}')
     else:
@@ -3728,6 +3901,9 @@ def send_ai_email_form():
         return redirect(url_for('ai_summary'))
 
     email_html = request.form.get('email_html') or ''
+    plain_text_body = request.form.get('plain_text_body') or ''
+    hero_image_url = request.form.get('hero_image_url') or ''
+    hero_image_path = request.form.get('hero_image_path') or ''
     subject = request.form.get('subject') or 'Vball Summary'
     recipient_emails = request.form.getlist('recipient_emails')
     additional_raw = request.form.get('additional_emails') or ''
@@ -3738,18 +3914,18 @@ def send_ai_email_form():
         if e and '@' in e and e not in recipients:
             recipients.append(e)
 
-    recipients = extend_ai_email_recipients(recipients)
     if not recipients:
         flash('No recipients selected.', 'error')
         return redirect(url_for('ai_summary'))
 
-    messages = []
-    for to_addr in recipients:
-        msg = Message(subject=subject, recipients=[to_addr])
-        msg.html = email_html if email_html.strip() else '<p>No content.</p>'
-        msg.body = 'View the summary in HTML email.'
-        messages.append(msg)
-    emails_sent, errors = send_messages_with_retry(messages)
+    emails_sent, errors = send_ai_summary_messages(
+        subject,
+        email_html,
+        plain_text_body,
+        recipients,
+        hero_image_url=hero_image_url or None,
+        hero_image_path=hero_image_path or None,
+    )
 
     if errors:
         log_activity('Email send failed', summary=f'AI summary "{subject}": sent to {emails_sent}, {len(errors)} failed: {"; ".join(errors)[:200]}')
