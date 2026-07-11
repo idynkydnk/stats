@@ -358,6 +358,11 @@ def recent_games(limit=10):
     row = convert_ampm(games)
     return row
 
+
+def search_doubles_games(q, limit=50, offset=0):
+    """Search all doubles games by player name or date."""
+    return year_games_paginated_search('All years', q, limit=limit, offset=offset)
+
 def calculate_stats_from_games(games):
     """Calculate player stats from a list of games"""
     players = all_players(games)

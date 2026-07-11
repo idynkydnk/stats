@@ -797,8 +797,10 @@ def player_full_body_photos_for(name):
             'focus': {
                 'x': focus['x'],
                 'y': focus['y'],
-                'z': focus['z'],
+                'z': focus.get('z'),
                 'aspect': focus.get('aspect'),
+                'w': focus.get('w'),
+                'h': focus.get('h'),
             },
         })
     return photos
@@ -1339,6 +1341,68 @@ def ai_summary():
                            doubles_games=doubles_games,
                            vollis_games=vollis_games,
                            other_games=other_games)
+
+
+def _serialize_ai_summary_game(game_type, game):
+    """Normalize a game row for the AI summary search API."""
+    if game_type == 'doubles':
+        return {
+            'id': game[0],
+            'date': game[1],
+            'winners': f'{game[2]} & {game[3]}',
+            'winner_score': game[4],
+            'losers': f'{game[5]} & {game[6]}',
+            'loser_score': game[7],
+        }
+    if game_type == 'vollis':
+        return {
+            'id': game[0],
+            'date': game[1],
+            'winners': game[2],
+            'winner_score': game[3],
+            'losers': game[4],
+            'loser_score': game[5],
+        }
+    return {
+        'id': game['game_id'],
+        'date': game['game_date'],
+        'game_name': game.get('game_name') or '',
+        'winners': game.get('winners') or [],
+        'losers': game.get('losers') or [],
+        'winner_score': game.get('winner_score'),
+        'loser_score': game.get('loser_score'),
+    }
+
+
+@app.route('/api/ai_summary_game_search/')
+@login_required
+def api_ai_summary_game_search():
+    """Search all historical games for the AI summary picker."""
+    from stat_functions import search_doubles_games
+    from vollis_functions import search_vollis_games
+    from other_functions import search_other_games
+
+    q = (request.args.get('q') or '').strip()
+    game_type = (request.args.get('game_type') or 'doubles').strip().lower()
+    limit = min(max(request.args.get('limit', 50, type=int), 1), 100)
+
+    if not q:
+        return jsonify({'success': True, 'games': [], 'query': '', 'game_type': game_type})
+
+    if game_type == 'vollis':
+        games = search_vollis_games(q, limit=limit)
+    elif game_type == 'other':
+        games = search_other_games(q, limit=limit)
+    else:
+        game_type = 'doubles'
+        games = search_doubles_games(q, limit=limit)
+
+    return jsonify({
+        'success': True,
+        'query': q,
+        'game_type': game_type,
+        'games': [_serialize_ai_summary_game(game_type, game) for game in games],
+    })
 
 @app.route('/select_ai_prompt/', methods=['POST'])
 @login_required
@@ -3344,8 +3408,10 @@ def api_upload_player_full_body_photo(name):
             {
                 'x': get_full_body_photo_crop(name, p)['x'],
                 'y': get_full_body_photo_crop(name, p)['y'],
-                'z': get_full_body_photo_crop(name, p)['z'],
+                'z': get_full_body_photo_crop(name, p).get('z'),
                 'aspect': get_full_body_photo_crop(name, p).get('aspect'),
+                'w': get_full_body_photo_crop(name, p).get('w'),
+                'h': get_full_body_photo_crop(name, p).get('h'),
             }
             for p in paths
         ]
@@ -3354,6 +3420,22 @@ def api_upload_player_full_body_photo(name):
     try:
         crop_path = (request.form.get('crop_path') or '').strip()
         if crop_path and request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
+            w = request.form.get('focus_w')
+            h = request.form.get('focus_h')
+            if w is not None and h is not None:
+                x, y, w, h = set_player_full_body_photo_crop(
+                    player_id,
+                    crop_path,
+                    request.form.get('focus_x', 50),
+                    request.form.get('focus_y', 50),
+                    w=w,
+                    h=h,
+                )
+                log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
+                clear_stats_cache()
+                payload = _photo_payload()
+                payload.update({'success': True, 'focus': {'x': x, 'y': y, 'w': w, 'h': h}})
+                return jsonify(payload)
             z = request.form.get('focus_z')
             aspect = request.form.get('focus_aspect')
             x, y, z, aspect = set_player_full_body_photo_crop(

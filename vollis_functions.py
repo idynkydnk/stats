@@ -254,6 +254,23 @@ def recent_vollis_games(limit=10):
     row = convert_vollis_ampm(games)
     return row
 
+
+def search_vollis_games(q, limit=50, offset=0):
+    """Search all vollis games by player name or date."""
+    from stat_functions import _search_like_arg
+
+    cur = set_cur()
+    like = _search_like_arg(q)
+    if not like:
+        return recent_vollis_games(limit)
+    cur.execute(
+        """SELECT * FROM vollis_games
+           WHERE (winner LIKE ? OR loser LIKE ? OR game_date LIKE ?)
+           ORDER BY game_date DESC LIMIT ? OFFSET ?""",
+        (like, like, like, limit, offset),
+    )
+    return convert_vollis_ampm(cur.fetchall())
+
 def vollis_winning_scores():
     scores = [21,15,11]
     return scores

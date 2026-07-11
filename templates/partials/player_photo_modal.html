@@ -60,6 +60,7 @@
             <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
                 <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
                 <div class="sr-body-aspect-controls" id="body-aspect-controls" role="group" aria-label="Crop shape">
+                    <button type="button" class="sr-body-aspect-btn" data-aspect="free">Free</button>
                     <button type="button" class="sr-body-aspect-btn is-active" data-aspect="0.75">Portrait</button>
                     <button type="button" class="sr-body-aspect-btn" data-aspect="1">Square</button>
                     <button type="button" class="sr-body-aspect-btn" data-aspect="1.333">Landscape</button>
@@ -68,13 +69,17 @@
                 <div class="sr-body-crop-workspace" id="body-crop-workspace">
                     <img src="" alt="Crop preview" class="sr-body-crop-source" id="body-crop-preview">
                     <div class="sr-body-crop-box" id="body-crop-box" hidden>
+                        <span class="sr-body-crop-handle" data-handle="n"></span>
+                        <span class="sr-body-crop-handle" data-handle="e"></span>
+                        <span class="sr-body-crop-handle" data-handle="s"></span>
+                        <span class="sr-body-crop-handle" data-handle="w"></span>
                         <span class="sr-body-crop-handle" data-handle="nw"></span>
                         <span class="sr-body-crop-handle" data-handle="ne"></span>
                         <span class="sr-body-crop-handle" data-handle="sw"></span>
                         <span class="sr-body-crop-handle" data-handle="se"></span>
                     </div>
                 </div>
-                <p class="sr-face-drag-hint">Drag photo to reposition · drag corners or scroll to resize crop</p>
+                <p class="sr-face-drag-hint">Drag photo to reposition · drag edges or corners to resize freely · scroll or +/− to zoom</p>
                 <div class="sr-face-zoom-controls">
                     <button type="button" class="sr-face-zoom-btn" id="body-zoom-out" title="Zoom out">−</button>
                     <span class="sr-face-zoom-label" id="body-zoom-label">100%</span>
@@ -432,6 +437,38 @@
 .sr-body-crop-handle[data-handle="ne"] { top: -8px; right: -8px; cursor: nesw-resize; }
 .sr-body-crop-handle[data-handle="sw"] { bottom: -8px; left: -8px; cursor: nesw-resize; }
 .sr-body-crop-handle[data-handle="se"] { bottom: -8px; right: -8px; cursor: nwse-resize; }
+.sr-body-crop-handle[data-handle="n"] {
+    top: -7px;
+    left: 50%;
+    width: 22px;
+    height: 10px;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+}
+.sr-body-crop-handle[data-handle="s"] {
+    bottom: -7px;
+    left: 50%;
+    width: 22px;
+    height: 10px;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+}
+.sr-body-crop-handle[data-handle="e"] {
+    right: -7px;
+    top: 50%;
+    width: 10px;
+    height: 22px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+}
+.sr-body-crop-handle[data-handle="w"] {
+    left: -7px;
+    top: 50%;
+    width: 10px;
+    height: 22px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+}
 .sr-body-photo-delete {
     position: absolute;
     top: 4px;
@@ -582,7 +619,7 @@ window.PlayerPhotoManager = (function() {
     var bodyCropDone = document.getElementById('body-crop-done');
     var bodyPhotos = [];
     var activeBodyPath = null;
-    var bodyFocus = { x: 50, y: 50, z: 1, aspect: DEFAULT_BODY_ASPECT };
+    var bodyFocus = { x: 50, y: 50, w: 75, h: 90 };
     var bodyCropLayout = null;
     var bodyDragging = false;
     var bodyDragLastX = 0;
@@ -620,45 +657,56 @@ window.PlayerPhotoManager = (function() {
 
     function clampBodyAspect(v) { return Math.max(0.45, Math.min(2.5, v)); }
 
-    function normalizeBodyFocus(focus) {
-        focus = focus || {};
+    function clampCropPct(v) { return Math.max(5, Math.min(100, v)); }
+
+    function legacyFocusToRect(focus, iw, ih) {
+        var aspect = clampBodyAspect(focus.aspect != null ? focus.aspect : DEFAULT_BODY_ASPECT);
+        var out = virtualOutputSize(aspect);
+        var coverScale = Math.max(out.outW / iw, out.outH / ih);
+        var z = clampBodyZoom(focus.z != null ? focus.z : 1);
+        var cropW = out.outW / (coverScale * z);
+        var cropH = out.outH / (coverScale * z);
+        var cx = (clampFocus(focus.x != null ? focus.x : 50) / 100) * iw;
+        var cy = (clampFocus(focus.y != null ? focus.y : 50) / 100) * ih;
         return {
-            x: typeof focus.x === 'number' ? focus.x : 50,
-            y: typeof focus.y === 'number' ? focus.y : 50,
-            z: focus.z != null ? focus.z : 1,
-            aspect: focus.aspect != null ? clampBodyAspect(focus.aspect) : DEFAULT_BODY_ASPECT,
+            x: clampFocus((cx / iw) * 100),
+            y: clampFocus((cy / ih) * 100),
+            w: clampCropPct((cropW / iw) * 100),
+            h: clampCropPct((cropH / ih) * 100),
         };
+    }
+
+    function normalizeBodyFocus(focus, iw, ih) {
+        focus = focus || {};
+        var x = typeof focus.x === 'number' ? focus.x : 50;
+        var y = typeof focus.y === 'number' ? focus.y : 50;
+        if (focus.w != null && focus.h != null) {
+            return {
+                x: clampFocus(x),
+                y: clampFocus(y),
+                w: clampCropPct(focus.w),
+                h: clampCropPct(focus.h),
+            };
+        }
+        if (iw && ih) {
+            return legacyFocusToRect(focus, iw, ih);
+        }
+        return legacyFocusToRect({
+            x: x,
+            y: y,
+            z: focus.z != null ? focus.z : 1,
+            aspect: focus.aspect != null ? focus.aspect : DEFAULT_BODY_ASPECT,
+        }, 1000, 1000 * (DEFAULT_BODY_ASPECT / 1));
+    }
+
+    function bodyFocusVisualAspect(focus, iw, ih) {
+        if (!iw || !ih) return DEFAULT_BODY_ASPECT;
+        return (focus.w * iw) / (focus.h * ih);
     }
 
     function virtualOutputSize(aspect) {
         if (aspect >= 1) return { outW: 100 * aspect, outH: 100 };
         return { outW: 100, outH: 100 / aspect };
-    }
-
-    function cropRegionOnSource(iw, ih, focus) {
-        var aspect = clampBodyAspect(focus.aspect || DEFAULT_BODY_ASPECT);
-        var out = virtualOutputSize(aspect);
-        var coverScale = Math.max(out.outW / iw, out.outH / ih);
-        var z = clampBodyZoom(focus.z);
-        var cropW = out.outW / (coverScale * z);
-        var cropH = out.outH / (coverScale * z);
-        var cx = (clampFocus(focus.x) / 100) * iw;
-        var cy = (clampFocus(focus.y) / 100) * ih;
-        return {
-            left: cx - cropW / 2,
-            top: cy - cropH / 2,
-            width: cropW,
-            height: cropH,
-            aspect: aspect,
-        };
-    }
-
-    function zFromRegionSize(regionW, regionH, iw, ih, aspect) {
-        var out = virtualOutputSize(aspect);
-        var coverScale = Math.max(out.outW / iw, out.outH / ih);
-        var zW = out.outW / (coverScale * regionW);
-        var zH = out.outH / (coverScale * regionH);
-        return clampBodyZoom((zW + zH) / 2);
     }
 
     function layoutImageInWorkspace(img, workspace) {
@@ -681,16 +729,19 @@ window.PlayerPhotoManager = (function() {
     }
 
     function focusToBoxRect(focus, layout) {
-        var region = cropRegionOnSource(layout.iw, layout.ih, focus);
+        var cropW = layout.iw * focus.w / 100;
+        var cropH = layout.ih * focus.h / 100;
+        var cx = layout.iw * focus.x / 100;
+        var cy = layout.ih * focus.y / 100;
         return {
-            left: layout.imgLeft + region.left * layout.dispW / layout.iw,
-            top: layout.imgTop + region.top * layout.dispH / layout.ih,
-            width: region.width * layout.dispW / layout.iw,
-            height: region.height * layout.dispH / layout.ih,
+            left: layout.imgLeft + (cx - cropW / 2) * layout.dispW / layout.iw,
+            top: layout.imgTop + (cy - cropH / 2) * layout.dispH / layout.ih,
+            width: cropW * layout.dispW / layout.iw,
+            height: cropH * layout.dispH / layout.ih,
         };
     }
 
-    function boxRectToFocus(box, layout, aspect) {
+    function boxRectToFocus(box, layout) {
         var regionW = (box.width / layout.dispW) * layout.iw;
         var regionH = (box.height / layout.dispH) * layout.ih;
         var cx = ((box.left + box.width / 2 - layout.imgLeft) / layout.dispW) * layout.iw;
@@ -698,8 +749,8 @@ window.PlayerPhotoManager = (function() {
         return {
             x: clampFocus((cx / layout.iw) * 100),
             y: clampFocus((cy / layout.ih) * 100),
-            z: zFromRegionSize(regionW, regionH, layout.iw, layout.ih, aspect),
-            aspect: clampBodyAspect(aspect),
+            w: clampCropPct((regionW / layout.iw) * 100),
+            h: clampCropPct((regionH / layout.ih) * 100),
         };
     }
 
@@ -727,11 +778,22 @@ window.PlayerPhotoManager = (function() {
     }
 
     function updateBodyAspectButtons() {
-        if (!bodyAspectControls) return;
-        var current = clampBodyAspect(bodyFocus.aspect || DEFAULT_BODY_ASPECT);
+        if (!bodyAspectControls || !bodyCropLayout) return;
+        var current = bodyFocusVisualAspect(bodyFocus, bodyCropLayout.iw, bodyCropLayout.ih);
         bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(btn) {
+            if (btn.dataset.aspect === 'free') {
+                var matchesPreset = false;
+                bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(other) {
+                    if (other === btn || other.dataset.aspect === 'free') return;
+                    if (Math.abs(parseFloat(other.dataset.aspect) - current) < 0.04) {
+                        matchesPreset = true;
+                    }
+                });
+                btn.classList.toggle('is-active', !matchesPreset);
+                return;
+            }
             var aspect = parseFloat(btn.dataset.aspect);
-            btn.classList.toggle('is-active', Math.abs(aspect - current) < 0.02);
+            btn.classList.toggle('is-active', Math.abs(aspect - current) < 0.04);
         });
     }
 
@@ -774,15 +836,76 @@ window.PlayerPhotoManager = (function() {
         return img.closest('.sr-face-crop-frame, .sr-avatar-crop-frame, .sr-body-crop-thumb');
     }
 
-    function applyThumbAspect(frameEl, focus) {
+    function applyThumbAspect(frameEl, focus, iw, ih) {
         if (!frameEl || !frameEl.classList.contains('sr-body-crop-thumb')) return;
-        var aspect = focus && focus.aspect != null ? clampBodyAspect(focus.aspect) : DEFAULT_BODY_ASPECT;
-        frameEl.style.aspectRatio = String(aspect);
+        var rect = normalizeBodyFocus(focus, iw, ih);
+        frameEl.style.aspectRatio = String(bodyFocusVisualAspect(rect, iw || 1, ih || 1));
+    }
+
+    function layoutBodyThumbCrop(img, frameEl, focus) {
+        if (!img || !frameEl || !focus) return;
+        var layoutAttempts = 0;
+        function applyWithSize(iw, ih) {
+            var frameW = frameEl.offsetWidth || frameEl.getBoundingClientRect().width;
+            if (!iw || !ih) return false;
+            if (frameW < 1) {
+                if (layoutAttempts++ < 30) {
+                    requestAnimationFrame(function() { applyWithSize(iw, ih); });
+                }
+                return false;
+            }
+            layoutAttempts = 0;
+            var rect = normalizeBodyFocus(focus, iw, ih);
+            applyThumbAspect(frameEl, rect, iw, ih);
+            var frameH = frameEl.offsetHeight || frameEl.getBoundingClientRect().height;
+            if (frameH < 1) {
+                if (layoutAttempts++ < 30) {
+                    requestAnimationFrame(function() { applyWithSize(iw, ih); });
+                }
+                return false;
+            }
+            var cropW = iw * rect.w / 100;
+            var cropH = ih * rect.h / 100;
+            var scaleX = frameW / cropW;
+            var scaleY = frameH / cropH;
+            var dispW = iw * scaleX;
+            var dispH = ih * scaleY;
+            var cx = rect.x / 100 * iw;
+            var cy = rect.y / 100 * ih;
+            var cropLeft = cx - cropW / 2;
+            var cropTop = cy - cropH / 2;
+            img.style.position = 'absolute';
+            img.style.width = dispW + 'px';
+            img.style.height = dispH + 'px';
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            img.style.objectFit = 'fill';
+            img.style.transform = '';
+            img.style.transformOrigin = '';
+            img.style.objectPosition = '';
+            img.style.left = (-cropLeft * scaleX) + 'px';
+            img.style.top = (-cropTop * scaleY) + 'px';
+            return true;
+        }
+        function measureAndApply() {
+            if (!img.naturalWidth) return false;
+            orientedImageSize(img, applyWithSize);
+            return true;
+        }
+        if (!measureAndApply()) {
+            img.addEventListener('load', function onLoad() {
+                img.removeEventListener('load', onLoad);
+                measureAndApply();
+            });
+        }
     }
 
     function layoutCropImage(img, frameEl, focus, maxZoom) {
         if (!img || !frameEl || !focus) return;
-        applyThumbAspect(frameEl, focus);
+        if (frameEl.classList.contains('sr-body-crop-thumb')) {
+            layoutBodyThumbCrop(img, frameEl, focus);
+            return;
+        }
         var clampZoom = maxZoom === MAX_BODY_ZOOM ? clampBodyZoom : clampFaceZoom;
         var layoutAttempts = 0;
         function applyWithSize(iw, ih) {
@@ -803,9 +926,7 @@ window.PlayerPhotoManager = (function() {
             var frameAspect = frameEl.offsetWidth / frameEl.offsetHeight;
             var imgAspect = iw / ih;
             var coverScale;
-            if (frameEl.classList.contains('sr-body-crop-thumb')) {
-                coverScale = Math.max(frameW / iw, frameH / ih);
-            } else if (imgAspect > frameAspect) {
+            if (imgAspect > frameAspect) {
                 coverScale = frameH / ih;
             } else {
                 coverScale = frameW / iw;
@@ -868,7 +989,9 @@ window.PlayerPhotoManager = (function() {
     }
 
     function updateBodyZoomLabel() {
-        updateZoomLabel(bodyZoomLabel, bodyFocus.z, clampBodyZoom);
+        if (bodyZoomLabel) {
+            bodyZoomLabel.textContent = Math.round(bodyFocus.w) + '×' + Math.round(bodyFocus.h) + '%';
+        }
     }
 
     function applyFaceCrop(x, y, z) {
@@ -881,12 +1004,14 @@ window.PlayerPhotoManager = (function() {
         updateFaceZoomLabel();
     }
 
-    function applyBodyCrop(x, y, z, aspect) {
-        bodyFocus = normalizeBodyFocus(bodyFocus);
+    function applyBodyCrop(x, y, w, h) {
+        if (bodyCropLayout) {
+            bodyFocus = normalizeBodyFocus(bodyFocus, bodyCropLayout.iw, bodyCropLayout.ih);
+        }
         if (typeof x === 'number') bodyFocus.x = clampFocus(x);
         if (typeof y === 'number') bodyFocus.y = clampFocus(y);
-        if (typeof z === 'number') bodyFocus.z = clampBodyZoom(z);
-        if (typeof aspect === 'number') bodyFocus.aspect = clampBodyAspect(aspect);
+        if (typeof w === 'number') bodyFocus.w = clampCropPct(w);
+        if (typeof h === 'number') bodyFocus.h = clampCropPct(h);
         layoutBodyCropEditor();
         updateBodyZoomLabel();
         updateBodyAspectButtons();
@@ -905,8 +1030,8 @@ window.PlayerPhotoManager = (function() {
         fd.append('crop_path', activeBodyPath);
         fd.append('focus_x', bodyFocus.x);
         fd.append('focus_y', bodyFocus.y);
-        fd.append('focus_z', bodyFocus.z);
-        fd.append('focus_aspect', bodyFocus.aspect);
+        fd.append('focus_w', bodyFocus.w);
+        fd.append('focus_h', bodyFocus.h);
         fetch('/api/player_full_body_photo/' + encodeURIComponent(playerName) + '/', {
             method: 'POST', body: fd, credentials: 'same-origin'
         })
@@ -916,7 +1041,10 @@ window.PlayerPhotoManager = (function() {
             bodyPhotos = bodyPhotosFromResponse(data);
             if (activeBodyPath) {
                 var photo = bodyPhotos.find(function(p) { return p.path === activeBodyPath; });
-                if (photo && photo.focus) applyBodyCrop(photo.focus.x, photo.focus.y, photo.focus.z, photo.focus.aspect);
+                if (photo && photo.focus) {
+                    bodyFocus = normalizeBodyFocus(photo.focus, bodyCropLayout && bodyCropLayout.iw, bodyCropLayout && bodyCropLayout.ih);
+                    applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.w, bodyFocus.h);
+                }
             }
         })
         .catch(function() {});
@@ -932,24 +1060,48 @@ window.PlayerPhotoManager = (function() {
     function openBodyCrop(photo) {
         if (!photo || !bodyCropEditor || !bodyCropPreview) return;
         activeBodyPath = photo.path;
-        bodyFocus = normalizeBodyFocus(photo.focus);
         bodyCropPreview.onload = function() {
+            if (bodyCropPreview.naturalWidth) {
+                bodyFocus = normalizeBodyFocus(bodyFocus, bodyCropPreview.naturalWidth, bodyCropPreview.naturalHeight);
+            }
             relayoutBodyCropEditorSoon();
         };
         bodyCropPreview.src = photo.url.split('?')[0] + '?t=' + Date.now();
         bodyCropEditor.hidden = false;
-        applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.z, bodyFocus.aspect);
+        if (bodyCropPreview.naturalWidth) {
+            bodyFocus = normalizeBodyFocus(photo.focus, bodyCropPreview.naturalWidth, bodyCropPreview.naturalHeight);
+        } else {
+            bodyFocus = normalizeBodyFocus(photo.focus);
+        }
+        applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.w, bodyFocus.h);
         relayoutBodyCropEditorSoon();
         bodyCropEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
     function setBodyAspect(aspect) {
-        applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.z, aspect);
+        if (!bodyCropLayout || aspect === 'free') return;
+        var preset = parseFloat(aspect);
+        if (!preset) return;
+        var iw = bodyCropLayout.iw;
+        var ih = bodyCropLayout.ih;
+        var w = bodyFocus.w;
+        var h = w * iw / (preset * ih);
+        if (h > 100) {
+            h = 100;
+            w = h * preset * ih / iw;
+        }
+        applyBodyCrop(bodyFocus.x, bodyFocus.y, w, h);
         saveBodyFocus();
     }
 
     function adjustBodyZoom(delta) {
-        applyBodyCrop(bodyFocus.x, bodyFocus.y, bodyFocus.z + delta);
+        var factor = 1 - delta;
+        applyBodyCrop(
+            bodyFocus.x,
+            bodyFocus.y,
+            bodyFocus.w * factor,
+            bodyFocus.h * factor
+        );
         saveBodyFocus();
     }
 
@@ -1184,7 +1336,6 @@ window.PlayerPhotoManager = (function() {
             trigger.dataset.path = photo.path;
             var thumb = document.createElement('span');
             thumb.className = 'sr-body-crop-thumb';
-            applyThumbAspect(thumb, focus);
             var img = document.createElement('img');
             img.src = photo.url + '?t=' + Date.now();
             img.alt = 'Full-body photo';
@@ -1459,31 +1610,41 @@ window.PlayerPhotoManager = (function() {
     function resizeBodyBoxFromHandle(handle, pointerX, pointerY) {
         if (!bodyCropLayout) return null;
         var box = focusToBoxRect(bodyFocus, bodyCropLayout);
-        var aspect = bodyFocus.aspect || DEFAULT_BODY_ASPECT;
         var wsRect = bodyCropWorkspace.getBoundingClientRect();
         var mx = pointerX - wsRect.left;
         var my = pointerY - wsRect.top;
-        var left, top, width, height;
-        if (handle === 'se') {
+        var left = box.left;
+        var top = box.top;
+        var width = box.width;
+        var height = box.height;
+        var right = box.left + box.width;
+        var bottom = box.top + box.height;
+        if (handle === 'e') {
             width = Math.max(24, mx - box.left);
-            height = width / aspect;
-            left = box.left;
-            top = box.top;
+        } else if (handle === 'w') {
+            width = Math.max(24, right - mx);
+            left = right - width;
+        } else if (handle === 's') {
+            height = Math.max(24, my - box.top);
+        } else if (handle === 'n') {
+            height = Math.max(24, bottom - my);
+            top = bottom - height;
+        } else if (handle === 'se') {
+            width = Math.max(24, mx - box.left);
+            height = Math.max(24, my - box.top);
         } else if (handle === 'nw') {
-            width = Math.max(24, box.left + box.width - mx);
-            height = width / aspect;
-            left = box.left + box.width - width;
-            top = box.top + box.height - height;
+            width = Math.max(24, right - mx);
+            height = Math.max(24, bottom - my);
+            left = right - width;
+            top = bottom - height;
         } else if (handle === 'ne') {
             width = Math.max(24, mx - box.left);
-            height = width / aspect;
-            left = box.left;
-            top = box.top + box.height - height;
-        } else {
-            width = Math.max(24, box.left + box.width - mx);
-            height = width / aspect;
-            left = box.left + box.width - width;
-            top = box.top;
+            height = Math.max(24, bottom - my);
+            top = bottom - height;
+        } else if (handle === 'sw') {
+            width = Math.max(24, right - mx);
+            height = Math.max(24, my - box.top);
+            left = right - width;
         }
         return clampBoxToImage({ left: left, top: top, width: width, height: height }, bodyCropLayout);
     }
@@ -1506,7 +1667,7 @@ window.PlayerPhotoManager = (function() {
     if (bodyAspectControls) {
         bodyAspectControls.querySelectorAll('.sr-body-aspect-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                setBodyAspect(parseFloat(btn.dataset.aspect));
+                setBodyAspect(btn.dataset.aspect);
             });
         });
     }
@@ -1537,14 +1698,14 @@ window.PlayerPhotoManager = (function() {
                 box.left += dx;
                 box.top += dy;
                 box = clampBoxToImage(box, bodyCropLayout);
-                var moved = boxRectToFocus(box, bodyCropLayout, bodyFocus.aspect);
-                applyBodyCrop(moved.x, moved.y, moved.z, moved.aspect);
+                var moved = boxRectToFocus(box, bodyCropLayout);
+                applyBodyCrop(moved.x, moved.y, moved.w, moved.h);
             } else {
                 applyBodyCrop(
                     bodyFocus.x - (dx / bodyCropLayout.dispW) * 100,
                     bodyFocus.y - (dy / bodyCropLayout.dispH) * 100,
-                    bodyFocus.z,
-                    bodyFocus.aspect
+                    bodyFocus.w,
+                    bodyFocus.h
                 );
             }
         });
@@ -1575,8 +1736,8 @@ window.PlayerPhotoManager = (function() {
             if (bodyResizing && bodyResizeHandle && bodyCropLayout) {
                 var resized = resizeBodyBoxFromHandle(bodyResizeHandle, e.clientX, e.clientY);
                 if (!resized) return;
-                var next = boxRectToFocus(resized, bodyCropLayout, bodyFocus.aspect);
-                applyBodyCrop(next.x, next.y, next.z, next.aspect);
+                var next = boxRectToFocus(resized, bodyCropLayout);
+                applyBodyCrop(next.x, next.y, next.w, next.h);
                 return;
             }
             if (!bodyDragging || !bodyCropLayout) return;
@@ -1588,8 +1749,8 @@ window.PlayerPhotoManager = (function() {
             box.left += dx;
             box.top += dy;
             box = clampBoxToImage(box, bodyCropLayout);
-            var moved = boxRectToFocus(box, bodyCropLayout, bodyFocus.aspect);
-            applyBodyCrop(moved.x, moved.y, moved.z, moved.aspect);
+            var moved = boxRectToFocus(box, bodyCropLayout);
+            applyBodyCrop(moved.x, moved.y, moved.w, moved.h);
         });
         bodyCropBox.addEventListener('pointerup', function(e) {
             endBodyInteraction(e, bodyCropBox);

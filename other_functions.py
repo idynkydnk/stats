@@ -239,6 +239,35 @@ def recent_other_games(limit=10):
     readable_games = readable_games_data(games)
     return readable_games
 
+
+def search_other_games(q, limit=50, offset=0):
+    """Search all other games by game name, players, comment, or date."""
+    from stat_functions import _search_like_arg
+
+    cur = set_cur()
+    like = _search_like_arg(q)
+    if not like:
+        return recent_other_games(limit)
+
+    conditions = [
+        'game_name LIKE ?',
+        'game_type LIKE ?',
+        'comment LIKE ?',
+        'game_date LIKE ?',
+    ]
+    params = [like, like, like, like]
+    for i in range(1, MAX_OTHER_PLAYERS + 1):
+        conditions.append(f'winner{i} LIKE ?')
+        conditions.append(f'loser{i} LIKE ?')
+        params.extend([like, like])
+    params.extend([limit, offset])
+    sql = (
+        f"SELECT * FROM other_games WHERE ({' OR '.join(conditions)}) "
+        "ORDER BY game_date DESC LIMIT ? OFFSET ?"
+    )
+    cur.execute(sql, params)
+    return readable_games_data(cur.fetchall())
+
 def readable_games_data(games):
     return [_build_other_game_display(game, include_time=False) for game in games]
 

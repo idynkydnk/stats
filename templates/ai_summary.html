@@ -187,6 +187,40 @@
             color: #0b0f14;
             font-weight: 600;
         }
+        .sr-game-search-wrap {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .sr-game-search {
+            flex: 1 1 240px;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 11px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--sr-line);
+            background: var(--sr-bg);
+            color: var(--sr-text);
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .sr-game-search:focus {
+            outline: none;
+            border-color: var(--sr-accent);
+        }
+        .sr-search-status {
+            font-size: 13px;
+            color: var(--sr-muted);
+            min-height: 18px;
+        }
+        .sr-search-empty {
+            color: var(--sr-muted);
+            font-size: 14px;
+            text-align: center;
+            padding: 20px 0;
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -203,8 +237,15 @@
         <div class="sr-card">
             <div class="sr-card-header">
                 <h2 class="sr-card-title">Select Games for AI Summary</h2>
-                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select the games you want included in the AI-generated email summary</p>
+                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select games for the AI email. Browse recent games below, or search all years to find older games like gin rummy.</p>
             </div>
+
+            <div class="sr-game-search-wrap">
+                <input type="search" id="game-search" class="sr-game-search"
+                       placeholder="Search all doubles games by player or date..."
+                       autocomplete="off" enterkeyhint="search">
+            </div>
+            <p class="sr-search-status" id="search-status"></p>
 
             <div class="sr-tab-bar">
                 <button class="sr-tab active" data-tab="doubles" onclick="switchTab('doubles')">Doubles{% if doubles_games %} ({{ doubles_games|length }}){% endif %}</button>
@@ -225,8 +266,10 @@
 
                 <!-- Doubles Games -->
                 <div id="tab-doubles" class="sr-tab-content active">
+                    <div class="sr-search-area" id="search-area-doubles"></div>
+                    <div class="sr-browse-games">
                     {% for game in doubles_games %}
-                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
                          data-game-id="{{ game[0] }}" data-game-type="doubles"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
@@ -244,20 +287,23 @@
                     </div>
                     {% endfor %}
                     {% if doubles_games|length > 10 %}
-                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('doubles')">
+                    <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('doubles')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
                         Show {{ doubles_games|length - 10 }} More Games
                     </button>
                     {% endif %}
                     {% if not doubles_games %}
-                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games found.</p>
                     {% endif %}
+                    </div>
                 </div>
 
                 <!-- Vollis Games -->
                 <div id="tab-vollis" class="sr-tab-content" style="display: none;">
+                    <div class="sr-search-area" id="search-area-vollis"></div>
+                    <div class="sr-browse-games">
                     {% for game in vollis_games %}
-                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
                          data-game-id="{{ game[0] }}" data-game-type="vollis"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
@@ -275,20 +321,23 @@
                     </div>
                     {% endfor %}
                     {% if vollis_games|length > 10 %}
-                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('vollis')">
+                    <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('vollis')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
                         Show {{ vollis_games|length - 10 }} More Games
                     </button>
                     {% endif %}
                     {% if not vollis_games %}
-                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No vollis games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No vollis games found.</p>
                     {% endif %}
+                    </div>
                 </div>
 
                 <!-- Other Games -->
                 <div id="tab-other" class="sr-tab-content" style="display: none;">
+                    <div class="sr-search-area" id="search-area-other"></div>
+                    <div class="sr-browse-games">
                     {% for game in other_games %}
-                    <div class="sr-game-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
+                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
                          data-game-id="{{ game.game_id }}" data-game-type="other"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game.game_id }}" onclick="event.stopPropagation()" disabled>
@@ -318,14 +367,15 @@
                     </div>
                     {% endfor %}
                     {% if other_games|length > 10 %}
-                    <button type="button" class="sr-expand-btn" onclick="toggleExpand('other')">
+                    <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('other')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
                         Show {{ other_games|length - 10 }} More Games
                     </button>
                     {% endif %}
                     {% if not other_games %}
-                    <p style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games found.</p>
                     {% endif %}
+                    </div>
                 </div>
 
                 <div class="sr-action-bar">
@@ -341,6 +391,193 @@
 <script>
 let currentTab = 'doubles';
         const expandedTabs = {};
+        const searchPlaceholders = {
+            doubles: 'Search all doubles games by player or date...',
+            vollis: 'Search all vollis games by player or date...',
+            other: 'Search all other games by name, player, or date...',
+        };
+        let searchTimer = null;
+        let searchRequestId = 0;
+        let searchMode = false;
+
+        function activeTabEl() {
+            return document.getElementById('tab-' + currentTab);
+        }
+
+        function searchAreaEl() {
+            return document.getElementById('search-area-' + currentTab);
+        }
+
+        function browseGamesEl() {
+            var tab = activeTabEl();
+            return tab ? tab.querySelector('.sr-browse-games') : null;
+        }
+
+        function setSearchStatus(text) {
+            document.getElementById('search-status').textContent = text || '';
+        }
+
+        function updateSearchPlaceholder() {
+            var input = document.getElementById('game-search');
+            if (input) input.placeholder = searchPlaceholders[currentTab] || searchPlaceholders.doubles;
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderSearchCard(game) {
+            var card = document.createElement('div');
+            card.className = 'sr-game-card sr-search-card';
+            card.dataset.gameId = String(game.id);
+            card.dataset.gameType = currentTab;
+            card.onclick = function(e) { toggleGame(card, e); };
+
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'sr-game-checkbox';
+            checkbox.name = 'game_ids';
+            checkbox.value = String(game.id);
+            checkbox.onclick = function(e) { e.stopPropagation(); };
+            card.appendChild(checkbox);
+
+            var info = document.createElement('div');
+            info.className = 'sr-game-info';
+
+            var dateLine = document.createElement('div');
+            dateLine.className = 'sr-game-date';
+            if (currentTab === 'other' && game.game_name) {
+                dateLine.textContent = game.date + ' · ' + game.game_name;
+            } else {
+                dateLine.textContent = game.date || '';
+            }
+            info.appendChild(dateLine);
+
+            if (currentTab === 'other') {
+                (game.winners || []).forEach(function(winner, index) {
+                    var row = document.createElement('div');
+                    row.className = 'sr-game-row winners';
+                    var names = document.createElement('span');
+                    names.className = 'sr-game-names';
+                    names.textContent = winner.name || '';
+                    var score = document.createElement('span');
+                    score.className = 'sr-game-score';
+                    if (winner.score != null) score.textContent = winner.score;
+                    else if (index === 0 && game.winner_score != null) score.textContent = game.winner_score;
+                    row.appendChild(names);
+                    row.appendChild(score);
+                    info.appendChild(row);
+                });
+                (game.losers || []).forEach(function(loser, index) {
+                    var row = document.createElement('div');
+                    row.className = 'sr-game-row losers';
+                    var names = document.createElement('span');
+                    names.className = 'sr-game-names';
+                    names.textContent = loser.name || '';
+                    var score = document.createElement('span');
+                    score.className = 'sr-game-score';
+                    if (loser.score != null) score.textContent = loser.score;
+                    else if (index === 0 && game.loser_score != null) score.textContent = game.loser_score;
+                    row.appendChild(names);
+                    row.appendChild(score);
+                    info.appendChild(row);
+                });
+            } else {
+                var winRow = document.createElement('div');
+                winRow.className = 'sr-game-row winners';
+                winRow.innerHTML = '<span class="sr-game-names">' + escapeHtml(game.winners) + '</span>'
+                    + '<span class="sr-game-score">' + escapeHtml(game.winner_score) + '</span>';
+                info.appendChild(winRow);
+
+                var loseRow = document.createElement('div');
+                loseRow.className = 'sr-game-row losers';
+                loseRow.innerHTML = '<span class="sr-game-names">' + escapeHtml(game.losers) + '</span>'
+                    + '<span class="sr-game-score">' + escapeHtml(game.loser_score) + '</span>';
+                info.appendChild(loseRow);
+            }
+
+            card.appendChild(info);
+            checkbox.addEventListener('change', function() {
+                card.classList.toggle('selected', checkbox.checked);
+                updateSelectedCount();
+            });
+            return card;
+        }
+
+        function showBrowseMode() {
+            searchMode = false;
+            var area = searchAreaEl();
+            var browse = browseGamesEl();
+            if (area) {
+                area.innerHTML = '';
+                area.style.display = 'none';
+            }
+            if (browse) browse.style.display = '';
+            activeTabEl().querySelectorAll('.sr-browse-only').forEach(function(el) {
+                el.style.display = '';
+            });
+            setSearchStatus('');
+        }
+
+        function showSearchResults(games, query) {
+            searchMode = true;
+            var area = searchAreaEl();
+            var browse = browseGamesEl();
+            if (!area) return;
+            area.innerHTML = '';
+            area.style.display = 'block';
+            if (browse) browse.style.display = 'none';
+            activeTabEl().querySelectorAll('.sr-browse-only').forEach(function(el) {
+                el.style.display = 'none';
+            });
+
+            if (!games.length) {
+                var empty = document.createElement('p');
+                empty.className = 'sr-search-empty';
+                empty.textContent = 'No games found for "' + query + '".';
+                area.appendChild(empty);
+                setSearchStatus('0 results');
+                updateSelectedCount();
+                return;
+            }
+
+            games.forEach(function(game) {
+                area.appendChild(renderSearchCard(game));
+            });
+            setSearchStatus(games.length + ' result' + (games.length === 1 ? '' : 's') + ' across all years');
+            updateSelectedCount();
+        }
+
+        function runSearch(query) {
+            var q = (query || '').trim();
+            if (!q) {
+                showBrowseMode();
+                return;
+            }
+
+            var requestId = ++searchRequestId;
+            setSearchStatus('Searching...');
+            fetch('/api/ai_summary_game_search/?q=' + encodeURIComponent(q) + '&game_type=' + encodeURIComponent(currentTab), {
+                credentials: 'same-origin',
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (requestId !== searchRequestId) return;
+                if (!data.success) {
+                    setSearchStatus('Search failed.');
+                    return;
+                }
+                showSearchResults(data.games || [], q);
+            })
+            .catch(function() {
+                if (requestId !== searchRequestId) return;
+                setSearchStatus('Search failed.');
+            });
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.sr-tab').forEach(t => t.classList.remove('active'));
@@ -351,6 +588,14 @@ let currentTab = 'doubles';
 
             currentTab = tab;
             document.getElementById('game-type-input').value = tab;
+            updateSearchPlaceholder();
+
+            var searchInput = document.getElementById('game-search');
+            if (searchInput && searchInput.value.trim()) {
+                runSearch(searchInput.value);
+            } else {
+                showBrowseMode();
+            }
 
             // Enable only checkboxes in the active tab, disable others
             document.querySelectorAll('.sr-tab-content').forEach(content => {
@@ -374,6 +619,14 @@ let currentTab = 'doubles';
             document.getElementById('generate-btn').disabled = checked === 0;
         }
 
+        function visibleCards(tabEl) {
+            if (!tabEl) return [];
+            if (searchMode) {
+                return Array.prototype.slice.call(tabEl.querySelectorAll('.sr-search-card'));
+            }
+            return Array.prototype.slice.call(tabEl.querySelectorAll('.sr-browse-card:not(.sr-hidden-game)'));
+        }
+
         function toggleGame(card, event) {
             if (event.target.type === 'checkbox') return;
             var checkbox = card.querySelector('.sr-game-checkbox');
@@ -385,7 +638,7 @@ let currentTab = 'doubles';
 
         function selectAll() {
             var activeTab = document.getElementById('tab-' + currentTab);
-            activeTab.querySelectorAll('.sr-game-card:not(.sr-hidden-game)').forEach(function(card) {
+            visibleCards(activeTab).forEach(function(card) {
                 var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = true;
                 card.classList.add('selected');
@@ -420,6 +673,21 @@ let currentTab = 'doubles';
                 expandedTabs[tab] = false;
             }
         }
+
+        // Search input
+        var gameSearch = document.getElementById('game-search');
+        if (gameSearch) {
+            gameSearch.addEventListener('input', function() {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(function() {
+                    runSearch(gameSearch.value);
+                }, 300);
+            });
+            gameSearch.addEventListener('search', function() {
+                runSearch(gameSearch.value);
+            });
+        }
+        updateSearchPlaceholder();
 
         // Show loading spinner on form submit
         document.getElementById('summary-form').addEventListener('submit', function() {

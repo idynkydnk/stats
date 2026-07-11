@@ -200,6 +200,16 @@ def _parse_body_crops_json(raw):
             continue
         aspect = BODY_CROP_ASPECT
         if isinstance(focus_raw, dict):
+            x = max(0.0, min(100.0, float(focus_raw.get('x', 50))))
+            y = max(0.0, min(100.0, float(focus_raw.get('y', 50))))
+            if focus_raw.get('w') is not None and focus_raw.get('h') is not None:
+                try:
+                    w = max(5.0, min(100.0, float(focus_raw['w'])))
+                    h = max(5.0, min(100.0, float(focus_raw['h'])))
+                    crops[path] = {'x': x, 'y': y, 'w': w, 'h': h}
+                    continue
+                except (TypeError, ValueError):
+                    pass
             x, y, z = _parse_photo_focus(
                 f"{focus_raw.get('x', 50)},{focus_raw.get('y', 50)},{focus_raw.get('z', 1)}"
             )
@@ -236,8 +246,8 @@ def get_full_body_photo_crop(full_name, rel_path):
     return crops.get(rel_path, {'x': 50.0, 'y': 50.0, 'z': 1.0, 'aspect': BODY_CROP_ASPECT})
 
 
-def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None, aspect=None):
-    """Save pan/zoom crop for one full-body photo."""
+def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None, aspect=None, w=None, h=None):
+    """Save crop for one full-body photo (rect w/h or legacy z/aspect)."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -246,12 +256,24 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None, aspect=No
     cur = conn.cursor()
     crops = _get_body_crops_by_id(player_id)
     existing = crops.get(rel_path, {})
+    x = max(0.0, min(100.0, float(x)))
+    y = max(0.0, min(100.0, float(y)))
+    if w is not None and h is not None:
+        w = max(5.0, min(100.0, float(w)))
+        h = max(5.0, min(100.0, float(h)))
+        crops[rel_path] = {'x': x, 'y': y, 'w': w, 'h': h}
+        now = datetime.now()
+        with conn:
+            cur.execute(
+                'UPDATE players SET full_body_photo_crops = ?, updated_at = ? WHERE id = ?',
+                (json.dumps(crops), now, player_id),
+            )
+            conn.commit()
+        return x, y, w, h
     if z is None:
         z = existing.get('z', 1.0)
     if aspect is None:
         aspect = existing.get('aspect', BODY_CROP_ASPECT)
-    x = max(0.0, min(100.0, float(x)))
-    y = max(0.0, min(100.0, float(y)))
     z = _clamp_body_zoom(z)
     aspect = _clamp_body_aspect(aspect)
     crops[rel_path] = {'x': x, 'y': y, 'z': z, 'aspect': aspect}
@@ -323,15 +345,76 @@ def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, ma
     return buf.getvalue(), 'image/jpeg'
 
 
+def crop_image_with_rect(image_bytes, x_pct, y_pct, w_pct, h_pct, max_pixels=768):
+    """Export an explicit rectangular crop from the source image."""
+    import io
+    from PIL import Image, ImageOps
+
+    img = Image.open(io.BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img)
+    if img.mode not in ('RGB', 'L'):
+        img = img.convert('RGB')
+    iw, ih = img.size
+    if not iw or not ih:
+        return image_bytes, 'image/jpeg'
+
+    crop_w = max(1.0, iw * float(w_pct) / 100.0)
+    crop_h = max(1.0, ih * float(h_pct) / 100.0)
+    cx = iw * float(x_pct) / 100.0
+    cy = ih * float(y_pct) / 100.0
+    left = cx - crop_w / 2
+    top = cy - crop_h / 2
+    right = left + crop_w
+    bottom = top + crop_h
+
+    if left < 0:
+        right -= left
+        left = 0
+    if top < 0:
+        bottom -= top
+        top = 0
+    if right > iw:
+        left = max(0.0, right - crop_w)
+        right = iw
+    if bottom > ih:
+        top = max(0.0, bottom - crop_h)
+        bottom = ih
+
+    cropped = img.crop((int(left), int(top), int(right), int(bottom)))
+    if not cropped.width or not cropped.height:
+        return image_bytes, 'image/jpeg'
+
+    aspect = cropped.width / cropped.height
+    if aspect >= 1:
+        out_h = max_pixels
+        out_w = max(1, int(max_pixels * aspect))
+    else:
+        out_w = max_pixels
+        out_h = max(1, int(max_pixels / aspect))
+    cropped = cropped.resize((out_w, out_h), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    cropped.save(buf, format='JPEG', quality=90)
+    return buf.getvalue(), 'image/jpeg'
+
+
 def read_cropped_player_image(rel_path, focus, output_aspect=1.0, max_pixels=768):
     """Load a stored photo with pan/zoom crop applied for AI reference images."""
     raw, _mime = read_player_image_file(rel_path)
     if not raw:
         return None, None
     focus = focus or {'x': 50, 'y': 50, 'z': 1}
-    if focus.get('aspect') is not None:
-        output_aspect = focus.get('aspect')
     try:
+        if focus.get('w') is not None and focus.get('h') is not None:
+            return crop_image_with_rect(
+                raw,
+                focus.get('x', 50),
+                focus.get('y', 50),
+                focus.get('w'),
+                focus.get('h'),
+                max_pixels=max_pixels,
+            )
+        if focus.get('aspect') is not None:
+            output_aspect = focus.get('aspect')
         return crop_image_with_focus(
             raw,
             focus.get('x', 50),
