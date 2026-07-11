@@ -1972,6 +1972,29 @@ def build_volleyball_game_cards(year):
     return game_cards
 
 
+def _other_game_card_for_year(year, game_name):
+    """Build stats card data for one other game type in a given year."""
+    from other_functions import other_year_games, total_game_name_stats
+
+    all_games = other_year_games(year)
+    game_specific = [g for g in all_games if g.get('game_name') == game_name]
+    if not game_specific:
+        return None
+
+    stats_for_game = total_game_name_stats(game_specific)
+    num_games = len(game_specific)
+    minimum_games = 1 if num_games < 30 else num_games // 30
+    qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= minimum_games]
+    rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < minimum_games]
+    return {
+        'game_name': game_name,
+        'stats': qualified_stats,
+        'rare_stats': rare_stats,
+        'minimum_games': minimum_games,
+        'total_games': num_games,
+    }
+
+
 @app.route('/volleyball_stats/')
 def volleyball_stats_default():
     return redirect(url_for('volleyball_stats', year=str(date.today().year)))
@@ -2252,13 +2275,24 @@ def delete_other_game(id):
  
     return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
 
-@app.route('/game_name_stats/<game_name>/')
+@app.route('/game_name_stats/<path:game_name>/')
 def game_name_stats(game_name):
-    return redirect(url_for('other_games_by_name', year=str(date.today().year), game_name=game_name))
+    return redirect(url_for('game_name_stats_with_year', game_name=game_name, year=str(date.today().year)))
 
-@app.route('/game_name_stats/<game_name>/<year>/')
+@app.route('/game_name_stats/<path:game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
-    return redirect(url_for('other_games_by_name', year=year, game_name=game_name))
+    """Stats page for a single other game type."""
+    from other_functions import game_name_years
+
+    all_years = game_name_years(game_name)
+    card = _other_game_card_for_year(year, game_name)
+    return render_template(
+        'other_game_stats.html',
+        game_name=game_name,
+        year=year,
+        all_years=all_years,
+        card=card,
+    )
 
 @app.route('/player_game_stats/<year>/<game_name>/<player_name>/')
 def player_game_stats(year, game_name, player_name):
