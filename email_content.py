@@ -867,13 +867,12 @@ def create_other_email_plain_text(summary, stats, games, date_obj, game_name_lab
     lines.append(f'GAMES ({len(games)})')
     for game in games:
         time_display = _plain_game_time_dict(game)
-        game_name = game.get('game_name', '')
         winners = ', '.join(w['name'] for w in game.get('winners', []) if w.get('name'))
         losers = ', '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
         w_score = game.get('winner_score') or ''
         l_score = game.get('loser_score') or ''
         lines.append(
-            f'- {time_display}: {winners} beat {losers} in {game_name} ({w_score}-{l_score})'
+            f'- {time_display}: {winners} beat {losers} ({w_score}-{l_score})'
         )
 
     lines.extend(_plain_footer_lines(f'{SITE_BASE_URL}/other_stats/{date_obj.year}/', date_obj))
@@ -1734,7 +1733,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
                     .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
                     .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
-                    .game-label {{ font-size: 11px; color: #8b949e; font-style: italic; white-space: nowrap; }}
                     {hero_styles}
                 </style>
             </head>
@@ -1792,7 +1790,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                             <thead>
                                 <tr>
                                     <th>Time</th>
-                                    <th>Game</th>
                                     <th>Winners</th>
                                     <th></th>
                                     <th>Losers</th>
@@ -1814,7 +1811,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
         if not time_display:
             time_display = "-"
 
-        game_name = game.get('game_name', '')
         winners = game.get('winners', [])
         losers = game.get('losers', [])
         winner_names = "<br>".join(format_name_for_email(w['name']) for w in winners if w.get('name'))
@@ -1825,7 +1821,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
         html_body += f"""
                                 <tr>
                                     <td class="time-cell">{time_display}</td>
-                                    <td class="game-label">{game_name}</td>
                                     <td class="winner-team">{winner_names}</td>
                                     <td class="score-winner">{w_score}</td>
                                     <td class="loser-team">{loser_names}</td>
