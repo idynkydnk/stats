@@ -306,7 +306,7 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Choose speed vs quality for the email hero image</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Choose speed vs quality for the email hero image. <strong>Keep this page open</strong> until generation finishes — closing it will stop the process.</p>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>
@@ -314,11 +314,11 @@
                         </button>
                         <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-single" disabled onclick="setImageMode('single')">
                             <strong><i class="fas fa-image"></i> One illustration</strong>
-                            <span>~30 sec — single group image</span>
+                            <span>About one minute</span>
                         </button>
                         <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-best" disabled onclick="setImageMode('two_pass')">
                             <strong><i class="fas fa-star"></i> Best quality</strong>
-                            <span>Slowest — image per player, then scene</span>
+                            <span>Several minutes</span>
                         </button>
                     </div>
                 </div>
@@ -346,15 +346,15 @@ let selectedPrompt = null;
         var loadingCopy = {
             none: {
                 title: 'Writing your recap...',
-                detail: 'Text only — no illustration. This is the fastest option.'
+                detail: 'Fastest — summary only. Keep this page open.'
             },
             single: {
                 title: 'Writing recap and one illustration...',
-                detail: 'Usually under a minute. Please don\'t close this page.'
+                detail: 'About one minute. Keep this page open.'
             },
             two_pass: {
                 title: 'Creating best-quality illustrations...',
-                detail: 'One image per player, then the final scene. This may take several minutes.'
+                detail: 'Several minutes. Keep this page open.'
             }
         };
 
