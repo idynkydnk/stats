@@ -922,13 +922,21 @@ window.PlayerPhotoManager = (function() {
         if (typeof h === 'number') bodyFocus.h = clampCropPct(h);
         layoutBodyCropEditor();
         updateBodyZoomLabel();
-        syncBodyThumbStyles();
     }
 
     function syncBodyThumbStyles() {
         if (!activeBodyPath || !bodyGrid) return;
         var item = bodyGrid.querySelector('.sr-body-photo-item[data-path="' + CSS.escape(activeBodyPath) + '"] img');
         if (item) applyPhotoCrop(item, bodyFocus, true);
+        var photo = bodyPhotos.find(function(p) { return p.path === activeBodyPath; });
+        if (photo) {
+            photo.focus = {
+                x: bodyFocus.x,
+                y: bodyFocus.y,
+                w: bodyFocus.w,
+                h: bodyFocus.h,
+            };
+        }
     }
 
     function saveBodyFocus() {
@@ -958,6 +966,7 @@ window.PlayerPhotoManager = (function() {
     }
 
     function closeBodyCropEditor() {
+        syncBodyThumbStyles();
         if (bodyCropEditor) bodyCropEditor.hidden = true;
         if (bodyCropBox) bodyCropBox.hidden = true;
         activeBodyPath = null;
