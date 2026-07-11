@@ -90,8 +90,6 @@
         }
         .sr-form-dot.w { background: var(--sr-win); }
         .sr-form-dot.l { background: var(--sr-loss); }
-        .sr-sparkline-card { margin-bottom: 24px; }
-        .sr-sparkline-wrap { height: 140px; position: relative; }
         .sr-stat-card {
             background: var(--sr-panel);
             border: 1px solid var(--sr-line);
@@ -240,16 +238,6 @@
         {% endif %}
         {% endif %}
 
-        {% if games and games|length > 1 %}
-        <div class="sr-card sr-sparkline-card">
-            <h3 class="sr-section-title" style="margin-top: 0;">Rating Over Time</h3>
-            <div class="sr-sparkline-wrap">
-                <canvas id="playerSparkline"
-                        data-url="{{ url_for('api_player_rating_history', year=year, name=player) }}"></canvas>
-            </div>
-        </div>
-        {% endif %}
-
         {% if partner_stats %}
         <div class="sr-card">
             <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
@@ -356,75 +344,6 @@
                 btn.textContent = `Show ${hidden.length} more`;
             }
         }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script>
-        (function() {
-            const canvas = document.getElementById('playerSparkline');
-            if (!canvas || typeof Chart === 'undefined') return;
-            fetch(canvas.dataset.url)
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.labels || data.labels.length < 2) {
-                        canvas.closest('.sr-sparkline-card').style.display = 'none';
-                        return;
-                    }
-                    const shortLabels = data.labels.map(l => {
-                        const p = String(l).split('-');
-                        return p.length === 3 ? parseInt(p[1], 10) + '/' + parseInt(p[2], 10) : l;
-                    });
-                    new Chart(canvas.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels: shortLabels,
-                            datasets: [{
-                                data: data.values,
-                                borderColor: '#6ee7ff',
-                                backgroundColor: 'rgba(110, 231, 255, 0.12)',
-                                borderWidth: 2,
-                                tension: 0.3,
-                                fill: true,
-                                spanGaps: true,
-                                pointRadius: data.labels.length > 25 ? 0 : 2,
-                                pointHoverRadius: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    backgroundColor: 'rgba(15, 22, 32, 0.95)',
-                                    titleColor: '#e6edf3',
-                                    bodyColor: '#e6edf3',
-                                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                                    borderWidth: 1,
-                                    padding: 10,
-                                    cornerRadius: 8,
-                                    displayColors: false,
-                                    callbacks: { label: ctx => 'Rating: ' + ctx.parsed.y }
-                                }
-                            },
-                            interaction: { intersect: false, mode: 'index' },
-                            scales: {
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { color: '#9aa4b2', font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 }
-                                },
-                                y: {
-                                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                                    ticks: { color: '#9aa4b2', font: { size: 10 }, maxTicksLimit: 5 }
-                                }
-                            }
-                        }
-                    });
-                })
-                .catch(() => {
-                    const card = canvas.closest('.sr-sparkline-card');
-                    if (card) card.style.display = 'none';
-                });
-        })();
     </script>
 </body>
 </html>

@@ -1664,53 +1664,6 @@ def calculate_tile_stats(year, stats, games):
     return tiles
 
 
-@app.route('/api/stats/hero')
-def api_stats_hero():
-    """JSON endpoint for hero chart: TrueSkill rating over time for top players."""
-    year = request.args.get('year', str(date.today().year))
-    range_filter = request.args.get('range', '10')
-    
-    day_labels, series = trueskill_rating_history(year)
-    
-    # Only chart players who meet the same minimum-games bar as the main table
-    games_count = len(year_games(year))
-    minimum_games = max(1, games_count // 30) if games_count >= 30 else 1
-    qualified = [s for s in series if s['games'] >= minimum_games]
-    
-    if range_filter == '5':
-        qualified = qualified[:5]
-    elif range_filter == '10':
-        qualified = qualified[:10]
-    elif range_filter == '25':
-        qualified = qualified[:25]
-    # 'all' returns everyone qualified
-    
-    return jsonify({
-        'labels': day_labels,
-        'series': [{'name': s['name'], 'values': s['values']} for s in qualified]
-    })
-
-
-@app.route('/api/player/rating_history/<year>/<name>/')
-def api_player_rating_history(year, name):
-    """Rating-over-time series for one player (for the player page sparkline)."""
-    day_labels, series = trueskill_rating_history(year)
-    for s in series:
-        if s['name'] == name:
-            # Trim leading None values so the chart starts at the first game
-            labels, values = [], []
-            for day, value in zip(day_labels, s['values']):
-                if value is None and not values:
-                    continue
-                labels.append(day)
-                values.append(value)
-            # Rank among all players in this year's history (by final rating)
-            rank = next((i + 1 for i, entry in enumerate(series) if entry['name'] == name), None)
-            return jsonify({'labels': labels, 'values': values,
-                            'final': s['final'], 'rank': rank, 'players': len(series)})
-    return jsonify({'labels': [], 'values': [], 'final': None, 'rank': None, 'players': len(series)})
-
-
 @app.route('/edit/<int:id>/',methods = ['GET','POST'])
 @login_required
 def update(id):
