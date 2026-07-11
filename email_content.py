@@ -114,6 +114,53 @@ def ai_email_subject(game_type, date_obj, game_name_label=''):
     return f'{label} recap – {date_label} (your group)'
 
 
+def _sanitize_email_subject(raw):
+    """Clean AI subject output to a single short line."""
+    if not raw:
+        return ''
+    subject = raw.strip().splitlines()[0].strip()
+    for prefix in ('Subject line:', 'Subject:', 'subject:'):
+        if subject.lower().startswith(prefix.lower()):
+            subject = subject[len(prefix):].strip()
+    if len(subject) >= 2 and subject[0] == subject[-1] and subject[0] in '"\'':
+        subject = subject[1:-1].strip()
+    return subject[:60].strip()
+
+
+def generate_ai_email_subject(summary, game_type, date_obj, game_name_label=''):
+    """Generate a short subject from the recap. Falls back to a template."""
+    fallback = ai_email_subject(game_type, date_obj, game_name_label)
+    if not (summary or '').strip():
+        return fallback
+
+    date_label = date_obj.strftime('%b ') + str(date_obj.day)
+    if game_type == 'doubles':
+        game_label = 'volleyball'
+    elif game_type == 'vollis':
+        game_label = 'vollis'
+    else:
+        game_label = (game_name_label or 'game').strip().lower()
+
+    prompt = f"""Write one short email subject line for this {game_label} recap from {date_label}.
+
+Rules:
+- Max 50 characters (hard limit)
+- Punchy and specific to what happened—not generic like "recap"
+- No quotes, emojis, or "Subject:" prefix
+- Output only the subject line, nothing else
+
+Recap:
+{summary.strip()[:500]}"""
+
+    try:
+        subject = _sanitize_email_subject(generate_ai_text(prompt))
+        if subject and len(subject) <= 60:
+            return subject
+    except Exception:
+        pass
+    return fallback
+
+
 def personalize_ai_email_content(html_body, plain_text_body, recipient_email, hero_image_url=None, embed_hero=False):
     """Per-recipient HTML/plain text with encoded opt-in/unsubscribe links."""
     from urllib.parse import quote
@@ -1494,7 +1541,7 @@ Write the recap:"""
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
     plain_text_body = create_doubles_email_plain_text(summary, stats, games, date_obj)
-    subject = ai_email_subject('doubles', date_obj)
+    subject = generate_ai_email_subject(summary, 'doubles', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -2013,7 +2060,7 @@ Write the recap:"""
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
     plain_text_body = create_vollis_email_plain_text(summary, stats, games, date_obj)
-    subject = ai_email_subject('vollis', date_obj)
+    subject = generate_ai_email_subject(summary, 'vollis', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -2231,7 +2278,7 @@ Write the recap:"""
     plain_text_body = create_other_email_plain_text(
         summary, stats, games, date_obj, game_name_label,
     )
-    subject = ai_email_subject('other', date_obj, game_name_label)
+    subject = generate_ai_email_subject(summary, 'other', date_obj, game_name_label)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
