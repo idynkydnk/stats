@@ -294,14 +294,26 @@
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game.game_id }}" onclick="event.stopPropagation()" disabled>
                         <div class="sr-game-info">
                             <div class="sr-game-date">{{ game.game_date }}{% if game.game_name %} &middot; {{ game.game_name }}{% endif %}</div>
+                            {% for winner in game.winners %}
                             <div class="sr-game-row winners">
-                                <span class="sr-game-names">{{ game.winners|map(attribute='name')|join(' & ') }}</span>
-                                <span class="sr-game-score">{{ game.winner_score if game.winner_score else '' }}</span>
+                                <span class="sr-game-names">{{ winner.name }}</span>
+                                <span class="sr-game-score">
+                                    {% if winner.score is not none %}{{ winner.score }}
+                                    {% elif loop.first and game.winner_score is not none and (not game.winners or game.winners[0].score is none) %}{{ game.winner_score }}
+                                    {% endif %}
+                                </span>
                             </div>
+                            {% endfor %}
+                            {% for loser in game.losers %}
                             <div class="sr-game-row losers">
-                                <span class="sr-game-names">{{ game.losers|map(attribute='name')|join(' & ') }}</span>
-                                <span class="sr-game-score">{{ game.loser_score if game.loser_score else '' }}</span>
+                                <span class="sr-game-names">{{ loser.name }}</span>
+                                <span class="sr-game-score">
+                                    {% if loser.score is not none %}{{ loser.score }}
+                                    {% elif loop.first and game.loser_score is not none and (not game.losers or game.losers[0].score is none) %}{{ game.loser_score }}
+                                    {% endif %}
+                                </span>
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}
