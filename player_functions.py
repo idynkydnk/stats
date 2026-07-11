@@ -940,3 +940,39 @@ def search_players(search_term):
                 (f'%{search_term}%', f'%{search_term}%'))
     players = cur.fetchall()
     return players
+
+
+def search_email_recipients(search_term, limit=20):
+    """Search players with saved emails by name or email address."""
+    term = (search_term or '').strip()
+    if len(term) < 2:
+        return []
+
+    conn = _players_db_connection()
+    if conn is None:
+        return []
+
+    cur = conn.cursor()
+    like = f'%{term}%'
+    cur.execute(
+        """
+        SELECT full_name, email
+        FROM players
+        WHERE email IS NOT NULL AND TRIM(email) != ''
+          AND (full_name LIKE ? OR email LIKE ?)
+        ORDER BY full_name ASC
+        LIMIT ?
+        """,
+        (like, like, limit),
+    )
+    results = []
+    seen = set()
+    for name, email in cur.fetchall():
+        clean_email = (email or '').strip()
+        key = clean_email.lower()
+        if not clean_email or key in seen:
+            continue
+        seen.add(key)
+        results.append({'name': name, 'email': clean_email})
+    conn.close()
+    return results

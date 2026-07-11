@@ -3026,6 +3026,21 @@ def api_search_all_players():
         print(f"Error in search_all_players: {e}")
         return jsonify([])
 
+@app.route('/api/search_email_recipients')
+@login_required
+def api_search_email_recipients():
+    """Search known players/emails for AI summary recipient autocomplete."""
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify([])
+
+    try:
+        from player_functions import search_email_recipients
+        return jsonify(search_email_recipients(query))
+    except Exception as e:
+        app.logger.exception('Error in search_email_recipients')
+        return jsonify([])
+
 @app.route('/api/clear_stats_cache', methods=['POST'])
 @login_required
 def api_clear_stats_cache():
