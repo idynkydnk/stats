@@ -524,16 +524,7 @@ def email_html_for_inline_preview(html_body):
 def format_name_for_email(name):
     if not name:
         return ""
-    name = str(name).strip()
-    if not name:
-        return ""
-    if ' ' in name:
-        first, rest = name.split(' ', 1)
-        return f"{first}<br>{rest}"
-    if len(name) > 10:
-        mid = len(name) // 2
-        return f"{name[:mid]}<br>{name[mid:]}"
-    return f"{name}<br>&nbsp;"
+    return str(name).strip()
 
 
 def _plain_footer_lines(stats_link, date_obj):
@@ -806,9 +797,13 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                     .time-cell {{
                         font-size: 12px;
                         color: #8b949e;
+                        width: 1%;
+                        white-space: nowrap;
+                        text-align: left;
+                        padding-right: 10px;
                     }}
                     .team-cell {{
-                        text-align: center;
+                        text-align: left;
                     }}
                     .winner-team {{
                         color: #4ade80;
@@ -821,16 +816,23 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                         font-weight: 500;
                         display: block;
                         line-height: 1.4;
+                        white-space: nowrap;
                     }}
                     .score-winner {{
                         color: #4ade80;
                         font-weight: 700;
                         font-size: 15px;
+                        width: 1%;
+                        white-space: nowrap;
+                        padding-left: 8px;
                     }}
                     .score-loser {{
                         color: #f87171;
                         font-weight: 700;
                         font-size: 15px;
+                        width: 1%;
+                        white-space: nowrap;
+                        padding-left: 8px;
                     }}
                     .footer {{
                         text-align: center;
@@ -1340,12 +1342,12 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                     .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
                     .games-table tbody tr:last-child td {{ border-bottom: none; }}
                     .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
-                    .time-cell {{ font-size: 12px; color: #8b949e; }}
-                    .winner-team {{ color: #4ade80; }}
-                    .loser-team {{ color: #f87171; }}
-                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; }}
-                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; }}
-                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; }}
+                    .time-cell {{ font-size: 12px; color: #8b949e; width: 1%; white-space: nowrap; text-align: left; padding-right: 10px; }}
+                    .winner-team {{ color: #4ade80; text-align: left; }}
+                    .loser-team {{ color: #f87171; text-align: left; }}
+                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; white-space: nowrap; }}
+                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
+                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
@@ -1502,18 +1504,18 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
                     .games-table tbody tr:last-child td {{ border-bottom: none; }}
                     .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
-                    .time-cell {{ font-size: 12px; color: #8b949e; }}
-                    .winner-team {{ color: #4ade80; }}
-                    .loser-team {{ color: #f87171; }}
-                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; }}
-                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; }}
-                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; }}
+                    .time-cell {{ font-size: 12px; color: #8b949e; width: 1%; white-space: nowrap; text-align: left; padding-right: 10px; }}
+                    .winner-team {{ color: #4ade80; text-align: left; }}
+                    .loser-team {{ color: #f87171; text-align: left; }}
+                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; white-space: nowrap; }}
+                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
+                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
                     .opt-in-text {{ color: #8b949e; font-size: 13px; margin-bottom: 10px; }}
                     .opt-in-button {{ display: inline-block; background-color: rgba(102, 217, 239, 0.15); color: #66d9ef; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 13px; border: 1px solid rgba(102, 217, 239, 0.3); }}
-                    .game-label {{ font-size: 11px; color: #8b949e; font-style: italic; }}
+                    .game-label {{ font-size: 11px; color: #8b949e; font-style: italic; white-space: nowrap; }}
                     {hero_styles}
                 </style>
             </head>
