@@ -127,6 +127,46 @@
         .sr-games-info i {
             font-size: 16px;
         }
+        .sr-generate-loading {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(11, 15, 20, 0.92);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .sr-generate-loading.show {
+            display: flex;
+        }
+        .sr-generate-loading-card {
+            max-width: 420px;
+            width: 100%;
+            background: var(--sr-panel);
+            border: 1px solid rgba(102, 217, 239, 0.35);
+            border-radius: 14px;
+            padding: 28px 24px;
+            text-align: center;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        }
+        .sr-generate-loading-card i {
+            font-size: 32px;
+            color: var(--sr-accent);
+            margin-bottom: 16px;
+        }
+        .sr-generate-loading-card strong {
+            display: block;
+            font-size: 18px;
+            color: var(--sr-text);
+            margin-bottom: 10px;
+        }
+        .sr-generate-loading-card p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--sr-muted);
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -238,6 +278,14 @@
                 </div>
             </form>
         </div>
+
+        <div id="generate-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
+            <div class="sr-generate-loading-card">
+                <i class="fas fa-spinner fa-spin"></i>
+                <strong>Generating your summary...</strong>
+                <p>This may take a minute or two while we write the recap and create the illustration. Please don't close this page.</p>
+            </div>
+        </div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -274,6 +322,7 @@ let selectedPrompt = null;
             btn.disabled = true;
             document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
             document.getElementById('generate-text').textContent = 'Generating...';
+            document.getElementById('generate-loading').classList.add('show');
         });
 </script>
 {% endblock %}
