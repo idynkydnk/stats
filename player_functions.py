@@ -616,6 +616,49 @@ def remove_player_photo(player_id):
     set_player_face_photo_focus(player_id, 50, 50, 1.0)
 
 
+def get_player_height(full_name):
+    """Return height string for a player (e.g. 6'1\"), or empty string."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT height FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    if not row or not row[0]:
+        return ''
+    return str(row[0]).strip()
+
+
+def collect_solo_reference_images(name):
+    """All face + full-body reference images for one player (no body-photo cap)."""
+    face_path, body_paths = get_player_photo_paths(name)
+    entry = {'name': name, 'parts': []}
+    if face_path:
+        fx, fy, fz = get_player_face_photo_focus(name)
+        raw, mime = read_cropped_player_image(
+            face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
+        )
+        if raw:
+            entry['parts'].append({
+                'label': f'Face reference photo for {name}.',
+                'mime': mime,
+                'data_b64': base64.b64encode(raw).decode('ascii'),
+            })
+    crops = get_player_full_body_photo_crops(name)
+    for idx, body_path in enumerate(body_paths, start=1):
+        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'z': 1.0})
+        raw, mime = read_cropped_player_image(
+            body_path, focus, output_aspect=BODY_CROP_ASPECT,
+        )
+        if raw:
+            entry['parts'].append({
+                'label': f'Full-body reference photo {idx} for {name}.',
+                'mime': mime,
+                'data_b64': base64.b64encode(raw).decode('ascii'),
+            })
+    return entry
+
+
 def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):
     """Build Gemini reference image parts for AI email illustrations."""
     references = []

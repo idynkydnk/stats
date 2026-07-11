@@ -781,6 +781,48 @@ def player_face_photo_focus_for(name):
     return {'x': x, 'y': y, 'z': z}
 
 
+def player_profile_fields_for(name):
+    """Email, birthday, and height for player profile editing."""
+    row = _ensure_player_record(name)
+    return {
+        'email': (row[2] or '') if row else '',
+        'date_of_birth': (row[3] or '') if row else '',
+        'height': (row[4] or '') if row else '',
+    }
+
+
+def player_avatar_context(name):
+    """Template kwargs shared by player_avatar on stats pages."""
+    fields = player_profile_fields_for(name)
+    return {
+        'player_photo_url': player_photo_url_for(name),
+        'player_full_body_photos': player_full_body_photos_for(name),
+        'player_ai_image_traits': player_ai_image_traits_for(name),
+        'player_face_photo_focus': player_face_photo_focus_for(name),
+        'player_email': fields['email'],
+        'player_date_of_birth': fields['date_of_birth'],
+        'player_height': fields['height'],
+    }
+
+
+def player_list_card_data(player_row):
+    """One player row for the list page (clickable avatar + profile JSON)."""
+    name = player_row[1]
+    _ensure_player_record(name)
+    return {
+        'name': name,
+        'email': player_row[2] or '',
+        'dateOfBirth': player_row[3] or '',
+        'height': player_row[4] or '',
+        'games': int(player_row[11]) if len(player_row) > 11 and player_row[11] is not None else 0,
+        'firstGame': player_row[10] if len(player_row) > 10 and player_row[10] else '',
+        'photoUrl': player_photo_url_for(name),
+        'fullBodyPhotos': player_full_body_photos_for(name),
+        'aiImageTraits': player_ai_image_traits_for(name),
+        'faceFocus': player_face_photo_focus_for(name),
+    }
+
+
 def _ensure_player_record(name):
     """Return players row for name, creating a minimal record if needed."""
     from player_functions import get_player_by_name, add_new_player
@@ -1692,7 +1734,13 @@ def player_list():
     from player_functions import get_all_players
     players = get_all_players()
     all_unique_players = sorted(get_all_unique_players())
-    return render_template('player_list.html', players=players, all_unique_players=all_unique_players)
+    player_cards = [player_list_card_data(p) for p in players]
+    return render_template(
+        'player_list.html',
+        players=players,
+        player_cards=player_cards,
+        all_unique_players=all_unique_players,
+    )
 
 
 # ============================================
@@ -1743,10 +1791,7 @@ def player_stats(year, name):
         all_years=all_years, stats=stats, games=games,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
-        player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name),
-        player_face_photo_focus=player_face_photo_focus_for(name))
+        **player_avatar_context(name))
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
@@ -1757,10 +1802,7 @@ def vollis_player_stats(year, name):
     opponent_stats = vollis_opponent_stats_by_year(name, games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
-        player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name),
-        player_face_photo_focus=player_face_photo_focus_for(name))
+        **player_avatar_context(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -1771,10 +1813,7 @@ def other_player_stats(year, name):
     opponent_stats = other_opponent_stats_by_year(name, games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
-        player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name),
-        player_face_photo_focus=player_face_photo_focus_for(name))
+        **player_avatar_context(name))
 
 
 def calculate_tile_stats(year, stats, games):
@@ -2268,10 +2307,7 @@ def volleyball_player_stats(year, name):
         stats=overall_stats,
         game_cards=game_cards,
         total_games=total_games,
-        player_photo_url=player_photo_url_for(name),
-        player_full_body_photos=player_full_body_photos_for(name),
-        player_ai_image_traits=player_ai_image_traits_for(name),
-        player_face_photo_focus=player_face_photo_focus_for(name))
+        **player_avatar_context(name))
 
 
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
@@ -2461,10 +2497,7 @@ def player_game_stats(year, game_name, player_name):
         all_years=all_years,
         stats=stats,
         games=games,
-        player_photo_url=player_photo_url_for(player_name),
-        player_full_body_photos=player_full_body_photos_for(player_name),
-        player_ai_image_traits=player_ai_image_traits_for(player_name),
-        player_face_photo_focus=player_face_photo_focus_for(player_name))
+        **player_avatar_context(player_name))
 
 
 # Authentication routes

@@ -1,4 +1,6 @@
 <ul class="menu-list">
+    <li><a href="{{ url_for('stats_default') }}"><i class="fas fa-home"></i> Main Page</a></li>
+
     {% if active_tab is not defined %}
     <li class="menu-section-label">Browse</li>
     <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
