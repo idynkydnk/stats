@@ -179,9 +179,13 @@ def build_ai_summary_message(subject, html_body, plain_text_body, to_addr,
 
 
 def _ai_email_public_recipients(recipients):
-    """Recipients shown in send counts (excludes configured copy addresses)."""
-    copy_addrs = _ai_email_copy_addresses()
-    return [r for r in recipients if r not in copy_addrs]
+    """Recipients shown in send counts.
+
+    Called before copy addresses are appended. A configured copy address
+    already in recipients is a player in the game and should be counted;
+    copy-only adds happen later via extend_ai_email_recipients.
+    """
+    return list(recipients)
 
 
 def _ai_email_public_sent_count(public_recipients, errors):
