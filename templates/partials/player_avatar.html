@@ -3,17 +3,15 @@
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = [] %}{% endif %}
 {% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50, 'z': 1} %}{% endif %}
-{% set face_pos = player_face_photo_focus.x ~ '% ' ~ player_face_photo_focus.y ~ '%' %}
-{% set face_zoom = player_face_photo_focus.z if player_face_photo_focus.z is defined else 1 %}
-{% set face_crop_style = 'object-position: ' ~ face_pos ~ '; transform: scale(' ~ face_zoom ~ '); transform-origin: ' ~ face_pos ~ ';' %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
             title="Manage player photos" aria-label="Manage player photos">
     {% endif %}
         {% if player_photo_url %}
-        <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-player-avatar sr-player-photo" id="player-avatar-img"
-             style="{{ face_crop_style }}">
+        <div class="sr-avatar-crop-frame" id="player-avatar-frame">
+            <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img">
+        </div>
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
@@ -36,8 +34,7 @@
                     <div class="sr-face-crop-frame" id="face-crop-frame"
                          {% if not player_photo_url %}hidden{% endif %}>
                         <img src="{{ player_photo_url or '' }}" alt="Face photo"
-                             class="sr-face-crop-img" id="modal-face-preview"
-                             style="{{ face_crop_style }}">
+                             class="sr-crop-positioned-img" id="modal-face-preview">
                     </div>
                     <div class="sr-face-photo-preview sr-face-photo-empty" id="modal-face-empty"
                          {% if player_photo_url %}hidden{% endif %}>{{ display_name[0] }}</div>
@@ -56,7 +53,7 @@
                     <div class="sr-face-zoom-controls" id="face-zoom-controls"
                          {% if not player_photo_url %}hidden{% endif %}>
                         <button type="button" class="sr-face-zoom-btn" id="face-zoom-out" title="Zoom out">−</button>
-                        <span class="sr-face-zoom-label" id="face-zoom-label">{{ (face_zoom * 100)|round|int }}%</span>
+                        <span class="sr-face-zoom-label" id="face-zoom-label">{{ ((player_face_photo_focus.z if player_face_photo_focus.z is defined else 1) * 100)|round|int }}%</span>
                         <button type="button" class="sr-face-zoom-btn" id="face-zoom-in" title="Zoom in">+</button>
                     </div>
                 </div>
@@ -68,13 +65,12 @@
             <p class="sr-body-crop-hint">Tap a photo to crop and pick one person in group shots.</p>
             <div class="sr-body-photo-grid" id="body-photo-grid">
                 {% for photo in player_full_body_photos %}
-                {% set bf = photo.focus if photo.focus is defined else {'x': 50, 'y': 50, 'z': 1} %}
-                {% set body_pos = bf.x ~ '% ' ~ bf.y ~ '%' %}
-                {% set body_crop_style = 'object-position: ' ~ body_pos ~ '; transform: scale(' ~ bf.z ~ '); transform-origin: ' ~ body_pos ~ ';' %}
                 <div class="sr-body-photo-item" data-path="{{ photo.path }}">
                     <button type="button" class="sr-body-crop-trigger" data-path="{{ photo.path }}"
                             title="Crop photo" aria-label="Crop full-body photo">
-                        <img src="{{ photo.url }}" alt="Full-body photo" style="{{ body_crop_style }}">
+                        <span class="sr-body-crop-thumb">
+                            <img src="{{ photo.url }}" alt="Full-body photo" class="sr-crop-positioned-img">
+                        </span>
                     </button>
                     <button type="button" class="sr-body-photo-delete" data-path="{{ photo.path }}" title="Remove">&times;</button>
                 </div>
@@ -83,7 +79,7 @@
             <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
                 <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
                 <div class="sr-body-crop-frame" id="body-crop-frame">
-                    <img src="" alt="Crop preview" class="sr-body-crop-img" id="body-crop-preview">
+                    <img src="" alt="Crop preview" class="sr-crop-positioned-img" id="body-crop-preview">
                 </div>
                 <p class="sr-face-drag-hint">Drag to reposition · scroll or +/− to zoom</p>
                 <div class="sr-face-zoom-controls">
@@ -195,14 +191,26 @@
     cursor: grab;
     touch-action: none;
     user-select: none;
+    position: relative;
 }
 .sr-face-crop-frame:active { cursor: grabbing; }
 .sr-face-crop-frame[hidden] { display: none !important; }
-.sr-face-crop-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+.sr-avatar-crop-frame {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-bg);
+    position: relative;
+    flex-shrink: 0;
+}
+.sr-crop-positioned-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+    max-height: none;
     pointer-events: none;
 }
 .sr-face-photo-preview {
@@ -315,19 +323,18 @@
     border: none;
     background: none;
     cursor: pointer;
-    overflow: hidden;
 }
 .sr-body-crop-trigger:focus-visible {
     outline: 2px solid var(--sr-accent);
     outline-offset: 2px;
 }
-.sr-body-photo-item img,
-.sr-body-crop-img {
-    width: 100%;
-    height: 130px;
-    object-fit: cover;
+.sr-body-crop-thumb {
     display: block;
-    pointer-events: none;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background: var(--sr-bg);
 }
 .sr-body-crop-editor {
     margin: 14px 0;
@@ -347,6 +354,8 @@
     width: 100%;
     max-width: 280px;
     aspect-ratio: 3 / 4;
+    height: auto;
+    min-height: 0;
     margin: 0 auto 10px;
     border-radius: 8px;
     overflow: hidden;
@@ -355,6 +364,7 @@
     cursor: grab;
     touch-action: none;
     user-select: none;
+    position: relative;
 }
 .sr-body-crop-frame:active { cursor: grabbing; }
 .sr-body-photo-delete {
@@ -498,20 +508,98 @@
     var faceDragging = false;
     var faceDragLastX = 0;
     var faceDragLastY = 0;
+    var orientedSizeCache = {};
 
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
     function clampZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
 
-    function applyPhotoStyles(el, focus) {
-        if (!el || !focus) return;
-        var pos = clampFocus(focus.x) + '% ' + clampFocus(focus.y) + '%';
-        el.style.objectPosition = pos;
-        el.style.transformOrigin = pos;
-        el.style.transform = 'scale(' + clampZoom(focus.z) + ')';
+    function orientedImageSize(img, callback) {
+        var key = img.currentSrc || img.src;
+        if (orientedSizeCache[key]) {
+            var cached = orientedSizeCache[key];
+            callback(cached.w, cached.h);
+            return;
+        }
+        if (window.createImageBitmap && key) {
+            fetch(key, { credentials: 'same-origin' })
+                .then(function(r) { return r.blob(); })
+                .then(function(blob) { return createImageBitmap(blob); })
+                .then(function(bitmap) {
+                    orientedSizeCache[key] = { w: bitmap.width, h: bitmap.height };
+                    callback(bitmap.width, bitmap.height);
+                    bitmap.close();
+                })
+                .catch(function() {
+                    orientedSizeCache[key] = { w: img.naturalWidth, h: img.naturalHeight };
+                    callback(img.naturalWidth, img.naturalHeight);
+                });
+        } else {
+            orientedSizeCache[key] = { w: img.naturalWidth, h: img.naturalHeight };
+            callback(img.naturalWidth, img.naturalHeight);
+        }
+    }
+
+    function cropFrameFor(img) {
+        if (!img) return null;
+        return img.closest('.sr-face-crop-frame, .sr-avatar-crop-frame, .sr-body-crop-frame, .sr-body-crop-thumb');
+    }
+
+    function layoutCropImage(img, frameEl, focus) {
+        if (!img || !frameEl || !focus) return;
+        function applyWithSize(iw, ih) {
+            var rect = frameEl.getBoundingClientRect();
+            var frameW = rect.width;
+            var frameH = rect.height;
+            if (!iw || !ih || frameW < 1 || frameH < 1) return false;
+
+            var z = clampZoom(focus.z);
+            var fx = clampFocus(focus.x) / 100;
+            var fy = clampFocus(focus.y) / 100;
+            var coverScale = Math.max(frameW / iw, frameH / ih);
+            var dispW = iw * coverScale * z;
+            var dispH = ih * coverScale * z;
+
+            img.style.position = 'absolute';
+            img.style.width = dispW + 'px';
+            img.style.height = dispH + 'px';
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            img.style.objectFit = 'fill';
+            img.style.transform = '';
+            img.style.transformOrigin = '';
+            img.style.objectPosition = '';
+            img.style.left = (frameW / 2 - fx * dispW) + 'px';
+            img.style.top = (frameH / 2 - fy * dispH) + 'px';
+            return true;
+        }
+        function measureAndApply() {
+            if (!img.naturalWidth) return false;
+            orientedImageSize(img, applyWithSize);
+            return true;
+        }
+        if (!measureAndApply()) {
+            img.addEventListener('load', function onLoad() {
+                img.removeEventListener('load', onLoad);
+                measureAndApply();
+            });
+        }
+    }
+
+    function relayoutCropSoon(img, focus) {
+        applyPhotoCrop(img, focus);
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                applyPhotoCrop(img, focus);
+            });
+        });
+    }
+
+    function applyPhotoCrop(img, focus) {
+        layoutCropImage(img, cropFrameFor(img), focus);
     }
 
     function applyFaceStyles(el) {
-        applyPhotoStyles(el, faceFocus);
+        applyPhotoCrop(el, faceFocus);
     }
 
     function updateZoomLabel(labelEl, zoom) {
@@ -541,7 +629,7 @@
         if (typeof x === 'number') bodyFocus.x = clampFocus(x);
         if (typeof y === 'number') bodyFocus.y = clampFocus(y);
         if (typeof z === 'number') bodyFocus.z = clampZoom(z);
-        applyPhotoStyles(bodyCropPreview, bodyFocus);
+        applyPhotoCrop(bodyCropPreview, bodyFocus);
         updateBodyZoomLabel();
         syncBodyThumbStyles();
     }
@@ -549,7 +637,7 @@
     function syncBodyThumbStyles() {
         if (!activeBodyPath || !bodyGrid) return;
         var item = bodyGrid.querySelector('.sr-body-photo-item[data-path="' + CSS.escape(activeBodyPath) + '"] img');
-        if (item) applyPhotoStyles(item, bodyFocus);
+        if (item) applyPhotoCrop(item, bodyFocus);
     }
 
     function saveBodyFocus() {
@@ -584,8 +672,9 @@
         activeBodyPath = photo.path;
         var focus = photo.focus || { x: 50, y: 50, z: 1 };
         bodyCropPreview.src = photo.url.split('?')[0] + '?t=' + Date.now();
-        applyBodyCrop(focus.x, focus.y, focus.z);
         bodyCropEditor.hidden = false;
+        applyBodyCrop(focus.x, focus.y, focus.z);
+        relayoutCropSoon(bodyCropPreview, bodyFocus);
         bodyCropEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
@@ -609,16 +698,16 @@
         saveFaceFocus();
     }
 
-    function openModal() { if (modal) modal.hidden = false; }
+    function openModal() {
+        if (modal) modal.hidden = false;
+        if (bodyCropPreview && activeBodyPath) {
+            relayoutCropSoon(bodyCropPreview, bodyFocus);
+        }
+    }
     function closeModal() { if (modal) modal.hidden = true; }
 
     function setFacePreview(url, focus) {
         if (url) {
-            if (focus) {
-                applyFaceCrop(focus.x, focus.y, focus.z != null ? focus.z : 1);
-            } else {
-                applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
-            }
             if (faceCropFrame) faceCropFrame.hidden = false;
             if (modalFacePreview) {
                 modalFacePreview.src = url + '?t=' + Date.now();
@@ -627,18 +716,27 @@
             if (faceRemoveBtn) faceRemoveBtn.hidden = false;
             if (faceDragHint) faceDragHint.hidden = false;
             if (faceZoomControls) faceZoomControls.hidden = false;
+            if (focus) {
+                applyFaceCrop(focus.x, focus.y, focus.z != null ? focus.z : 1);
+            } else {
+                applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
+            }
             var header = document.getElementById('player-avatar-img');
             if (header) {
                 header.src = url + '?t=' + Date.now();
                 applyFaceStyles(header);
             } else if (headerAvatarFallback) {
+                var frame = document.createElement('div');
+                frame.id = 'player-avatar-frame';
+                frame.className = 'sr-avatar-crop-frame';
                 var img = document.createElement('img');
                 img.id = 'player-avatar-img';
-                img.className = 'sr-player-avatar sr-player-photo';
+                img.className = 'sr-crop-positioned-img';
                 img.alt = playerName;
                 img.src = url + '?t=' + Date.now();
-                applyFaceStyles(img);
-                headerAvatarFallback.replaceWith(img);
+                frame.appendChild(img);
+                headerAvatarFallback.replaceWith(frame);
+                applyPhotoCrop(img, focus || { x: 50, y: 50, z: 1 });
             }
         } else {
             applyFaceCrop(50, 50, 1);
@@ -648,13 +746,13 @@
             if (faceRemoveBtn) faceRemoveBtn.hidden = true;
             if (faceDragHint) faceDragHint.hidden = true;
             if (faceZoomControls) faceZoomControls.hidden = true;
-            var headerImg = document.getElementById('player-avatar-img');
-            if (headerImg) {
+            var headerFrame = document.getElementById('player-avatar-frame');
+            if (headerFrame) {
                 var fb = document.createElement('div');
                 fb.id = 'player-avatar-fallback';
                 fb.className = 'sr-player-avatar';
                 fb.textContent = playerName.charAt(0);
-                headerImg.replaceWith(fb);
+                headerFrame.replaceWith(fb);
             }
         }
     }
@@ -674,10 +772,13 @@
             trigger.title = 'Crop photo';
             trigger.setAttribute('aria-label', 'Crop full-body photo');
             trigger.dataset.path = photo.path;
+            var thumb = document.createElement('span');
+            thumb.className = 'sr-body-crop-thumb';
             var img = document.createElement('img');
             img.src = photo.url + '?t=' + Date.now();
             img.alt = 'Full-body photo';
-            applyPhotoStyles(img, focus);
+            img.className = 'sr-crop-positioned-img';
+            applyPhotoCrop(img, focus);
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'sr-body-photo-delete';
@@ -689,7 +790,8 @@
                 removeBodyPhoto(photo.path);
             });
             trigger.addEventListener('click', function() { openBodyCrop(photo); });
-            trigger.appendChild(img);
+            thumb.appendChild(img);
+            trigger.appendChild(thumb);
             item.appendChild(trigger);
             item.appendChild(btn);
             bodyGrid.appendChild(item);
@@ -842,6 +944,34 @@
         nextPhrases.splice(index, 1);
         saveTraits(nextPhrases);
     }
+
+    function layoutAllBodyThumbs() {
+        if (!bodyGrid) return;
+        bodyGrid.querySelectorAll('.sr-body-photo-item').forEach(function(item) {
+            var img = item.querySelector('img');
+            var path = item.dataset.path;
+            var photo = bodyPhotos.find(function(p) { return p.path === path; });
+            if (img && photo) applyPhotoCrop(img, photo.focus || { x: 50, y: 50, z: 1 });
+        });
+    }
+
+    if (modalFacePreview && faceCropFrame) {
+        applyPhotoCrop(modalFacePreview, faceFocus);
+    }
+    var headerFrame = document.getElementById('player-avatar-frame');
+    var headerImg = document.getElementById('player-avatar-img');
+    if (headerImg && headerFrame) {
+        applyPhotoCrop(headerImg, faceFocus);
+    }
+    layoutAllBodyThumbs();
+    window.addEventListener('resize', function() {
+        if (modalFacePreview) applyPhotoCrop(modalFacePreview, faceFocus);
+        var hi = document.getElementById('player-avatar-img');
+        var hf = document.getElementById('player-avatar-frame');
+        if (hi && hf) applyPhotoCrop(hi, faceFocus);
+        layoutAllBodyThumbs();
+        if (bodyCropPreview && activeBodyPath) applyPhotoCrop(bodyCropPreview, bodyFocus);
+    });
 
     if (trigger) trigger.addEventListener('click', openModal);
     if (faceInput) {

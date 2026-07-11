@@ -242,9 +242,10 @@ def set_player_full_body_photo_crop(player_id, rel_path, x, y, z=None):
 def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, max_pixels=768):
     """Export a crop matching CSS object-fit:cover + object-position + scale."""
     import io
-    from PIL import Image
+    from PIL import Image, ImageOps
 
     img = Image.open(io.BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img)
     if img.mode not in ('RGB', 'L'):
         img = img.convert('RGB')
     iw, ih = img.size
