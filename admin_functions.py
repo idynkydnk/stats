@@ -311,3 +311,72 @@ def most_recent_game():
     candidates.sort(key=lambda c: str(c[1] or ''), reverse=True)
     kind, game_date, summary = candidates[0]
     return {'kind': kind, 'game_date': game_date, 'summary': summary}
+
+
+# --- AI prompt log (saved summary generations for admin review) ---
+
+def init_ai_prompt_log_db():
+    conn = _connect()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS ai_prompt_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            username TEXT NOT NULL,
+            game_type TEXT NOT NULL,
+            prompt_style TEXT,
+            custom_prompt TEXT,
+            game_ids_json TEXT,
+            prompt_text TEXT NOT NULL,
+            summary_text TEXT,
+            image_prompt_text TEXT,
+            subject TEXT,
+            hero_image_url TEXT,
+            hero_image_error TEXT
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ai_prompt_log_created ON ai_prompt_log(created_at DESC)'
+    )
+    try:
+        conn.execute('ALTER TABLE ai_prompt_log ADD COLUMN image_prompt_text TEXT')
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' not in str(e).lower():
+            raise
+    conn.commit()
+    conn.close()
+
+
+def insert_ai_prompt_log(username, game_type, prompt_style, custom_prompt, game_ids,
+                         prompt_text, summary_text, subject=None,
+                         hero_image_url=None, hero_image_error=None,
+                         image_prompt_text=None):
+    conn = _connect()
+    conn.execute('''
+        INSERT INTO ai_prompt_log (
+            username, game_type, prompt_style, custom_prompt, game_ids_json,
+            prompt_text, summary_text, image_prompt_text, subject,
+            hero_image_url, hero_image_error
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        username, game_type, prompt_style or '', custom_prompt or '',
+        json.dumps(list(game_ids), default=str) if game_ids else '[]',
+        prompt_text, summary_text or '', image_prompt_text or '', subject or '',
+        hero_image_url or '', hero_image_error or '',
+    ))
+    conn.commit()
+    conn.close()
+
+
+def get_ai_prompt_log_page(page=1, per_page=25):
+    offset = (max(page, 1) - 1) * per_page
+    conn = _connect()
+    total = conn.execute('SELECT COUNT(*) FROM ai_prompt_log').fetchone()[0]
+    rows = conn.execute('''
+        SELECT id, created_at, username, game_type, prompt_style, custom_prompt,
+               game_ids_json, prompt_text, summary_text, image_prompt_text, subject,
+               hero_image_url, hero_image_error
+        FROM ai_prompt_log ORDER BY id DESC LIMIT ? OFFSET ?
+    ''', (per_page, offset)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows], total
+

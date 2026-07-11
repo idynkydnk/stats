@@ -1,0 +1,190 @@
+{% extends base_template %}
+{% block title %}AI Prompts - Admin{% endblock %}
+{% block extra_css %}
+<style>
+.adm-prompt-row {
+    border-bottom: 1px solid var(--sr-line);
+    padding: 0;
+}
+.adm-prompt-row:last-child { border-bottom: none; }
+.adm-prompt-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 12px;
+    cursor: pointer;
+    list-style: none;
+}
+.adm-prompt-summary::-webkit-details-marker { display: none; }
+.adm-prompt-summary:hover { background: rgba(255, 255, 255, 0.02); }
+.adm-prompt-main { flex: 1; min-width: 0; }
+.adm-prompt-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.adm-prompt-user { font-weight: 600; color: var(--sr-accent); font-size: 13px; }
+.adm-prompt-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--sr-accent-dim);
+    color: var(--sr-accent);
+}
+.adm-prompt-subject {
+    font-size: 14px;
+    color: var(--sr-text);
+    margin-bottom: 4px;
+}
+.adm-prompt-preview {
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.5;
+}
+.adm-prompt-time {
+    font-size: 11px;
+    color: var(--sr-muted);
+    margin-top: 4px;
+}
+.adm-prompt-chevron {
+    color: var(--sr-muted);
+    font-size: 12px;
+    margin-top: 4px;
+    transition: transform 0.2s;
+}
+details[open] .adm-prompt-chevron { transform: rotate(90deg); }
+.adm-prompt-body {
+    padding: 0 12px 16px 12px;
+}
+.adm-prompt-block {
+    margin-bottom: 14px;
+}
+.adm-prompt-block:last-child { margin-bottom: 0; }
+.adm-prompt-block label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--sr-muted);
+    margin-bottom: 6px;
+}
+.adm-prompt-block pre {
+    margin: 0;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    color: var(--sr-text);
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.adm-prompt-note {
+    font-size: 12px;
+    color: var(--sr-muted);
+    margin-top: 8px;
+}
+.adm-pagination {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 0 4px;
+    font-size: 13px;
+    color: var(--sr-muted);
+}
+.adm-pagination a {
+    color: var(--sr-accent);
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid var(--sr-line);
+    border-radius: 6px;
+}
+.adm-pagination a:hover { border-color: var(--sr-accent); }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">AI Prompts</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('admin_dashboard') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Admin</a>
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<div class="adm-section">
+    <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
+        Every generated AI summary prompt is saved here. Expand an entry to read the full prompt and output.
+    </p>
+    <div class="sr-card sr-card-compact">
+        {% if entries %}
+        {% for e in entries %}
+        <details class="adm-prompt-row">
+            <summary class="adm-prompt-summary">
+                <div class="adm-prompt-main">
+                    <div class="adm-prompt-meta">
+                        <span class="adm-prompt-user">{{ e.username }}</span>
+                        <span class="adm-prompt-badge">{{ e.game_type|capitalize }}</span>
+                        <span class="adm-prompt-badge">{{ e.prompt_style or 'unknown' }}</span>
+                        <span class="adm-prompt-badge">{{ e.game_count }} game{{ 's' if e.game_count != 1 else '' }}</span>
+                    </div>
+                    {% if e.subject %}
+                    <div class="adm-prompt-subject">{{ e.subject }}</div>
+                    {% endif %}
+                    {% if e.summary_preview %}
+                    <div class="adm-prompt-preview">{{ e.summary_preview }}</div>
+                    {% endif %}
+                    <div class="adm-prompt-time">{{ e.created_at_fmt }}</div>
+                </div>
+                <i class="fas fa-chevron-right adm-prompt-chevron"></i>
+            </summary>
+            <div class="adm-prompt-body">
+                {% if e.custom_prompt %}
+                <div class="adm-prompt-block">
+                    <label>Custom style instructions</label>
+                    <pre>{{ e.custom_prompt }}</pre>
+                </div>
+                {% endif %}
+                <div class="adm-prompt-block">
+                    <label>Full prompt sent to Gemini (summary)</label>
+                    <pre>{{ e.prompt_text }}</pre>
+                </div>
+                {% if e.image_prompt_text %}
+                <div class="adm-prompt-block">
+                    <label>Full prompt sent to Gemini (illustration)</label>
+                    <pre>{{ e.image_prompt_text }}</pre>
+                </div>
+                {% endif %}
+                <div class="adm-prompt-block">
+                    <label>Generated summary</label>
+                    <pre>{{ e.summary_text or '(empty)' }}</pre>
+                </div>
+                {% if e.hero_image_url %}
+                <div class="adm-prompt-note"><i class="fas fa-image"></i> Illustration generated</div>
+                {% elif e.hero_image_error %}
+                <div class="adm-prompt-note"><i class="fas fa-exclamation-triangle"></i> Illustration failed: {{ e.hero_image_error }}</div>
+                {% endif %}
+            </div>
+        </details>
+        {% endfor %}
+        {% if total_pages > 1 %}
+        <div class="adm-pagination">
+            {% if page > 1 %}<a href="{{ url_for('admin_ai_prompts', page=page-1) }}">&larr; Newer</a>{% endif %}
+            <span>Page {{ page }} of {{ total_pages }} ({{ total_entries }} total)</span>
+            {% if page < total_pages %}<a href="{{ url_for('admin_ai_prompts', page=page+1) }}">Older &rarr;</a>{% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p style="color: var(--sr-muted); text-align: center; padding: 32px 16px;">
+            No AI prompts saved yet. Generate a summary from the AI Summary page to see entries here.
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

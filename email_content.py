@@ -385,6 +385,21 @@ def _save_email_image(image_bytes, ext):
     return url, abs_path
 
 
+def _image_prompt_bundle(reference_parts, prompt):
+    """Serialize the full text sent to the image model (reference labels + prompt)."""
+    lines = []
+    for part in reference_parts or []:
+        text = part.get('text')
+        if text:
+            lines.append(text)
+        elif part.get('inline_data'):
+            lines.append('[Reference photo attached]')
+    lines.append('')
+    lines.append('--- Main illustration prompt ---')
+    lines.append(prompt)
+    return '\n\n'.join(lines)
+
+
 def generate_email_hero_image(api_key, game_type, games, summary, player_names):
     """Generate an illustration for the AI email hero image."""
     from player_functions import collect_player_ai_image_traits
@@ -414,6 +429,7 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names):
         has_reference_photos=has_reference_photos,
         trait_lines=trait_lines,
     )
+    image_prompt = _image_prompt_bundle(reference_parts, prompt)
     raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
     if 'gif' in mime:
         ext = 'gif'
@@ -421,20 +437,21 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names):
         ext = 'jpg'
     else:
         ext = 'png'
-    return _save_email_image(raw, ext)
+    url, path = _save_email_image(raw, ext)
+    return url, path, image_prompt
 
 
 def _try_generate_email_hero_image(api_key, game_type, games, summary, player_names):
     try:
-        url, path = generate_email_hero_image(api_key, game_type, games, summary, player_names)
-        return url, path, None
+        url, path, image_prompt = generate_email_hero_image(api_key, game_type, games, summary, player_names)
+        return url, path, None, image_prompt
     except Exception as e:
         err = _friendly_image_error(e)
         try:
             current_app.logger.warning('AI email image generation failed: %s', err)
         except Exception:
             pass
-        return None, None, err
+        return None, None, err, None
 
 
 def email_html_for_inline_preview(html_body):
@@ -1205,7 +1222,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error, image_prompt = _try_generate_email_hero_image(
         api_key, 'doubles', games, summary, players_set,
     )
     html_body = create_doubles_email_html(
@@ -1234,7 +1251,9 @@ Write the recap:"""
         'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
-        'formatted_date': formatted_date
+        'formatted_date': formatted_date,
+        'ai_prompt': prompt,
+        'image_prompt': image_prompt or '',
     }
 
 
@@ -1725,7 +1744,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error, image_prompt = _try_generate_email_hero_image(
         api_key, 'vollis', games, summary, players_set,
     )
     html_body = create_vollis_email_html(
@@ -1754,7 +1773,9 @@ Write the recap:"""
         'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
-        'formatted_date': formatted_date
+        'formatted_date': formatted_date,
+        'ai_prompt': prompt,
+        'image_prompt': image_prompt or '',
     }
 
 
@@ -1937,7 +1958,7 @@ Write the recap:"""
             date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
-    hero_image_url, hero_image_path, hero_image_error = _try_generate_email_hero_image(
+    hero_image_url, hero_image_path, hero_image_error, image_prompt = _try_generate_email_hero_image(
         api_key, 'other', games, summary, players_set,
     )
     html_body = create_other_email_html(
@@ -1969,5 +1990,7 @@ Write the recap:"""
         'hero_image_path': hero_image_path,
         'hero_image_error': hero_image_error,
         'date_obj': date_obj,
-        'formatted_date': formatted_date
+        'formatted_date': formatted_date,
+        'ai_prompt': prompt,
+        'image_prompt': image_prompt or '',
     }

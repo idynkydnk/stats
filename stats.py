@@ -342,6 +342,7 @@ def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_pro
             payload = _build_ai_summary_payload(
                 game_type, game_ids, prompt_style, custom_prompt,
             )
+            _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=username)
             img_note = ''
             if payload.get('hero_image_url'):
                 img_note = ' (with AI illustration)'
@@ -720,6 +721,7 @@ def mark_notifications_read(notification_ids):
 init_notifications_db()
 init_auth_tokens_db()
 adminfx.init_activity_log_db()
+adminfx.init_ai_prompt_log_db()
 ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 from player_functions import init_players_photo_column
@@ -797,6 +799,26 @@ def log_activity(action, target=None, target_id=None, summary=None, before=None,
         adminfx.insert_activity(user, action, target, target_id, summary, before, after)
     except Exception:
         app.logger.exception('Failed to write activity log')
+
+
+def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=None):
+    """Persist a generated AI summary prompt for admin review."""
+    try:
+        adminfx.insert_ai_prompt_log(
+            username=username or session.get('username') or 'unknown',
+            game_type=payload.get('game_type') or 'doubles',
+            prompt_style=prompt_style,
+            custom_prompt=custom_prompt,
+            game_ids=game_ids,
+            prompt_text=payload.get('ai_prompt') or '',
+            summary_text=payload.get('summary') or '',
+            subject=payload.get('subject'),
+            hero_image_url=payload.get('hero_image_url'),
+            hero_image_error=payload.get('hero_image_error'),
+            image_prompt_text=payload.get('image_prompt') or '',
+        )
+    except Exception:
+        app.logger.exception('Failed to save AI prompt log')
 
 
 def admin_required(f):
@@ -1251,6 +1273,8 @@ def preview_ai_summary_with_prompt():
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(e)[:200]}')
         flash(f'Failed to prepare summary preview: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
+
+    _save_ai_prompt_log(payload, prompt_style, custom_prompt, selected_game_ids)
 
     img_note = ''
     if payload.get('hero_image_url'):
@@ -4094,6 +4118,34 @@ def admin_undo(log_id):
     else:
         flash(message, 'error')
     return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/ai-prompts/')
+@admin_required
+def admin_ai_prompts():
+    """Browse saved AI summary prompts and generated text."""
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 25
+    entries, total_entries = adminfx.get_ai_prompt_log_page(page=page, per_page=per_page)
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    for entry in entries:
+        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+        try:
+            game_ids = json.loads(entry.get('game_ids_json') or '[]')
+        except json.JSONDecodeError:
+            game_ids = []
+        entry['game_count'] = len(game_ids)
+        summary = (entry.get('summary_text') or '').strip()
+        entry['summary_preview'] = (
+            summary[:180] + '...' if len(summary) > 180 else summary
+        )
+    return render_template(
+        'admin_ai_prompts.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+    )
 
 
 @app.route('/admin/users/add', methods=['POST'])
