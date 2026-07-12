@@ -1,6 +1,7 @@
 from database_functions import *
 from datetime import datetime, date
 from functools import lru_cache
+import re
 import time
 from time_display import format_game_time
 
@@ -657,28 +658,73 @@ def _search_like_arg(q):
 		return None
 	return '%' + q.strip() + '%'
 
+
+def _search_query_tokens(q):
+	"""Split a search string into tokens (whitespace or commas)."""
+	if not q:
+		return []
+	return [part for part in re.split(r'[\s,]+', q.strip()) if part]
+
+
+def _multi_token_search_clause(tokens, text_columns, date_column='game_date'):
+	"""Build AND of per-token OR clauses across player/text columns and date."""
+	if not tokens:
+		return None, []
+	columns = list(text_columns)
+	if date_column:
+		columns.append(date_column)
+	clauses = []
+	params = []
+	for token in tokens:
+		like = '%' + token + '%'
+		or_parts = [f'{col} LIKE ?' for col in columns]
+		clauses.append('(' + ' OR '.join(or_parts) + ')')
+		params.extend([like] * len(columns))
+	return ' AND '.join(clauses), params
+
+
 def year_games_search_count(year, q):
 	"""Count doubles games matching search q (player names or date)."""
 	if not (q and q.strip()):
 		return year_games_count(year)
+	tokens = _search_query_tokens(q)
+	if not tokens:
+		return year_games_count(year)
+	clause, params = _multi_token_search_clause(
+		tokens, ['winner1', 'winner2', 'loser1', 'loser2'],
+	)
 	cur = set_cur()
-	like = _search_like_arg(q)
 	if year == 'All years':
-		cur.execute("""SELECT COUNT(*) FROM games WHERE (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?)""", (like, like, like, like, like))
+		cur.execute(f"SELECT COUNT(*) FROM games WHERE {clause}", params)
 	else:
-		cur.execute("""SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=? AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?)""", (year, like, like, like, like, like))
+		cur.execute(
+			f"SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=? AND {clause}",
+			[year] + params,
+		)
 	return cur.fetchone()[0]
+
 
 def year_games_paginated_search(year, q, limit=50, offset=0):
 	"""Doubles games matching search q, one page. Not cached."""
 	if not (q and q.strip()):
 		return year_games_paginated(year, limit, offset)
+	tokens = _search_query_tokens(q)
+	if not tokens:
+		return year_games_paginated(year, limit, offset)
+	clause, params = _multi_token_search_clause(
+		tokens, ['winner1', 'winner2', 'loser1', 'loser2'],
+	)
 	cur = set_cur()
-	like = _search_like_arg(q)
 	if year == 'All years':
-		cur.execute("""SELECT * FROM games WHERE (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?) ORDER BY game_date DESC LIMIT ? OFFSET ?""", (like, like, like, like, like, limit, offset))
+		cur.execute(
+			f"SELECT * FROM games WHERE {clause} ORDER BY game_date DESC LIMIT ? OFFSET ?",
+			params + [limit, offset],
+		)
 	else:
-		cur.execute("""SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1 LIKE ? OR winner2 LIKE ? OR loser1 LIKE ? OR loser2 LIKE ? OR game_date LIKE ?) ORDER BY game_date DESC LIMIT ? OFFSET ?""", (year, like, like, like, like, like, limit, offset))
+		cur.execute(
+			f"SELECT * FROM games WHERE strftime('%Y',game_date)=? AND {clause} ORDER BY game_date DESC LIMIT ? OFFSET ?",
+			[year] + params + [limit, offset],
+		)
 	row = cur.fetchall()
 	row = convert_ampm(row)
 	return row

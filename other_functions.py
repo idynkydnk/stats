@@ -242,27 +242,21 @@ def recent_other_games(limit=10):
 
 def search_other_games(q, limit=50, offset=0):
     """Search all other games by game name, players, comment, or date."""
-    from stat_functions import _search_like_arg
+    from stat_functions import _search_query_tokens, _multi_token_search_clause
 
     cur = set_cur()
-    like = _search_like_arg(q)
-    if not like:
+    tokens = _search_query_tokens(q)
+    if not tokens:
         return recent_other_games(limit)
 
-    conditions = [
-        'game_name LIKE ?',
-        'game_type LIKE ?',
-        'comment LIKE ?',
-        'game_date LIKE ?',
-    ]
-    params = [like, like, like, like]
+    text_columns = ['game_name', 'game_type', 'comment']
     for i in range(1, MAX_OTHER_PLAYERS + 1):
-        conditions.append(f'winner{i} LIKE ?')
-        conditions.append(f'loser{i} LIKE ?')
-        params.extend([like, like])
+        text_columns.append(f'winner{i}')
+        text_columns.append(f'loser{i}')
+    clause, params = _multi_token_search_clause(tokens, text_columns)
     params.extend([limit, offset])
     sql = (
-        f"SELECT * FROM other_games WHERE ({' OR '.join(conditions)}) "
+        f"SELECT * FROM other_games WHERE {clause} "
         "ORDER BY game_date DESC LIMIT ? OFFSET ?"
     )
     cur.execute(sql, params)

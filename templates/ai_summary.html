@@ -242,7 +242,7 @@
 
             <div class="sr-game-search-wrap">
                 <input type="search" id="game-search" class="sr-game-search"
-                       placeholder="Search all doubles games by player or date..."
+                       placeholder="Search doubles games — e.g. dan aaron kyle (all must play)"
                        autocomplete="off" enterkeyhint="search">
             </div>
             <p class="sr-search-status" id="search-status"></p>
@@ -392,9 +392,9 @@
 let currentTab = 'doubles';
         const expandedTabs = {};
         const searchPlaceholders = {
-            doubles: 'Search all doubles games by player or date...',
-            vollis: 'Search all vollis games by player or date...',
-            other: 'Search all other games by name, player, or date...',
+            doubles: 'Search doubles games — e.g. dan aaron kyle (all must play)',
+            vollis: 'Search vollis games — e.g. dan kyle (all must play)',
+            other: 'Search other games — e.g. dan aaron gin (all terms must match)',
         };
         let searchTimer = null;
         let searchRequestId = 0;

@@ -257,17 +257,18 @@ def recent_vollis_games(limit=10):
 
 def search_vollis_games(q, limit=50, offset=0):
     """Search all vollis games by player name or date."""
-    from stat_functions import _search_like_arg
+    from stat_functions import _search_query_tokens, _multi_token_search_clause
 
     cur = set_cur()
-    like = _search_like_arg(q)
-    if not like:
+    tokens = _search_query_tokens(q)
+    if not tokens:
         return recent_vollis_games(limit)
+    clause, params = _multi_token_search_clause(tokens, ['winner', 'loser'])
     cur.execute(
-        """SELECT * FROM vollis_games
-           WHERE (winner LIKE ? OR loser LIKE ? OR game_date LIKE ?)
+        f"""SELECT * FROM vollis_games
+           WHERE {clause}
            ORDER BY game_date DESC LIMIT ? OFFSET ?""",
-        (like, like, like, limit, offset),
+        params + [limit, offset],
     )
     return convert_vollis_ampm(cur.fetchall())
 
