@@ -91,6 +91,87 @@ def generate_ai_text(prompt):
     raise ValueError(f'AI summary generation failed on all models: {" | ".join(errors)}')
 
 
+RECAP_PARAGRAPH_LIMIT = (
+    'Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. '
+    'No long blocks of text.'
+)
+
+BRUTAL_STYLE_INSTRUCTIONS = f"""You are a brutal roast comedian writing a savage recap email.
+Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
+Mock the winners for barely winning, demolish the losers for their failures.
+Be creative with your insults - reference specific plays, scores, and failures.
+This is all in good fun but don't hold back. Make it hurt (but funny).
+{RECAP_PARAGRAPH_LIMIT}"""
+
+AI_GENERATED_STYLE_META_PROMPTS = {
+    'generated_1': f"""You are designing instructions for an AI that will write a game recap email.
+Given the game data below, invent one specific, creative writing persona and tone tailored to this session.
+Return ONLY the instructions the writer AI should follow, starting with "You are...".
+Include tone, voice, personality, and stylistic quirks. Be original — not a generic announcer or analyst.
+End with: {RECAP_PARAGRAPH_LIMIT}""",
+
+    'generated_2': f"""You are designing instructions for an AI that will write a game recap email.
+Given the game data below, invent a bold, unconventional writing persona completely different from a typical sports recap.
+Return ONLY the instructions the writer AI should follow, starting with "You are...".
+Push for a distinctive voice — poetic, deadpan, literary, absurdist, documentary, etc. Pick one and commit.
+End with: {RECAP_PARAGRAPH_LIMIT}""",
+}
+
+_LEGACY_PROMPT_STYLE_ALIASES = {
+    'roast': 'brutal',
+    'announcer': 'generated_1',
+    'analyst': 'generated_1',
+    'storyteller': 'generated_1',
+    'comedian': 'generated_1',
+    'funny': 'generated_1',
+}
+
+
+def _normalize_prompt_style(prompt_style):
+    clean = (prompt_style or '').strip().lower()
+    return _LEGACY_PROMPT_STYLE_ALIASES.get(clean, clean)
+
+
+def _build_recap_style_instructions(prompt_style, context, custom_prompt=''):
+    """Resolve writing-style instructions for a recap (fixed, custom, or AI-generated)."""
+    prompt_style = _normalize_prompt_style(prompt_style)
+
+    if prompt_style == 'custom':
+        if not custom_prompt.strip():
+            raise ValueError('Custom prompt is empty. Enter your style instructions first.')
+        return custom_prompt.strip() + f'\n{RECAP_PARAGRAPH_LIMIT}'
+
+    if prompt_style == 'brutal':
+        return BRUTAL_STYLE_INSTRUCTIONS
+
+    if prompt_style in AI_GENERATED_STYLE_META_PROMPTS:
+        meta_prompt = f"""{AI_GENERATED_STYLE_META_PROMPTS[prompt_style]}
+
+Here is the game data:
+
+{context}
+
+Write the style instructions for the recap writer:"""
+        return generate_ai_text(meta_prompt)
+
+    raise ValueError(f'Unknown prompt style: {prompt_style}')
+
+
+def _build_recap_prompt(style_instructions, context):
+    return f"""{style_instructions}
+
+Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
+Only quote a comment if it is already in the data enclosed in quotation marks.
+Weave any comments smoothly into the narrative.
+CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
+
+Here is the game data:
+
+{context}
+
+Write the recap:"""
+
+
 def _email_hero_styles():
     return """
                     .hero-image-card { padding: 0; text-align: center; }
@@ -449,14 +530,24 @@ def _sport_desc_for_image(game_type, game_name=None):
     return 'recreational games'
 
 
-def _build_scene_image_prompt(game_type, games, summary, players, game_name=None):
+def _image_details_block(image_details):
+    clean = (image_details or '').strip()
+    if not clean:
+        return ''
+    return f'\nAdditional scene details from the user: {clean}\n'
+
+
+def _build_scene_image_prompt(
+    game_type, games, summary, players, game_name=None, image_details='',
+):
     sport_desc = _sport_desc_for_image(game_type, game_name)
     player_count = len(players)
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
+    details_block = _image_details_block(image_details)
     return f"""Illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-
+{details_block}
 Use each attached character reference exactly — same face, hair, outfit per named person.
 Do not blend features between characters. Do not redesign any character from scratch.
 Draw exactly {player_count} characters — one per attached reference. No duplicates, no bystanders. No text or logos in the image."""
@@ -599,7 +690,7 @@ def _reference_parts_for_api(players):
 
 def _build_single_pass_image_prompt(
     game_type, games, summary, players, has_reference_photos=False,
-    trait_lines=None, game_name=None,
+    trait_lines=None, game_name=None, image_details='',
 ):
     sport_desc = _sport_desc_for_image(game_type, game_name)
     players = _dedupe_players_preserve_order(players)
@@ -638,9 +729,10 @@ def _build_single_pass_image_prompt(
         f'- Every roster name must map to exactly one visible character in the scene.\n'
         f'- Apply each player\'s signature exaggerations only to that numbered character.\n'
     )
+    details_block = _image_details_block(image_details)
     return f"""Illustration for an email recap.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-{likeness}{roster_block}{rules_block}{traits_block}
+{details_block}{likeness}{roster_block}{rules_block}{traits_block}
 No text or logos in the image."""
 
 
@@ -812,7 +904,7 @@ def _illustration_status_note(illustrated_players, all_players, strategy):
 
 
 def _generate_email_hero_image_single_pass(
-    api_key, game_type, games, summary, players, game_name=None,
+    api_key, game_type, games, summary, players, game_name=None, image_details='',
 ):
     """One group illustration in a single API call."""
     players = _dedupe_players_preserve_order(players)
@@ -824,6 +916,7 @@ def _generate_email_hero_image_single_pass(
         has_reference_photos=has_reference_photos,
         trait_lines=trait_lines,
         game_name=game_name,
+        image_details=image_details,
     )
     image_prompt = _image_prompt_bundle(reference_parts, prompt)
     raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
@@ -832,7 +925,7 @@ def _generate_email_hero_image_single_pass(
 
 
 def _generate_email_hero_image_two_pass(
-    api_key, game_type, games, summary, players, game_name=None,
+    api_key, game_type, games, summary, players, game_name=None, image_details='',
 ):
     """Solo caricature per player (<=4), then one group scene."""
     from player_functions import (
@@ -868,6 +961,7 @@ def _generate_email_hero_image_two_pass(
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
     scene_prompt = _build_scene_image_prompt(
         game_type, games, summary, players, game_name=game_name,
+        image_details=image_details,
     )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
     raw, mime = _generate_image_bytes(scene_prompt, api_key, reference_parts=scene_refs)
@@ -875,7 +969,9 @@ def _generate_email_hero_image_two_pass(
     return url, path, image_prompt
 
 
-def generate_email_hero_image(api_key, game_type, games, summary, player_names, game_name=None):
+def generate_email_hero_image(
+    api_key, game_type, games, summary, player_names, game_name=None, image_details='',
+):
     """Generate the email hero image using two-pass (<=4 players) or single-pass (>4)."""
     players, strategy, _all_players = _illustration_players(player_names, game_type, games)
     if not players:
@@ -883,14 +979,17 @@ def generate_email_hero_image(api_key, game_type, games, summary, player_names, 
     if strategy == 'two_pass':
         return _generate_email_hero_image_two_pass(
             api_key, game_type, games, summary, players, game_name=game_name,
+            image_details=image_details,
         )
     return _generate_email_hero_image_single_pass(
         api_key, game_type, games, summary, players, game_name=game_name,
+        image_details=image_details,
     )
 
 
 def _try_generate_email_hero_image(
     api_key, game_type, games, summary, player_names, game_name=None, image_mode='none',
+    image_details='',
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -900,6 +999,7 @@ def _try_generate_email_hero_image(
         url, path, image_prompt = generate_email_hero_image(
             api_key, game_type, games, summary, player_names,
             game_name=game_name,
+            image_details=image_details,
         )
         return url, path, None, image_prompt, meta
     except Exception as e:
@@ -1354,44 +1454,12 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
     return html_body
 
 
-def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
+def build_doubles_email_payload(
+    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    image_details='',
+):
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
-
-    # Define different prompt styles
-    PROMPT_STYLES = {
-        'announcer': """You are an energetic sports announcer writing an exciting recap email.
-Use dramatic language, exciting calls, and hype up big plays and close games.
-Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
-Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
-Focus on the numbers: win percentages, point differentials, streaks, and trends.
-Draw insights from the statistics and explain what they mean for each player's performance.
-Be precise and factual, but still engaging. Reference specific stats to back up your observations.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'storyteller': """You are a sports storyteller writing a narrative recap email.
-Weave the games into an engaging story with character development and dramatic tension.
-Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
-Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'comedian': """You are a comedy writer doing a sports recap email.
-Be playful, witty, and don't be afraid to gently roast players (in good fun).
-Find the humor in the games - funny moments, ironic outcomes, playful observations.
-Keep it lighthearted and fun. Everyone should laugh, including those being teased.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'roast': """You are a brutal roast comedian writing a savage recap email.
-Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
-Mock the winners for barely winning, demolish the losers for their failures.
-Be creative with your insults - reference specific plays, scores, and failures.
-This is all in good fun but don't hold back. Make it hurt (but funny).
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-    }
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -1566,24 +1634,8 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
             comment_str = f" - Comment: {game[9]}"
         context += f"- {winners} def. {losers} ({score}){comment_str}\n"
 
-    # Get the prompt style instructions
-    if prompt_style == 'custom' and custom_prompt.strip():
-        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
-    else:
-        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
-    
-    prompt = f"""{style_instructions}
-
-Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
-Only quote a comment if it is already in the data enclosed in quotation marks.
-Weave any comments smoothly into the narrative.
-CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
-
-Here is the game data:
-
-{context}
-
-Write the recap:"""
+    style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
+    prompt = _build_recap_prompt(style_instructions, context)
     summary = generate_ai_text(prompt)
 
     players_set = set()
@@ -1625,6 +1677,7 @@ Write the recap:"""
     hero_image_url, hero_image_path, hero_image_error, image_prompt, illustration_meta = (
         _try_generate_email_hero_image(
             api_key, 'doubles', games, summary, players_set, image_mode=image_mode,
+            image_details=image_details,
         )
     )
     html_body = create_doubles_email_html(
@@ -1965,42 +2018,12 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
     return html_body
 
 
-def build_vollis_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
+def build_vollis_email_payload(
+    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    image_details='',
+):
     from vollis_functions import convert_vollis_ampm
     from player_functions import get_player_by_name
-
-    PROMPT_STYLES = {
-        'announcer': """You are an energetic sports announcer writing an exciting recap email.
-Use dramatic language, exciting calls, and hype up big plays and close games.
-Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
-Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
-Focus on the numbers: win percentages, point differentials, streaks, and trends.
-Draw insights from the statistics and explain what they mean for each player's performance.
-Be precise and factual, but still engaging. Reference specific stats to back up your observations.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'storyteller': """You are a sports storyteller writing a narrative recap email.
-Weave the games into an engaging story with character development and dramatic tension.
-Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
-Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'comedian': """You are a comedy writer doing a sports recap email.
-Be playful, witty, and don't be afraid to gently roast players (in good fun).
-Find the humor in the games - funny moments, ironic outcomes, playful observations.
-Keep it lighthearted and fun. Everyone should laugh, including those being teased.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'roast': """You are a brutal roast comedian writing a savage recap email.
-Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
-Mock the winners for barely winning, demolish the losers for their failures.
-Be creative with your insults - reference specific plays, scores, and failures.
-This is all in good fun but don't hold back. Make it hurt (but funny).
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-    }
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -2068,23 +2091,8 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
         l_score = game[5]
         context += f"- {winner} def. {loser} ({w_score}-{l_score})\n"
 
-    if prompt_style == 'custom' and custom_prompt.strip():
-        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
-    else:
-        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
-
-    prompt = f"""{style_instructions}
-
-Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
-Only quote a comment if it is already in the data enclosed in quotation marks.
-Weave any comments smoothly into the narrative.
-CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
-
-Here is the game data:
-
-{context}
-
-Write the recap:"""
+    style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
+    prompt = _build_recap_prompt(style_instructions, context)
     summary = generate_ai_text(prompt)
 
     players_set = set()
@@ -2126,6 +2134,7 @@ Write the recap:"""
     hero_image_url, hero_image_path, hero_image_error, image_prompt, illustration_meta = (
         _try_generate_email_hero_image(
             api_key, 'vollis', games, summary, players_set, image_mode=image_mode,
+            image_details=image_details,
         )
     )
     html_body = create_vollis_email_html(
@@ -2163,42 +2172,12 @@ Write the recap:"""
     }
 
 
-def build_other_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
+def build_other_email_payload(
+    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    image_details='',
+):
     from other_functions import readable_games_data, _is_valid_player_name
     from player_functions import get_player_by_name
-
-    PROMPT_STYLES = {
-        'announcer': """You are an energetic sports announcer writing an exciting recap email.
-Use dramatic language, exciting calls, and hype up big plays and close games.
-Write like you're doing live ESPN commentary - high energy, dramatic pauses, and memorable catchphrases.
-Make readers feel the excitement of being there. Use short punchy sentences mixed with longer dramatic buildups.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'analyst': """You are a data-driven sports analyst writing a statistical breakdown email.
-Focus on the numbers: win percentages, point differentials, streaks, and trends.
-Draw insights from the statistics and explain what they mean for each player's performance.
-Be precise and factual, but still engaging. Reference specific stats to back up your observations.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'storyteller': """You are a sports storyteller writing a narrative recap email.
-Weave the games into an engaging story with character development and dramatic tension.
-Create narrative arcs - underdogs rising, champions defending, rivalries intensifying.
-Use vivid imagery and build suspense. Make readers feel emotionally invested in the outcomes.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'comedian': """You are a comedy writer doing a sports recap email.
-Be playful, witty, and don't be afraid to gently roast players (in good fun).
-Find the humor in the games - funny moments, ironic outcomes, playful observations.
-Keep it lighthearted and fun. Everyone should laugh, including those being teased.
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-
-        'roast': """You are a brutal roast comedian writing a savage recap email.
-Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
-Mock the winners for barely winning, demolish the losers for their failures.
-Be creative with your insults - reference specific plays, scores, and failures.
-This is all in good fun but don't hold back. Make it hurt (but funny).
-Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blocks of text.""",
-    }
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -2279,23 +2258,8 @@ Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. No long blo
         comment_str = f" - Comment: {comment}" if comment else ""
         context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
 
-    if prompt_style == 'custom' and custom_prompt.strip():
-        style_instructions = custom_prompt.strip() + "\nKeep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only."
-    else:
-        style_instructions = PROMPT_STYLES.get(prompt_style, PROMPT_STYLES['announcer'])
-
-    prompt = f"""{style_instructions}
-
-Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
-Only quote a comment if it is already in the data enclosed in quotation marks.
-Weave any comments smoothly into the narrative.
-CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
-
-Here is the game data:
-
-{context}
-
-Write the recap:"""
+    style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
+    prompt = _build_recap_prompt(style_instructions, context)
     summary = generate_ai_text(prompt)
 
     players_set = set()
@@ -2346,6 +2310,7 @@ Write the recap:"""
         _try_generate_email_hero_image(
             api_key, 'other', games, summary, players_set, game_name=game_name_label,
             image_mode=image_mode,
+            image_details=image_details,
         )
     )
     html_body = create_other_email_html(

@@ -34,11 +34,9 @@
             justify-content: center;
             font-size: 18px;
         }
-        .sr-prompt-icon.announcer { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .sr-prompt-icon.analyst { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-        .sr-prompt-icon.storyteller { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
-        .sr-prompt-icon.comedian { background: rgba(234, 179, 8, 0.2); color: #eab308; }
-        .sr-prompt-icon.roast { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+        .sr-prompt-icon.generated-1 { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .sr-prompt-icon.generated-2 { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .sr-prompt-icon.brutal { background: rgba(249, 115, 22, 0.2); color: #f97316; }
         .sr-prompt-icon.custom { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
         .sr-prompt-title {
             font-size: 16px;
@@ -97,6 +95,33 @@
             border-color: var(--sr-accent);
             color: var(--sr-accent);
             filter: none;
+        }
+        .sr-illustration-details {
+            margin-top: 16px;
+        }
+        .sr-illustration-details label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--sr-text);
+            margin-bottom: 6px;
+        }
+        .sr-illustration-details textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--sr-line);
+            border-radius: 8px;
+            color: var(--sr-text);
+            font-size: 13px;
+            font-family: inherit;
+            min-height: 72px;
+            resize: vertical;
+        }
+        .sr-illustration-details p {
+            margin: 6px 0 0;
+            font-size: 12px;
+            color: var(--sr-muted);
         }
         .sr-illustration-section {
             margin-top: 24px;
@@ -222,57 +247,33 @@
             <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Choose how you want the AI to write your email summary</p>
 
             <div id="prompt-options">
-                <div class="sr-prompt-card" data-prompt="announcer" onclick="selectPrompt('announcer')">
+                <div class="sr-prompt-card" data-prompt="generated_1" onclick="selectPrompt('generated_1')">
                     <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon announcer"><i class="fas fa-microphone-alt"></i></div>
+                        <div class="sr-prompt-icon generated-1"><i class="fas fa-wand-magic-sparkles"></i></div>
                         <div>
-                            <div class="sr-prompt-title">Sports Announcer</div>
-                            <div class="sr-prompt-subtitle">Energetic play-by-play style</div>
+                            <div class="sr-prompt-title">AI Style 1</div>
+                            <div class="sr-prompt-subtitle">AI invents a voice from the game data</div>
                         </div>
                     </div>
-                    <div class="sr-prompt-description">High-energy commentary like you're hearing it live on ESPN. Dramatic moments, exciting calls, and hype for big plays.</div>
-                    <div class="sr-prompt-example">"And DOWN goes the championship point! Kyle and Dan have done it again, folks! What a SPECTACULAR showing from these two..."</div>
+                    <div class="sr-prompt-description">The AI reads the session, then writes its own style instructions and uses them for the recap. Fresh persona every time.</div>
+                    <div class="sr-prompt-example">Might become a noir detective narrating the court, a nature documentary host, or a hype poet — depends on the games.</div>
                 </div>
 
-                <div class="sr-prompt-card" data-prompt="analyst" onclick="selectPrompt('analyst')">
+                <div class="sr-prompt-card" data-prompt="generated_2" onclick="selectPrompt('generated_2')">
                     <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon analyst"><i class="fas fa-chart-line"></i></div>
+                        <div class="sr-prompt-icon generated-2"><i class="fas fa-shuffle"></i></div>
                         <div>
-                            <div class="sr-prompt-title">Stats Analyst</div>
-                            <div class="sr-prompt-subtitle">Data-driven breakdown</div>
+                            <div class="sr-prompt-title">AI Style 2</div>
+                            <div class="sr-prompt-subtitle">AI picks a bold, unconventional voice</div>
                         </div>
                     </div>
-                    <div class="sr-prompt-description">Deep dive into the numbers. Win percentages, point differentials, streaks, and statistical trends that tell the real story.</div>
-                    <div class="sr-prompt-example">"The data doesn't lie: with a +12 point differential and 75% win rate, James has been statistically dominant this session..."</div>
+                    <div class="sr-prompt-description">Same two-step process, but pushes for a stranger, more distinctive voice — literary, absurdist, deadpan, and so on.</div>
+                    <div class="sr-prompt-example">Expect something weirder than a normal sports recap. Still tied to the actual results and players.</div>
                 </div>
 
-                <div class="sr-prompt-card" data-prompt="storyteller" onclick="selectPrompt('storyteller')">
+                <div class="sr-prompt-card" data-prompt="brutal" onclick="selectPrompt('brutal')">
                     <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon storyteller"><i class="fas fa-book-open"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">Storyteller</div>
-                            <div class="sr-prompt-subtitle">Narrative-driven recap</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">Weaves the games into an engaging story with character arcs, rivalries, and dramatic tension. Like reading a sports novel.</div>
-                    <div class="sr-prompt-example">"It was a tale of redemption. After last week's crushing defeat, the unlikely duo stepped onto the court with something to prove..."</div>
-                </div>
-
-                <div class="sr-prompt-card" data-prompt="comedian" onclick="selectPrompt('comedian')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon comedian"><i class="fas fa-laugh-beam"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">Comedy Writer</div>
-                            <div class="sr-prompt-subtitle">Funny and lighthearted</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">Playful roasts, witty observations, and good-natured jokes about the day's action. Nobody is safe from a gentle ribbing.</div>
-                    <div class="sr-prompt-example">"In what can only be described as a masterclass in 'how not to serve,' the losing team somehow invented three new ways to hit the net..."</div>
-                </div>
-
-                <div class="sr-prompt-card" data-prompt="roast" onclick="selectPrompt('roast')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon roast"><i class="fas fa-fire-alt"></i></div>
+                        <div class="sr-prompt-icon brutal"><i class="fas fa-fire-alt"></i></div>
                         <div>
                             <div class="sr-prompt-title">Brutal Roast</div>
                             <div class="sr-prompt-subtitle">Savage and merciless</div>
@@ -303,10 +304,16 @@
                 <input type="hidden" name="prompt_style" id="selected-prompt" value="">
                 <input type="hidden" name="custom_prompt" id="custom-prompt-hidden" value="">
                 <input type="hidden" name="image_mode" id="image-mode" value="">
+                <input type="hidden" name="image_details" id="image-details-hidden" value="">
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
                     <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or send text only. With 4 or fewer players, the illustration uses one caricature per player first for better likeness; with more than 4, one group image includes every player's face (no body photos). <strong>Keep this page open</strong> until generation finishes.</p>
+                    <div class="sr-illustration-details">
+                        <label for="image-details-text">Extra illustration details (optional)</label>
+                        <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike..."></textarea>
+                        <p>Only used when you choose <strong>With illustration</strong>.</p>
+                    </div>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>
@@ -342,13 +349,20 @@ let selectedPrompt = null;
         var loadingCopy = {
             none: {
                 title: 'Writing your recap...',
-                detail: 'Fastest — summary only. Keep this page open.'
+                detail: 'Keep this page open until generation finishes.'
             },
             image: {
                 title: 'Writing recap and illustration...',
                 detail: 'About one to four minutes depending on player count. Keep this page open.'
             }
         };
+
+        function loadingDetailForStyle() {
+            if (selectedPrompt === 'generated_1' || selectedPrompt === 'generated_2') {
+                return 'AI is inventing a writing style, then drafting the recap. Keep this page open.';
+            }
+            return null;
+        }
 
         function setImageMode(mode) {
             document.getElementById('image-mode').value = mode;
@@ -365,6 +379,13 @@ let selectedPrompt = null;
             var customText = document.getElementById('custom-prompt-text');
             if (customText) {
                 document.getElementById('custom-prompt-hidden').value = customText.value;
+            }
+        }
+
+        function syncImageDetails() {
+            var detailsText = document.getElementById('image-details-text');
+            if (detailsText) {
+                document.getElementById('image-details-hidden').value = detailsText.value;
             }
         }
 
@@ -385,8 +406,13 @@ let selectedPrompt = null;
 
         document.getElementById('generate-form').addEventListener('submit', function() {
             syncCustomPrompt();
+            syncImageDetails();
             var mode = document.getElementById('image-mode').value || 'none';
             var copy = loadingCopy[mode] || loadingCopy.none;
+            var styleDetail = loadingDetailForStyle();
+            if (styleDetail) {
+                copy = { title: copy.title, detail: styleDetail };
+            }
             setGenerateButtonsEnabled(false);
             document.getElementById('loading-title').textContent = copy.title;
             document.getElementById('loading-detail').textContent = copy.detail;

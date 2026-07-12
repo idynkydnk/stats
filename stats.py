@@ -459,12 +459,16 @@ def _ai_summary_preview_from_form(form):
     }
 
 
-def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='none'):
+def _build_ai_summary_payload(
+    game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='none',
+    image_details='',
+):
     """Build AI email payload for doubles, vollis, or other games."""
     kwargs = {
         'prompt_style': prompt_style,
         'custom_prompt': custom_prompt,
         'image_mode': image_mode,
+        'image_details': image_details,
     }
     if game_type == 'vollis':
         return build_vollis_email_payload(selected_game_ids, **kwargs)
@@ -1566,10 +1570,11 @@ def select_ai_prompt():
 def preview_ai_summary_with_prompt():
     """Generate AI summary with selected prompt style."""
     selected_game_ids = request.form.getlist('game_ids')
-    prompt_style = request.form.get('prompt_style', 'announcer')
+    prompt_style = request.form.get('prompt_style', 'generated_1')
     custom_prompt = request.form.get('custom_prompt', '')
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
+    image_details = (request.form.get('image_details') or '').strip()
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
@@ -1579,17 +1584,17 @@ def preview_ai_summary_with_prompt():
         if game_type == 'vollis':
             payload = build_vollis_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-                image_mode=image_mode,
+                image_mode=image_mode, image_details=image_details,
             )
         elif game_type == 'other':
             payload = build_other_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-                image_mode=image_mode,
+                image_mode=image_mode, image_details=image_details,
             )
         else:
             payload = build_doubles_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
-                image_mode=image_mode,
+                image_mode=image_mode, image_details=image_details,
             )
     except ValueError as ve:
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(ve)[:200]}')
@@ -1638,7 +1643,7 @@ def api_generate_and_send_ai_summary():
         return jsonify({'success': False, 'error': 'Email not configured.'}), 400
 
     game_type = request.form.get('game_type', 'doubles')
-    prompt_style = request.form.get('prompt_style', 'funny')
+    prompt_style = request.form.get('prompt_style', 'generated_1')
     custom_prompt = request.form.get('custom_prompt', '')
     game_ids = request.form.getlist('game_ids')
     if not game_ids:
