@@ -352,6 +352,53 @@
         .sr-section-title i {
             color: var(--sr-accent);
         }
+        .sr-solo-gallery {
+            margin: 0 0 24px 0;
+            padding: 16px;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+        }
+        .sr-solo-gallery-title {
+            font-size: 14px;
+            color: var(--sr-muted);
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sr-solo-gallery-title i {
+            color: var(--sr-accent);
+        }
+        .sr-solo-gallery-note {
+            font-size: 12px;
+            color: var(--sr-muted);
+            margin: 0 0 14px 0;
+            opacity: 0.85;
+        }
+        .sr-solo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 14px;
+        }
+        .sr-solo-card {
+            text-align: center;
+        }
+        .sr-solo-card img {
+            width: 100%;
+            max-width: 180px;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--sr-line);
+            display: block;
+            margin: 0 auto;
+        }
+        .sr-solo-card-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--sr-text);
+            margin-top: 8px;
+        }
         @media (max-width: 600px) {
             .sr-player-form {
                 grid-template-columns: 1fr;
@@ -383,6 +430,21 @@
         </p>
         {% endif %}
 
+        {% if solo_images %}
+        <div class="sr-solo-gallery">
+            <p class="sr-solo-gallery-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
+            <p class="sr-solo-gallery-note">Preview only — these solo portraits are not included in the email.</p>
+            <div class="sr-solo-grid">
+                {% for img in solo_images %}
+                <div class="sr-solo-card">
+                    <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
+                    <div class="sr-solo-card-name">{{ img.name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="sr-email-inline-wrap">
             {{ email_preview_html | safe }}
         </div>
@@ -397,6 +459,7 @@
                 <input type="hidden" name="hero_image_error" value="{{ hero_image_error or '' }}">
                 <input type="hidden" name="image_mode" value="{{ image_mode | default('none') }}">
                 <input type="hidden" name="illustration_note" value="{{ illustration_note | default('') | e }}">
+                <textarea name="solo_images_json" style="display:none;">{{ solo_images | tojson }}</textarea>
                 <input type="hidden" name="game_type" value="{{ game_type }}">
                 <textarea name="players_json" style="display:none;">{{ players | tojson }}</textarea>
                 <textarea name="players_without_email_json" style="display:none;">{{ players_without_email | tojson }}</textarea>

@@ -397,6 +397,7 @@ def _render_ai_summary_preview_page(
     hero_image_error='',
     image_mode='none',
     illustration_note='',
+    solo_images=None,
     checked_emails=None,
     additional_emails_value='',
 ):
@@ -415,6 +416,7 @@ def _render_ai_summary_preview_page(
         'hero_image_error': hero_image_error or '',
         'image_mode': _normalize_image_mode(image_mode),
         'illustration_note': illustration_note or '',
+        'solo_images': solo_images or [],
         'players': players or [],
         'players_without_email': players_without_email or [],
         'selected_game_ids_json': json.dumps(selected_game_ids),
@@ -427,6 +429,14 @@ def _render_ai_summary_preview_page(
     if checked_emails is not None:
         template_ctx['checked_emails'] = set(checked_emails)
     return render_template('preview_ai_summary.html', **template_ctx)
+
+
+def _parse_solo_images_json(raw):
+    try:
+        data = json.loads(raw or '[]')
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 def _ai_summary_preview_from_form(form):
@@ -454,6 +464,7 @@ def _ai_summary_preview_from_form(form):
         'hero_image_error': form.get('hero_image_error') or '',
         'image_mode': form.get('image_mode') or 'none',
         'illustration_note': form.get('illustration_note') or '',
+        'solo_images': _parse_solo_images_json(form.get('solo_images_json')),
         'checked_emails': form.getlist('recipient_emails'),
         'additional_emails_value': form.get('additional_emails') or '',
     }
@@ -1064,6 +1075,8 @@ def log_activity(action, target=None, target_id=None, summary=None, before=None,
 
 def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=None):
     """Persist a generated AI summary prompt for admin review."""
+    illustration_meta = payload.get('illustration_meta') or {}
+    solo_images = illustration_meta.get('solo_images') or []
     try:
         adminfx.insert_ai_prompt_log(
             username=username or session.get('username') or 'unknown',
@@ -1077,6 +1090,7 @@ def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username
             hero_image_url=payload.get('hero_image_url'),
             hero_image_error=payload.get('hero_image_error'),
             image_prompt_text=payload.get('image_prompt') or '',
+            solo_images_json=json.dumps(solo_images) if solo_images else '',
         )
     except Exception:
         app.logger.exception('Failed to save AI prompt log')
@@ -1630,6 +1644,7 @@ def preview_ai_summary_with_prompt():
             hero_image_error=payload.get('hero_image_error'),
             image_mode=payload.get('image_mode', image_mode),
             illustration_note=payload.get('illustration_note', ''),
+            solo_images=(payload.get('illustration_meta') or {}).get('solo_images') or [],
         )
     except Exception as e:
         app.logger.exception('AI summary template render failed')
@@ -4496,6 +4511,10 @@ def admin_ai_prompts():
         entry['summary_preview'] = (
             summary[:180] + '...' if len(summary) > 180 else summary
         )
+        try:
+            entry['solo_images'] = json.loads(entry.get('solo_images_json') or '[]')
+        except json.JSONDecodeError:
+            entry['solo_images'] = []
     return render_template(
         'admin_ai_prompts.html',
         entries=entries,

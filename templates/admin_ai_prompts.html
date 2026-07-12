@@ -111,6 +111,35 @@ details[open] .adm-prompt-chevron { transform: rotate(90deg); }
     border-radius: 6px;
 }
 .adm-pagination a:hover { border-color: var(--sr-accent); }
+.adm-solo-gallery {
+    margin-top: 4px;
+}
+.adm-solo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+}
+.adm-solo-card {
+    text-align: center;
+}
+.adm-solo-card img {
+    width: 100%;
+    max-width: 160px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+}
+.adm-solo-card-name {
+    font-size: 12px;
+    color: var(--sr-text);
+    margin-top: 6px;
+}
+.adm-hero-image {
+    display: block;
+    margin-top: 4px;
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -176,8 +205,26 @@ details[open] .adm-prompt-chevron { transform: rotate(90deg); }
                     <label>Generated summary</label>
                     <pre>{{ e.summary_text or '(empty)' }}</pre>
                 </div>
+                {% if e.solo_images %}
+                <div class="adm-prompt-block">
+                    <label>Individual player caricatures (preview only)</label>
+                    <div class="adm-solo-gallery">
+                        <div class="adm-solo-grid">
+                            {% for img in e.solo_images %}
+                            <div class="adm-solo-card">
+                                <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
+                                <div class="adm-solo-card-name">{{ img.name }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 {% if e.hero_image_url %}
-                <div class="adm-prompt-note"><i class="fas fa-image"></i> Illustration generated</div>
+                <div class="adm-prompt-block">
+                    <label>Group illustration (included in email)</label>
+                    <img class="adm-hero-image" src="{{ e.hero_image_url }}" alt="Group illustration">
+                </div>
                 {% endif %}
             </div>
         </details>
