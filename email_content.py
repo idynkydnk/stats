@@ -537,39 +537,62 @@ def _image_details_block(image_details):
     return f'\nAdditional scene details from the user: {clean}\n'
 
 
+def _image_roster_block(players):
+    """Numbered roster plus hard count rules for multi-person illustrations."""
+    players = _dedupe_players_preserve_order(players)
+    player_count = len(players)
+    if player_count == 0:
+        return '', 0, players
+    roster_lines = '\n'.join(f'{index}. {name}' for index, name in enumerate(players, start=1))
+    fewer = player_count - 1 if player_count > 1 else 0
+    more = player_count + 1
+    block = (
+        f'\nROSTER — create exactly {player_count} people in the image:\n'
+        f'{roster_lines}\n'
+        f'\nCRITICAL PEOPLE COUNT:\n'
+        f'- Draw exactly {player_count} people total — one per roster name above.\n'
+        f'- Do NOT draw only {fewer} people. Do NOT draw {more} people.\n'
+        f'- Every roster name must appear once as a visible person. No duplicates. No bystanders.\n'
+    )
+    return block, player_count, players
+
+
 def _build_scene_image_prompt(
     game_type, games, summary, players, game_name=None, image_details='',
 ):
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    player_count = len(players)
+    roster_block, player_count, players = _image_roster_block(players)
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
     details_block = _image_details_block(image_details)
     return f"""Illustration for an email recap.
+Create exactly {player_count} people in this scene.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-{details_block}
+{details_block}{roster_block}
 Use each attached character reference exactly — same face, hair, outfit per named person.
-Do not blend features between characters. Do not redesign any character from scratch.
-Draw exactly {player_count} characters — one per attached reference. No duplicates, no bystanders. No text or logos in the image."""
+Do not blend features between people. Do not redesign any character from scratch.
+Draw all {player_count} roster people — one per attached reference. No text or logos in the image."""
 
 
 def _reference_parts_from_caricatures(players, caricatures):
     """Attach pass-1 caricatures as name-labeled scene references."""
-    player_count = len(players)
+    roster_block, player_count, players = _image_roster_block(players)
     parts = [{
         'text': (
             f'Attached images are pre-drawn character references — one caricature per person.\n'
-            f'Draw exactly {player_count} characters: one for each attached reference. '
+            f'Create exactly {player_count} people in the final scene — one per reference below.\n'
+            f'Do NOT draw only {player_count - 1 if player_count > 1 else 0} people. '
             f'No duplicates, no extra people.'
+            f'{roster_block}'
         ),
     }]
-    for name in players:
+    for index, name in enumerate(players, start=1):
         raw, mime = caricatures[name]
-        parts.append({'text': f'=== {name} ==='})
+        parts.append({'text': f'=== PERSON {index} OF {player_count}: {name} ==='})
         parts.append({
             'text': (
-                f'Character reference for {name}. Draw this exact caricature in the scene — '
-                f'same face, hair, and outfit.'
+                f'Character reference for {name} (person {index}/{player_count}). '
+                f'Draw this exact caricature in the scene — same face, hair, and outfit.'
             ),
         })
         parts.append({
@@ -623,9 +646,9 @@ def _reference_parts_for_player(index, player_count, name, entry):
     """Build grouped reference parts for single-pass multi-person illustration."""
     parts = [{
         'text': (
-            f'=== PLAYER {index} OF {player_count}: {name} ===\n'
+            f'=== PERSON {index} OF {player_count}: {name} ===\n'
             f'All images in this group are the SAME person. '
-            f'Draw {name} exactly once as character #{index}. '
+            f'Draw {name} exactly once as person #{index}. '
             f'Do not draw them again anywhere else in the scene.'
         ),
     }]
@@ -646,7 +669,7 @@ def _reference_parts_for_player(index, player_count, name, entry):
 
     parts.append({
         'text': (
-            f'=== END PLAYER {index} ({name}) — exactly one character in the final illustration ==='
+            f'=== END PERSON {index} ({name}) — exactly one person in the final illustration ==='
         ),
     })
     return parts
@@ -670,9 +693,9 @@ def _reference_parts_for_api(players):
 
     parts = [{
         'text': (
-            f'ROSTER: Illustrate exactly {player_count} different people — no more, no fewer.\n'
+            f'ROSTER: Create exactly {player_count} different people in the scene — no more, no fewer.\n'
             f'Each player has at most one face reference photo plus signature-look text. '
-            f'One heading = one person = one character in the scene.'
+            f'One heading = one person = one visible person in the scene.'
         ),
     }]
     for index, name in enumerate(players, start=1):
@@ -681,7 +704,8 @@ def _reference_parts_for_api(players):
         ))
     parts.append({
         'text': (
-            f'FINAL CHECK: The scene must contain exactly {player_count} human characters. '
+            f'FINAL CHECK: The scene must contain exactly {player_count} people. '
+            f'Not {player_count - 1 if player_count > 1 else 0}. Not {player_count + 1}. '
             f'Each roster player appears once. No duplicate people.'
         ),
     })
@@ -693,9 +717,7 @@ def _build_single_pass_image_prompt(
     trait_lines=None, game_name=None, image_details='',
 ):
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    players = _dedupe_players_preserve_order(players)
-    player_count = len(players)
-    roster_lines = '\n'.join(f'{index}. {name}' for index, name in enumerate(players, start=1))
+    roster_block, player_count, players = _image_roster_block(players)
     highlight = _games_highlight_for_image(game_type, games, max_games=2)
     summary_snip = (summary or '')[:180]
     trait_lines = trait_lines or []
@@ -718,19 +740,16 @@ def _build_single_pass_image_prompt(
             + '\n'.join(trait_lines)
             + '\n'
         )
-    roster_block = (
-        f'\nROSTER — exactly {player_count} players, each must appear once:\n'
-        f'{roster_lines}\n'
-    )
     rules_block = (
         f'\nCRITICAL ROSTER RULES:\n'
-        f'- Draw exactly {player_count} distinct characters total — one per numbered roster player.\n'
+        f'- Create exactly {player_count} people total — one per numbered roster name.\n'
         f'- Never duplicate the same person. Never omit a roster player. No extra bystanders.\n'
-        f'- Every roster name must map to exactly one visible character in the scene.\n'
-        f'- Apply each player\'s signature exaggerations only to that numbered character.\n'
+        f'- Every roster name must map to exactly one visible person in the scene.\n'
+        f'- Apply each player\'s signature exaggerations only to that numbered person.\n'
     )
     details_block = _image_details_block(image_details)
     return f"""Illustration for an email recap.
+Create exactly {player_count} people in this scene.
 Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
 {details_block}{likeness}{roster_block}{rules_block}{traits_block}
 No text or logos in the image."""
