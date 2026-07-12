@@ -306,19 +306,15 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Choose speed vs quality for the email hero image. <strong>Keep this page open</strong> until generation finishes — closing it will stop the process.</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration in the email, or send text only. <strong>Keep this page open</strong> until generation finishes — closing it will stop the process.</p>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>
                             <span>Fastest — summary only</span>
                         </button>
-                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-single" disabled onclick="setImageMode('single')">
-                            <strong><i class="fas fa-image"></i> One illustration</strong>
+                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" disabled onclick="setImageMode('image')">
+                            <strong><i class="fas fa-image"></i> With illustration</strong>
                             <span>About one minute</span>
-                        </button>
-                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-best" disabled onclick="setImageMode('two_pass')">
-                            <strong><i class="fas fa-star"></i> Best quality</strong>
-                            <span>Several minutes</span>
                         </button>
                     </div>
                 </div>
@@ -348,13 +344,9 @@ let selectedPrompt = null;
                 title: 'Writing your recap...',
                 detail: 'Fastest — summary only. Keep this page open.'
             },
-            single: {
-                title: 'Writing recap and one illustration...',
+            image: {
+                title: 'Writing recap and illustration...',
                 detail: 'About one minute. Keep this page open.'
-            },
-            two_pass: {
-                title: 'Creating best-quality illustrations...',
-                detail: 'Several minutes. Keep this page open.'
             }
         };
 
@@ -363,7 +355,7 @@ let selectedPrompt = null;
         }
 
         function setGenerateButtonsEnabled(enabled) {
-            ['generate-btn-none', 'generate-btn-single', 'generate-btn-best'].forEach(function(id) {
+            ['generate-btn-none', 'generate-btn-image'].forEach(function(id) {
                 var btn = document.getElementById(id);
                 if (btn) btn.disabled = !enabled;
             });
@@ -393,8 +385,8 @@ let selectedPrompt = null;
 
         document.getElementById('generate-form').addEventListener('submit', function() {
             syncCustomPrompt();
-            var mode = document.getElementById('image-mode').value || 'two_pass';
-            var copy = loadingCopy[mode] || loadingCopy.two_pass;
+            var mode = document.getElementById('image-mode').value || 'none';
+            var copy = loadingCopy[mode] || loadingCopy.none;
             setGenerateButtonsEnabled(false);
             document.getElementById('loading-title').textContent = copy.title;
             document.getElementById('loading-detail').textContent = copy.detail;

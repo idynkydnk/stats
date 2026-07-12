@@ -732,34 +732,6 @@ def get_player_height(full_name):
     return str(row[0]).strip()
 
 
-def collect_solo_reference_images(name):
-    """All face + full-body reference images for one player (no body-photo cap)."""
-    face_path, body_paths = get_player_photo_paths(name)
-    entry = {'name': name, 'parts': []}
-    if face_path:
-        fx, fy, fz = get_player_face_photo_focus(name)
-        raw, mime = read_cropped_player_image(
-            face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
-        )
-        if raw:
-            entry['parts'].append({
-                'label': f'Face reference photo for {name}.',
-                'mime': mime,
-                'data_b64': base64.b64encode(raw).decode('ascii'),
-            })
-    crops = get_player_full_body_photo_crops(name)
-    for idx, body_path in enumerate(body_paths, start=1):
-        focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0})
-        raw, mime = read_cropped_player_image(body_path, focus)
-        if raw:
-            entry['parts'].append({
-                'label': f'Full-body reference photo {idx} for {name}.',
-                'mime': mime,
-                'data_b64': base64.b64encode(raw).decode('ascii'),
-            })
-    return entry
-
-
 def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):
     """Build Gemini reference image parts for AI email illustrations."""
     references = []

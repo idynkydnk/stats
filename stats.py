@@ -395,7 +395,7 @@ def _render_ai_summary_preview_page(
     hero_image_url='',
     hero_image_path='',
     hero_image_error='',
-    image_mode='two_pass',
+    image_mode='none',
     checked_emails=None,
     additional_emails_value='',
 ):
@@ -450,13 +450,13 @@ def _ai_summary_preview_from_form(form):
         'hero_image_url': form.get('hero_image_url') or '',
         'hero_image_path': form.get('hero_image_path') or '',
         'hero_image_error': form.get('hero_image_error') or '',
-        'image_mode': form.get('image_mode') or 'two_pass',
+        'image_mode': form.get('image_mode') or 'none',
         'checked_emails': form.getlist('recipient_emails'),
         'additional_emails_value': form.get('additional_emails') or '',
     }
 
 
-def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='two_pass'):
+def _build_ai_summary_payload(game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='none'):
     """Build AI email payload for doubles, vollis, or other games."""
     kwargs = {
         'prompt_style': prompt_style,

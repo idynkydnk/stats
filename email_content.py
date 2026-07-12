@@ -7,7 +7,6 @@ the email (Flask-Mail) stays in stats.py.
 import os
 import base64
 import uuid
-import random
 from datetime import datetime
 
 from flask import current_app
@@ -18,25 +17,27 @@ SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://idynkydnk.pythonanywher
 EMAIL_PLACEHOLDER = '{{EMAIL_PLACEHOLDER}}'
 HERO_IMAGE_CID = 'hero-image'
 
-# Free-tier image model for AI email illustrations (N+1 API calls per email in two_pass mode).
+# Free-tier image model for AI email illustrations (one API call per email with image).
 GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
 
-IMAGE_MODES = ('none', 'single', 'two_pass')
-DEFAULT_IMAGE_MODE = 'two_pass'
+IMAGE_MODES = ('none', 'image')
+DEFAULT_IMAGE_MODE = 'none'
+_LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
 
 
 def _normalize_image_mode(mode):
     clean = (mode or '').strip().lower()
     if clean in IMAGE_MODES:
         return clean
+    if clean in _LEGACY_IMAGE_MODES:
+        return _LEGACY_IMAGE_MODES[clean]
     return DEFAULT_IMAGE_MODE
 
 
 def image_mode_label(mode):
     labels = {
         'none': 'text only',
-        'single': '1 illustration',
-        'two_pass': 'best quality illustration',
+        'image': 'with illustration',
     }
     return labels.get(_normalize_image_mode(mode), labels[DEFAULT_IMAGE_MODE])
 
@@ -220,107 +221,6 @@ def _reference_photo_kind(label):
     return 'other'
 
 
-_VOLLEYBALL_VARIATION_CUES = [
-    'spiking a volleyball, intense athletic pose',
-    'diving for a dig, stretched out horizontally',
-    'setting at the net, hands poised above head',
-    'celebrating a point with a triumphant fist pump',
-    'jumping serve, ball tossed high overhead',
-    'blocking at the net, arms extended wide',
-]
-
-_GAME_VARIATION_CUES = {
-    'gin rummy': [
-        'fanning cards with a sly grin',
-        'slamming winning cards on the table triumphantly',
-        'studying hand with a furrowed brow',
-        'tossing cards aside with a confident smirk',
-    ],
-}
-
-_GENERIC_VARIATION_CUES = [
-    'triumphant celebration pose',
-    'competitive focused stare',
-    'laughing victory gesture',
-    'confident relaxed stance with arms crossed',
-    'surprised reaction with wide eyes',
-]
-
-
-def _normalize_game_name_key(game_name):
-    if not game_name:
-        return ''
-    return str(game_name).split(',')[0].strip().lower()
-
-
-def _solo_variation_cue(game_type, game_name=None):
-    """Pick a random pose/action cue matched to the game played."""
-    if game_type in ('doubles', 'vollis'):
-        return random.choice(_VOLLEYBALL_VARIATION_CUES)
-    key = _normalize_game_name_key(game_name)
-    if key in _GAME_VARIATION_CUES:
-        return random.choice(_GAME_VARIATION_CUES[key])
-    return random.choice(_GENERIC_VARIATION_CUES)
-
-
-def _solo_photo_instruction(kind, name):
-    if kind == 'face':
-        return f'Face reference for {name}. Use for facial features and expression.'
-    if kind == 'body':
-        return f'Full-body reference for {name}. Use for outfit, pose, and body type.'
-    return f'Reference photo for {name}.'
-
-
-def _solo_reference_parts_for_player(name, entry):
-    """Build name-based reference parts for a solo caricature call."""
-    parts = [{'text': f'=== {name} ==='}]
-    if not entry or not entry.get('parts'):
-        parts.append({
-            'text': (
-                f'No reference photos for {name}. Invent one unique stylized character '
-                f'from the signature details in the prompt below.'
-            ),
-        })
-        return parts
-
-    for ref in entry['parts']:
-        kind = _reference_photo_kind(ref['label'])
-        parts.append({'text': _solo_photo_instruction(kind, name)})
-        parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
-    return parts
-
-
-def _build_solo_player_prompt(name, trait_phrases, height, has_reference_photos, variation_cue):
-    traits_block = ''
-    if trait_phrases:
-        traits_block = (
-            '\nSignature exaggerations:\n'
-            + '\n'.join(f'- {phrase}' for phrase in trait_phrases)
-            + '\n'
-        )
-    height_block = ''
-    if height:
-        height_block = f"\nHeight: {height} — use for body proportions.\n"
-    if has_reference_photos:
-        likeness = (
-            f"Use the attached face and body reference photos to capture {name}'s look, "
-            "then exaggerate their signature details so they are instantly recognizable "
-            "and playful, not photorealistic.\n"
-        )
-    else:
-        likeness = (
-            f"No reference photos — invent a unique stylized character for {name} "
-            "from the signature details below.\n"
-        )
-    return f"""Single-character caricature for a game recap email illustration.
-
-Draw exactly ONE person: {name}.
-{likeness}{traits_block}{height_block}
-Fresh variation for this run: {variation_cue}
-
-Plain neutral background. One character only — no other people, no scene. No text or logos."""
-
-
 def _sport_desc_for_image(game_type, game_name=None):
     if game_type == 'doubles':
         return 'beach volleyball doubles'
@@ -329,60 +229,6 @@ def _sport_desc_for_image(game_type, game_name=None):
     if game_type == 'other' and game_name:
         return game_name
     return 'recreational games'
-
-
-def _build_scene_image_prompt(game_type, games, summary, players, heights_by_name, game_name=None):
-    sport_desc = _sport_desc_for_image(game_type, game_name)
-    player_count = len(players)
-    highlight = _games_highlight_for_image(game_type, games, max_games=2)
-    summary_snip = (summary or '')[:180]
-    height_lines = [
-        f'- {name}: {heights_by_name[name]}'
-        for name in players
-        if heights_by_name.get(name)
-    ]
-    heights_block = ''
-    if height_lines:
-        heights_block = (
-            '\nHeights (for relative scale in the group scene):\n'
-            + '\n'.join(height_lines)
-            + '\n'
-        )
-    return f"""Illustration for an email recap.
-Sport: {sport_desc}. Results: {highlight}. Mood: {summary_snip}
-
-Use each attached character reference exactly — same face, hair, outfit per named person.
-Do not blend features between characters. Do not redesign any character from scratch.
-{heights_block}
-Draw exactly {player_count} characters — one per attached reference. No duplicates, no bystanders. No text or logos in the image."""
-
-
-def _reference_parts_from_caricatures(players, caricatures):
-    """Attach pass-1 caricatures as name-labeled scene references."""
-    player_count = len(players)
-    parts = [{
-        'text': (
-            f'Attached images are pre-drawn character references — one caricature per person.\n'
-            f'Draw exactly {player_count} characters: one for each attached reference. '
-            f'No duplicates, no extra people.'
-        ),
-    }]
-    for name in players:
-        raw, mime = caricatures[name]
-        parts.append({'text': f'=== {name} ==='})
-        parts.append({
-            'text': (
-                f'Character reference for {name}. Draw this exact caricature in the scene — '
-                f'same face, hair, and outfit.'
-            ),
-        })
-        parts.append({
-            'inline_data': {
-                'mime_type': mime,
-                'data': base64.b64encode(raw).decode('ascii'),
-            },
-        })
-    return parts
 
 
 def _games_highlight_for_image(game_type, games, max_games=3):
@@ -557,9 +403,9 @@ def _friendly_image_error(err):
     if _is_quota_error(err):
         return (
             'Daily free image quota is used up on the shared Gemini API key '
-            '(~500 images/day on gemini-2.5-flash-image; each email uses one image per player '
-            'plus a final scene). The text summary still works. Try again tomorrow, or enable '
-            'billing in Google AI Studio for more image generation.'
+            '(~500 images/day on gemini-2.5-flash-image; each illustrated email uses one image). '
+            'The text summary still works. Try again tomorrow, or enable billing in Google AI '
+            'Studio for more image generation.'
         )
     return str(err)[:400]
 
@@ -636,19 +482,6 @@ def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image 
     return '\n\n'.join(lines)
 
 
-def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_prompt):
-    sections = ['=== Pass 1: Solo caricatures ===']
-    for name, ref_parts, prompt in solo_passes:
-        sections.append(f'--- {name} ---')
-        sections.append(_image_prompt_bundle(ref_parts, prompt))
-    sections.append('')
-    sections.append('=== Pass 2: Group scene ===')
-    sections.append(_image_prompt_bundle(
-        scene_reference_parts, scene_prompt, image_label='[Generated caricature attached]',
-    ))
-    return '\n\n'.join(sections)
-
-
 def _mime_to_ext(mime):
     if 'gif' in mime:
         return 'gif'
@@ -657,8 +490,8 @@ def _mime_to_ext(mime):
     return 'png'
 
 
-def generate_email_hero_image_single(api_key, game_type, games, summary, player_names, game_name=None):
-    """Generate one group illustration in a single API call."""
+def generate_email_hero_image(api_key, game_type, games, summary, player_names, game_name=None):
+    """Generate one group illustration for the email."""
     from player_functions import collect_player_ai_image_traits
 
     players = _ordered_email_image_players(player_names)
@@ -691,66 +524,8 @@ def generate_email_hero_image_single(api_key, game_type, games, summary, player_
     return url, path, image_prompt
 
 
-def generate_email_hero_image_two_pass(api_key, game_type, games, summary, player_names, game_name=None):
-    """Generate hero image: solo caricature per player, then group scene."""
-    from player_functions import (
-        collect_player_ai_image_traits,
-        collect_solo_reference_images,
-        get_player_height,
-    )
-
-    players = _ordered_email_image_players(player_names)
-    if not players:
-        raise ValueError('No players in roster for illustration')
-
-    trait_entries = collect_player_ai_image_traits(players)
-    traits_by_name = {entry['name']: entry for entry in trait_entries}
-    heights_by_name = {name: get_player_height(name) for name in players}
-
-    solo_passes = []
-    caricatures = {}
-    for name in players:
-        entry = collect_solo_reference_images(name)
-        reference_parts = _solo_reference_parts_for_player(name, entry)
-        trait_entry = traits_by_name.get(name)
-        trait_phrases = trait_entry.get('phrases', []) if trait_entry else []
-        height = heights_by_name.get(name, '')
-        has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-        variation_cue = _solo_variation_cue(game_type, game_name)
-        solo_prompt = _build_solo_player_prompt(
-            name, trait_phrases, height, has_reference_photos, variation_cue,
-        )
-        raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
-        caricatures[name] = (raw, mime)
-        solo_passes.append((name, reference_parts, solo_prompt))
-
-    scene_refs = _reference_parts_from_caricatures(players, caricatures)
-    scene_prompt = _build_scene_image_prompt(
-        game_type, games, summary, players, heights_by_name, game_name=game_name,
-    )
-    image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
-    raw, mime = _generate_image_bytes(scene_prompt, api_key, reference_parts=scene_refs)
-    url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt
-
-
-def generate_email_hero_image(
-    api_key, game_type, games, summary, player_names, game_name=None, image_mode='two_pass',
-):
-    mode = _normalize_image_mode(image_mode)
-    if mode == 'none':
-        return None, None, ''
-    if mode == 'single':
-        return generate_email_hero_image_single(
-            api_key, game_type, games, summary, player_names, game_name=game_name,
-        )
-    return generate_email_hero_image_two_pass(
-        api_key, game_type, games, summary, player_names, game_name=game_name,
-    )
-
-
 def _try_generate_email_hero_image(
-    api_key, game_type, games, summary, player_names, game_name=None, image_mode='two_pass',
+    api_key, game_type, games, summary, player_names, game_name=None, image_mode='none',
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -758,7 +533,7 @@ def _try_generate_email_hero_image(
     try:
         url, path, image_prompt = generate_email_hero_image(
             api_key, game_type, games, summary, player_names,
-            game_name=game_name, image_mode=mode,
+            game_name=game_name,
         )
         return url, path, None, image_prompt
     except Exception as e:
@@ -1271,7 +1046,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
     return html_body
 
 
-def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='two_pass'):
+def build_doubles_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
 
@@ -1900,7 +1675,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
     return html_body
 
 
-def build_vollis_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='two_pass'):
+def build_vollis_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
     from vollis_functions import convert_vollis_ampm
     from player_functions import get_player_by_name
 
@@ -2094,7 +1869,7 @@ Write the recap:"""
     }
 
 
-def build_other_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='two_pass'):
+def build_other_email_payload(selected_game_ids, prompt_style='announcer', custom_prompt='', image_mode='none'):
     from other_functions import readable_games_data, _is_valid_player_name
     from player_functions import get_player_by_name
 
