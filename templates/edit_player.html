@@ -34,7 +34,7 @@
         </div>
 
         <div class="form-group photo-group">
-            <label>Full-body photos</label>
+            <label>Full-body photo</label>
             <div class="edit-photo-row edit-photo-row-stack">
                 {% if player_full_body_photos %}
                 <div class="edit-body-photo-grid">
@@ -43,19 +43,19 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="edit-player-full-body edit-player-full-body-empty">No full-body photos</div>
+                <div class="edit-player-full-body edit-player-full-body-empty">No full-body photo</div>
                 {% endif %}
                 <div class="edit-photo-actions">
                     <label class="edit-photo-upload-label">
-                        <i class="fas fa-user"></i> Add full-body photos
-                        <input type="file" name="full_body_photo" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+                        <i class="fas fa-user"></i> {% if player_full_body_photos %}Replace full-body photo{% else %}Add full-body photo{% endif %}
+                        <input type="file" name="full_body_photo" accept="image/jpeg,image/png,image/webp,image/gif">
                     </label>
                     {% if player_full_body_photos %}
                     <label class="edit-photo-remove-label">
-                        <input type="checkbox" name="remove_full_body_photo" value="1"> Remove all full-body photos
+                        <input type="checkbox" name="remove_full_body_photo" value="1"> Remove full-body photo
                     </label>
                     {% endif %}
-                    <p class="edit-photo-hint">Add multiple photos. Used with the face photo for AI email illustrations.</p>
+                    <p class="edit-photo-hint">One full-body photo per player. Used with the face photo for AI email illustrations.</p>
                 </div>
             </div>
         </div>

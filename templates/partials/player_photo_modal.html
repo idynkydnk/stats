@@ -3,7 +3,7 @@
     <div class="sr-photo-modal-backdrop" data-close-photo-modal></div>
     <div class="sr-photo-modal-dialog" role="dialog" aria-labelledby="player-photo-title">
         <h3 id="player-photo-title"><span id="player-photo-title-name">Player</span></h3>
-        <p class="sr-photo-modal-hint">Manage photos and details. Face and full-body photos are used for AI email illustrations.</p>
+        <p class="sr-photo-modal-hint">Manage photos and details. Face and full-body photo are used for AI email illustrations.</p>
 
         <section class="sr-photo-section">
             <h4>Player details</h4>
@@ -54,8 +54,8 @@
         </section>
 
         <section class="sr-photo-section">
-            <h4>Full-body photos</h4>
-            <p class="sr-body-crop-hint">Tap a photo to crop it and pick one person in group shots.</p>
+            <h4>Full-body photo</h4>
+            <p class="sr-body-crop-hint">Tap the photo to crop it and pick one person in group shots.</p>
             <div class="sr-body-photo-grid" id="body-photo-grid"></div>
             <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
                 <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
@@ -76,10 +76,10 @@
                 </div>
                 <button type="button" class="sr-photo-action-btn" id="body-crop-done">Done cropping</button>
             </div>
-            <p class="sr-body-photo-empty-msg" id="body-photo-empty-msg">No full-body photos yet</p>
-            <label class="sr-photo-action-btn">
-                <i class="fas fa-plus"></i> Add full-body photo
-                <input type="file" id="body-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+            <p class="sr-body-photo-empty-msg" id="body-photo-empty-msg">No full-body photo yet</p>
+            <label class="sr-photo-action-btn" id="body-photo-upload-label">
+                <i class="fas fa-plus"></i> <span id="body-photo-upload-text">Add full-body photo</span>
+                <input type="file" id="body-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
             </label>
         </section>
 
@@ -543,6 +543,7 @@ window.PlayerPhotoManager = (function() {
     var bodyInput = document.getElementById('body-photo-input');
     var bodyGrid = document.getElementById('body-photo-grid');
     var bodyEmptyMsg = document.getElementById('body-photo-empty-msg');
+    var bodyPhotoUploadText = document.getElementById('body-photo-upload-text');
     var bodyCropEditor = document.getElementById('body-crop-editor');
     var bodyCropWorkspace = document.getElementById('body-crop-workspace');
     var bodyCropPreview = document.getElementById('body-crop-preview');
@@ -1259,6 +1260,11 @@ window.PlayerPhotoManager = (function() {
             bodyGrid.appendChild(item);
         });
         if (bodyEmptyMsg) bodyEmptyMsg.hidden = bodyPhotos.length > 0;
+        if (bodyPhotoUploadText) {
+            bodyPhotoUploadText.textContent = bodyPhotos.length > 0
+                ? 'Replace full-body photo'
+                : 'Add full-body photo';
+        }
         if (activeBodyPath) {
             var stillThere = bodyPhotos.some(function(p) { return p.path === activeBodyPath; });
             if (!stillThere) closeBodyCropEditor();
@@ -1624,8 +1630,8 @@ window.PlayerPhotoManager = (function() {
     });
     if (bodyInput) {
         bodyInput.addEventListener('change', function() {
-            if (!bodyInput.files) return;
-            Array.prototype.forEach.call(bodyInput.files, uploadBody);
+            if (!bodyInput.files || !bodyInput.files[0]) return;
+            uploadBody(bodyInput.files[0]);
             bodyInput.value = '';
         });
     }

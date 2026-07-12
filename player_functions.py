@@ -9,7 +9,7 @@ from stat_functions import cached
 
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
-MAX_FULL_BODY_PHOTOS = 10
+MAX_FULL_BODY_PHOTOS = 1
 MAX_AI_IMAGE_TRAITS = 12
 MAX_AI_IMAGE_TRAITS_CHARS = 500
 
@@ -49,6 +49,37 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_crops TEXT')
     conn.commit()
     conn.close()
+    trim_all_players_full_body_photos()
+
+
+def trim_player_full_body_photos(player_id):
+    """Keep at most MAX_FULL_BODY_PHOTOS; delete extra files and crop metadata."""
+    paths = get_player_full_body_photo_paths_by_id(player_id)
+    if len(paths) <= MAX_FULL_BODY_PHOTOS:
+        return 0
+    keep = paths[:MAX_FULL_BODY_PHOTOS]
+    for path in paths[MAX_FULL_BODY_PHOTOS:]:
+        _remove_stored_photo(path)
+    set_player_full_body_photo_paths(player_id, keep)
+    return len(paths) - len(keep)
+
+
+def trim_all_players_full_body_photos():
+    """Trim every player to MAX_FULL_BODY_PHOTOS full-body photos."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    if conn is None:
+        return 0
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM players')
+    removed = 0
+    for (player_id,) in cur.fetchall():
+        removed += trim_player_full_body_photos(player_id)
+    conn.close()
+    return removed
 
 
 def player_photos_dir():
@@ -672,11 +703,10 @@ def set_player_full_body_photo_path(player_id, photo_path):
 
 
 def save_player_full_body_photo_upload(player_id, file_storage):
-    """Validate and append a full-body photo upload. Returns relative static path."""
+    """Validate and save/replace the full-body photo upload. Returns relative static path."""
     ext = _validate_photo_upload(file_storage)
-    paths = get_player_full_body_photo_paths_by_id(player_id)
-    if len(paths) >= MAX_FULL_BODY_PHOTOS:
-        raise ValueError(f'Maximum {MAX_FULL_BODY_PHOTOS} full-body photos per player.')
+    for path in get_player_full_body_photo_paths_by_id(player_id):
+        _remove_stored_photo(path)
 
     dest_dir = player_photos_dir()
     filename = f'{player_id}_body_{uuid.uuid4().hex[:12]}{ext}'
@@ -684,8 +714,7 @@ def save_player_full_body_photo_upload(player_id, file_storage):
     file_storage.save(abs_path)
 
     rel_path = f'player_photos/{filename}'
-    paths.append(rel_path)
-    set_player_full_body_photo_paths(player_id, paths)
+    set_player_full_body_photo_paths(player_id, [rel_path])
     return rel_path
 
 
