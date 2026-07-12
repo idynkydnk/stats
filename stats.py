@@ -396,6 +396,7 @@ def _render_ai_summary_preview_page(
     hero_image_path='',
     hero_image_error='',
     image_mode='none',
+    illustration_note='',
     checked_emails=None,
     additional_emails_value='',
 ):
@@ -413,6 +414,7 @@ def _render_ai_summary_preview_page(
         'hero_image_path': hero_image_path or '',
         'hero_image_error': hero_image_error or '',
         'image_mode': _normalize_image_mode(image_mode),
+        'illustration_note': illustration_note or '',
         'players': players or [],
         'players_without_email': players_without_email or [],
         'selected_game_ids_json': json.dumps(selected_game_ids),
@@ -451,6 +453,7 @@ def _ai_summary_preview_from_form(form):
         'hero_image_path': form.get('hero_image_path') or '',
         'hero_image_error': form.get('hero_image_error') or '',
         'image_mode': form.get('image_mode') or 'none',
+        'illustration_note': form.get('illustration_note') or '',
         'checked_emails': form.getlist('recipient_emails'),
         'additional_emails_value': form.get('additional_emails') or '',
     }
@@ -1619,6 +1622,7 @@ def preview_ai_summary_with_prompt():
             hero_image_path=payload.get('hero_image_path'),
             hero_image_error=payload.get('hero_image_error'),
             image_mode=payload.get('image_mode', image_mode),
+            illustration_note=payload.get('illustration_note', ''),
         )
     except Exception as e:
         app.logger.exception('AI summary template render failed')

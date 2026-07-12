@@ -373,7 +373,7 @@
         {% if image_mode is defined and image_mode == 'none' %}
         <p class="sr-image-status ok"><i class="fas fa-file-alt"></i> No illustration (text-only email).</p>
         {% elif hero_image_url %}
-        <p class="sr-image-status ok"><i class="fas fa-image"></i> One AI-generated group illustration included in email.</p>
+        <p class="sr-image-status ok"><i class="fas fa-image"></i> {{ illustration_note | default('One AI-generated group illustration included in email.') }}</p>
         {% elif hero_image_error %}
         <p class="sr-image-status warn">
             <i class="fas fa-exclamation-triangle"></i> {{ hero_image_error }}
@@ -393,6 +393,7 @@
                 <input type="hidden" name="hero_image_path" value="{{ hero_image_path or '' }}">
                 <input type="hidden" name="hero_image_error" value="{{ hero_image_error or '' }}">
                 <input type="hidden" name="image_mode" value="{{ image_mode | default('none') }}">
+                <input type="hidden" name="illustration_note" value="{{ illustration_note | default('') | e }}">
                 <input type="hidden" name="game_type" value="{{ game_type }}">
                 <textarea name="players_json" style="display:none;">{{ players | tojson }}</textarea>
                 <textarea name="players_without_email_json" style="display:none;">{{ players_without_email | tojson }}</textarea>

@@ -719,20 +719,15 @@ def remove_player_photo(player_id):
     set_player_face_photo_focus(player_id, 50, 50, 1.0)
 
 
-def get_player_height(full_name):
-    """Return height string for a player (e.g. 6'1\"), or empty string."""
-    cur = set_cur()
-    cur.execute(
-        'SELECT height FROM players WHERE full_name = ?',
-        (full_name,),
-    )
-    row = cur.fetchone()
-    if not row or not row[0]:
-        return ''
-    return str(row[0]).strip()
+def collect_solo_reference_images(name):
+    """One face + one body reference for two-pass solo caricatures."""
+    refs = collect_player_reference_images([name], max_players=1, max_body_per_player=1)
+    if refs:
+        return refs[0]
+    return {'name': name, 'parts': []}
 
 
-def collect_player_reference_images(player_names, max_players=5, max_body_per_player=3):
+def collect_player_reference_images(player_names, max_players=4, max_body_per_player=0):
     """Build Gemini reference image parts for AI email illustrations."""
     references = []
     for name in sorted(player_names):

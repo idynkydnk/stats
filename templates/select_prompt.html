@@ -306,7 +306,7 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration in the email, or send text only. <strong>Keep this page open</strong> until generation finishes — closing it will stop the process.</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or send text only. With 4 or fewer players, the illustration uses one caricature per player first for better likeness; with more than 4, one group image includes every player's face (no body photos). <strong>Keep this page open</strong> until generation finishes.</p>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>
@@ -346,7 +346,7 @@ let selectedPrompt = null;
             },
             image: {
                 title: 'Writing recap and illustration...',
-                detail: 'About one minute. Keep this page open.'
+                detail: 'About one to four minutes depending on player count. Keep this page open.'
             }
         };
 
