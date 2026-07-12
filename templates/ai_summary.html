@@ -683,8 +683,16 @@ let currentTab = 'doubles';
                     runSearch(gameSearch.value);
                 }, 300);
             });
-            gameSearch.addEventListener('search', function() {
+            gameSearch.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter') return;
+                clearTimeout(searchTimer);
                 runSearch(gameSearch.value);
+                gameSearch.blur();
+            });
+            gameSearch.addEventListener('search', function() {
+                clearTimeout(searchTimer);
+                runSearch(gameSearch.value);
+                gameSearch.blur();
             });
         }
         updateSearchPlaceholder();
