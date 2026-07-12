@@ -98,6 +98,98 @@ def _email_hero_styles():
     """
 
 
+def _email_games_table_styles():
+    return """
+                    .games-table-wrap {
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                        max-width: 100%;
+                    }
+                    .games-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        color: #e4e8eb;
+                        font-size: 13px;
+                        table-layout: fixed;
+                    }
+                    .games-table thead {
+                        background: rgba(255, 255, 255, 0.03);
+                    }
+                    .games-table th {
+                        padding: 10px 4px;
+                        text-align: center;
+                        font-size: 10px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.4px;
+                        color: #8b949e;
+                    }
+                    .games-table td {
+                        padding: 10px 4px;
+                        text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                        vertical-align: middle;
+                    }
+                    .games-table tbody tr:last-child td {
+                        border-bottom: none;
+                    }
+                    .games-table tbody tr:nth-child(odd) {
+                        background: rgba(255, 255, 255, 0.02);
+                    }
+                    .time-cell {
+                        font-size: 11px;
+                        color: #8b949e;
+                        text-align: left;
+                        padding-right: 6px;
+                        line-height: 1.35;
+                        word-break: break-word;
+                    }
+                    .team-cell {
+                        text-align: left;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                    }
+                    .winner-team {
+                        color: #4ade80;
+                    }
+                    .loser-team {
+                        color: #f87171;
+                    }
+                    .player-name {
+                        font-size: 12px;
+                        font-weight: 500;
+                        display: block;
+                        line-height: 1.35;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                    }
+                    .score-winner {
+                        color: #4ade80;
+                        font-weight: 700;
+                        font-size: 14px;
+                        white-space: nowrap;
+                        padding-left: 4px;
+                    }
+                    .score-loser {
+                        color: #f87171;
+                        font-weight: 700;
+                        font-size: 14px;
+                        white-space: nowrap;
+                        padding-left: 4px;
+                    }
+                    @media (max-width: 480px) {
+                        body { padding: 12px; }
+                        .card { padding: 12px; }
+                        .games-table { font-size: 12px; }
+                        .games-table th { font-size: 9px; padding: 8px 2px; }
+                        .games-table td { padding: 8px 2px; }
+                        .player-name { font-size: 11px; }
+                        .time-cell { font-size: 10px; }
+                        .score-winner, .score-loser { font-size: 13px; }
+                    }
+    """
+
+
 def _email_hero_html(hero_image_url, use_cid=False):
     if not hero_image_url and not use_cid:
         return ''
@@ -882,6 +974,17 @@ def _plain_game_time_dict(game):
     return '-'
 
 
+def _email_game_time_cell(game, as_dict=False):
+    """Compact time for email games tables (drop timezone parenthetical)."""
+    raw = _plain_game_time_dict(game) if as_dict else _plain_game_time(game)
+    if raw == '-':
+        return raw
+    paren = raw.find(' (')
+    if paren > 0:
+        return raw[:paren]
+    return raw
+
+
 def create_doubles_email_plain_text(summary, stats, games, date_obj):
     formatted_date = _format_recap_date_long(date_obj)
     lines = [f'Volleyball Recap — {formatted_date}', '']
@@ -1083,76 +1186,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                         color: #f87171;
                         font-weight: 600;
                     }}
-                    .games-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        color: #e4e8eb;
-                        font-size: 13px;
-                    }}
-                    .games-table thead {{
-                        background: rgba(255, 255, 255, 0.03);
-                    }}
-                    .games-table th {{
-                        padding: 10px 6px;
-                        text-align: center;
-                        font-size: 11px;
-                        font-weight: 600;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        color: #8b949e;
-                    }}
-                    .games-table td {{
-                        padding: 10px 6px;
-                        text-align: center;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-                        vertical-align: middle;
-                    }}
-                    .games-table tbody tr:last-child td {{
-                        border-bottom: none;
-                    }}
-                    .games-table tbody tr:nth-child(odd) {{
-                        background: rgba(255, 255, 255, 0.02);
-                    }}
-                    .time-cell {{
-                        font-size: 12px;
-                        color: #8b949e;
-                        width: 1%;
-                        white-space: nowrap;
-                        text-align: left;
-                        padding-right: 10px;
-                    }}
-                    .team-cell {{
-                        text-align: left;
-                    }}
-                    .winner-team {{
-                        color: #4ade80;
-                    }}
-                    .loser-team {{
-                        color: #f87171;
-                    }}
-                    .player-name {{
-                        font-size: 13px;
-                        font-weight: 500;
-                        display: block;
-                        line-height: 1.4;
-                        white-space: nowrap;
-                    }}
-                    .score-winner {{
-                        color: #4ade80;
-                        font-weight: 700;
-                        font-size: 15px;
-                        width: 1%;
-                        white-space: nowrap;
-                        padding-left: 8px;
-                    }}
-                    .score-loser {{
-                        color: #f87171;
-                        font-weight: 700;
-                        font-size: 15px;
-                        width: 1%;
-                        white-space: nowrap;
-                        padding-left: 8px;
-                    }}
+                    {_email_games_table_styles()}
                     .footer {{
                         text-align: center;
                         margin-top: 24px;
@@ -1254,7 +1288,15 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                     
                     <div class="card">
                         <h2>Games (""" + str(len(games)) + """)</h2>
+                        <div class="games-table-wrap">
                         <table class="games-table">
+                            <colgroup>
+                                <col style="width:22%">
+                                <col style="width:30%">
+                                <col style="width:8%">
+                                <col style="width:30%">
+                                <col style="width:10%">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -1268,16 +1310,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
             """
 
     for game in games:
-        time_display = ""
-        if len(game) > 1 and game[1]:
-            date_time_str = str(game[1]).strip()
-            parts = date_time_str.split()
-            if len(parts) > 1:
-                time_display = " ".join(parts[1:]).strip()
-            elif parts:
-                time_display = parts[0]
-        if not time_display:
-            time_display = "-"
+        time_display = _email_game_time_cell(game)
 
         winner1 = format_name_for_email(game[2]) if game[2] else ""
         winner2 = format_name_for_email(game[3]) if game[3] else ""
@@ -1300,6 +1333,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
     html_body += """
                             </tbody>
                         </table>
+                        </div>
                     </div>
             """
 
@@ -1660,18 +1694,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                     .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
-                    .games-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
-                    .games-table thead {{ background: rgba(255, 255, 255, 0.03); }}
-                    .games-table th {{ padding: 10px 6px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
-                    .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
-                    .games-table tbody tr:last-child td {{ border-bottom: none; }}
-                    .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
-                    .time-cell {{ font-size: 12px; color: #8b949e; width: 1%; white-space: nowrap; text-align: left; padding-right: 10px; }}
-                    .winner-team {{ color: #4ade80; text-align: left; }}
-                    .loser-team {{ color: #f87171; text-align: left; }}
-                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; white-space: nowrap; }}
-                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
-                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
+                    {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
@@ -1730,7 +1753,15 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                     
                     <div class="card">
                         <h2>Games (""" + str(len(games)) + """)</h2>
+                        <div class="games-table-wrap">
                         <table class="games-table">
+                            <colgroup>
+                                <col style="width:22%">
+                                <col style="width:30%">
+                                <col style="width:8%">
+                                <col style="width:30%">
+                                <col style="width:10%">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -1744,16 +1775,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
             """
 
     for game in games:
-        time_display = ""
-        if len(game) > 1 and game[1]:
-            date_time_str = str(game[1]).strip()
-            parts = date_time_str.split()
-            if len(parts) > 1:
-                time_display = " ".join(parts[1:]).strip()
-            elif parts:
-                time_display = parts[0]
-        if not time_display:
-            time_display = "-"
+        time_display = _email_game_time_cell(game)
 
         winner = format_name_for_email(game[2]) if game[2] else ""
         loser = format_name_for_email(game[4]) if game[4] else ""
@@ -1763,9 +1785,9 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
         html_body += f"""
                                 <tr>
                                     <td class="time-cell">{time_display}</td>
-                                    <td class="winner-team"><span class="player-name">{winner}</span></td>
+                                    <td class="team-cell winner-team"><span class="player-name">{winner}</span></td>
                                     <td class="score-winner">{winner_score}</td>
-                                    <td class="loser-team"><span class="player-name">{loser}</span></td>
+                                    <td class="team-cell loser-team"><span class="player-name">{loser}</span></td>
                                     <td class="score-loser">{loser_score}</td>
                                 </tr>
                 """
@@ -1774,6 +1796,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
     html_body += f"""
                             </tbody>
                         </table>
+                        </div>
                     </div>
                     <div class="footer">
                         <a href="{SITE_BASE_URL}/vollis_stats/{stats_year}/" class="link-button">View {stats_year} Vollis Stats</a>
@@ -1822,18 +1845,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
-                    .games-table {{ width: 100%; border-collapse: collapse; color: #e4e8eb; font-size: 13px; }}
-                    .games-table thead {{ background: rgba(255, 255, 255, 0.03); }}
-                    .games-table th {{ padding: 10px 6px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }}
-                    .games-table td {{ padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: middle; }}
-                    .games-table tbody tr:last-child td {{ border-bottom: none; }}
-                    .games-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
-                    .time-cell {{ font-size: 12px; color: #8b949e; width: 1%; white-space: nowrap; text-align: left; padding-right: 10px; }}
-                    .winner-team {{ color: #4ade80; text-align: left; }}
-                    .loser-team {{ color: #f87171; text-align: left; }}
-                    .player-name {{ font-size: 13px; font-weight: 500; display: block; line-height: 1.4; white-space: nowrap; }}
-                    .score-winner {{ color: #4ade80; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
-                    .score-loser {{ color: #f87171; font-weight: 700; font-size: 15px; width: 1%; white-space: nowrap; padding-left: 8px; }}
+                    {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
                     .opt-in-section {{ margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }}
@@ -1892,7 +1904,15 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     
                     <div class="card">
                         <h2>Games (""" + str(len(games)) + """)</h2>
+                        <div class="games-table-wrap">
                         <table class="games-table">
+                            <colgroup>
+                                <col style="width:22%">
+                                <col style="width:30%">
+                                <col style="width:8%">
+                                <col style="width:30%">
+                                <col style="width:10%">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -1906,16 +1926,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
             """
 
     for game in games:
-        time_display = ""
-        game_date = game.get('game_date', '')
-        if game_date:
-            parts = str(game_date).strip().split()
-            if len(parts) > 1:
-                time_display = " ".join(parts[1:]).strip()
-            elif parts:
-                time_display = parts[0]
-        if not time_display:
-            time_display = "-"
+        time_display = _email_game_time_cell(game, as_dict=True)
 
         winners = game.get('winners', [])
         losers = game.get('losers', [])
@@ -1927,9 +1938,9 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
         html_body += f"""
                                 <tr>
                                     <td class="time-cell">{time_display}</td>
-                                    <td class="winner-team">{winner_names}</td>
+                                    <td class="team-cell winner-team">{winner_names}</td>
                                     <td class="score-winner">{w_score}</td>
-                                    <td class="loser-team">{loser_names}</td>
+                                    <td class="team-cell loser-team">{loser_names}</td>
                                     <td class="score-loser">{l_score}</td>
                                 </tr>
                 """
@@ -1938,6 +1949,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
     html_body += f"""
                             </tbody>
                         </table>
+                        </div>
                     </div>
                     <div class="footer">
                         <a href="{SITE_BASE_URL}/other_stats/{stats_year}/" class="link-button">View {stats_year} Other Stats</a>
