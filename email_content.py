@@ -423,8 +423,7 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos, variati
     if has_reference_photos:
         likeness = (
             f"Use the attached face and body reference photos to capture {name}'s look, "
-            "then exaggerate their signature details so they are instantly recognizable "
-            "and playful, not photorealistic.\n"
+            "then exaggerate their signature details so they are instantly recognizable.\n"
         )
     else:
         likeness = (
@@ -614,7 +613,7 @@ def _build_single_pass_image_prompt(
             'Caricature sports illustration — each roster player has at most one face '
             'reference photo. Use that face for likeness, then apply the matching signature '
             'exaggerations (outfits, hats, poses, habits) from the roster list below. '
-            'Do not swap traits between players. Stylized and playful, not photorealistic. '
+            'Do not swap traits between players. '
         )
     else:
         likeness = (
