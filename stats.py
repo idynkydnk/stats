@@ -638,18 +638,20 @@ ADMIN_USERS = {'kyle'}
 
 def is_admin(username=None):
     """True if the given username (or the current session user) is an admin.
-    Admin flag lives in the site_users table; ADMIN_USERS is the fallback."""
+    Admin flag lives in the site_users table; ADMIN_USERS is an always-admin fallback."""
     if username is None:
         username = session.get('username', '')
     if not username:
         return False
+    if (username or '').lower() in ADMIN_USERS:
+        return True
     try:
         user = adminfx.get_site_user(username)
         if user:
             return bool(user.get('is_admin')) and bool(user.get('active'))
     except Exception:
         pass
-    return (username or '').lower() in ADMIN_USERS
+    return False
 
 
 def _stats_db_path():

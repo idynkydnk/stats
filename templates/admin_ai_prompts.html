@@ -35,6 +35,10 @@
     background: var(--sr-accent-dim);
     color: var(--sr-accent);
 }
+.adm-prompt-badge-illustration {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+}
 .adm-prompt-subject {
     font-size: 14px;
     color: var(--sr-text);
@@ -120,7 +124,8 @@ details[open] .adm-prompt-chevron { transform: rotate(90deg); }
 
 <div class="adm-section">
     <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
-        Every generated AI summary prompt is saved here. Expand an entry to read the full prompt and output.
+        Every generated AI summary is saved here. Expand an entry to read the summary prompt, generated text,
+        and illustration prompt whenever an AI image was requested.
     </p>
     <div class="sr-card sr-card-compact">
         {% if entries %}
@@ -133,6 +138,9 @@ details[open] .adm-prompt-chevron { transform: rotate(90deg); }
                         <span class="adm-prompt-badge">{{ e.game_type|capitalize }}</span>
                         <span class="adm-prompt-badge">{{ e.prompt_style or 'unknown' }}</span>
                         <span class="adm-prompt-badge">{{ e.game_count }} game{{ 's' if e.game_count != 1 else '' }}</span>
+                        {% if e.image_prompt_text %}
+                        <span class="adm-prompt-badge adm-prompt-badge-illustration"><i class="fas fa-image"></i> Illustration prompt</span>
+                        {% endif %}
                     </div>
                     {% if e.subject %}
                     <div class="adm-prompt-subject">{{ e.subject }}</div>
@@ -161,14 +169,15 @@ details[open] .adm-prompt-chevron { transform: rotate(90deg); }
                     <pre>{{ e.image_prompt_text }}</pre>
                 </div>
                 {% endif %}
+                {% if e.hero_image_error %}
+                <div class="adm-prompt-note"><i class="fas fa-exclamation-triangle"></i> Illustration failed: {{ e.hero_image_error }}</div>
+                {% endif %}
                 <div class="adm-prompt-block">
                     <label>Generated summary</label>
                     <pre>{{ e.summary_text or '(empty)' }}</pre>
                 </div>
                 {% if e.hero_image_url %}
                 <div class="adm-prompt-note"><i class="fas fa-image"></i> Illustration generated</div>
-                {% elif e.hero_image_error %}
-                <div class="adm-prompt-note"><i class="fas fa-exclamation-triangle"></i> Illustration failed: {{ e.hero_image_error }}</div>
                 {% endif %}
             </div>
         </details>

@@ -30,6 +30,14 @@ DEFAULT_IMAGE_MODE = 'none'
 _LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
 
 
+class ImageGenerationError(Exception):
+    """Image API failed after the illustration prompt was assembled."""
+
+    def __init__(self, message, image_prompt=None):
+        super().__init__(message)
+        self.image_prompt = image_prompt or ''
+
+
 def _normalize_image_mode(mode):
     clean = (mode or '').strip().lower()
     if clean in IMAGE_MODES:
@@ -938,7 +946,10 @@ def _generate_email_hero_image_single_pass(
         image_details=image_details,
     )
     image_prompt = _image_prompt_bundle(reference_parts, prompt)
-    raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
+    try:
+        raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
+    except Exception as e:
+        raise ImageGenerationError(_friendly_image_error(e), image_prompt=image_prompt) from e
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt
 
@@ -973,9 +984,18 @@ def _generate_email_hero_image_two_pass(
         solo_prompt = _build_solo_player_prompt(
             name, trait_phrases, has_reference_photos, variation_cue,
         )
-        raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
-        caricatures[name] = (raw, mime)
         solo_passes.append((name, reference_parts, solo_prompt))
+        try:
+            raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
+        except Exception as e:
+            partial_prompt = _image_prompt_bundle_multipass(
+                solo_passes, [], 'Group scene not reached — solo caricature failed.',
+            )
+            raise ImageGenerationError(
+                _friendly_image_error(e, api_calls=len(solo_passes)),
+                image_prompt=partial_prompt,
+            ) from e
+        caricatures[name] = (raw, mime)
 
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
     scene_prompt = _build_scene_image_prompt(
@@ -983,7 +1003,13 @@ def _generate_email_hero_image_two_pass(
         image_details=image_details,
     )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
-    raw, mime = _generate_image_bytes(scene_prompt, api_key, reference_parts=scene_refs)
+    try:
+        raw, mime = _generate_image_bytes(scene_prompt, api_key, reference_parts=scene_refs)
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=len(players) + 1),
+            image_prompt=image_prompt,
+        ) from e
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt
 
@@ -1023,11 +1049,14 @@ def _try_generate_email_hero_image(
         return url, path, None, image_prompt, meta
     except Exception as e:
         err = _friendly_image_error(e, api_calls=meta.get('api_calls', 1))
+        image_prompt = getattr(e, 'image_prompt', None)
+        if isinstance(e, ImageGenerationError) and e.image_prompt:
+            image_prompt = e.image_prompt
         try:
             current_app.logger.warning('AI email image generation failed: %s', err)
         except Exception:
             pass
-        return None, None, err, None, meta
+        return None, None, err, image_prompt or '', meta
 
 
 def email_html_for_inline_preview(html_body):
