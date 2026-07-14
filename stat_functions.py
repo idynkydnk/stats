@@ -783,6 +783,83 @@ def games_from_player_by_year(year, name):
 	row = convert_ampm(row)
 	return row
 
+def _network_player_pair_key(a, b):
+	if not a or not b or a == b:
+		return None
+	return tuple(sorted([a, b]))
+
+
+@cached(ttl=1800)
+def build_player_network_data(year):
+	"""Build node/edge data for the doubles player network visualization."""
+	if year == 'All years':
+		games = all_games()
+	else:
+		games = year_games(year)
+
+	player_games = {}
+	partner_edges = {}
+	game_edges = {}
+
+	for game in games:
+		w1, w2, l1, l2 = game[2], game[3], game[5], game[6]
+		all_players = [p for p in (w1, w2, l1, l2) if p and str(p).strip()]
+
+		for player in all_players:
+			player_games[player] = player_games.get(player, 0) + 1
+
+		for teammate_a, teammate_b in ((w1, w2), (l1, l2)):
+			key = _network_player_pair_key(teammate_a, teammate_b)
+			if not key:
+				continue
+			rec = partner_edges.setdefault(key, {'wins': 0, 'losses': 0})
+			if key == tuple(sorted([w1, w2])):
+				rec['wins'] += 1
+			else:
+				rec['losses'] += 1
+
+		for i, player_a in enumerate(all_players):
+			for player_b in all_players[i + 1:]:
+				key = _network_player_pair_key(player_a, player_b)
+				if key:
+					game_edges[key] = game_edges.get(key, 0) + 1
+
+	nodes = [
+		{'id': name, 'label': name, 'games': count}
+		for name, count in sorted(player_games.items(), key=lambda item: (-item[1], item[0].lower()))
+	]
+
+	partner_edge_list = []
+	for (player_a, player_b), rec in partner_edges.items():
+		total = rec['wins'] + rec['losses']
+		if total <= 0:
+			continue
+		partner_edge_list.append({
+			'source': player_a,
+			'target': player_b,
+			'games': total,
+			'wins': rec['wins'],
+			'losses': rec['losses'],
+			'win_rate': rec['wins'] / total,
+		})
+	partner_edge_list.sort(key=lambda edge: (-edge['games'], edge['source'].lower()))
+
+	game_edge_list = []
+	for (player_a, player_b), count in game_edges.items():
+		game_edge_list.append({
+			'source': player_a,
+			'target': player_b,
+			'games': count,
+		})
+	game_edge_list.sort(key=lambda edge: (-edge['games'], edge['source'].lower()))
+
+	return {
+		'nodes': nodes,
+		'partner_edges': partner_edge_list,
+		'game_edges': game_edge_list,
+	}
+
+
 def partner_stats_by_year(name, games):
 	"""Record with every partner, most games together first (single pass over games)."""
 	if not games:

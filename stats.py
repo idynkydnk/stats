@@ -1264,6 +1264,38 @@ def stats(year):
         today_games=today_games)
 
 
+@app.route('/player_network/')
+def player_network_default():
+    return redirect(url_for('player_network', year=str(date.today().year)))
+
+
+@app.route('/player_network/<year>/')
+def player_network(year):
+    """Doubles player connection network (force-directed graph)."""
+    current_year = str(date.today().year)
+    showing_previous_year = False
+    display_year = year
+
+    all_years = grab_all_years()
+    games = year_games(year)
+    if not games and year == current_year and all_years:
+        previous_year = str(int(current_year) - 1)
+        if previous_year in all_years and year_games(previous_year):
+            display_year = previous_year
+            showing_previous_year = True
+            games = year_games(previous_year)
+
+    network_data = build_player_network_data(display_year)
+    return render_template(
+        'player_network.html',
+        year=year,
+        display_year=display_year,
+        showing_previous_year=showing_previous_year,
+        all_years=all_years,
+        network_data=network_data,
+    )
+
+
 @app.route('/games/')
 def games_default():
     return redirect(url_for('games', year=str(date.today().year)))

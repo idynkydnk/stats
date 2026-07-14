@@ -1,9 +1,11 @@
 {# Contextual header actions. Set active_tab ('doubles'|'vollis'|'other') for stats pages. #}
-{# Optional: header_mode ('games' shows Stats back link), year, display_year, all_years #}
+{# Optional: header_mode ('games' shows Stats back link), year, display_year, all_years, year_route_base #}
 {% set tab = active_tab|default(none) %}
 {% set yr = display_year|default(year)|default(none) %}
 
-{% if tab == 'doubles' %}
+{% if year_route_base is defined %}
+    {% set year_base = year_route_base %}
+{% elif tab == 'doubles' %}
     {% set games_url = url_for('games', year=yr) if yr else url_for('games_default') %}
     {% set stats_url = url_for('stats', year=yr) if yr else url_for('stats_default') %}
     {% set year_base = 'stats' %}

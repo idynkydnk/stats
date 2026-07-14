@@ -1,0 +1,220 @@
+{% extends base_template %}
+{% block active_tab %}doubles{% endblock %}
+{% block title %}{{ display_year|default(year) }} Player Network{% endblock %}
+{% block extra_css %}
+<style>
+.pn-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.pn-legend {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--sr-muted);
+}
+.pn-legend strong {
+    color: var(--sr-text);
+}
+.pn-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+}
+.pn-control-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.pn-control-group label {
+    font-size: 12px;
+    color: var(--sr-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.pn-min-games {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.pn-min-games input[type="range"] {
+    width: 140px;
+    accent-color: var(--sr-accent);
+}
+.pn-min-value {
+    min-width: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sr-text);
+}
+.pn-chart-card {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+.pn-chart {
+    width: 100%;
+    height: min(72vh, 760px);
+    min-height: 420px;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+}
+.pn-chart:active {
+    cursor: grabbing;
+}
+.pn-chart-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    color: var(--sr-muted);
+    font-size: 14px;
+    padding: 24px;
+    text-align: center;
+}
+.pn-details {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-height: 56px;
+}
+.pn-details-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin: 0 0 4px 0;
+}
+.pn-details-body {
+    font-size: 13px;
+    color: var(--sr-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+.pn-details a {
+    color: var(--sr-accent);
+    text-decoration: none;
+}
+.pn-details a:hover {
+    text-decoration: underline;
+}
+.pn-node-label {
+    font-size: 11px;
+    fill: var(--sr-text);
+    pointer-events: none;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: rgba(11, 15, 20, 0.85);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+}
+.pn-link {
+    cursor: pointer;
+}
+@media (max-width: 640px) {
+    .pn-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pn-chart {
+        min-height: 360px;
+        height: 62vh;
+    }
+}
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">{{ display_year|default(year) }} Player Network</h1>
+    <div class="sr-header-actions">
+        {% set year_route_base = 'player_network' %}
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+{% include 'partials/section_tabs.html' %}
+
+{% if showing_previous_year %}
+<div class="sr-notice" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+    <i class="fas fa-info-circle" style="color: #fbbf24;"></i>
+    <span style="color: var(--sr-text); font-size: 14px;">No games played in {{ year }} yet. Showing <strong>{{ display_year }}</strong> network.</span>
+</div>
+{% endif %}
+
+{% set pn_max_edge_games = [
+    network_data.partner_edges | map(attribute='games') | max | default(1),
+    network_data.game_edges | map(attribute='games') | max | default(1)
+] | max %}
+{% set pn_min_games_max = [15, pn_max_edge_games] | min %}
+
+<div class="pn-wrap">
+    <div class="pn-legend">
+        Each <strong>circle</strong> is a player — bigger circles have played more games in the selected time period
+        (circle size does not change when you filter by a player).
+        A <strong>line</strong> connects a pair of players; the more games they share, the thicker the line.
+        Tap any circle or line to see details, and use <strong>Min games</strong> to hide pairs that have only played a few games together.
+        <br><br>
+        <strong>Partner mode:</strong> a line joins two players who have played <strong>together</strong> as teammates.
+        Its color is the pair's <strong>win rate as a team</strong>, from <span style="color:#ef4444;">red (0%)</span>
+        through <span style="color:#fbbf24;">yellow (50%)</span> to <span style="color:#22c55e;">green (100%)</span>.
+        <br>
+        <strong>Game mode:</strong> a line joins two players who have been <strong>in the same game</strong>,
+        whether as teammates or as opponents.
+    </div>
+
+    <div class="pn-controls">
+        <div class="pn-control-group">
+            <label>Mode</label>
+            <div class="sr-range-pills" id="pn-mode-pills">
+                <button type="button" class="sr-range-pill active" data-mode="partner">Partner</button>
+                <button type="button" class="sr-range-pill" data-mode="game">Game</button>
+            </div>
+        </div>
+        <div class="pn-control-group pn-min-games">
+            <label for="pn-min-games">Min games</label>
+            <input type="range" id="pn-min-games" min="1" max="{{ pn_min_games_max }}" value="1" step="1">
+            <span class="pn-min-value" id="pn-min-games-value">1</span>
+        </div>
+        <button type="button" class="sr-link-btn" id="pn-clear-selection" style="display:none;">
+            <i class="fas fa-times"></i> Clear selection
+        </button>
+    </div>
+
+    <div class="pn-chart-card">
+        {% if network_data.nodes %}
+        <svg class="pn-chart" id="pn-chart" aria-label="Player connection network"></svg>
+        {% else %}
+        <div class="pn-chart-empty">No doubles games found for this time period.</div>
+        {% endif %}
+    </div>
+
+    <div class="pn-details" id="pn-details">
+        <p class="pn-details-title">Tap a player or connection</p>
+        <p class="pn-details-body">Select a circle to highlight that player's connections, or tap a line to see how often two players share games.</p>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+{% if network_data.nodes %}
+<script id="pn-data" type="application/json">{{ {
+    'year': display_year|default(year),
+    'nodes': network_data.nodes,
+    'partner_edges': network_data.partner_edges,
+    'game_edges': network_data.game_edges,
+    'player_url_template': url_for('player_stats', year=display_year|default(year), name='__NAME__')
+} | tojson | safe }}</script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="{{ url_for('static', filename='js/player_network.js') }}"></script>
+{% endif %}
+{% endblock %}
