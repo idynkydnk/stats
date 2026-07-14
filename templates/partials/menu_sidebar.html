@@ -1,13 +1,11 @@
 <ul class="menu-list">
     <li><a href="{{ url_for('stats_default') }}"><i class="fas fa-home"></i> Main Page</a></li>
 
-    {% if active_tab is not defined %}
     <li class="menu-section-label">Browse</li>
     <li><a href="{{ url_for('index') }}"><i class="fas fa-chart-bar"></i> Doubles Stats</a></li>
     <li><a href="{{ url_for('vollis_stats_default') }}"><i class="fas fa-volleyball-ball"></i> Vollis Stats</a></li>
     <li><a href="{{ url_for('other_stats_default') }}"><i class="fas fa-dice"></i> Other Stats</a></li>
     <li><a href="{{ url_for('player_network_default') }}"><i class="fas fa-project-diagram"></i> Player Network</a></li>
-    {% endif %}
 
     {% if session.logged_in %}
     <li class="menu-section-label">Manage</li>
