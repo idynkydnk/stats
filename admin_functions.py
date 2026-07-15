@@ -7,6 +7,7 @@ store full before/after row snapshots as JSON so an admin can undo them.
 import json
 import os
 import sqlite3
+import time
 
 
 def stats_db_path():
@@ -18,9 +19,40 @@ def stats_db_path():
 
 
 def _connect():
-    conn = sqlite3.connect(stats_db_path())
+    conn = sqlite3.connect(stats_db_path(), timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _recap_storage_dir():
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'recaps')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _recap_html_path(share_id):
+    safe_id = ''.join(ch for ch in (share_id or '') if ch.isalnum() or ch in ('-', '_'))
+    if not safe_id:
+        raise ValueError('Invalid recap id')
+    return os.path.join(_recap_storage_dir(), f'{safe_id}.html')
+
+
+def write_recap_html_file(share_id, html_body):
+    path = _recap_html_path(share_id)
+    tmp_path = f'{path}.tmp'
+    with open(tmp_path, 'w', encoding='utf-8') as handle:
+        handle.write(html_body or '')
+    os.replace(tmp_path, path)
+    return path
+
+
+def read_recap_html_file(share_id):
+    path = _recap_html_path(share_id)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8') as handle:
+        return handle.read()
 
 
 # Undo-able targets and their tables. Only tables listed here can ever be
@@ -420,20 +452,32 @@ def init_ai_recap_pages_db():
 def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          plain_text_body='', hero_image_url='', hero_image_error='',
                          game_ids_json='[]', prompt_style='', solo_images_json=''):
+    init_ai_recap_pages_db()
+    write_recap_html_file(share_id, html_body)
     conn = _connect()
-    conn.execute('''
-        INSERT INTO ai_recap_pages (
-            share_id, username, game_type, prompt_style, subject,
-            html_body, plain_text_body, hero_image_url, hero_image_error,
-            game_ids_json, solo_images_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        share_id, username, game_type, prompt_style or '', subject or '',
-        html_body, plain_text_body or '', hero_image_url or '', hero_image_error or '',
-        game_ids_json or '[]', solo_images_json or '',
-    ))
-    conn.commit()
-    conn.close()
+    try:
+        for attempt in range(3):
+            try:
+                conn.execute('''
+                    INSERT INTO ai_recap_pages (
+                        share_id, username, game_type, prompt_style, subject,
+                        html_body, plain_text_body, hero_image_url, hero_image_error,
+                        game_ids_json, solo_images_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    share_id, username, game_type, prompt_style or '', subject or '',
+                    '', plain_text_body or '', hero_image_url or '', hero_image_error or '',
+                    game_ids_json or '[]', solo_images_json or '',
+                ))
+                conn.commit()
+                return
+            except sqlite3.OperationalError as exc:
+                conn.rollback()
+                if attempt >= 2 or 'locked' not in str(exc).lower():
+                    raise
+                time.sleep(0.25 * (attempt + 1))
+    finally:
+        conn.close()
 
 
 def get_ai_recap_page(share_id):
@@ -445,5 +489,10 @@ def get_ai_recap_page(share_id):
         FROM ai_recap_pages WHERE share_id = ?
     ''', (share_id,)).fetchone()
     conn.close()
-    return dict(row) if row else None
-
+    if not row:
+        return None
+    data = dict(row)
+    file_html = read_recap_html_file(share_id)
+    if file_html is not None:
+        data['html_body'] = file_html
+    return data

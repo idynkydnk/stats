@@ -46,3 +46,7 @@ ai_auto_send_daemon.heartbeat
 static/email_images/*
 !static/email_images/.gitkeep
 
+# Published AI recap HTML (stored on server)
+recaps/*
+!recaps/.gitkeep
+
