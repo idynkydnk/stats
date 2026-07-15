@@ -1704,6 +1704,23 @@ def select_ai_prompt():
         return redirect(url_for('ai_summary'))
     return render_template('select_prompt.html', game_ids=selected_game_ids, game_type=game_type)
 
+
+def _render_select_ai_prompt(
+    game_ids, game_type, prompt_style='', custom_prompt='', image_details='', error=None,
+):
+    """Re-show the style picker with prior selections after a recoverable error."""
+    if error:
+        flash(str(error), 'error')
+    return render_template(
+        'select_prompt.html',
+        game_ids=game_ids,
+        game_type=game_type,
+        selected_prompt_style=prompt_style or '',
+        custom_prompt_value=custom_prompt or '',
+        image_details_value=image_details or '',
+    )
+
+
 @app.route('/preview_ai_summary_with_prompt/', methods=['POST'])
 @login_required
 def preview_ai_summary_with_prompt():
@@ -1718,6 +1735,16 @@ def preview_ai_summary_with_prompt():
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary'))
+
+    def stay_on_prompt(error):
+        return _render_select_ai_prompt(
+            selected_game_ids,
+            game_type,
+            prompt_style=prompt_style,
+            custom_prompt=custom_prompt,
+            image_details=image_details,
+            error=error,
+        )
 
     try:
         if game_type == 'vollis':
@@ -1737,13 +1764,11 @@ def preview_ai_summary_with_prompt():
             )
     except ValueError as ve:
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(ve)[:200]}')
-        flash(str(ve), 'error')
-        return redirect(url_for('ai_summary'))
+        return stay_on_prompt(ve)
     except Exception as e:
         app.logger.exception('AI summary payload failed')
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(e)[:200]}')
-        flash(f'Failed to prepare summary preview: {str(e)}', 'error')
-        return redirect(url_for('ai_summary'))
+        return stay_on_prompt(f'Failed to prepare summary preview: {str(e)}')
 
     _save_ai_prompt_log(payload, prompt_style, custom_prompt, selected_game_ids)
 
@@ -1764,8 +1789,7 @@ def preview_ai_summary_with_prompt():
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
     except Exception as e:
         app.logger.exception('AI recap publish failed')
-        flash(f'Failed to publish recap: {str(e)}', 'error')
-        return redirect(url_for('ai_summary'))
+        return stay_on_prompt(f'Failed to publish recap: {str(e)}')
 
 
 @app.route('/recap/<share_id>/')

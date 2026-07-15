@@ -292,7 +292,7 @@
                         </div>
                     </div>
                     <div class="sr-prompt-description">Write your own custom instructions for the AI. Describe the tone, style, and personality you want.</div>
-                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Example: You are a pirate captain writing a recap of the day's battles on the high seas..." onclick="event.stopPropagation(); selectPrompt('custom');" style="width: 100%; margin-top: 12px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 13px; font-family: inherit; min-height: 100px; resize: vertical;"></textarea>
+                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Example: You are a pirate captain writing a recap of the day's battles on the high seas..." onclick="event.stopPropagation(); selectPrompt('custom');" style="width: 100%; margin-top: 12px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 13px; font-family: inherit; min-height: 100px; resize: vertical;">{{ custom_prompt_value|default('') }}</textarea>
                 </div>
             </div>
 
@@ -301,17 +301,17 @@
                 <input type="hidden" name="game_ids" value="{{ gid }}">
                 {% endfor %}
                 <input type="hidden" name="game_type" value="{{ game_type }}">
-                <input type="hidden" name="prompt_style" id="selected-prompt" value="">
-                <input type="hidden" name="custom_prompt" id="custom-prompt-hidden" value="">
+                <input type="hidden" name="prompt_style" id="selected-prompt" value="{{ selected_prompt_style|default('') }}">
+                <input type="hidden" name="custom_prompt" id="custom-prompt-hidden" value="{{ custom_prompt_value|default('') }}">
                 <input type="hidden" name="image_mode" id="image-mode" value="">
-                <input type="hidden" name="image_details" id="image-details-hidden" value="">
+                <input type="hidden" name="image_details" id="image-details-hidden" value="{{ image_details_value|default('') }}">
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
                     <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or publish text only. With 4 or fewer players, temporary per-player caricatures are generated first for better likeness, then discarded after the group image is saved. With more than 4, one group image includes every player's face (no body photos). <strong>Keep this page open</strong> until generation finishes — you'll get a shareable link.</p>
                     <div class="sr-illustration-details">
                         <label for="image-details-text">Extra illustration details (optional)</label>
-                        <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike..."></textarea>
+                        <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
                         <p>Only used when you choose <strong>With illustration</strong>.</p>
                     </div>
                     <div class="sr-illustration-options">
@@ -404,9 +404,37 @@ let selectedPrompt = null;
             setGenerateButtonsEnabled(true);
         }
 
-        document.getElementById('generate-form').addEventListener('submit', function() {
+        document.getElementById('generate-form').addEventListener('submit', function(event) {
             syncCustomPrompt();
             syncImageDetails();
+
+            if (selectedPrompt === 'custom') {
+                var customText = (document.getElementById('custom-prompt-text').value || '').trim();
+                if (!customText) {
+                    event.preventDefault();
+                    setGenerateButtonsEnabled(true);
+                    document.getElementById('generate-loading').classList.remove('show');
+                    var existing = document.getElementById('select-prompt-client-error');
+                    if (existing) existing.remove();
+                    var flash = document.createElement('div');
+                    flash.id = 'select-prompt-client-error';
+                    flash.className = 'sr-flash';
+                    flash.style.cssText = 'margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);';
+                    flash.textContent = 'Custom prompt is empty. Enter your style instructions first.';
+                    var container = document.querySelector('.sr-container');
+                    var card = document.querySelector('.sr-card');
+                    if (container && card) {
+                        container.insertBefore(flash, card);
+                    }
+                    var customArea = document.getElementById('custom-prompt-text');
+                    if (customArea) {
+                        customArea.focus();
+                        customArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                }
+            }
+
             var mode = document.getElementById('image-mode').value || 'none';
             var copy = loadingCopy[mode] || loadingCopy.none;
             var styleDetail = loadingDetailForStyle();
@@ -418,5 +446,9 @@ let selectedPrompt = null;
             document.getElementById('loading-detail').textContent = copy.detail;
             document.getElementById('generate-loading').classList.add('show');
         });
+
+        {% if selected_prompt_style %}
+        selectPrompt({{ selected_prompt_style|tojson }});
+        {% endif %}
 </script>
 {% endblock %}
