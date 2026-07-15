@@ -530,3 +530,161 @@ def get_ai_recap_page(share_id):
     if file_html is not None:
         data['html_body'] = file_html
     return data
+
+
+# --- AI illustration files (static/email_images) ---
+
+_AI_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+
+def email_images_dir():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'email_images')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _format_bytes(num_bytes):
+    size = float(num_bytes or 0)
+    for unit in ('B', 'KB', 'MB', 'GB'):
+        if size < 1024 or unit == 'GB':
+            if unit == 'B':
+                return f'{int(size)} {unit}'
+            return f'{size:.1f} {unit}'
+        size /= 1024
+    return f'{int(num_bytes or 0)} B'
+
+
+def _email_image_filenames_from_text(text):
+    """Extract email_images filenames mentioned in HTML/JSON/text."""
+    import re
+    if not text:
+        return set()
+    found = set()
+    for match in re.finditer(r'/static/email_images/([A-Za-z0-9._-]+)', str(text)):
+        found.add(match.group(1))
+    for match in re.finditer(r'"([^"/\\]+\.(?:png|jpg|jpeg|gif|webp))"', str(text), re.I):
+        name = match.group(1)
+        # Only treat bare filenames as email images if they look like our uuid names
+        if re.fullmatch(r'[0-9a-f]{16,}\.(?:png|jpg|jpeg|gif|webp)', name, re.I):
+            found.add(name)
+    return found
+
+
+def referenced_email_image_filenames():
+    """Filenames still referenced by published recaps or the AI prompt log."""
+    referenced = set()
+    recap_dir = _recap_storage_dir()
+    if os.path.isdir(recap_dir):
+        for name in os.listdir(recap_dir):
+            path = os.path.join(recap_dir, name)
+            if not os.path.isfile(path):
+                continue
+            if not (name.endswith('.html') or name.endswith('.json')):
+                continue
+            try:
+                with open(path, encoding='utf-8') as handle:
+                    referenced |= _email_image_filenames_from_text(handle.read())
+            except OSError:
+                continue
+
+    legacy_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recaps')
+    if os.path.isdir(legacy_dir):
+        for name in os.listdir(legacy_dir):
+            path = os.path.join(legacy_dir, name)
+            if not os.path.isfile(path):
+                continue
+            if not (name.endswith('.html') or name.endswith('.json')):
+                continue
+            try:
+                with open(path, encoding='utf-8') as handle:
+                    referenced |= _email_image_filenames_from_text(handle.read())
+            except OSError:
+                continue
+
+    conn = _connect()
+    try:
+        rows = conn.execute('''
+            SELECT hero_image_url, solo_images_json
+            FROM ai_prompt_log
+            WHERE hero_image_url IS NOT NULL AND hero_image_url != ''
+               OR solo_images_json IS NOT NULL AND solo_images_json != ''
+        ''').fetchall()
+        for row in rows:
+            referenced |= _email_image_filenames_from_text(row['hero_image_url'])
+            referenced |= _email_image_filenames_from_text(row['solo_images_json'])
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+    return referenced
+
+
+def list_ai_email_images():
+    """List AI illustration files with size/date and whether a recap still uses them."""
+    directory = email_images_dir()
+    referenced = referenced_email_image_filenames()
+    images = []
+    total_bytes = 0
+    for name in os.listdir(directory):
+        if name.startswith('.'):
+            continue
+        path = os.path.join(directory, name)
+        if not os.path.isfile(path):
+            continue
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in _AI_IMAGE_EXTENSIONS:
+            continue
+        try:
+            stat = os.stat(path)
+        except OSError:
+            continue
+        total_bytes += stat.st_size
+        images.append({
+            'filename': name,
+            'path': path,
+            'url': f'/static/email_images/{name}',
+            'size_bytes': stat.st_size,
+            'size_label': _format_bytes(stat.st_size),
+            'mtime': stat.st_mtime,
+            'mtime_label': datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime('%Y-%m-%d %H:%M'),
+            'in_use': name in referenced,
+        })
+    images.sort(key=lambda item: item['mtime'], reverse=True)
+    unused_bytes = sum(item['size_bytes'] for item in images if not item['in_use'])
+    return {
+        'images': images,
+        'count': len(images),
+        'total_bytes': total_bytes,
+        'total_label': _format_bytes(total_bytes),
+        'unused_count': sum(1 for item in images if not item['in_use']),
+        'unused_bytes': unused_bytes,
+        'unused_label': _format_bytes(unused_bytes),
+    }
+
+
+def delete_ai_email_images(filenames, allow_in_use=True):
+    """Delete selected AI illustration files. Returns (deleted, missing, blocked)."""
+    directory = email_images_dir()
+    referenced = referenced_email_image_filenames() if not allow_in_use else set()
+    deleted = []
+    missing = []
+    blocked = []
+    for raw in filenames or []:
+        name = os.path.basename(str(raw or '').strip())
+        if not name or name.startswith('.'):
+            continue
+        if os.path.splitext(name)[1].lower() not in _AI_IMAGE_EXTENSIONS:
+            continue
+        if name in referenced:
+            blocked.append(name)
+            continue
+        path = os.path.join(directory, name)
+        if not os.path.isfile(path):
+            missing.append(name)
+            continue
+        try:
+            os.remove(path)
+            deleted.append(name)
+        except OSError:
+            missing.append(name)
+    return deleted, missing, blocked

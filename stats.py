@@ -4601,6 +4601,42 @@ def admin_ai_prompts():
     )
 
 
+@app.route('/admin/ai-images/')
+@admin_required
+def admin_ai_images():
+    """Browse and delete AI illustration files taking up disk space."""
+    image_stats = adminfx.list_ai_email_images()
+    return render_template('admin_ai_images.html', image_stats=image_stats)
+
+
+@app.route('/admin/ai-images/delete', methods=['POST'])
+@admin_required
+def admin_ai_images_delete():
+    """Delete selected AI illustration files from disk."""
+    action = (request.form.get('action') or 'delete_selected').strip()
+    if action == 'delete_unused':
+        image_stats = adminfx.list_ai_email_images()
+        filenames = [img['filename'] for img in image_stats['images'] if not img['in_use']]
+        deleted, missing, blocked = adminfx.delete_ai_email_images(filenames, allow_in_use=False)
+    else:
+        filenames = request.form.getlist('filenames')
+        deleted, missing, blocked = adminfx.delete_ai_email_images(filenames, allow_in_use=True)
+
+    if deleted:
+        log_activity(
+            'Deleted AI images',
+            summary=f'Removed {len(deleted)} illustration file(s) from static/email_images/',
+        )
+        flash(f'Deleted {len(deleted)} image(s).', 'success')
+    if blocked:
+        flash(f'Skipped {len(blocked)} in-use image(s).', 'error')
+    if missing and not deleted:
+        flash('No matching image files found to delete.', 'error')
+    if not deleted and not blocked and not missing:
+        flash('No images selected.', 'error')
+    return redirect(url_for('admin_ai_images'))
+
+
 @app.route('/admin/users/add', methods=['POST'])
 @admin_required
 def admin_add_user():

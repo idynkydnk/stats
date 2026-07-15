@@ -1,0 +1,230 @@
+{% extends base_template %}
+{% block title %}AI Images - Admin{% endblock %}
+{% block extra_css %}
+<style>
+.adm-img-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.adm-img-card {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.adm-img-card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--sr-muted);
+    margin-bottom: 6px;
+}
+.adm-img-card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--sr-text);
+}
+.adm-img-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.adm-img-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+.adm-img-item {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.adm-img-item.in-use {
+    border-color: rgba(102, 217, 239, 0.45);
+}
+.adm-img-thumb-wrap {
+    position: relative;
+    background: rgba(0, 0, 0, 0.25);
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.adm-img-thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.adm-img-check {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--sr-accent);
+}
+.adm-img-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(102, 217, 239, 0.2);
+    color: var(--sr-accent);
+}
+.adm-img-meta {
+    padding: 10px 12px 12px;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.4;
+}
+.adm-img-name {
+    color: var(--sr-text);
+    font-weight: 600;
+    font-size: 11px;
+    word-break: break-all;
+    margin-bottom: 4px;
+}
+.adm-img-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+.adm-btn {
+    background: var(--sr-accent-dim);
+    border: 1px solid var(--sr-accent);
+    color: var(--sr-accent);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.adm-btn:hover { background: rgba(110, 231, 255, 0.25); }
+.adm-btn-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+.adm-btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+.adm-empty {
+    color: var(--sr-muted);
+    text-align: center;
+    padding: 40px 16px;
+}
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">AI Images</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('admin_dashboard') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Admin</a>
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<div class="adm-section">
+    <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
+        These are AI illustration files saved under <code>static/email_images/</code>
+        (not in the SQLite database). Deleting them frees disk space.
+        Images marked <strong>In use</strong> are still referenced by a published recap or prompt log.
+    </p>
+
+    <div class="adm-img-summary">
+        <div class="adm-img-card">
+            <div class="adm-img-card-label">Images</div>
+            <div class="adm-img-card-value">{{ image_stats.count }}</div>
+        </div>
+        <div class="adm-img-card">
+            <div class="adm-img-card-label">Total size</div>
+            <div class="adm-img-card-value" style="font-size: 18px;">{{ image_stats.total_label }}</div>
+        </div>
+        <div class="adm-img-card">
+            <div class="adm-img-card-label">Unused</div>
+            <div class="adm-img-card-value">{{ image_stats.unused_count }}</div>
+        </div>
+        <div class="adm-img-card">
+            <div class="adm-img-card-label">Unused size</div>
+            <div class="adm-img-card-value" style="font-size: 18px;">{{ image_stats.unused_label }}</div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_ai_images_delete') }}" id="ai-images-form">
+        <div class="adm-img-toolbar">
+            <button type="button" class="adm-btn" id="select-all-btn"><i class="fas fa-check-square"></i> Select all</button>
+            <button type="button" class="adm-btn" id="select-unused-btn"><i class="fas fa-filter"></i> Select unused</button>
+            <button type="button" class="adm-btn" id="clear-selection-btn"><i class="fas fa-times"></i> Clear</button>
+            <button type="submit" name="action" value="delete_selected" class="adm-btn adm-btn-danger"
+                    onclick="return confirm('Delete selected images from disk? This cannot be undone.');">
+                <i class="fas fa-trash"></i> Delete selected
+            </button>
+            <button type="submit" name="action" value="delete_unused" class="adm-btn adm-btn-danger"
+                    onclick="return confirm('Delete all unused AI images? Images still used by recaps will be kept.');">
+                <i class="fas fa-broom"></i> Delete all unused
+            </button>
+        </div>
+
+        {% if image_stats.images %}
+        <div class="adm-img-grid">
+            {% for img in image_stats.images %}
+            <div class="adm-img-item{% if img.in_use %} in-use{% endif %}">
+                <div class="adm-img-thumb-wrap">
+                    <input class="adm-img-check" type="checkbox" name="filenames" value="{{ img.filename }}"
+                           data-in-use="{{ '1' if img.in_use else '0' }}">
+                    {% if img.in_use %}<span class="adm-img-badge">In use</span>{% endif %}
+                    <img src="{{ img.url }}" alt="{{ img.filename }}" loading="lazy">
+                </div>
+                <div class="adm-img-meta">
+                    <div class="adm-img-name">{{ img.filename }}</div>
+                    <div>{{ img.size_label }} · {{ img.mtime_label }} UTC</div>
+                    <div class="adm-img-actions">
+                        <a class="adm-btn" href="{{ img.url }}" target="_blank" rel="noopener">Open</a>
+                        <button type="submit" name="filenames" value="{{ img.filename }}" class="adm-btn adm-btn-danger"
+                                formaction="{{ url_for('admin_ai_images_delete') }}"
+                                onclick="return confirm('Delete this image?');">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="sr-card sr-card-compact">
+            <p class="adm-empty">No AI illustration files found in <code>static/email_images/</code>.</p>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('ai-images-form');
+    if (!form) return;
+    var boxes = function () { return Array.prototype.slice.call(form.querySelectorAll('.adm-img-check')); };
+    document.getElementById('select-all-btn').addEventListener('click', function () {
+        boxes().forEach(function (box) { box.checked = true; });
+    });
+    document.getElementById('select-unused-btn').addEventListener('click', function () {
+        boxes().forEach(function (box) { box.checked = box.getAttribute('data-in-use') !== '1'; });
+    });
+    document.getElementById('clear-selection-btn').addEventListener('click', function () {
+        boxes().forEach(function (box) { box.checked = false; });
+    });
+})();
+</script>
+{% endblock %}
