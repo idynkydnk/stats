@@ -312,7 +312,7 @@ def list_site_users():
                (SELECT MAX(created_at) FROM activity_log a WHERE a.username = u.username) AS last_seen,
                (SELECT MAX(created_at) FROM activity_log a
                 WHERE a.username = u.username AND a.action LIKE 'Logged in%') AS last_login
-        FROM site_users u ORDER BY u.username
+        FROM site_users u ORDER BY last_seen DESC, u.username
     ''').fetchall()
     conn.close()
     return [dict(r) for r in rows]
