@@ -1711,13 +1711,7 @@ def view_ai_recap(share_id):
     except (json.JSONDecodeError, TypeError):
         solo_images = []
 
-    show_share_tools = (
-        request.args.get('published') == '1'
-        or (
-            session.get('logged_in')
-            and session.get('username') == row.get('username')
-        )
-    )
+    show_creator_view = request.args.get('published') == '1'
     share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
     created_at = row.get('created_at') or ''
     if isinstance(created_at, str) and len(created_at) >= 16:
@@ -1730,10 +1724,10 @@ def view_ai_recap(share_id):
         subject=row.get('subject') or 'Game Recap',
         recap_html=recap_html_for_page(row.get('html_body') or ''),
         share_url=share_url,
-        show_share_tools=show_share_tools,
-        solo_images=solo_images,
-        hero_image_error=row.get('hero_image_error') or '',
-        created_at_fmt=created_at_fmt,
+        show_creator_view=show_creator_view,
+        solo_images=solo_images if show_creator_view else [],
+        hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
+        created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=row.get('game_type') or 'doubles',
     )
 

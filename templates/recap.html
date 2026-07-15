@@ -144,6 +144,9 @@
             max-width: 600px;
             margin: 0 auto;
         }
+        .recap-page-public {
+            padding-top: 12px;
+        }
         .recap-url-input {
             position: absolute;
             left: -9999px;
@@ -164,7 +167,7 @@
     </style>
 </head>
 <body>
-    {% if show_share_tools %}
+    {% if show_creator_view %}
     <div class="recap-share-bar">
         <div class="recap-share-inner">
             <div class="recap-share-text">
@@ -186,16 +189,16 @@
     </div>
     {% endif %}
 
-    <main class="recap-page">
-        {% if created_at_fmt %}
+    <main class="recap-page{% if not show_creator_view %} recap-page-public{% endif %}">
+        {% if show_creator_view and created_at_fmt %}
         <p class="recap-meta">Published {{ created_at_fmt }}</p>
         {% endif %}
 
-        {% if hero_image_error %}
+        {% if show_creator_view and hero_image_error %}
         <div class="recap-warning"><i class="fas fa-exclamation-triangle"></i> {{ hero_image_error }}</div>
         {% endif %}
 
-        {% if solo_images %}
+        {% if show_creator_view and solo_images %}
         <div class="recap-solo-gallery">
             <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
             <p class="recap-solo-note">Behind-the-scenes portraits from illustration generation.</p>
@@ -215,7 +218,7 @@
         </div>
     </main>
 
-    {% if show_share_tools %}
+    {% if show_creator_view %}
     <script>
     (function () {
         var btn = document.getElementById('recap-copy-btn');
