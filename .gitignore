@@ -47,6 +47,8 @@ static/email_images/*
 !static/email_images/.gitkeep
 
 # Published AI recap HTML (stored on server)
+static/recaps/*
+!static/recaps/.gitkeep
 recaps/*
 !recaps/.gitkeep
 
