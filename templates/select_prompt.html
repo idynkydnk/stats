@@ -244,43 +244,19 @@
             </div>
 
             <h2 class="sr-card-title">Select Writing Style</h2>
-            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Choose how you want the AI to write your email summary</p>
+            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Choose how you want the AI to write your recap</p>
 
             <div id="prompt-options">
-                <div class="sr-prompt-card" data-prompt="generated_1" onclick="selectPrompt('generated_1')">
+                <div class="sr-prompt-card" data-prompt="random" onclick="selectPrompt('random')">
                     <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon generated-1"><i class="fas fa-wand-magic-sparkles"></i></div>
+                        <div class="sr-prompt-icon generated-1"><i class="fas fa-shuffle"></i></div>
                         <div>
-                            <div class="sr-prompt-title">AI Style 1</div>
-                            <div class="sr-prompt-subtitle">AI invents a voice from the game data</div>
+                            <div class="sr-prompt-title">Random AI Prompt</div>
+                            <div class="sr-prompt-subtitle">AI invents a fresh voice each time</div>
                         </div>
                     </div>
-                    <div class="sr-prompt-description">The AI reads the session, then writes its own style instructions and uses them for the recap. Fresh persona every time.</div>
-                    <div class="sr-prompt-example">Might become a noir detective narrating the court, a nature documentary host, or a hype poet — depends on the games.</div>
-                </div>
-
-                <div class="sr-prompt-card" data-prompt="generated_2" onclick="selectPrompt('generated_2')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon generated-2"><i class="fas fa-shuffle"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">AI Style 2</div>
-                            <div class="sr-prompt-subtitle">AI picks a bold, unconventional voice</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">Same two-step process, but pushes for a stranger, more distinctive voice — literary, absurdist, deadpan, and so on.</div>
-                    <div class="sr-prompt-example">Expect something weirder than a normal sports recap. Still tied to the actual results and players.</div>
-                </div>
-
-                <div class="sr-prompt-card" data-prompt="brutal" onclick="selectPrompt('brutal')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon brutal"><i class="fas fa-fire-alt"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">Brutal Roast</div>
-                            <div class="sr-prompt-subtitle">Savage and merciless</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">No mercy. Absolutely destroy everyone's performance with brutal honesty and savage insults. Winners get mocked, losers get demolished.</div>
-                    <div class="sr-prompt-example">"In what can only be described as a crime against volleyball, Kyle somehow managed to serve directly into his own teammate's head. Twice..."</div>
+                    <div class="sr-prompt-description">The AI reads the session, invents its own style instructions, then writes the recap. New persona every time — playful, deadpan, roast-y, noir, or something stranger.</div>
+                    <div class="sr-prompt-example">Might become a nature documentary host, a pirate captain, or a hype poet — depends on the games.</div>
                 </div>
 
                 <div class="sr-prompt-card" data-prompt="custom" onclick="selectPrompt('custom')">
@@ -358,7 +334,7 @@ let selectedPrompt = null;
         };
 
         function loadingDetailForStyle() {
-            if (selectedPrompt === 'generated_1' || selectedPrompt === 'generated_2') {
+            if (selectedPrompt === 'random') {
                 return 'AI is inventing a writing style, then drafting the recap. Keep this page open.';
             }
             return null;

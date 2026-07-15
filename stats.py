@@ -509,6 +509,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         hero_image_error=payload.get('hero_image_error') or '',
         game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
         prompt_style=prompt_style or '',
+        custom_prompt=custom_prompt or '',
         solo_images_json=json.dumps(solo_images) if solo_images else '',
         image_details=payload.get('image_details') or '',
         image_mode=payload.get('image_mode') or 'none',
@@ -1711,11 +1712,14 @@ def _render_select_ai_prompt(
     """Re-show the style picker with prior selections after a recoverable error."""
     if error:
         flash(str(error), 'error')
+    style = _normalize_prompt_style(prompt_style) if prompt_style else ''
+    if style and style not in ('random', 'custom'):
+        style = 'random'
     return render_template(
         'select_prompt.html',
         game_ids=game_ids,
         game_type=game_type,
-        selected_prompt_style=prompt_style or '',
+        selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
     )
@@ -1726,7 +1730,7 @@ def _render_select_ai_prompt(
 def preview_ai_summary_with_prompt():
     """Generate AI summary with selected prompt style."""
     selected_game_ids = request.form.getlist('game_ids')
-    prompt_style = request.form.get('prompt_style', 'generated_1')
+    prompt_style = request.form.get('prompt_style', 'random')
     custom_prompt = request.form.get('custom_prompt', '')
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
@@ -1925,12 +1929,77 @@ def remake_ai_recap_image(share_id):
     return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
 
+@app.route('/recap/<share_id>/remake-summary/', methods=['POST'])
+@login_required
+def remake_ai_recap_summary(share_id):
+    """Regenerate the written summary for a published AI recap page (keeps existing picture)."""
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can remake this summary.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    try:
+        game_ids = json.loads(row.get('game_ids_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        game_ids = []
+    if not game_ids:
+        flash('This recap has no saved games to remake the summary from.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    game_type = row.get('game_type') or 'doubles'
+    prompt_style = _normalize_prompt_style(row.get('prompt_style') or 'random')
+    custom_prompt = (row.get('custom_prompt') or '').strip()
+    if prompt_style == 'custom' and not custom_prompt:
+        # Older recaps may lack a saved custom prompt — fall back to random.
+        prompt_style = 'random'
+
+    try:
+        payload = _build_ai_summary_payload(
+            game_type,
+            game_ids,
+            prompt_style,
+            custom_prompt,
+            image_mode='none',
+            image_details='',
+        )
+    except Exception as e:
+        app.logger.exception('AI recap remake summary failed')
+        flash(f'Failed to remake summary: {str(e)}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    html_body = payload.get('html_body') or ''
+    old_hero = (row.get('hero_image_url') or '').strip()
+    if old_hero:
+        html_body = replace_recap_hero_image(html_body, old_hero)
+
+    adminfx.update_ai_recap_page(
+        share_id,
+        html_body=html_body,
+        plain_text_body=payload.get('plain_text_body') or '',
+        subject=payload.get('subject') or row.get('subject') or '',
+        prompt_style=prompt_style,
+        custom_prompt=custom_prompt,
+        hero_image_url=old_hero,
+        hero_image_error=row.get('hero_image_error') or '',
+    )
+
+    log_activity(
+        'Remade AI recap summary',
+        summary=f'Regenerated summary for /recap/{share_id} (style "{prompt_style}")',
+    )
+    flash('Summary remade.', 'success')
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
 @login_required
 def api_generate_and_send_ai_summary():
     """Queue AI summary generation; an Always-on daemon publishes a share link in the background."""
     game_type = request.form.get('game_type', 'doubles')
-    prompt_style = request.form.get('prompt_style', 'generated_1')
+    prompt_style = request.form.get('prompt_style', 'random')
     custom_prompt = request.form.get('custom_prompt', '')
     game_ids = request.form.getlist('game_ids')
     if not game_ids:

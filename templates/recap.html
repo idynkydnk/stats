@@ -204,6 +204,11 @@
                     <i class="fas fa-copy"></i> Copy link
                 </button>
                 {% if can_remake %}
+                <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form" style="display:inline;margin:0;">
+                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-remake-summary-btn">
+                        <i class="fas fa-pen"></i> Remake summary
+                    </button>
+                </form>
                 <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form" style="display:inline;margin:0;">
                     <button type="submit" class="recap-btn recap-btn-secondary" id="recap-remake-btn">
                         <i class="fas fa-sync-alt"></i> Remake picture
@@ -294,6 +299,15 @@
             remakeForm.addEventListener('submit', function () {
                 remakeBtn.disabled = true;
                 remakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+            });
+        }
+
+        var remakeSummaryForm = document.getElementById('recap-remake-summary-form');
+        var remakeSummaryBtn = document.getElementById('recap-remake-summary-btn');
+        if (remakeSummaryForm && remakeSummaryBtn) {
+            remakeSummaryForm.addEventListener('submit', function () {
+                remakeSummaryBtn.disabled = true;
+                remakeSummaryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
             });
         }
     })();

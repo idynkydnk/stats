@@ -496,7 +496,7 @@ def init_ai_recap_pages_db():
 def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          plain_text_body='', hero_image_url='', hero_image_error='',
                          game_ids_json='[]', prompt_style='', solo_images_json='',
-                         image_details='', image_mode='none'):
+                         image_details='', image_mode='none', custom_prompt=''):
     """Persist a published recap to disk (no SQLite — avoids db disk I/O errors)."""
     safe_id = _safe_recap_share_id(share_id)
     write_recap_html_file(safe_id, html_body)
@@ -506,6 +506,7 @@ def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
         'username': username,
         'game_type': game_type,
         'prompt_style': prompt_style or '',
+        'custom_prompt': custom_prompt or '',
         'subject': subject or '',
         'plain_text_body': plain_text_body or '',
         'hero_image_url': hero_image_url or '',

@@ -105,44 +105,34 @@ RECAP_PARAGRAPH_LIMIT = (
     'No long blocks of text.'
 )
 
-BRUTAL_STYLE_INSTRUCTIONS = f"""You are a brutal roast comedian writing a savage recap email.
-Show absolutely NO mercy. Destroy everyone's performance with brutal honesty and savage insults.
-Mock the winners for barely winning, demolish the losers for their failures.
-Be creative with your insults - reference specific plays, scores, and failures.
-This is all in good fun but don't hold back. Make it hurt (but funny).
-{RECAP_PARAGRAPH_LIMIT}"""
-
-AI_GENERATED_STYLE_META_PROMPTS = {
-    'generated_1': f"""You are designing instructions for an AI that will write a game recap email.
+AI_RANDOM_STYLE_META_PROMPT = f"""You are designing instructions for an AI that will write a game recap email.
 Given the game data below, invent one specific, creative writing persona and tone tailored to this session.
+Make it distinctive — playful, deadpan, literary, documentary, absurd, roast-y, noir, hype, or something stranger. Pick one and commit.
 Return ONLY the instructions the writer AI should follow, starting with "You are...".
 Include tone, voice, personality, and stylistic quirks. Be original — not a generic announcer or analyst.
-End with: {RECAP_PARAGRAPH_LIMIT}""",
-
-    'generated_2': f"""You are designing instructions for an AI that will write a game recap email.
-Given the game data below, invent a bold, unconventional writing persona completely different from a typical sports recap.
-Return ONLY the instructions the writer AI should follow, starting with "You are...".
-Push for a distinctive voice — poetic, deadpan, literary, absurdist, documentary, etc. Pick one and commit.
-End with: {RECAP_PARAGRAPH_LIMIT}""",
-}
+End with: {RECAP_PARAGRAPH_LIMIT}"""
 
 _LEGACY_PROMPT_STYLE_ALIASES = {
-    'roast': 'brutal',
-    'announcer': 'generated_1',
-    'analyst': 'generated_1',
-    'storyteller': 'generated_1',
-    'comedian': 'generated_1',
-    'funny': 'generated_1',
+    'generated_1': 'random',
+    'generated_2': 'random',
+    'brutal': 'random',
+    'roast': 'random',
+    'announcer': 'random',
+    'analyst': 'random',
+    'storyteller': 'random',
+    'comedian': 'random',
+    'funny': 'random',
+    'ai': 'random',
 }
 
 
 def _normalize_prompt_style(prompt_style):
     clean = (prompt_style or '').strip().lower()
-    return _LEGACY_PROMPT_STYLE_ALIASES.get(clean, clean)
+    return _LEGACY_PROMPT_STYLE_ALIASES.get(clean, clean or 'random')
 
 
 def _build_recap_style_instructions(prompt_style, context, custom_prompt=''):
-    """Resolve writing-style instructions for a recap (fixed, custom, or AI-generated)."""
+    """Resolve writing-style instructions for a recap (custom or random AI-generated)."""
     prompt_style = _normalize_prompt_style(prompt_style)
 
     if prompt_style == 'custom':
@@ -150,11 +140,8 @@ def _build_recap_style_instructions(prompt_style, context, custom_prompt=''):
             raise ValueError('Custom prompt is empty. Enter your style instructions first.')
         return custom_prompt.strip() + f'\n{RECAP_PARAGRAPH_LIMIT}'
 
-    if prompt_style == 'brutal':
-        return BRUTAL_STYLE_INSTRUCTIONS
-
-    if prompt_style in AI_GENERATED_STYLE_META_PROMPTS:
-        meta_prompt = f"""{AI_GENERATED_STYLE_META_PROMPTS[prompt_style]}
+    if prompt_style == 'random':
+        meta_prompt = f"""{AI_RANDOM_STYLE_META_PROMPT}
 
 Here is the game data:
 
@@ -1534,7 +1521,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
 
 
 def build_doubles_email_payload(
-    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
     image_details='',
 ):
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
@@ -2095,7 +2082,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
 
 
 def build_vollis_email_payload(
-    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
     image_details='',
 ):
     from vollis_functions import convert_vollis_ampm
@@ -2246,7 +2233,7 @@ def build_vollis_email_payload(
 
 
 def build_other_email_payload(
-    selected_game_ids, prompt_style='generated_1', custom_prompt='', image_mode='none',
+    selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
     image_details='',
 ):
     from other_functions import readable_games_data, _is_valid_player_name
