@@ -46,7 +46,6 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title">Admin Dashboard</h1>
     <div class="sr-header-actions">
-        <a href="{{ url_for('notifications') }}" class="sr-link-btn"><i class="fas fa-bell"></i> Notifications{% if unread_count %} ({{ unread_count }}){% endif %}</a>
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
@@ -68,11 +67,6 @@
             <div class="adm-card-label">Other games</div>
             <div class="adm-card-value">{{ counts.other.today }}</div>
             <div class="adm-card-sub">today &middot; {{ counts.other.week }} this week &middot; {{ counts.other.total }} total</div>
-        </div>
-        <div class="adm-card">
-            <div class="adm-card-label">Unread notifications</div>
-            <div class="adm-card-value">{{ unread_count }}</div>
-            <div class="adm-card-sub"><a href="{{ url_for('notifications') }}" style="color: var(--sr-accent);">view</a></div>
         </div>
         <div class="adm-card">
             <div class="adm-card-label">Database size</div>

@@ -734,7 +734,7 @@ def clear_login_failures(ip):
     with _login_failures_lock:
         _login_failures.pop(ip, None)
 
-# Users with access to admin-only pages (notifications, benchmarks, admin base template)
+# Users with access to admin-only pages (dashboard, benchmarks, admin base template)
 ADMIN_USERS = {'kyle'}
 
 
@@ -772,23 +772,6 @@ def inject_base_template():
         'is_admin_user': is_admin() if session.get('logged_in') else False,
     }
 
-
-def init_notifications_db():
-    """Initialize the notifications table"""
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            action TEXT NOT NULL,
-            details TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            read_status INTEGER DEFAULT 0
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
 def init_auth_tokens_db():
     """Initialize the auth_tokens table for remember me functionality"""
@@ -878,16 +861,8 @@ def cleanup_expired_tokens():
     conn.close()
 
 def log_user_action(user, action, details=None):
-    """Log a user action for notification purposes"""
-    if not is_admin(user):  # Only log actions by non-admin users
-        conn = sqlite3.connect('stats.db')
-        cur = conn.cursor()
-        cur.execute('''
-            INSERT INTO notifications (user, action, details)
-            VALUES (?, ?, ?)
-        ''', (user, action, details))
-        conn.commit()
-        conn.close()
+    """Deprecated: activity belongs on the admin dashboard via log_activity."""
+    return
 
 def get_user_now():
     """Get the current datetime in the user's timezone (from session).
@@ -930,78 +905,7 @@ def parse_client_datetime_for_game(client_date, client_time):
     except (ValueError, TypeError):
         return None
 
-def get_unread_notifications():
-    """Get all unread notifications"""
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT id, user, action, details, timestamp
-        FROM notifications 
-        WHERE read_status = 0
-        ORDER BY timestamp DESC
-    ''')
-    notifications = cur.fetchall()
-    conn.close()
-    return notifications
-
-def get_all_notifications():
-    """Get all notifications (read and unread), newest first, for Kyle's full activity log"""
-    conn = sqlite3.connect('stats.db')
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT id, user, action, details, timestamp, read_status
-        FROM notifications
-        ORDER BY timestamp DESC
-    ''')
-    notifications = cur.fetchall()
-    conn.close()
-    return notifications
-
-
-def format_notification_times(notifications, user_tz=None):
-    """Convert notification timestamps (UTC in DB) to user's timezone for display.
-    Returns list of (id, user, action, details, formatted_time_str, read_status)."""
-    if not notifications:
-        return []
-    out = []
-    utc = ZoneInfo('UTC')
-    tz = ZoneInfo(user_tz) if user_tz else utc
-    for row in notifications:
-        nid, user, action, details, ts_raw, read_status = row
-        try:
-            if not ts_raw:
-                out.append((nid, user, action, details, '—', read_status))
-                continue
-            if isinstance(ts_raw, str):
-                ts_clean = ts_raw.replace('Z', '').strip()
-                if '.' in ts_clean:
-                    ts_clean = ts_clean.split('.')[0]
-                dt_utc = datetime.strptime(ts_clean, '%Y-%m-%d %H:%M:%S').replace(tzinfo=utc)
-            else:
-                dt_utc = (ts_raw.replace(tzinfo=utc) if hasattr(ts_raw, 'replace') else datetime.fromisoformat(str(ts_raw))).replace(tzinfo=utc)
-            local = dt_utc.astimezone(tz)
-            formatted = local.strftime('%b %d, %Y at %I:%M %p')  # e.g. Mar 07, 2025 at 03:45 PM
-            out.append((nid, user, action, details, formatted, read_status))
-        except Exception:
-            out.append((nid, user, action, details, (ts_raw if isinstance(ts_raw, str) else str(ts_raw)) if ts_raw else '—', read_status))
-    return out
-
-def mark_notifications_read(notification_ids):
-    """Mark specific notifications as read"""
-    if notification_ids:
-        conn = sqlite3.connect('stats.db')
-        cur = conn.cursor()
-        placeholders = ','.join('?' * len(notification_ids))
-        cur.execute(f'''
-            UPDATE notifications 
-            SET read_status = 1 
-            WHERE id IN ({placeholders})
-        ''', notification_ids)
-        conn.commit()
-        conn.close()
-
 # Initialize database tables
-init_notifications_db()
 init_auth_tokens_db()
 adminfx.init_activity_log_db()
 adminfx.init_ai_prompt_log_db()
@@ -2536,7 +2440,7 @@ def update(id):
             # Clear stats cache after editing a game
             clear_stats_cache()
             
-            # Log the action for notifications
+            # Log the action for the activity feed
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {winner1}/{winner2} vs {loser1}/{loser2} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited doubles game', details)
@@ -2567,7 +2471,7 @@ def delete_game(id):
     from_add_game = request.args.get('from_add_game', 'false')
     from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
-        # Log the action for notifications before deleting
+        # Log the action for the activity feed before deleting
         details = f"Game ID {game_id}"
         if game and len(game) > 0 and len(game[0]) >= 8:
             user = session.get('username', 'unknown')
@@ -2619,7 +2523,7 @@ def update_vollis_game(id):
             before_row = adminfx.snapshot_row('vollis_game', game_id)
             edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, get_user_now(), game_id)
             
-            # Log the action for notifications
+            # Log the action for the activity feed
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {winner} vs {loser} ({winner_score}-{loser_score})"
             log_user_action(user, 'Edited vollis game', details)
@@ -2640,7 +2544,7 @@ def delete_vollis_game(id):
     from_add_game = request.args.get('from_add_game', 'false')
     from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
-        # Log the action for notifications before deleting
+        # Log the action for the activity feed before deleting
         user = session.get('username', 'unknown')
         details = f"Game ID {game_id}: {game[0][2]} vs {game[0][3]} ({game[0][4]}-{game[0][5]})"
         log_user_action(user, 'Deleted vollis game', details)
@@ -3048,7 +2952,7 @@ def update_other_game(id):
                 )
                 database_update_other_game(conn, game_data)
             
-            # Log the action for notifications
+            # Log the action for the activity feed
             user = session.get('username', 'unknown')
             details = f"Game ID {game_id}: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Edited other game', details)
@@ -3074,7 +2978,7 @@ def delete_other_game(id):
         return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
     if request.method == 'POST':
-        # Log the action for notifications before deleting
+        # Log the action for the activity feed before deleting
         user = session.get('username', 'unknown')
         # Raw database structure: [id, game_date, game_type, game_name, winner1, winner2, ..., winner_score, loser1, ..., loser_score, comment, updated_at]
         details = f"Game ID {game_id}: {game[0][2]} - {game[0][3]} ({game[0][4]} vs {game[0][11]})"
@@ -3168,12 +3072,6 @@ def login():
             session['username'] = username
             log_activity('Logged in', summary=f'Web login from {ip}', username=username)
             flash(f'Successfully logged in as {username}!', 'success')
-            
-            # Show notifications to admins if there are any unread ones
-            if is_admin(username):
-                notifications = get_unread_notifications()
-                if notifications:
-                    flash(f'You have {len(notifications)} unread notification(s) from other users. Check the notifications menu.', 'info')
             
             # Redirect to next_url if provided, otherwise index
             redirect_url = next_url if next_url else url_for('index')
@@ -3394,43 +3292,22 @@ def api_doubles_delete(game_id):
     return jsonify({'message': 'Deleted', 'id': game_id}), 200
 
 @app.route('/notifications')
-@login_required
+@admin_required
 def notifications():
-    """View and manage notifications (admin only). Shows all activity forever (read and unread)."""
-    if not is_admin():
-        flash('Access denied. Only administrators can view notifications.', 'error')
-        return redirect(url_for('index'))
-    
-    all_notifications = get_all_notifications()
-    user_tz = session.get('timezone')
-    notifications_formatted = format_notification_times(all_notifications, user_tz=user_tz)
-    unread_count = sum(1 for n in all_notifications if n[5] == 0)
-    return render_template('notifications.html', notifications=notifications_formatted, unread_count=unread_count)
+    """Notifications were removed; activity lives on the admin dashboard."""
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/mark_notifications_read', methods=['POST'])
-@login_required
+@admin_required
 def mark_notifications_read_route():
-    """Mark selected notifications as read"""
-    if not is_admin():
-        flash('Access denied.', 'error')
-        return redirect(url_for('index'))
-    
-    notification_ids = request.form.getlist('notification_ids')
-    if notification_ids:
-        mark_notifications_read(notification_ids)
-        flash(f'Marked {len(notification_ids)} notification(s) as read.', 'success')
-    
-    return redirect(url_for('notifications'))
+    """Notifications were removed; activity lives on the admin dashboard."""
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/api/notifications/count')
 @login_required
 def get_notification_count():
-    """API endpoint to get notification count for admins"""
-    if not is_admin():
-        return jsonify({'count': 0})
-    
-    notifications = get_unread_notifications()
-    return jsonify({'count': len(notifications)})
+    """Legacy endpoint; notifications badge is retired."""
+    return jsonify({'count': 0})
 
 @app.route('/deploy', methods=['POST'])
 def deploy():
@@ -4770,7 +4647,6 @@ def admin_dashboard():
     today = date.today()
     counts = adminfx.games_counts(today.strftime('%Y-%m-%d'), (today - timedelta(days=6)).strftime('%Y-%m-%d'))
     recent_game = adminfx.most_recent_game()
-    unread_count = len(get_unread_notifications())
 
     page = max(int(request.args.get('page', 1) or 1), 1)
     per_page = 50
@@ -4788,7 +4664,7 @@ def admin_dashboard():
         db_size_mb = None
 
     return render_template('admin.html',
-        counts=counts, recent_game=recent_game, unread_count=unread_count,
+        counts=counts, recent_game=recent_game,
         entries=entries, page=page, total_pages=total_pages, total_entries=total_entries,
         users=users, db_size_mb=db_size_mb,
         email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')))

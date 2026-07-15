@@ -28,26 +28,7 @@
         });
     }
 
-    function checkNotifications() {
-        var badge = document.getElementById('notification-badge');
-        if (!badge) return;
-        fetch('/api/notifications/count')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.count > 0) {
-                    badge.textContent = data.count > 99 ? '99+' : data.count;
-                    badge.style.display = 'inline-block';
-                    badge.setAttribute('aria-label', data.count + ' unread notification' + (data.count !== 1 ? 's' : ''));
-                } else {
-                    badge.style.display = 'none';
-                    badge.removeAttribute('aria-label');
-                }
-            })
-            .catch(function() {});
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-        checkNotifications();
         var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (tz) {
             fetch('/api/set_timezone', {
@@ -57,6 +38,4 @@
             }).catch(function() {});
         }
     });
-    window.addEventListener('pageshow', function(e) { if (e.persisted) checkNotifications(); });
-    document.addEventListener('visibilitychange', function() { if (!document.hidden) checkNotifications(); });
 })();
