@@ -82,6 +82,31 @@
             color: var(--recap-text);
             border: 1px solid var(--recap-line);
         }
+        .recap-btn:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+        .recap-flash {
+            max-width: 720px;
+            margin: 12px auto 0;
+            padding: 0 16px;
+        }
+        .recap-flash-item {
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .recap-flash-success {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.28);
+            color: #4ade80;
+        }
+        .recap-flash-error {
+            background: rgba(248, 113, 113, 0.12);
+            border: 1px solid rgba(248, 113, 113, 0.28);
+            color: #f87171;
+        }
         .recap-page {
             max-width: 720px;
             margin: 0 auto;
@@ -178,6 +203,13 @@
                 <button type="button" class="recap-btn recap-btn-primary" id="recap-copy-btn">
                     <i class="fas fa-copy"></i> Copy link
                 </button>
+                {% if can_remake %}
+                <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form" style="display:inline;margin:0;">
+                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-remake-btn">
+                        <i class="fas fa-sync-alt"></i> Remake picture
+                    </button>
+                </form>
+                {% endif %}
                 {% if session.logged_in %}
                 <a href="{{ url_for('ai_summary') }}" class="recap-btn recap-btn-secondary">
                     <i class="fas fa-plus"></i> New recap
@@ -187,6 +219,15 @@
             <input type="text" class="recap-url-input" id="recap-share-url" value="{{ share_url }}" readonly>
         </div>
     </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="recap-flash">
+        {% for category, message in messages %}
+        <div class="recap-flash-item recap-flash-{{ category if category in ['success', 'error'] else 'error' }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     {% endif %}
 
     <main class="recap-page{% if not show_creator_view %} recap-page-public{% endif %}">
@@ -223,29 +264,38 @@
     (function () {
         var btn = document.getElementById('recap-copy-btn');
         var input = document.getElementById('recap-share-url');
-        if (!btn || !input) return;
-
-        function copyLink() {
-            var url = input.value;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                return navigator.clipboard.writeText(url);
+        if (btn && input) {
+            function copyLink() {
+                var url = input.value;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    return navigator.clipboard.writeText(url);
+                }
+                input.classList.remove('recap-url-input');
+                input.select();
+                document.execCommand('copy');
+                input.classList.add('recap-url-input');
+                return Promise.resolve();
             }
-            input.classList.remove('recap-url-input');
-            input.select();
-            document.execCommand('copy');
-            input.classList.add('recap-url-input');
-            return Promise.resolve();
+
+            btn.addEventListener('click', function () {
+                copyLink().then(function () {
+                    var original = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    setTimeout(function () { btn.innerHTML = original; }, 1800);
+                }).catch(function () {
+                    window.prompt('Copy this link:', input.value);
+                });
+            });
         }
 
-        btn.addEventListener('click', function () {
-            copyLink().then(function () {
-                var original = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                setTimeout(function () { btn.innerHTML = original; }, 1800);
-            }).catch(function () {
-                window.prompt('Copy this link:', input.value);
+        var remakeForm = document.getElementById('recap-remake-form');
+        var remakeBtn = document.getElementById('recap-remake-btn');
+        if (remakeForm && remakeBtn) {
+            remakeForm.addEventListener('submit', function () {
+                remakeBtn.disabled = true;
+                remakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
             });
-        });
+        }
     })();
     </script>
     {% endif %}

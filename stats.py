@@ -22,10 +22,12 @@ from email_content import (
     generate_ai_text,
     email_html_for_inline_preview,
     recap_html_for_page,
+    replace_recap_hero_image,
     personalize_ai_email_content,
     plain_text_fallback_from_html,
     image_mode_label,
     _normalize_image_mode,
+    _try_generate_email_hero_image,
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
@@ -508,8 +510,76 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
         prompt_style=prompt_style or '',
         solo_images_json=json.dumps(solo_images) if solo_images else '',
+        image_details=payload.get('image_details') or '',
+        image_mode=payload.get('image_mode') or 'none',
     )
     return share_id
+
+
+def _load_games_and_players_for_recap(game_type, game_ids):
+    """Load selected games and player names for regenerating a recap illustration."""
+    ids = [int(gid) for gid in game_ids]
+    if not ids:
+        raise ValueError('No games saved for this recap.')
+    placeholders = ','.join('?' * len(ids))
+
+    if game_type == 'vollis':
+        from vollis_functions import convert_vollis_ampm
+        from database_functions import create_connection
+        conn = create_connection('/home/Idynkydnk/stats/stats.db') or create_connection('stats.db')
+        cur = conn.cursor()
+        cur.execute(
+            f'SELECT * FROM vollis_games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
+            ids,
+        )
+        games = convert_vollis_ampm(cur.fetchall())
+        conn.close()
+        players = set()
+        for game in games:
+            for name in (game[2], game[4]):
+                if name and str(name).strip():
+                    players.add(name)
+        return games, players, None
+
+    if game_type == 'other':
+        from other_functions import readable_games_data, _is_valid_player_name
+        from database_functions import create_connection
+        import sqlite3 as _sqlite3
+        conn = create_connection('/home/Idynkydnk/stats/stats.db') or create_connection('stats.db')
+        conn.row_factory = _sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(
+            f'SELECT * FROM other_games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
+            ids,
+        )
+        games = readable_games_data(cur.fetchall())
+        conn.close()
+        players = set()
+        game_names = set()
+        for game in games:
+            if game.get('game_name'):
+                game_names.add(game['game_name'])
+            for side in ('winners', 'losers'):
+                for person in game.get(side, []):
+                    name = person.get('name', '')
+                    if name and _is_valid_player_name(name):
+                        players.add(name)
+        game_name = ', '.join(sorted(game_names)) if game_names else 'Other'
+        return games, players, game_name
+
+    from stat_functions import convert_ampm
+    cur = set_cur()
+    cur.execute(
+        f'SELECT * FROM games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
+        ids,
+    )
+    games = convert_ampm(cur.fetchall())
+    players = set()
+    for game in games:
+        for name in (game[2], game[3], game[5], game[6]):
+            if name and str(name).strip():
+                players.add(name)
+    return games, players, None
 
 
 def _send_ai_summary_payload(payload, username='unknown'):
@@ -1719,17 +1789,116 @@ def view_ai_recap(share_id):
     else:
         created_at_fmt = str(created_at)
 
+    can_remake = bool(
+        show_creator_view
+        and session.get('logged_in')
+        and row.get('username')
+        and row.get('username') == session.get('username')
+    )
+
     return render_template(
         'recap.html',
         subject=row.get('subject') or 'Game Recap',
         recap_html=recap_html_for_page(row.get('html_body') or ''),
         share_url=share_url,
+        share_id=share_id,
         show_creator_view=show_creator_view,
+        can_remake=can_remake,
         solo_images=solo_images if show_creator_view else [],
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=row.get('game_type') or 'doubles',
     )
+
+
+@app.route('/recap/<share_id>/remake-image/', methods=['POST'])
+@login_required
+def remake_ai_recap_image(share_id):
+    """Regenerate the hero illustration for a published AI recap page."""
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can remake this picture.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        flash('Gemini API key not configured.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    try:
+        game_ids = json.loads(row.get('game_ids_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        game_ids = []
+    if not game_ids:
+        flash('This recap has no saved games to remake the picture from.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    game_type = row.get('game_type') or 'doubles'
+    image_details = (row.get('image_details') or '').strip()
+    # Remake always generates an image, even if the original mode was "none".
+    image_mode = 'image'
+
+    try:
+        games, players, game_name = _load_games_and_players_for_recap(game_type, game_ids)
+        if not games:
+            raise ValueError('None of the saved games were found.')
+        if not players:
+            raise ValueError('No players found for the saved games.')
+
+        new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
+            _try_generate_email_hero_image(
+                api_key,
+                game_type,
+                games,
+                players,
+                game_name=game_name,
+                image_mode=image_mode,
+                image_details=image_details,
+            )
+        )
+    except Exception as e:
+        app.logger.exception('AI recap remake image failed')
+        flash(f'Failed to remake picture: {str(e)}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    if not new_url:
+        flash(hero_err or 'Failed to remake picture.', 'error')
+        adminfx.update_ai_recap_page(
+            share_id,
+            hero_image_error=hero_err or 'Failed to remake picture.',
+        )
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    old_url = row.get('hero_image_url') or ''
+    updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
+    solo_images = (illustration_meta or {}).get('solo_images') or []
+
+    adminfx.update_ai_recap_page(
+        share_id,
+        html_body=updated_html,
+        hero_image_url=new_url,
+        hero_image_error='',
+        image_mode=image_mode,
+        solo_images_json=json.dumps(solo_images) if solo_images else '[]',
+    )
+
+    if old_url and old_url != new_url:
+        old_path = _hero_image_path_from_url(old_url)
+        if old_path:
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    log_activity(
+        'Remade AI recap picture',
+        summary=f'Regenerated illustration for /recap/{share_id}',
+    )
+    flash('Picture remade.', 'success')
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
 
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])

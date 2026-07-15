@@ -64,6 +64,21 @@ def write_recap_html_file(share_id, html_body):
     return path
 
 
+def update_ai_recap_page(share_id, html_body=None, **meta_updates):
+    """Update a published recap's HTML and/or JSON metadata on disk."""
+    safe_id = _safe_recap_share_id(share_id)
+    meta = _read_recap_meta_file(safe_id) or {'share_id': safe_id}
+    if html_body is not None:
+        write_recap_html_file(safe_id, html_body)
+    for key, value in meta_updates.items():
+        if value is None:
+            continue
+        meta[key] = value
+    meta.pop('html_body', None)
+    _write_json_atomic(_recap_meta_path(safe_id), meta)
+    return meta
+
+
 def read_recap_html_file(share_id):
     for candidate in (_recap_html_path(share_id),):
         if os.path.isfile(candidate):
@@ -480,7 +495,8 @@ def init_ai_recap_pages_db():
 
 def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          plain_text_body='', hero_image_url='', hero_image_error='',
-                         game_ids_json='[]', prompt_style='', solo_images_json=''):
+                         game_ids_json='[]', prompt_style='', solo_images_json='',
+                         image_details='', image_mode='none'):
     """Persist a published recap to disk (no SQLite — avoids db disk I/O errors)."""
     safe_id = _safe_recap_share_id(share_id)
     write_recap_html_file(safe_id, html_body)
@@ -496,6 +512,8 @@ def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
         'hero_image_error': hero_image_error or '',
         'game_ids_json': game_ids_json or '[]',
         'solo_images_json': solo_images_json or '',
+        'image_details': image_details or '',
+        'image_mode': image_mode or 'none',
     })
 
 

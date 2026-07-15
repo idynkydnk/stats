@@ -296,6 +296,86 @@ def _email_hero_html(hero_image_url, use_cid=False):
     """
 
 
+def replace_recap_hero_image(html_body, new_hero_url):
+    """Replace or insert the hero illustration block in published recap HTML."""
+    from bs4 import BeautifulSoup
+
+    if not html_body or not str(html_body).strip():
+        return html_body or ''
+
+    soup = BeautifulSoup(html_body, 'html.parser')
+    hero_card = soup.select_one('.hero-image-card')
+    new_url = (new_hero_url or '').strip()
+
+    if not new_url:
+        if hero_card:
+            hero_card.decompose()
+        return str(soup)
+
+    # Ensure hero CSS exists in a style tag.
+    hero_css = (
+        '.hero-image-card { padding: 0; text-align: center; }'
+        '.hero-image-card img { width: 100%; max-width: 600px; height: auto; '
+        'display: block; border-radius: 12px; }'
+    )
+    style_tag = soup.find('style')
+    if style_tag:
+        style_text = style_tag.string or style_tag.get_text() or ''
+        if 'hero-image-card' not in style_text:
+            style_tag.string = style_text + hero_css
+    else:
+        head = soup.find('head')
+        if head:
+            new_style = soup.new_tag('style')
+            new_style.string = hero_css
+            head.append(new_style)
+
+    img_style = (
+        'display:block;width:100%;max-width:600px;height:auto;border:0;'
+        'border-radius:12px;margin:0 auto;'
+    )
+    if hero_card:
+        img = hero_card.find('img')
+        if img:
+            img['src'] = new_url
+        else:
+            hero_card.clear()
+            img = soup.new_tag(
+                'img',
+                src=new_url,
+                alt='AI game illustration',
+                width='600',
+                border='0',
+                style=img_style,
+            )
+            hero_card.append(img)
+        return str(soup)
+
+    # Insert a new hero card after the title when the recap was text-only.
+    card = soup.new_tag('div', **{'class': 'card hero-image-card'})
+    img = soup.new_tag(
+        'img',
+        src=new_url,
+        alt='AI game illustration',
+        width='600',
+        border='0',
+        style=img_style,
+    )
+    card.append(img)
+    container = soup.select_one('.container') or soup.find('body') or soup
+    title = container.find('h1') if container else None
+    if title:
+        title.insert_after(card)
+    elif container:
+        if container.contents:
+            container.insert(0, card)
+        else:
+            container.append(card)
+    else:
+        soup.insert(0, card)
+    return str(soup)
+
+
 def ai_email_subject(game_type, date_obj, game_name_label=''):
     """Human-friendly subject line for better inbox placement."""
     date_label = date_obj.strftime('%b ') + str(date_obj.day)
