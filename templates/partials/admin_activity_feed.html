@@ -1,0 +1,34 @@
+{# Expects: entries, page, total_pages, search_q (optional), filter_username (optional) #}
+{% if entries %}
+{% for e in entries %}
+<div class="adm-feed-row">
+    <div class="adm-feed-main">
+        <a class="adm-feed-user" href="{{ url_for('admin_user_activity', username=e.username) }}">{{ e.username }}</a>
+        <span class="adm-feed-action">{{ e.action }}</span>
+        {% if e.summary %}<div class="adm-feed-summary">{{ e.summary }}</div>{% endif %}
+        <div class="adm-feed-time">{{ e.created_at_fmt }}</div>
+    </div>
+    {% if e.undoable %}
+    <form method="POST" action="{{ url_for('admin_undo', log_id=e.id) }}"
+          onsubmit="return confirm('Undo this {{ e.undo_kind }}? {{ 'The game will be restored to its previous values.' if e.undo_kind == 'edit' else ('The deleted game will be re-created.' if e.undo_kind == 'delete' else 'The added game will be removed.') }}');">
+        <button type="submit" class="adm-undo-btn"><i class="fas fa-undo"></i> Undo {{ e.undo_kind }}</button>
+    </form>
+    {% elif e.undone %}
+    <span class="adm-undone">undone</span>
+    {% endif %}
+</div>
+{% endfor %}
+{% if total_pages > 1 %}
+<div class="adm-pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if filter_username %}&amp;username={{ filter_username|urlencode }}{% endif %}{% if search_q %}&amp;q={{ search_q|urlencode }}{% endif %}">&larr; Newer</a>
+    {% endif %}
+    <span>Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}{% if filter_username %}&amp;username={{ filter_username|urlencode }}{% endif %}{% if search_q %}&amp;q={{ search_q|urlencode }}{% endif %}">Older &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
+{% else %}
+<p class="adm-empty">{% if filter_username or search_q %}No matching activity.{% else %}No activity logged yet.{% endif %}</p>
+{% endif %}

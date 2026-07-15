@@ -125,6 +125,7 @@ def init_activity_log_db():
         )
     ''')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at DESC)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_activity_log_username ON activity_log(username)')
     conn.commit()
     conn.close()
 
@@ -144,39 +145,55 @@ def insert_activity(username, action, target=None, target_id=None, summary=None,
     conn.close()
 
 
-def get_activity_page(page=1, per_page=50):
-    """One page of activity entries (newest first) plus total count."""
+def _decorate_activity_row(row):
+    """Add undo metadata to an activity_log row dict."""
+    d = dict(row)
+    undoable = (
+        not d['undone']
+        and d['target'] in TARGET_TABLES
+        and d['target_id'] is not None
+        and (d['before_json'] or d['after_json'])
+    )
+    d['undoable'] = bool(undoable)
+    if d['before_json'] and d['after_json']:
+        d['undo_kind'] = 'edit'
+    elif d['before_json']:
+        d['undo_kind'] = 'delete'
+    elif d['after_json']:
+        d['undo_kind'] = 'add'
+    else:
+        d['undo_kind'] = None
+    return d
+
+
+def get_activity_page(page=1, per_page=50, username=None, q=None):
+    """One page of activity entries (newest first) plus total count.
+
+    Optional filters: username (exact, case-insensitive) and q (substring match
+    across username/action/summary).
+    """
     offset = (max(page, 1) - 1) * per_page
+    clauses = []
+    params = []
+    if username:
+        clauses.append('lower(username) = lower(?)')
+        params.append(username.strip())
+    if q:
+        needle = f'%{q.strip()}%'
+        clauses.append('(username LIKE ? OR action LIKE ? OR IFNULL(summary, "") LIKE ?)')
+        params.extend([needle, needle, needle])
+    where = f'WHERE {" AND ".join(clauses)}' if clauses else ''
+
     conn = _connect()
-    total = conn.execute('SELECT COUNT(*) FROM activity_log').fetchone()[0]
-    rows = conn.execute('''
+    total = conn.execute(f'SELECT COUNT(*) FROM activity_log {where}', params).fetchone()[0]
+    rows = conn.execute(f'''
         SELECT id, created_at, username, action, target, target_id, summary,
                before_json, after_json, undone
-        FROM activity_log ORDER BY id DESC LIMIT ? OFFSET ?
-    ''', (per_page, offset)).fetchall()
+        FROM activity_log {where}
+        ORDER BY id DESC LIMIT ? OFFSET ?
+    ''', (*params, per_page, offset)).fetchall()
     conn.close()
-    entries = []
-    for r in rows:
-        d = dict(r)
-        # Undo type is inferred from which snapshots exist:
-        # before+after = edit, before only = delete, after only = add.
-        undoable = (
-            not d['undone']
-            and d['target'] in TARGET_TABLES
-            and d['target_id'] is not None
-            and (d['before_json'] or d['after_json'])
-        )
-        d['undoable'] = bool(undoable)
-        if d['before_json'] and d['after_json']:
-            d['undo_kind'] = 'edit'
-        elif d['before_json']:
-            d['undo_kind'] = 'delete'
-        elif d['after_json']:
-            d['undo_kind'] = 'add'
-        else:
-            d['undo_kind'] = None
-        entries.append(d)
-    return entries, total
+    return [_decorate_activity_row(r) for r in rows], total
 
 
 def get_activity_entry(log_id):

@@ -2,18 +2,21 @@
 {% block title %}Admin Dashboard{% endblock %}
 {% block extra_css %}
 <style>
-.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .adm-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; padding: 14px 16px; }
 .adm-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--sr-muted); margin-bottom: 6px; }
 .adm-card-value { font-size: 24px; font-weight: 700; color: var(--sr-text); }
 .adm-card-sub { font-size: 12px; color: var(--sr-muted); margin-top: 4px; }
 .adm-section { margin-bottom: 28px; }
-.adm-section h2 { font-size: 16px; color: var(--sr-text); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.adm-section h2 { font-size: 16px; color: var(--sr-text); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .adm-section h2 i { color: var(--sr-accent); font-size: 14px; }
+.adm-section-link { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--sr-accent); text-decoration: none; }
+.adm-section-link:hover { text-decoration: underline; }
 .adm-feed-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--sr-line); }
 .adm-feed-row:last-child { border-bottom: none; }
 .adm-feed-main { flex: 1; min-width: 0; }
-.adm-feed-user { font-weight: 600; color: var(--sr-accent); font-size: 13px; }
+.adm-feed-user { font-weight: 600; color: var(--sr-accent); font-size: 13px; text-decoration: none; }
+.adm-feed-user:hover { text-decoration: underline; }
 .adm-feed-action { font-size: 13px; color: var(--sr-text); }
 .adm-feed-summary { font-size: 12px; color: var(--sr-muted); margin-top: 2px; word-break: break-word; }
 .adm-feed-time { font-size: 11px; color: var(--sr-muted); margin-top: 2px; }
@@ -23,22 +26,59 @@
 .adm-pagination { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 14px 0 4px; font-size: 13px; color: var(--sr-muted); }
 .adm-pagination a { color: var(--sr-accent); text-decoration: none; padding: 4px 10px; border: 1px solid var(--sr-line); border-radius: 6px; }
 .adm-pagination a:hover { border-color: var(--sr-accent); }
-.adm-users-table { width: 100%; border-collapse: collapse; }
-.adm-users-table th, .adm-users-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--sr-line); font-size: 13px; }
-.adm-users-table th { color: var(--sr-muted); font-size: 11px; text-transform: uppercase; }
-.adm-users-table td { color: var(--sr-text); }
+.adm-empty { color: var(--sr-muted); text-align: center; padding: 32px 16px; margin: 0; }
 .adm-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
 .adm-badge-admin { background: var(--sr-accent-dim); color: var(--sr-accent); }
 .adm-badge-inactive { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.adm-inline-form { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.adm-input { background: #0f1620; border: 1px solid var(--sr-line); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--sr-text); }
+.adm-input { background: #0f1620; border: 1px solid var(--sr-line); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: var(--sr-text); }
 .adm-input:focus { outline: none; border-color: var(--sr-accent); }
-.adm-btn { background: var(--sr-accent-dim); border: 1px solid var(--sr-accent); color: var(--sr-accent); border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; }
+.adm-btn { background: var(--sr-accent-dim); border: 1px solid var(--sr-accent); color: var(--sr-accent); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .adm-btn:hover { background: rgba(110, 231, 255, 0.25); }
 .adm-btn-danger { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.4); color: #ef4444; }
 .adm-btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
 .adm-quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.adm-user-list { display: flex; flex-direction: column; gap: 10px; }
+.adm-user-card {
+    background: #0f1620;
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    padding: 14px;
+}
+.adm-user-card.is-inactive { opacity: 0.6; }
+.adm-user-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.adm-user-name {
+    font-size: 16px;
+    font-weight: 650;
+    color: var(--sr-accent);
+    text-decoration: none;
+}
+.adm-user-name:hover { text-decoration: underline; }
+.adm-user-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.adm-user-meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+}
+.adm-user-meta-label { color: var(--sr-muted); }
+.adm-user-meta-value { color: var(--sr-text); text-align: right; }
+.adm-user-actions { display: flex; flex-direction: column; gap: 8px; }
+.adm-user-actions form { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; }
+.adm-user-actions .adm-input { flex: 1 1 140px; min-width: 0; }
+.adm-user-actions .adm-btn { flex: 0 0 auto; }
 .adm-add-user-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sr-line); }
+.adm-add-user-form .adm-input { flex: 1 1 140px; min-width: 0; }
+@media (min-width: 700px) {
+    .adm-user-meta { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .adm-user-meta-row { flex-direction: column; gap: 2px; }
+    .adm-user-meta-value { text-align: left; }
+    .adm-user-actions { flex-direction: row; flex-wrap: wrap; align-items: center; }
+}
 @media (max-width: 600px) { .adm-feed-row { flex-direction: column; gap: 6px; } }
 </style>
 {% endblock %}
@@ -87,6 +127,7 @@
 <div class="adm-section">
     <h2><i class="fas fa-bolt"></i> Quick actions</h2>
     <div class="adm-quick-actions">
+        <a href="{{ url_for('admin_activity') }}" class="adm-btn"><i class="fas fa-stream"></i> All activity</a>
         <form method="POST" action="{{ url_for('admin_clear_cache') }}">
             <button type="submit" class="adm-btn"><i class="fas fa-sync"></i> Clear stats cache</button>
         </form>
@@ -98,54 +139,74 @@
             <button type="submit" class="adm-btn"><i class="fas fa-envelope"></i> Send test email</button>
         </form>
         {% endif %}
-        <a href="{{ url_for('edit_stats') }}" class="adm-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-edit"></i> Edit stats</a>
-        <a href="{{ url_for('player_list') }}" class="adm-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-users"></i> Players</a>
-        <a href="{{ url_for('benchmarks') }}" class="adm-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-tachometer-alt"></i> Benchmarks</a>
-        <a href="{{ url_for('admin_ai_prompts') }}" class="adm-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-robot"></i> AI Prompts</a>
-        <a href="{{ url_for('admin_ai_images') }}" class="adm-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-images"></i> AI Images</a>
+        <a href="{{ url_for('edit_stats') }}" class="adm-btn"><i class="fas fa-edit"></i> Edit stats</a>
+        <a href="{{ url_for('player_list') }}" class="adm-btn"><i class="fas fa-users"></i> Players</a>
+        <a href="{{ url_for('benchmarks') }}" class="adm-btn"><i class="fas fa-tachometer-alt"></i> Benchmarks</a>
+        <a href="{{ url_for('admin_ai_prompts') }}" class="adm-btn"><i class="fas fa-robot"></i> AI Prompts</a>
+        <a href="{{ url_for('admin_ai_images') }}" class="adm-btn"><i class="fas fa-images"></i> AI Images</a>
+    </div>
+</div>
+
+<!-- Activity feed -->
+<div class="adm-section" id="activity">
+    <h2>
+        <i class="fas fa-stream"></i> Recent activity
+        <a class="adm-section-link" href="{{ url_for('admin_activity') }}">See everything ({{ total_entries }}) →</a>
+    </h2>
+    <div class="sr-card sr-card-compact">
+        {% with search_q='', filter_username='' %}
+        {% include 'partials/admin_activity_feed.html' %}
+        {% endwith %}
     </div>
 </div>
 
 <!-- User management -->
-<div class="adm-section">
+<div class="adm-section" id="users">
     <h2><i class="fas fa-user-shield"></i> Site users</h2>
     <div class="sr-card sr-card-compact">
-        <table class="adm-users-table">
-            <thead>
-                <tr><th>User</th><th>Role</th><th>Last login</th><th>Last activity</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-                {% for u in users %}
-                <tr{% if not u.active %} style="opacity: 0.55;"{% endif %}>
-                    <td>{{ u.username }}
-                        {% if u.is_admin %}<span class="adm-badge adm-badge-admin">admin</span>{% endif %}
-                        {% if not u.active %}<span class="adm-badge adm-badge-inactive">deactivated</span>{% endif %}
-                    </td>
-                    <td>{{ 'Admin' if u.is_admin else 'User' }}</td>
-                    <td>{{ u.last_login_fmt or '—' }}</td>
-                    <td>{{ u.last_seen_fmt or '—' }}</td>
-                    <td>
-                        <form class="adm-inline-form" method="POST" action="{{ url_for('admin_reset_password') }}"
-                              onsubmit="return confirm('Reset password for {{ u.username }}?');">
-                            <input type="hidden" name="username" value="{{ u.username }}">
-                            <input type="password" name="password" class="adm-input" placeholder="New password" style="width: 130px;" required minlength="8">
-                            <button type="submit" class="adm-btn">Reset</button>
-                        </form>
-                        {% if u.username|lower != session.username|lower %}
-                        <form class="adm-inline-form" method="POST" action="{{ url_for('admin_toggle_active') }}" style="margin-left: 6px;"
-                              onsubmit="return confirm('{{ 'Reactivate' if not u.active else 'Deactivate' }} {{ u.username }}?');">
-                            <input type="hidden" name="username" value="{{ u.username }}">
-                            <input type="hidden" name="activate" value="{{ '1' if not u.active else '0' }}">
-                            <button type="submit" class="adm-btn {% if u.active %}adm-btn-danger{% endif %}">
-                                {{ 'Reactivate' if not u.active else 'Deactivate' }}
-                            </button>
-                        </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="adm-user-list">
+            {% for u in users %}
+            <div class="adm-user-card{% if not u.active %} is-inactive{% endif %}">
+                <div class="adm-user-top">
+                    <a class="adm-user-name" href="{{ url_for('admin_user_activity', username=u.username) }}">{{ u.username }}</a>
+                    {% if u.is_admin %}<span class="adm-badge adm-badge-admin">admin</span>{% endif %}
+                    {% if not u.active %}<span class="adm-badge adm-badge-inactive">deactivated</span>{% endif %}
+                </div>
+                <div class="adm-user-meta">
+                    <div class="adm-user-meta-row">
+                        <span class="adm-user-meta-label">Role</span>
+                        <span class="adm-user-meta-value">{{ 'Admin' if u.is_admin else 'User' }}</span>
+                    </div>
+                    <div class="adm-user-meta-row">
+                        <span class="adm-user-meta-label">Last login</span>
+                        <span class="adm-user-meta-value">{{ u.last_login_fmt or '—' }}</span>
+                    </div>
+                    <div class="adm-user-meta-row">
+                        <span class="adm-user-meta-label">Last activity</span>
+                        <span class="adm-user-meta-value">{{ u.last_seen_fmt or '—' }}</span>
+                    </div>
+                </div>
+                <div class="adm-user-actions">
+                    <form method="POST" action="{{ url_for('admin_reset_password') }}"
+                          onsubmit="return confirm('Reset password for {{ u.username }}?');">
+                        <input type="hidden" name="username" value="{{ u.username }}">
+                        <input type="password" name="password" class="adm-input" placeholder="New password" required minlength="8" autocomplete="new-password">
+                        <button type="submit" class="adm-btn">Reset</button>
+                    </form>
+                    {% if u.username|lower != session.username|lower %}
+                    <form method="POST" action="{{ url_for('admin_toggle_active') }}"
+                          onsubmit="return confirm('{{ 'Reactivate' if not u.active else 'Deactivate' }} {{ u.username }}?');">
+                        <input type="hidden" name="username" value="{{ u.username }}">
+                        <input type="hidden" name="activate" value="{{ '1' if not u.active else '0' }}">
+                        <button type="submit" class="adm-btn {% if u.active %}adm-btn-danger{% endif %}">
+                            {{ 'Reactivate' if not u.active else 'Deactivate' }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         <form class="adm-add-user-form" method="POST" action="{{ url_for('admin_add_user') }}">
             <input type="text" name="username" class="adm-input" placeholder="New username" required autocomplete="off">
             <input type="password" name="password" class="adm-input" placeholder="Password (8+ chars)" required minlength="8" autocomplete="new-password">
@@ -154,42 +215,6 @@
             </label>
             <button type="submit" class="adm-btn"><i class="fas fa-user-plus"></i> Add user</button>
         </form>
-    </div>
-</div>
-
-<!-- Activity feed -->
-<div class="adm-section">
-    <h2><i class="fas fa-stream"></i> Activity ({{ total_entries }})</h2>
-    <div class="sr-card sr-card-compact">
-        {% if entries %}
-        {% for e in entries %}
-        <div class="adm-feed-row">
-            <div class="adm-feed-main">
-                <span class="adm-feed-user">{{ e.username }}</span>
-                <span class="adm-feed-action">{{ e.action }}</span>
-                {% if e.summary %}<div class="adm-feed-summary">{{ e.summary }}</div>{% endif %}
-                <div class="adm-feed-time">{{ e.created_at_fmt }}</div>
-            </div>
-            {% if e.undoable %}
-            <form method="POST" action="{{ url_for('admin_undo', log_id=e.id) }}"
-                  onsubmit="return confirm('Undo this {{ e.undo_kind }}? {{ 'The game will be restored to its previous values.' if e.undo_kind == 'edit' else ('The deleted game will be re-created.' if e.undo_kind == 'delete' else 'The added game will be removed.') }}');">
-                <button type="submit" class="adm-undo-btn"><i class="fas fa-undo"></i> Undo {{ e.undo_kind }}</button>
-            </form>
-            {% elif e.undone %}
-            <span class="adm-undone">undone</span>
-            {% endif %}
-        </div>
-        {% endfor %}
-        {% if total_pages > 1 %}
-        <div class="adm-pagination">
-            {% if page > 1 %}<a href="{{ url_for('admin_dashboard', page=page-1) }}">&larr; Newer</a>{% endif %}
-            <span>Page {{ page }} of {{ total_pages }}</span>
-            {% if page < total_pages %}<a href="{{ url_for('admin_dashboard', page=page+1) }}">Older &rarr;</a>{% endif %}
-        </div>
-        {% endif %}
-        {% else %}
-        <p style="color: var(--sr-muted); text-align: center; padding: 32px 16px;">No activity logged yet. Actions will appear here as people use the site.</p>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

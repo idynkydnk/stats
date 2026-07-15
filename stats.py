@@ -4649,7 +4649,7 @@ def admin_dashboard():
     recent_game = adminfx.most_recent_game()
 
     page = max(int(request.args.get('page', 1) or 1), 1)
-    per_page = 50
+    per_page = 25
     entries, total_entries = adminfx.get_activity_page(page=page, per_page=per_page)
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     entries = _format_activity_times(entries)
@@ -4668,6 +4668,80 @@ def admin_dashboard():
         entries=entries, page=page, total_pages=total_pages, total_entries=total_entries,
         users=users, db_size_mb=db_size_mb,
         email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')))
+
+
+@app.route('/admin/activity/')
+@admin_required
+def admin_activity():
+    """Full site activity log with optional search and user filter."""
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    search_q = (request.args.get('q') or '').strip()
+    filter_username = (request.args.get('username') or '').strip()
+    per_page = 50
+    entries, total_entries = adminfx.get_activity_page(
+        page=page, per_page=per_page, username=filter_username or None, q=search_q or None,
+    )
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    entries = _format_activity_times(entries)
+
+    user_meta = None
+    if filter_username:
+        users = [u for u in adminfx.list_site_users() if u['username'].lower() == filter_username.lower()]
+        if users:
+            u = users[0]
+            user_meta = dict(
+                u,
+                last_seen_fmt=_format_utc_str(u.get('last_seen')),
+                last_login_fmt=_format_utc_str(u.get('last_login')),
+            )
+            filter_username = u['username']
+
+    return render_template(
+        'admin_activity.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+        search_q=search_q,
+        filter_username=filter_username,
+        user_meta=user_meta,
+    )
+
+
+@app.route('/admin/users/<username>/')
+@admin_required
+def admin_user_activity(username):
+    """Everything one site user has done."""
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    search_q = (request.args.get('q') or '').strip()
+    per_page = 50
+    entries, total_entries = adminfx.get_activity_page(
+        page=page, per_page=per_page, username=username, q=search_q or None,
+    )
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    entries = _format_activity_times(entries)
+
+    users = [u for u in adminfx.list_site_users() if u['username'].lower() == username.lower()]
+    user_meta = None
+    if users:
+        u = users[0]
+        user_meta = dict(
+            u,
+            last_seen_fmt=_format_utc_str(u.get('last_seen')),
+            last_login_fmt=_format_utc_str(u.get('last_login')),
+        )
+        username = u['username']
+
+    return render_template(
+        'admin_activity.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+        search_q=search_q,
+        filter_username=username,
+        user_meta=user_meta,
+    )
 
 
 def _format_utc_str(ts):

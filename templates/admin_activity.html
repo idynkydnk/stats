@@ -1,0 +1,77 @@
+{% extends base_template %}
+{% block title %}{% if filter_username %}{{ filter_username }} — {% endif %}Site Activity{% endblock %}
+{% block extra_css %}
+<style>
+.adm-section { margin-bottom: 28px; }
+.adm-section h2 { font-size: 16px; color: var(--sr-text); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.adm-section h2 i { color: var(--sr-accent); font-size: 14px; }
+.adm-feed-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--sr-line); }
+.adm-feed-row:last-child { border-bottom: none; }
+.adm-feed-main { flex: 1; min-width: 0; }
+.adm-feed-user { font-weight: 600; color: var(--sr-accent); font-size: 13px; text-decoration: none; }
+.adm-feed-user:hover { text-decoration: underline; }
+.adm-feed-action { font-size: 13px; color: var(--sr-text); }
+.adm-feed-summary { font-size: 12px; color: var(--sr-muted); margin-top: 2px; word-break: break-word; }
+.adm-feed-time { font-size: 11px; color: var(--sr-muted); margin-top: 2px; }
+.adm-undo-btn { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.adm-undone { font-size: 11px; color: var(--sr-muted); font-style: italic; white-space: nowrap; }
+.adm-pagination { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 14px 0 4px; font-size: 13px; color: var(--sr-muted); }
+.adm-pagination a { color: var(--sr-accent); text-decoration: none; padding: 4px 10px; border: 1px solid var(--sr-line); border-radius: 6px; }
+.adm-empty { color: var(--sr-muted); text-align: center; padding: 32px 16px; margin: 0; }
+.adm-search { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.adm-input { background: #0f1620; border: 1px solid var(--sr-line); border-radius: 6px; padding: 8px 12px; font-size: 14px; color: var(--sr-text); flex: 1 1 180px; min-width: 0; }
+.adm-input:focus { outline: none; border-color: var(--sr-accent); }
+.adm-btn { background: var(--sr-accent-dim); border: 1px solid var(--sr-accent); color: var(--sr-accent); border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.adm-meta { font-size: 13px; color: var(--sr-muted); margin: 0 0 14px; }
+@media (max-width: 600px) { .adm-feed-row { flex-direction: column; gap: 6px; } }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">{% if filter_username %}{{ filter_username }}{% else %}Site Activity{% endif %}</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('admin_dashboard') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Admin</a>
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<div class="adm-section">
+    {% if filter_username %}
+    <p class="adm-meta">
+        {% if user_meta %}
+        {{ 'Admin' if user_meta.is_admin else 'User' }}
+        {% if not user_meta.active %} · deactivated{% endif %}
+        · Last login {{ user_meta.last_login_fmt or '—' }}
+        · Last activity {{ user_meta.last_seen_fmt or '—' }}
+        {% else %}
+        Activity for <strong style="color: var(--sr-text);">{{ filter_username }}</strong>
+        {% endif %}
+        · {{ total_entries }} action{{ 's' if total_entries != 1 else '' }}
+    </p>
+    {% else %}
+    <p class="adm-meta">Everything that happens on the site · {{ total_entries }} action{{ 's' if total_entries != 1 else '' }}</p>
+    {% endif %}
+
+    <form class="adm-search" method="get" action="">
+        {% if filter_username %}
+        <input type="hidden" name="username" value="{{ filter_username }}">
+        {% endif %}
+        <input type="search" name="q" class="adm-input" value="{{ search_q or '' }}" placeholder="Search actions or details..." autocomplete="off">
+        <button type="submit" class="adm-btn"><i class="fas fa-search"></i> Search</button>
+        {% if search_q %}
+        {% if filter_username %}
+        <a class="adm-btn" href="{{ url_for('admin_user_activity', username=filter_username) }}">Clear</a>
+        {% else %}
+        <a class="adm-btn" href="{{ url_for('admin_activity') }}">Clear</a>
+        {% endif %}
+        {% endif %}
+        {% if filter_username %}
+        <a class="adm-btn" href="{{ url_for('admin_activity') }}">All users</a>
+        {% endif %}
+    </form>
+
+    <div class="sr-card sr-card-compact">
+        {% include 'partials/admin_activity_feed.html' %}
+    </div>
+</div>
+{% endblock %}
