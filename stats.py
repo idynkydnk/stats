@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response, send_from_directory
+from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response, send_from_directory, abort
 from werkzeug.security import check_password_hash
 # Flask-Caching is optional - the custom caching in stat_functions.py will still work
 try:
@@ -21,6 +21,7 @@ from email_content import (
     build_other_email_payload,
     generate_ai_text,
     email_html_for_inline_preview,
+    recap_html_for_page,
     personalize_ai_email_content,
     plain_text_fallback_from_html,
     image_mode_label,
@@ -488,6 +489,29 @@ def _build_ai_summary_payload(
     return build_doubles_email_payload(selected_game_ids, **kwargs)
 
 
+def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=None):
+    """Save a generated AI recap as a public shareable page."""
+    illustration_meta = payload.get('illustration_meta') or {}
+    solo_images = illustration_meta.get('solo_images') or []
+    share_id = secrets.token_urlsafe(9)
+    while adminfx.get_ai_recap_page(share_id):
+        share_id = secrets.token_urlsafe(9)
+    adminfx.insert_ai_recap_page(
+        share_id=share_id,
+        username=username or session.get('username') or 'unknown',
+        game_type=payload.get('game_type') or 'doubles',
+        subject=payload.get('subject') or '',
+        html_body=payload.get('html_body') or '',
+        plain_text_body=payload.get('plain_text_body') or '',
+        hero_image_url=payload.get('hero_image_url') or '',
+        hero_image_error=payload.get('hero_image_error') or '',
+        game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
+        prompt_style=prompt_style or '',
+        solo_images_json=json.dumps(solo_images) if solo_images else '',
+    )
+    return share_id
+
+
 def _send_ai_summary_payload(payload, username='unknown'):
     """Email an AI summary payload to all players with addresses plus copy-to."""
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
@@ -530,7 +554,7 @@ def _send_ai_summary_payload(payload, username='unknown'):
 
 
 def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_prompt):
-    """Generate AI summary and email recipients. Returns a result dict for the API."""
+    """Generate AI summary and publish a shareable recap page."""
     with app.app_context():
         try:
             payload = _build_ai_summary_payload(
@@ -538,37 +562,33 @@ def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_pro
             )
             _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=username)
             img_note = _ai_image_log_note(payload)
+            share_id = _publish_ai_recap(
+                payload, prompt_style, custom_prompt, game_ids, username=username,
+            )
+            subject = payload.get('subject') or 'Vball Summary'
+            share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
             log_activity(
-                'Generated AI summary',
+                'Published AI recap',
                 summary=(
-                    f'{game_type} auto-send for {len(game_ids)} game(s), style "{prompt_style}"'
+                    f'{game_type} recap for {len(game_ids)} game(s), style "{prompt_style}"'
                     + img_note
                 ),
                 username=username,
             )
-            emails_sent, errors = _send_ai_summary_payload(payload, username=username)
-            subject = payload.get('subject') or 'Vball Summary'
-            if errors and emails_sent == 0:
-                return {
-                    'success': False,
-                    'error': '; '.join(errors)[:300],
-                    'emails_sent': 0,
-                    'subject': subject,
-                }
             return {
                 'success': True,
-                'emails_sent': emails_sent,
-                'errors': errors,
+                'share_id': share_id,
+                'share_url': share_url,
                 'subject': subject,
             }
         except Exception as e:
-            app.logger.exception('AI auto-send failed')
+            app.logger.exception('AI recap publish failed')
             log_activity(
                 'AI summary failed',
-                summary=f'{game_type} auto-send for {len(game_ids)} game(s): {str(e)[:200]}',
+                summary=f'{game_type} recap for {len(game_ids)} game(s): {str(e)[:200]}',
                 username=username,
             )
-            return {'success': False, 'error': str(e)[:300], 'emails_sent': 0}
+            return {'success': False, 'error': str(e)[:300]}
 
 
 def _supabase_flash_suffix(supabase_ok):
@@ -914,6 +934,7 @@ init_notifications_db()
 init_auth_tokens_db()
 adminfx.init_activity_log_db()
 adminfx.init_ai_prompt_log_db()
+adminfx.init_ai_recap_pages_db()
 ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 from player_functions import init_players_photo_column
@@ -1663,34 +1684,64 @@ def preview_ai_summary_with_prompt():
     ))
 
     try:
-        return _render_ai_summary_preview_page(
-            game_type=game_type,
-            subject=payload.get('subject') or '',
-            email_html=payload.get('html_body') or '',
-            plain_text_body=payload.get('plain_text_body') or '',
-            players=payload.get('players') or [],
-            players_without_email=payload.get('players_without_email') or [],
-            selected_game_ids=selected_game_ids,
-            hero_image_url=payload.get('hero_image_url'),
-            hero_image_path=payload.get('hero_image_path'),
-            hero_image_error=payload.get('hero_image_error'),
-            image_mode=payload.get('image_mode', image_mode),
-            illustration_note=payload.get('illustration_note', ''),
-            solo_images=(payload.get('illustration_meta') or {}).get('solo_images') or [],
+        share_id = _publish_ai_recap(
+            payload, prompt_style, custom_prompt, selected_game_ids,
         )
+        log_activity(
+            'Published AI recap',
+            summary=f'{game_type} recap published at /recap/{share_id}',
+        )
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
     except Exception as e:
-        app.logger.exception('AI summary template render failed')
-        flash(f'Failed to show preview: {str(e)}', 'error')
+        app.logger.exception('AI recap publish failed')
+        flash(f'Failed to publish recap: {str(e)}', 'error')
         return redirect(url_for('ai_summary'))
+
+
+@app.route('/recap/<share_id>/')
+def view_ai_recap(share_id):
+    """Public shareable AI recap page."""
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    solo_images = []
+    try:
+        solo_images = json.loads(row.get('solo_images_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        solo_images = []
+
+    show_share_tools = (
+        request.args.get('published') == '1'
+        or (
+            session.get('logged_in')
+            and session.get('username') == row.get('username')
+        )
+    )
+    share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
+    created_at = row.get('created_at') or ''
+    if isinstance(created_at, str) and len(created_at) >= 16:
+        created_at_fmt = created_at[:16].replace('T', ' ')
+    else:
+        created_at_fmt = str(created_at)
+
+    return render_template(
+        'recap.html',
+        subject=row.get('subject') or 'Game Recap',
+        recap_html=recap_html_for_page(row.get('html_body') or ''),
+        share_url=share_url,
+        show_share_tools=show_share_tools,
+        solo_images=solo_images,
+        hero_image_error=row.get('hero_image_error') or '',
+        created_at_fmt=created_at_fmt,
+        game_type=row.get('game_type') or 'doubles',
+    )
 
 
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
 @login_required
 def api_generate_and_send_ai_summary():
-    """Queue AI summary generation; an Always-on daemon sends it in the background."""
-    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-        return jsonify({'success': False, 'error': 'Email not configured.'}), 400
-
+    """Queue AI summary generation; an Always-on daemon publishes a share link in the background."""
     game_type = request.form.get('game_type', 'doubles')
     prompt_style = request.form.get('prompt_style', 'generated_1')
     custom_prompt = request.form.get('custom_prompt', '')
@@ -1704,21 +1755,21 @@ def api_generate_and_send_ai_summary():
     )
     worker_alive = ai_jobs.daemon_is_alive()
     log_activity(
-        'Queued AI summary auto-send',
+        'Queued AI recap publish',
         summary=f'job #{job_id}: {game_type} for {len(game_ids)} game(s), style "{prompt_style}"',
         username=username,
     )
 
     if worker_alive:
         message = (
-            f'Queued (job #{job_id}). Generating and sending in the background — '
-            'you can close this page. Check your email or /admin/ activity in a few minutes.'
+            f'Queued (job #{job_id}). Generating your recap page in the background — '
+            'you can close this page. Check /admin/ activity for the share link in a few minutes.'
         )
     else:
         message = (
             f'Queued (job #{job_id}), but the background worker is not running. '
             'Enable the Always-on task on PythonAnywhere (see wsgi_config.py), '
-            'or use Generate Summary and send from the preview page.'
+            'or generate from the style page and wait for the recap link.'
         )
     return jsonify({
         'success': True,

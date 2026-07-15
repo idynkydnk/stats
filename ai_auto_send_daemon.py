@@ -53,10 +53,13 @@ def _process_job(job):
     )
     if result.get('success'):
         subject = result.get('subject') or 'Vball Summary'
-        summary = f'Sent "{subject}" to {result.get("emails_sent", 0)} recipient(s)'
+        share_url = result.get('share_url') or ''
+        summary = f'Published "{subject}"'
+        if share_url:
+            summary += f' — {share_url}'
         jobs.complete_job(
             job['id'], True,
-            emails_sent=result.get('emails_sent', 0),
+            emails_sent=0,
             result_summary=summary,
         )
         _log(f'job #{job["id"]} completed: {summary}')
@@ -73,8 +76,6 @@ def main():
 
     if not os.environ.get('GEMINI_API_KEY'):
         _log('WARNING: GEMINI_API_KEY is not set — jobs will fail')
-    if not os.environ.get('MAIL_USERNAME') or not os.environ.get('MAIL_PASSWORD'):
-        _log('WARNING: MAIL_USERNAME/MAIL_PASSWORD not set — jobs will fail')
 
     while True:
         jobs.touch_daemon_heartbeat()

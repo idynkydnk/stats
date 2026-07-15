@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --recap-bg: #0b0f14;
+            --recap-panel: #131a24;
+            --recap-line: rgba(255, 255, 255, 0.08);
+            --recap-text: #e4e8eb;
+            --recap-muted: #8b949e;
+            --recap-accent: #66d9ef;
+            --recap-win: #22c55e;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--recap-bg);
+            color: var(--recap-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        .recap-share-bar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: rgba(19, 26, 36, 0.96);
+            border-bottom: 1px solid var(--recap-line);
+            backdrop-filter: blur(8px);
+            padding: 12px 16px;
+        }
+        .recap-share-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .recap-share-text {
+            min-width: 0;
+            flex: 1 1 220px;
+        }
+        .recap-share-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: var(--recap-text);
+        }
+        .recap-share-subtitle {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin: 0;
+        }
+        .recap-share-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .recap-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .recap-btn-primary {
+            background: var(--recap-accent);
+            color: #0b0f14;
+        }
+        .recap-btn-secondary {
+            background: transparent;
+            color: var(--recap-text);
+            border: 1px solid var(--recap-line);
+        }
+        .recap-page {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+        .recap-meta {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin-bottom: 16px;
+        }
+        .recap-solo-gallery {
+            background: var(--recap-panel);
+            border: 1px solid var(--recap-line);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+        .recap-solo-title {
+            font-size: 13px;
+            color: var(--recap-muted);
+            margin: 0 0 4px 0;
+        }
+        .recap-solo-note {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin: 0 0 12px 0;
+            opacity: 0.85;
+        }
+        .recap-solo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+        .recap-solo-card {
+            text-align: center;
+        }
+        .recap-solo-card img {
+            width: 100%;
+            max-width: 160px;
+            border-radius: 8px;
+            border: 1px solid var(--recap-line);
+        }
+        .recap-solo-name {
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .recap-warning {
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            color: #fbbf24;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .recap-body-wrap {
+            overflow-x: auto;
+        }
+        .recap-body {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .recap-url-input {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+        @media (max-width: 640px) {
+            .recap-share-inner {
+                align-items: stretch;
+            }
+            .recap-share-actions {
+                width: 100%;
+            }
+            .recap-btn {
+                justify-content: center;
+                flex: 1 1 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% if show_share_tools %}
+    <div class="recap-share-bar">
+        <div class="recap-share-inner">
+            <div class="recap-share-text">
+                <p class="recap-share-title"><i class="fas fa-link"></i> Share this recap</p>
+                <p class="recap-share-subtitle">Copy the link and paste it in your group text.</p>
+            </div>
+            <div class="recap-share-actions">
+                <button type="button" class="recap-btn recap-btn-primary" id="recap-copy-btn">
+                    <i class="fas fa-copy"></i> Copy link
+                </button>
+                {% if session.logged_in %}
+                <a href="{{ url_for('ai_summary') }}" class="recap-btn recap-btn-secondary">
+                    <i class="fas fa-plus"></i> New recap
+                </a>
+                {% endif %}
+            </div>
+            <input type="text" class="recap-url-input" id="recap-share-url" value="{{ share_url }}" readonly>
+        </div>
+    </div>
+    {% endif %}
+
+    <main class="recap-page">
+        {% if created_at_fmt %}
+        <p class="recap-meta">Published {{ created_at_fmt }}</p>
+        {% endif %}
+
+        {% if hero_image_error %}
+        <div class="recap-warning"><i class="fas fa-exclamation-triangle"></i> {{ hero_image_error }}</div>
+        {% endif %}
+
+        {% if solo_images %}
+        <div class="recap-solo-gallery">
+            <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
+            <p class="recap-solo-note">Behind-the-scenes portraits from illustration generation.</p>
+            <div class="recap-solo-grid">
+                {% for img in solo_images %}
+                <div class="recap-solo-card">
+                    <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
+                    <div class="recap-solo-name">{{ img.name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="recap-body-wrap">
+            {{ recap_html | safe }}
+        </div>
+    </main>
+
+    {% if show_share_tools %}
+    <script>
+    (function () {
+        var btn = document.getElementById('recap-copy-btn');
+        var input = document.getElementById('recap-share-url');
+        if (!btn || !input) return;
+
+        function copyLink() {
+            var url = input.value;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(url);
+            }
+            input.classList.remove('recap-url-input');
+            input.select();
+            document.execCommand('copy');
+            input.classList.add('recap-url-input');
+            return Promise.resolve();
+        }
+
+        btn.addEventListener('click', function () {
+            copyLink().then(function () {
+                var original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(function () { btn.innerHTML = original; }, 1800);
+            }).catch(function () {
+                window.prompt('Copy this link:', input.value);
+            });
+        });
+    })();
+    </script>
+    {% endif %}
+</body>
+</html>

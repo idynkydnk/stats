@@ -385,3 +385,65 @@ def get_ai_prompt_log_page(page=1, per_page=25):
     conn.close()
     return [dict(r) for r in rows], total
 
+
+# --- Published AI recap pages (shareable links) ---
+
+def init_ai_recap_pages_db():
+    conn = _connect()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS ai_recap_pages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            share_id TEXT NOT NULL UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            username TEXT NOT NULL,
+            game_type TEXT NOT NULL,
+            prompt_style TEXT,
+            subject TEXT,
+            html_body TEXT NOT NULL,
+            plain_text_body TEXT,
+            hero_image_url TEXT,
+            hero_image_error TEXT,
+            game_ids_json TEXT,
+            solo_images_json TEXT
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ai_recap_pages_share_id ON ai_recap_pages(share_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ai_recap_pages_created ON ai_recap_pages(created_at DESC)'
+    )
+    conn.commit()
+    conn.close()
+
+
+def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
+                         plain_text_body='', hero_image_url='', hero_image_error='',
+                         game_ids_json='[]', prompt_style='', solo_images_json=''):
+    conn = _connect()
+    conn.execute('''
+        INSERT INTO ai_recap_pages (
+            share_id, username, game_type, prompt_style, subject,
+            html_body, plain_text_body, hero_image_url, hero_image_error,
+            game_ids_json, solo_images_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        share_id, username, game_type, prompt_style or '', subject or '',
+        html_body, plain_text_body or '', hero_image_url or '', hero_image_error or '',
+        game_ids_json or '[]', solo_images_json or '',
+    ))
+    conn.commit()
+    conn.close()
+
+
+def get_ai_recap_page(share_id):
+    conn = _connect()
+    row = conn.execute('''
+        SELECT share_id, created_at, username, game_type, prompt_style, subject,
+               html_body, plain_text_body, hero_image_url, hero_image_error,
+               game_ids_json, solo_images_json
+        FROM ai_recap_pages WHERE share_id = ?
+    ''', (share_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+

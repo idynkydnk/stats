@@ -992,6 +992,25 @@ def _try_generate_email_hero_image(
 
 def email_html_for_inline_preview(html_body):
     """Extract email body with scoped styles for inline display on the preview page."""
+    return _email_html_for_embedded_display(html_body, wrapper_class='sr-email-inline')
+
+
+def recap_html_for_page(html_body):
+    """Prepare stored email HTML for a public recap page."""
+    from bs4 import BeautifulSoup
+
+    if not html_body or not str(html_body).strip():
+        return '<p>No recap content.</p>'
+
+    soup = BeautifulSoup(html_body, 'html.parser')
+    for el in soup.select('.opt-in-section'):
+        el.decompose()
+    cleaned = str(soup)
+    return _email_html_for_embedded_display(cleaned, wrapper_class='recap-body')
+
+
+def _email_html_for_embedded_display(html_body, wrapper_class='sr-email-inline'):
+    """Extract email body with scoped styles for embedding in a host page."""
     import re
     from bs4 import BeautifulSoup
 
@@ -1002,13 +1021,13 @@ def email_html_for_inline_preview(html_body):
     styles = []
     for tag in soup.find_all('style'):
         css = tag.get_text() or ''
-        css = re.sub(r'\bbody\b', '.sr-email-inline', css)
-        css = re.sub(r'\bhtml\b', '.sr-email-inline', css)
+        css = re.sub(r'\bbody\b', f'.{wrapper_class}', css)
+        css = re.sub(r'\bhtml\b', f'.{wrapper_class}', css)
         styles.append(css)
     body = soup.find('body')
     content = body.decode_contents() if body else html_body
     style_block = f'<style>{"".join(styles)}</style>' if styles else ''
-    return f'{style_block}<div class="sr-email-inline">{content}</div>'
+    return f'{style_block}<div class="{wrapper_class}">{content}</div>'
 
 
 def format_name_for_email(name):
@@ -1443,9 +1462,6 @@ def build_doubles_email_payload(
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
         raise ValueError('Gemini API key not configured.')
-
-    if not current_app.config['MAIL_USERNAME'] or not current_app.config['MAIL_PASSWORD']:
-        raise ValueError('Email not configured.')
 
     if not selected_game_ids:
         raise ValueError('No games selected.')
@@ -2008,9 +2024,6 @@ def build_vollis_email_payload(
     if not api_key:
         raise ValueError('Gemini API key not configured.')
 
-    if not current_app.config['MAIL_USERNAME'] or not current_app.config['MAIL_PASSWORD']:
-        raise ValueError('Email not configured.')
-
     if not selected_game_ids:
         raise ValueError('No games selected.')
 
@@ -2161,9 +2174,6 @@ def build_other_email_payload(
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
         raise ValueError('Gemini API key not configured.')
-
-    if not current_app.config['MAIL_USERNAME'] or not current_app.config['MAIL_PASSWORD']:
-        raise ValueError('Email not configured.')
 
     if not selected_game_ids:
         raise ValueError('No games selected.')
