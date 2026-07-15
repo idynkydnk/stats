@@ -877,7 +877,11 @@ def _generate_email_hero_image_single_pass(
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
 ):
-    """Solo caricature per player (<=4), then one group scene."""
+    """Solo caricature per player (<=4), then one group scene.
+
+    Solo caricatures stay in memory only and are not saved to disk. Only the
+    final group illustration is persisted.
+    """
     from player_functions import (
         collect_player_ai_image_traits,
         collect_solo_reference_images,
@@ -893,7 +897,6 @@ def _generate_email_hero_image_two_pass(
     traits_by_name = {entry['name']: entry for entry in trait_entries}
 
     solo_passes = []
-    solo_images = []
     caricatures = {}
     for name in players:
         entry = collect_solo_reference_images(name)
@@ -915,10 +918,8 @@ def _generate_email_hero_image_two_pass(
             raise ImageGenerationError(
                 _friendly_image_error(e, api_calls=len(solo_passes)),
                 image_prompt=partial_prompt,
-                solo_images=solo_images,
+                solo_images=[],
             ) from e
-        url, path = _save_email_image(raw, _mime_to_ext(mime))
-        solo_images.append({'name': name, 'url': url, 'path': path})
         caricatures[name] = (raw, mime)
 
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
@@ -932,10 +933,10 @@ def _generate_email_hero_image_two_pass(
         raise ImageGenerationError(
             _friendly_image_error(e, api_calls=len(players) + 1),
             image_prompt=image_prompt,
-            solo_images=solo_images,
+            solo_images=[],
         ) from e
     url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt, solo_images
+    return url, path, image_prompt, []
 
 
 def generate_email_hero_image(
