@@ -8,10 +8,12 @@ import uuid
 from stat_functions import cached
 
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
-MAX_PHOTO_BYTES = 5 * 1024 * 1024
+MAX_PHOTO_BYTES = 5 * 1024 * 1024  # max upload size before compression
+MAX_STORED_PHOTO_BYTES = 1 * 1024 * 1024  # on-disk target after compression
 MAX_FULL_BODY_PHOTOS = 1
 MAX_AI_IMAGE_TRAITS = 12
 MAX_AI_IMAGE_TRAITS_CHARS = 500
+MAX_STORED_PHOTO_DIMENSION = 2400
 
 # Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
 PLAYERS_SELECT = """
@@ -50,6 +52,11 @@ def init_players_photo_column():
     conn.commit()
     conn.close()
     trim_all_players_full_body_photos()
+    try:
+        compress_all_oversized_player_photos()
+    except Exception:
+        # Don't block app startup if an odd photo fails to recompress.
+        pass
 
 
 def trim_player_full_body_photos(player_id):
@@ -651,6 +658,197 @@ def _validate_photo_upload(file_storage):
     return ext
 
 
+def _pil_image_to_rgb(img):
+    from PIL import Image
+
+    if img.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        alpha = img.split()[-1]
+        background.paste(img.convert('RGBA'), mask=alpha)
+        return background
+    if img.mode == 'P':
+        return img.convert('RGBA').convert('RGB')
+    if img.mode != 'RGB':
+        return img.convert('RGB')
+    return img
+
+
+def _jpeg_bytes_under_limit(img, max_bytes=MAX_STORED_PHOTO_BYTES):
+    """Encode image as JPEG under max_bytes by lowering quality, then size."""
+    import io
+    from PIL import Image
+
+    img = _pil_image_to_rgb(img)
+    w, h = img.size
+    longest = max(w, h)
+    if longest > MAX_STORED_PHOTO_DIMENSION:
+        scale = MAX_STORED_PHOTO_DIMENSION / float(longest)
+        img = img.resize(
+            (max(1, int(w * scale)), max(1, int(h * scale))),
+            Image.Resampling.LANCZOS,
+        )
+
+    best = None
+    working = img
+    for _ in range(8):
+        for quality in (85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20):
+            buf = io.BytesIO()
+            working.save(buf, format='JPEG', quality=quality, optimize=True)
+            data = buf.getvalue()
+            if best is None or len(data) < len(best):
+                best = data
+            if len(data) <= max_bytes:
+                return data
+        ww, hh = working.size
+        if max(ww, hh) <= 480:
+            break
+        working = working.resize(
+            (max(1, ww // 2), max(1, hh // 2)),
+            Image.Resampling.LANCZOS,
+        )
+    return best
+
+
+def _compress_image_bytes_under_limit(raw_bytes, source_ext='.jpg'):
+    """Return (bytes, ext). Keeps original bytes/ext when already under the limit."""
+    import io
+    from PIL import Image, ImageOps
+
+    if not raw_bytes:
+        raise ValueError('Empty photo file.')
+    if len(raw_bytes) <= MAX_STORED_PHOTO_BYTES:
+        return raw_bytes, source_ext.lower() if source_ext else '.jpg'
+
+    img = Image.open(io.BytesIO(raw_bytes))
+    img = ImageOps.exif_transpose(img)
+    compressed = _jpeg_bytes_under_limit(img)
+    if not compressed:
+        raise ValueError('Unable to compress photo under 1 MB.')
+    return compressed, '.jpg'
+
+
+def _write_photo_bytes(abs_path, data):
+    tmp_path = f'{abs_path}.tmp'
+    with open(tmp_path, 'wb') as handle:
+        handle.write(data)
+    os.replace(tmp_path, abs_path)
+
+
+def _save_upload_compressed(file_storage, dest_dir, filename_stem, source_ext):
+    """Save an upload under 1 MB. Returns (abs_path, filename with ext)."""
+    file_storage.stream.seek(0)
+    raw = file_storage.read()
+    file_storage.stream.seek(0)
+    data, ext = _compress_image_bytes_under_limit(raw, source_ext)
+    if ext == '.jpeg':
+        ext = '.jpg'
+    filename = f'{filename_stem}{ext}'
+    abs_path = os.path.join(dest_dir, filename)
+    _write_photo_bytes(abs_path, data)
+    return abs_path, filename
+
+
+def _compress_existing_photo_file(rel_path):
+    """Recompress one stored photo if over 1 MB. Returns new rel_path or None if unchanged."""
+    if not rel_path:
+        return None
+    base = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.join(base, 'static', rel_path)
+    if not os.path.isfile(abs_path):
+        return None
+    try:
+        size = os.path.getsize(abs_path)
+    except OSError:
+        return None
+    if size <= MAX_STORED_PHOTO_BYTES:
+        return None
+
+    source_ext = os.path.splitext(abs_path)[1].lower() or '.jpg'
+    with open(abs_path, 'rb') as handle:
+        raw = handle.read()
+    data, ext = _compress_image_bytes_under_limit(raw, source_ext)
+    if ext == '.jpeg':
+        ext = '.jpg'
+
+    stem, _old_ext = os.path.splitext(abs_path)
+    new_abs = f'{stem}{ext}'
+    _write_photo_bytes(new_abs, data)
+    if new_abs != abs_path and os.path.isfile(abs_path):
+        try:
+            os.remove(abs_path)
+        except OSError:
+            pass
+
+    directory, filename = os.path.split(rel_path)
+    new_name = f'{os.path.splitext(filename)[0]}{ext}'
+    return f'{directory}/{new_name}' if directory else new_name
+
+
+def compress_all_oversized_player_photos():
+    """Recompress any face/body photos over 1 MB and update DB paths if needed."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    if conn is None:
+        return 0
+
+    cur = conn.cursor()
+    cur.execute('SELECT id, photo_path FROM players')
+    rows = cur.fetchall()
+    conn.close()
+
+    changed = 0
+    for row in rows:
+        player_id = row[0]
+        photo_path = row[1]
+        if photo_path:
+            new_path = _compress_existing_photo_file(photo_path)
+            if new_path:
+                changed += 1
+                if new_path != photo_path:
+                    set_player_photo_path(player_id, new_path)
+
+        paths = get_player_full_body_photo_paths_by_id(player_id)
+        if not paths:
+            continue
+        updated_paths = []
+        paths_changed = False
+        for path in paths:
+            new_path = _compress_existing_photo_file(path)
+            if new_path:
+                changed += 1
+                if new_path != path:
+                    updated_paths.append(new_path)
+                    paths_changed = True
+                else:
+                    updated_paths.append(path)
+            else:
+                updated_paths.append(path)
+        if paths_changed:
+            crops = _get_body_crops_by_id(player_id)
+            remapped = {}
+            for old_path, new_path in zip(paths, updated_paths):
+                if old_path in crops:
+                    remapped[new_path] = crops[old_path]
+            database = '/home/Idynkydnk/stats/stats.db'
+            conn = create_connection(database)
+            if conn is None:
+                conn = create_connection('stats.db')
+            if conn is not None:
+                now = datetime.now()
+                with conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        'UPDATE players SET full_body_photo_crops = ?, updated_at = ? WHERE id = ?',
+                        (json.dumps(remapped) if remapped else None, now, player_id),
+                    )
+                    conn.commit()
+            set_player_full_body_photo_paths(player_id, updated_paths)
+    return changed
+
+
 def _remove_stored_photo(rel_path):
     if not rel_path:
         return
@@ -687,9 +885,17 @@ def save_player_photo_upload(player_id, file_storage):
     """Validate and save a face photo upload. Returns relative static path."""
     ext = _validate_photo_upload(file_storage)
     dest_dir = player_photos_dir()
-    filename = f'{player_id}{ext}'
-    abs_path = os.path.join(dest_dir, filename)
-    file_storage.save(abs_path)
+    # Remove any previous face photo with a different extension.
+    for old_ext in ALLOWED_PHOTO_EXTENSIONS:
+        old_path = os.path.join(dest_dir, f'{player_id}{old_ext}')
+        if os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+    _abs_path, filename = _save_upload_compressed(
+        file_storage, dest_dir, str(player_id), ext,
+    )
 
     rel_path = f'player_photos/{filename}'
     set_player_photo_path(player_id, rel_path)
@@ -709,9 +915,8 @@ def save_player_full_body_photo_upload(player_id, file_storage):
         _remove_stored_photo(path)
 
     dest_dir = player_photos_dir()
-    filename = f'{player_id}_body_{uuid.uuid4().hex[:12]}{ext}'
-    abs_path = os.path.join(dest_dir, filename)
-    file_storage.save(abs_path)
+    stem = f'{player_id}_body_{uuid.uuid4().hex[:12]}'
+    _abs_path, filename = _save_upload_compressed(file_storage, dest_dir, stem, ext)
 
     rel_path = f'player_photos/{filename}'
     set_player_full_body_photo_paths(player_id, [rel_path])
