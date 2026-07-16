@@ -1884,19 +1884,32 @@ def view_ai_recap(share_id):
             enriched.append(entry)
         solo_images = enriched
 
+    from email_content import ensure_recap_og_image
+
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     hero_image_url = adminfx.absolutize_hero_image_url(
         adminfx.ensure_recap_hero_image_url(share_id, row),
         site_base,
     )
-    # Preview token tracks the current hero file so uploads/remakes bust WhatsApp cache.
+    # WhatsApp drops multi-MB AI PNGs; serve a compressed JPEG for og:image.
+    og_preview = ensure_recap_og_image(hero_image_url) if hero_image_url else {}
+    og_image_url = adminfx.absolutize_hero_image_url(
+        og_preview.get('url') or hero_image_url, site_base,
+    )
+    og_image_type = adminfx.og_image_mime_type(og_image_url) if og_image_url else ''
+    og_image_width = og_preview.get('width') or ''
+    og_image_height = og_preview.get('height') or ''
+
+    # Share link token tracks the preview/hero so uploads remake WhatsApp's cache.
+    share_token = adminfx.recap_share_preview_token(og_image_url or hero_image_url)
     share_url = url_for(
         'view_ai_recap',
         share_id=share_id,
-        m=adminfx.recap_share_preview_token(hero_image_url),
+        m=share_token,
         _external=True,
     )
-    og_image_type = adminfx.og_image_mime_type(hero_image_url)
+    # WhatsApp wants an undecorated canonical og:url (no cache-bust query params).
+    og_url = url_for('view_ai_recap', share_id=share_id, _external=True)
 
     og_description = (row.get('plain_text_body') or '').strip()
     if og_description:
@@ -1912,12 +1925,16 @@ def view_ai_recap(share_id):
         subject=row.get('subject') or 'Game Recap',
         recap_html=recap_html_for_page(row.get('html_body') or ''),
         share_url=share_url,
+        og_url=og_url,
         share_id=share_id,
         show_creator_view=show_creator_view,
         can_remake=can_remake,
         solo_images=solo_images,
         hero_image_url=hero_image_url,
+        og_image_url=og_image_url,
         og_image_type=og_image_type,
+        og_image_width=og_image_width,
+        og_image_height=og_image_height,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=game_type,
@@ -2012,6 +2029,8 @@ def remake_ai_recap_image(share_id):
     stale = [item for item in old_solos if _solo_path_for_item(item) not in reused_paths]
     delete_solo_image_files(stale)
 
+    from email_content import delete_recap_og_image_for_hero, ensure_recap_og_image
+
     adminfx.update_ai_recap_page(
         share_id,
         html_body=updated_html,
@@ -2021,8 +2040,10 @@ def remake_ai_recap_image(share_id):
         image_details=image_details,
         solo_images_json=json.dumps(solo_images) if solo_images else '[]',
     )
+    ensure_recap_og_image(new_url)
 
     if old_url and old_url != new_url:
+        delete_recap_og_image_for_hero(old_url)
         old_path = _hero_image_path_from_url(old_url)
         if old_path:
             try:
@@ -2089,6 +2110,8 @@ def upload_ai_recap_image(share_id):
         flash(f'Failed to upload picture: {e}', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
+    from email_content import delete_recap_og_image_for_hero, ensure_recap_og_image
+
     old_url = row.get('hero_image_url') or ''
     updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
     adminfx.update_ai_recap_page(
@@ -2098,7 +2121,9 @@ def upload_ai_recap_image(share_id):
         hero_image_error='',
         image_mode='image',
     )
+    ensure_recap_og_image(new_url)
     if old_url and old_url != new_url:
+        delete_recap_og_image_for_hero(old_url)
         old_path = _hero_image_path_from_url(old_url)
         if old_path:
             try:

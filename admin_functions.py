@@ -912,6 +912,13 @@ def _email_image_filenames_from_text(text):
         # Only treat bare filenames as email images if they look like our uuid names
         if re.fullmatch(r'[0-9a-f]{16,}\.(?:png|jpg|jpeg|gif|webp)', name, re.I):
             found.add(name)
+    # Keep WhatsApp OG JPEG previews paired with each hero image.
+    for name in list(found):
+        if name.startswith('og_') or name.startswith('solo_'):
+            continue
+        stem = name.rsplit('.', 1)[0]
+        if stem:
+            found.add(f'og_{stem}.jpg')
     return found
 
 

@@ -6,17 +6,19 @@
     <title>{{ subject }}</title>
     <meta name="description" content="{{ og_description }}">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ share_url }}">
+    <meta property="og:url" content="{{ og_url or share_url }}">
     <meta property="og:title" content="{{ subject }}">
     <meta property="og:description" content="{{ og_description }}">
-    {% if hero_image_url %}
-    <meta property="og:image" content="{{ hero_image_url }}">
-    <meta property="og:image:secure_url" content="{{ hero_image_url }}">
+    {% if og_image_url or hero_image_url %}
+    <meta property="og:image" content="{{ og_image_url or hero_image_url }}">
+    <meta property="og:image:secure_url" content="{{ og_image_url or hero_image_url }}">
     {% if og_image_type %}<meta property="og:image:type" content="{{ og_image_type }}">{% endif %}
+    {% if og_image_width %}<meta property="og:image:width" content="{{ og_image_width }}">{% endif %}
+    {% if og_image_height %}<meta property="og:image:height" content="{{ og_image_height }}">{% endif %}
     <meta property="og:image:alt" content="{{ subject }}">
-    <link rel="image_src" href="{{ hero_image_url }}">
+    <link rel="image_src" href="{{ og_image_url or hero_image_url }}">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="{{ hero_image_url }}">
+    <meta name="twitter:image" content="{{ og_image_url or hero_image_url }}">
     {% else %}
     <meta name="twitter:card" content="summary">
     {% endif %}

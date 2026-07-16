@@ -29,6 +29,11 @@ SOLO_BODY_PHOTOS_PER_PLAYER = 1
 SOLO_IMAGE_PREFIX = 'solo_'
 SOLO_IMAGE_MAX_AGE_HOURS = 48
 
+# WhatsApp requires og:image under 600KB; AI hero PNGs are often multi-MB.
+OG_IMAGE_PREFIX = 'og_'
+OG_IMAGE_MAX_BYTES = 500 * 1024
+OG_IMAGE_MAX_WIDTH = 1200
+
 IMAGE_MODES = ('none', 'image')
 DEFAULT_IMAGE_MODE = 'none'
 _LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
@@ -698,6 +703,141 @@ def _save_email_image(image_bytes, ext, prefix=''):
         f.write(image_bytes)
     url = f'{SITE_BASE_URL}/static/email_images/{filename}'
     return url, abs_path
+
+
+def _email_image_path_from_url(image_url):
+    """Resolve a /static/email_images/... URL to an absolute path if the file exists."""
+    url = (image_url or '').strip()
+    marker = '/static/email_images/'
+    if marker not in url:
+        return None
+    filename = os.path.basename(url.split(marker, 1)[1].split('?', 1)[0])
+    if not filename or filename.startswith('.') or '/' in filename or '\\' in filename:
+        return None
+    path = os.path.join(email_images_dir(), filename)
+    return path if os.path.isfile(path) else None
+
+
+def _jpeg_preview_under_limit(img, max_bytes=OG_IMAGE_MAX_BYTES, max_width=OG_IMAGE_MAX_WIDTH):
+    """Encode a PIL image as JPEG under max_bytes for WhatsApp og:image."""
+    import io
+    from PIL import Image
+
+    if img.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img.convert('RGBA'), mask=img.split()[-1])
+        img = background
+    elif img.mode == 'P':
+        img = img.convert('RGBA').convert('RGB')
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    w, h = img.size
+    if w > max_width:
+        scale = max_width / float(w)
+        img = img.resize(
+            (max(1, int(w * scale)), max(1, int(h * scale))),
+            Image.Resampling.LANCZOS,
+        )
+
+    best = None
+    working = img
+    for _ in range(8):
+        for quality in (85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30):
+            buf = io.BytesIO()
+            working.save(buf, format='JPEG', quality=quality, optimize=True)
+            data = buf.getvalue()
+            if best is None or len(data) < len(best):
+                best = data
+            if len(data) <= max_bytes:
+                return data, working.size
+        ww, hh = working.size
+        if max(ww, hh) <= 480:
+            break
+        working = working.resize(
+            (max(1, ww // 2), max(1, hh // 2)),
+            Image.Resampling.LANCZOS,
+        )
+    return best, (working.size if working is not None else img.size)
+
+
+def ensure_recap_og_image(hero_image_url):
+    """Build a WhatsApp-safe JPEG preview for og:image.
+
+    AI/uploaded heroes are often multi-MB PNGs; WhatsApp drops previews over 600KB.
+    Returns {url, width, height, path} or empty dict when no usable preview exists.
+    """
+    try:
+        import io
+        from PIL import Image, ImageOps
+    except ImportError:
+        return {}
+
+    hero_path = _email_image_path_from_url(hero_image_url)
+    if not hero_path:
+        return {}
+
+    stem = os.path.splitext(os.path.basename(hero_path))[0]
+    if stem.startswith(OG_IMAGE_PREFIX):
+        # Already pointing at a preview file.
+        try:
+            with Image.open(hero_path) as img:
+                width, height = img.size
+        except Exception:
+            width, height = 0, 0
+        return {
+            'url': f'{SITE_BASE_URL}/static/email_images/{os.path.basename(hero_path)}',
+            'width': width,
+            'height': height,
+            'path': hero_path,
+        }
+
+    og_filename = f'{OG_IMAGE_PREFIX}{stem}.jpg'
+    og_path = os.path.join(email_images_dir(), og_filename)
+    og_url = f'{SITE_BASE_URL}/static/email_images/{og_filename}'
+
+    if os.path.isfile(og_path) and os.path.getsize(og_path) <= OG_IMAGE_MAX_BYTES:
+        try:
+            with Image.open(og_path) as img:
+                width, height = img.size
+        except Exception:
+            width, height = 0, 0
+        return {'url': og_url, 'width': width, 'height': height, 'path': og_path}
+
+    try:
+        with open(hero_path, 'rb') as handle:
+            raw = handle.read()
+        img = Image.open(io.BytesIO(raw))
+        img = ImageOps.exif_transpose(img)
+        data, (width, height) = _jpeg_preview_under_limit(img)
+        if not data:
+            return {}
+        tmp_path = f'{og_path}.tmp'
+        with open(tmp_path, 'wb') as handle:
+            handle.write(data)
+        os.replace(tmp_path, og_path)
+    except Exception:
+        return {}
+
+    return {'url': og_url, 'width': width, 'height': height, 'path': og_path}
+
+
+def delete_recap_og_image_for_hero(hero_image_url):
+    """Remove the WhatsApp OG preview file paired with a hero image, if present."""
+    hero_path = _email_image_path_from_url(hero_image_url)
+    if not hero_path:
+        return False
+    stem = os.path.splitext(os.path.basename(hero_path))[0]
+    if stem.startswith(OG_IMAGE_PREFIX):
+        return False
+    og_path = os.path.join(email_images_dir(), f'{OG_IMAGE_PREFIX}{stem}.jpg')
+    try:
+        os.remove(og_path)
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
 
 
 _UPLOAD_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
