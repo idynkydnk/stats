@@ -23,9 +23,7 @@ HERO_IMAGE_CID = 'hero-image'
 # Free-tier image model for AI email illustrations.
 GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
 
-MAX_TWO_PASS_PLAYERS = 4
 SOLO_BODY_PHOTOS_PER_PLAYER = 1
-SINGLE_PASS_BODY_PHOTOS_PER_PLAYER = 0
 
 # Temporary solo caricatures (creator preview only). Prefix makes them easy to
 # find and expire; group hero images keep the bare uuid filename.
@@ -496,13 +494,11 @@ def _dedupe_players_preserve_order(player_names):
 
 
 def _illustration_players(player_names, game_type, games):
-    """Choose roster and strategy: two-pass for <=4 players, else single-pass (all faces)."""
+    """Choose roster for illustration. Always two-pass: solo caricatures, then group."""
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
-        return [], 'single_pass', all_players
-    if len(all_players) <= MAX_TWO_PASS_PLAYERS:
-        return all_players, 'two_pass', all_players
-    return all_players, 'single_pass', all_players
+        return [], 'two_pass', all_players
+    return all_players, 'two_pass', all_players
 
 
 def _reference_photo_kind(label):
@@ -630,7 +626,7 @@ def _image_details_block(image_details):
 
 
 def _image_roster_block(players):
-    """Numbered roster plus hard count rules for multi-person illustrations."""
+    """Simple numbered roster for the group scene."""
     players = _dedupe_players_preserve_order(players)
     player_count = len(players)
     if player_count == 0:
@@ -638,15 +634,9 @@ def _image_roster_block(players):
     roster_lines = '\n'.join(
         f'{index}. Person {index}' for index in range(1, player_count + 1)
     )
-    fewer = player_count - 1 if player_count > 1 else 0
-    more = player_count + 1
     block = (
-        f'\nROSTER — create exactly {player_count} people in the image:\n'
+        f'\n{player_count} players (Person 1 through Person {player_count}):\n'
         f'{roster_lines}\n'
-        f'\nCRITICAL PEOPLE COUNT:\n'
-        f'- Draw exactly {player_count} people total — one per numbered slot above.\n'
-        f'- Do NOT draw only {fewer} people. Do NOT draw {more} people.\n'
-        f'- Every roster slot must appear once as a visible person. No duplicates. No bystanders.\n'
     )
     return block, player_count, players
 
@@ -659,31 +649,21 @@ def _build_scene_image_prompt(game_type, players, game_name=None, image_details=
 Game: {sport_desc}.
 {details_block}{roster_block}
 Use each attached character reference exactly — same face, hair, outfit per person.
-Do not blend features between people. Do not redesign any character from scratch.
-Draw all {player_count} roster people — one per attached reference. No text or logos in the image."""
+Draw all {player_count} people in the scene — one per Person number."""
 
 
 def _reference_parts_from_caricatures(players, caricatures):
-    """Attach pass-1 caricatures as name-labeled scene references."""
+    """Attach pass-1 caricatures as numbered scene references."""
     roster_block, player_count, players = _image_roster_block(players)
     parts = [{
         'text': (
-            f'Attached images are pre-drawn character references — one caricature per person.\n'
-            f'Create exactly {player_count} people in the final scene — one per reference below.\n'
-            f'Do NOT draw only {player_count - 1 if player_count > 1 else 0} people. '
-            f'No duplicates, no extra people.'
+            f'{player_count} players, each with a caricature reference attached below.'
             f'{roster_block}'
         ),
     }]
     for index, name in enumerate(players, start=1):
         raw, mime = caricatures[name]
-        parts.append({'text': f'=== PERSON {index} OF {player_count} ==='})
-        parts.append({
-            'text': (
-                f'Character reference for person {index}/{player_count}. '
-                f'Draw this exact caricature in the scene — same face, hair, and outfit.'
-            ),
-        })
+        parts.append({'text': f'Person {index} — use this caricature exactly:'})
         parts.append({
             'inline_data': {
                 'mime_type': mime,
@@ -691,84 +671,6 @@ def _reference_parts_from_caricatures(players, caricatures):
             },
         })
     return parts
-
-
-def _reference_parts_for_player(index, player_count, name, entry, trait_phrases=None):
-    """Face pic + signature looks for one roster slot (single-pass group image)."""
-    parts = [{'text': f'Person {index}:'}]
-    face_parts = [
-        ref for ref in (entry or {}).get('parts') or []
-        if _reference_photo_kind(ref.get('label')) == 'face'
-    ]
-    if face_parts:
-        parts.append({'text': f'Face pic for Person {index}.'})
-        for ref in face_parts:
-            parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
-    else:
-        parts.append({'text': f'No face pic for Person {index} — invent a distinct look.'})
-
-    phrases = [p for p in (trait_phrases or []) if p]
-    if phrases:
-        parts.append({
-            'text': (
-                f'Signature looks for Person {index}:\n'
-                + '\n'.join(f'- {phrase}' for phrase in phrases)
-            ),
-        })
-    else:
-        parts.append({'text': f'No signature looks listed for Person {index}.'})
-    return parts
-
-
-def _reference_parts_for_api(players):
-    from player_functions import (
-        collect_player_ai_image_traits,
-        collect_player_reference_images,
-    )
-
-    players = _dedupe_players_preserve_order(players)
-    if not players:
-        return []
-
-    player_count = len(players)
-    references = collect_player_reference_images(
-        players,
-        max_players=player_count,
-        max_body_per_player=SINGLE_PASS_BODY_PHOTOS_PER_PLAYER,
-    )
-    refs_by_name = {entry['name']: entry for entry in references}
-    traits_by_name = {
-        entry['name']: entry.get('phrases') or []
-        for entry in collect_player_ai_image_traits(players)
-    }
-
-    parts = [{
-        'text': (
-            f'{player_count} players, with each having a face pic and signature looks '
-            f'(Person 1 through Person {player_count}):'
-        ),
-    }]
-    for index, name in enumerate(players, start=1):
-        parts.extend(_reference_parts_for_player(
-            index,
-            player_count,
-            name,
-            refs_by_name.get(name),
-            trait_phrases=traits_by_name.get(name),
-        ))
-    return parts
-
-
-def _build_single_pass_image_prompt(game_type, players, game_name=None, image_details=''):
-    sport_desc = _sport_desc_for_image(game_type, game_name)
-    players = _dedupe_players_preserve_order(players)
-    player_count = len(players)
-    details_block = _image_details_block(image_details)
-    return f"""Group illustration for a game recap email.
-Game: {sport_desc}.
-{details_block}
-{player_count} players, with each having a face pic and signature looks attached below.
-Draw all {player_count} people in the scene — one per Person number."""
 
 
 def _is_quota_error(msg):
@@ -1047,12 +949,7 @@ def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_pro
 
 def _illustration_meta(player_names, game_type, games):
     players, strategy, all_players = _illustration_players(player_names, game_type, games)
-    if strategy == 'two_pass' and players:
-        api_calls = len(players) + 1
-    elif players:
-        api_calls = 1
-    else:
-        api_calls = 0
+    api_calls = (len(players) + 1) if players else 0
     return {
         'strategy': strategy,
         'illustrated_players': players,
@@ -1065,42 +962,17 @@ def _illustration_meta(player_names, game_type, games):
 def _illustration_status_note(illustrated_players, all_players, strategy):
     if not illustrated_players:
         return ''
-    if strategy == 'two_pass':
-        return (
-            f'Illustration uses one caricature per player, then a group scene '
-            f'({len(illustrated_players)} players).'
-        )
-    if len(all_players) > MAX_TWO_PASS_PLAYERS:
-        return (
-            f'One group illustration with all {len(illustrated_players)} players '
-            f'(face pics + signature looks).'
-        )
-    return 'One AI-generated group illustration included in email.'
-
-
-def _generate_email_hero_image_single_pass(
-    api_key, game_type, players, game_name=None, image_details='',
-):
-    """One group illustration in a single API call."""
-    players = _dedupe_players_preserve_order(players)
-    reference_parts = _reference_parts_for_api(players)
-    prompt = _build_single_pass_image_prompt(
-        game_type, players, game_name=game_name, image_details=image_details,
+    return (
+        f'Illustration uses one caricature per player, then a group scene '
+        f'({len(illustrated_players)} players).'
     )
-    image_prompt = _image_prompt_bundle(reference_parts, prompt)
-    try:
-        raw, mime = _generate_image_bytes(prompt, api_key, reference_parts=reference_parts)
-    except Exception as e:
-        raise ImageGenerationError(_friendly_image_error(e), image_prompt=image_prompt) from e
-    url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt, []
 
 
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False,
 ):
-    """Solo caricature per player (<=4), then one group scene.
+    """Solo caricature per player, then one group scene.
 
     Solo caricatures are saved temporarily (creator preview only; auto-expire)
     and used as in-memory references for the group scene. Only the group
@@ -1117,8 +989,6 @@ def _generate_email_hero_image_two_pass(
     players = _dedupe_players_preserve_order(players)
     if not players:
         raise ValueError('No players in roster for illustration')
-    if len(players) > MAX_TWO_PASS_PLAYERS:
-        raise ValueError(f'Two-pass illustration supports at most {MAX_TWO_PASS_PLAYERS} players')
 
     caricatures = {}
     solo_images = []
@@ -1188,20 +1058,15 @@ def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False,
 ):
-    """Generate the email hero image using two-pass (<=4 players) or single-pass (>4)."""
-    players, strategy, _all_players = _illustration_players(player_names, game_type, games)
+    """Generate hero image: one solo caricature per player, then one group scene."""
+    players, _strategy, _all_players = _illustration_players(player_names, game_type, games)
     if not players:
         raise ValueError('No players in roster for illustration')
-    if strategy == 'two_pass':
-        return _generate_email_hero_image_two_pass(
-            api_key, game_type, players, game_name=game_name,
-            image_details=image_details,
-            existing_solo_images=existing_solo_images,
-            reuse_existing_solos=reuse_existing_solos,
-        )
-    return _generate_email_hero_image_single_pass(
+    return _generate_email_hero_image_two_pass(
         api_key, game_type, players, game_name=game_name,
         image_details=image_details,
+        existing_solo_images=existing_solo_images,
+        reuse_existing_solos=reuse_existing_solos,
     )
 
 
