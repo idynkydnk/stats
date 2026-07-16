@@ -1380,7 +1380,7 @@ def player_name_link_html(game_type, year, name, css_class='player-name'):
     class_attr = f' class="{css_class}"' if css_class else ''
     return (
         f'<a{class_attr} href="{url}" '
-        f'style="color:inherit;text-decoration:underline;text-underline-offset:2px;">'
+        f'style="color:inherit;text-decoration:none;">'
         f'{display}</a>'
     )
 
