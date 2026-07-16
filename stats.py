@@ -645,7 +645,7 @@ def run_ai_auto_send_job(
                 payload, prompt_style, custom_prompt, game_ids, username=username,
             )
             subject = payload.get('subject') or 'Vball Summary'
-            share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
+            share_url = url_for('view_ai_recap', share_id=share_id, m=1, _external=True)
             log_activity(
                 'Published AI recap',
                 summary=(
