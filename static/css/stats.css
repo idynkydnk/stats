@@ -215,7 +215,8 @@ html.sr-light .sr-form-dot {
     border-radius: 8px;
     padding: 10px 14px 10px 38px;
     color: var(--sr-text);
-    font-size: 14px;
+    /* 16px prevents iOS Safari from zooming the page on focus. */
+    font-size: 16px;
     width: 100%;
     box-sizing: border-box;
     transition: all 0.2s;
@@ -254,10 +255,20 @@ html.sr-light .sr-form-dot {
     border-radius: 8px;
     padding: 8px 36px 8px 14px;
     color: var(--sr-text);
-    font-size: 14px;
+    /* 16px prevents iOS Safari from zooming the page on focus. */
+    font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+/* Touch devices: keep all focusable fields at ≥16px so Safari never auto-zooms. */
+@media (hover: none) and (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
 }
 
 .sr-year-select:hover {
@@ -988,7 +999,7 @@ input[type=number] {
     
     .sr-year-select {
         padding: 6px 28px 6px 10px;
-        font-size: 13px;
+        font-size: 16px;
     }
     
     .menu-toggle {

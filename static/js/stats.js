@@ -188,7 +188,9 @@ function filterAllTables(query, tables, filterActive, filterChip, noResults) {
             if (!playerCell) return;
             
             const playerName = playerCell.textContent.toLowerCase();
-            const matches = query === '' || playerName.includes(query);
+            const matches = (window.srSearch && window.srSearch.matches)
+                ? window.srSearch.matches(playerName, query)
+                : (query === '' || playerName.includes(query));
             
             row.style.display = matches ? '' : 'none';
             if (matches) totalVisibleCount++;

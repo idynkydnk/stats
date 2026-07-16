@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var VIEWPORT_DEFAULT = 'width=device-width, initial-scale=1.0';
+    var VIEWPORT_DEFAULT = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
     var resetTimer = null;
 
     function isTouchMobile() {
@@ -36,6 +36,7 @@
         return original
             .replace(/,?\s*maximum-scale=[^,]*/gi, '')
             .replace(/,?\s*user-scalable=[^,]*/gi, '')
+            .replace(/,?\s*minimum-scale=[^,]*/gi, '')
             .trim() || VIEWPORT_DEFAULT;
     }
 
@@ -46,10 +47,11 @@
         }
         var base = viewportBaseContent(meta);
         clearTimeout(resetTimer);
+        // Briefly lock scale, then restore so pinch-zoom still works.
         meta.setAttribute('content', base + ', maximum-scale=1');
         resetTimer = setTimeout(function () {
             meta.setAttribute('content', base);
-        }, 150);
+        }, 300);
     }
 
     function maybeResetZoomAfterKeyboard() {
@@ -57,6 +59,8 @@
             return;
         }
         resetViewportZoom();
+        // Some iOS versions keep a stale visual viewport scale until a second tick.
+        setTimeout(resetViewportZoom, 350);
     }
 
     if (!isTouchMobile()) {
@@ -67,15 +71,22 @@
         if (!isTextLikeField(e.target)) {
             return;
         }
-        setTimeout(maybeResetZoomAfterKeyboard, 120);
+        setTimeout(maybeResetZoomAfterKeyboard, 50);
+        setTimeout(maybeResetZoomAfterKeyboard, 250);
     }, true);
+
+    window.addEventListener('pageshow', function () {
+        resetViewportZoom();
+    });
 
     if (window.visualViewport) {
         var lastViewportHeight = window.visualViewport.height;
         window.visualViewport.addEventListener('resize', function () {
             var height = window.visualViewport.height;
-            if (height > lastViewportHeight + 80) {
-                setTimeout(maybeResetZoomAfterKeyboard, 120);
+            // Keyboard closing expands the visual viewport.
+            if (height > lastViewportHeight + 60) {
+                setTimeout(maybeResetZoomAfterKeyboard, 50);
+                setTimeout(maybeResetZoomAfterKeyboard, 250);
             }
             lastViewportHeight = height;
         });

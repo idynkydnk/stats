@@ -113,25 +113,14 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-const searchInput = document.getElementById('sr-search');
-        const gamesGrid = document.getElementById('games-grid');
-        const gamesCount = document.getElementById('games-count');
-        const noResults = document.getElementById('sr-no-results');
-        if (searchInput && gamesGrid) {
-            searchInput.addEventListener('input', function() {
-                const query = this.value.toLowerCase().trim();
-                const cards = gamesGrid.querySelectorAll('.sr-edit-card');
-                let visibleCount = 0;
-                cards.forEach(card => {
-                    const searchData = (card.dataset.search || '').toLowerCase();
-                    const matches = !query || searchData.includes(query);
-                    card.style.display = matches ? '' : 'none';
-                    if (matches) visibleCount++;
-                });
-                if (gamesCount) gamesCount.textContent = visibleCount + ' game' + (visibleCount !== 1 ? 's' : '');
-                if (noResults) noResults.style.display = visibleCount === 0 ? 'block' : 'none';
-            });
-        }
+srSearch.bindCardSearch({
+            input: document.getElementById('sr-search'),
+            container: document.getElementById('games-grid'),
+            cardSelector: '.sr-edit-card',
+            countEl: document.getElementById('games-count'),
+            noResultsEl: document.getElementById('sr-no-results'),
+            countNoun: 'game',
+        });
 
         function toggleAllGames() {
             const selectAll = document.getElementById('select-all');

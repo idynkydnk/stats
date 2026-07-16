@@ -368,12 +368,12 @@
 {% block extra_js %}
 <script>
 function searchPlayers() {
-    const query = document.getElementById('sr-search').value.toLowerCase();
+    const query = document.getElementById('sr-search').value;
     const cards = document.querySelectorAll('#player-grid .pl-card');
     let visible = 0;
     cards.forEach(card => {
         const haystack = card.getAttribute('data-search') || '';
-        const match = haystack.includes(query);
+        const match = srSearch.matches(haystack, query);
         card.style.display = match ? '' : 'none';
         if (match) visible++;
     });
