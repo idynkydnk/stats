@@ -1877,11 +1877,14 @@ def view_ai_recap(share_id):
         solo_images = enriched
 
     hero_image_url = (row.get('hero_image_url') or '').strip()
+    if not hero_image_url:
+        hero_image_url = adminfx.extract_recap_hero_image_url(row.get('html_body') or '')
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     if hero_image_url.startswith('/'):
-        hero_image_url = (
-            (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
-            + hero_image_url
-        )
+        hero_image_url = site_base + hero_image_url
+    elif hero_image_url.startswith('http://'):
+        # WhatsApp prefers https for link-preview images.
+        hero_image_url = 'https://' + hero_image_url[len('http://'):]
 
     og_description = (row.get('plain_text_body') or '').strip()
     if og_description:
@@ -5245,6 +5248,33 @@ def admin_ai_prompts():
             entry['solo_images'] = []
     return render_template(
         'admin_ai_prompts.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+    )
+
+
+@app.route('/admin/ai-recaps/')
+@admin_required
+def admin_ai_recaps():
+    """Browse all published shareable AI recap pages."""
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 25
+    entries, total_entries = adminfx.list_ai_recap_pages(page=page, per_page=per_page)
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    for entry in entries:
+        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+        entry['share_url'] = url_for(
+            'view_ai_recap', share_id=entry['share_id'], _external=True,
+        )
+        hero = (entry.get('hero_image_url') or '').strip()
+        if hero.startswith('/'):
+            hero = site_base + hero
+        entry['hero_image_url'] = hero
+    return render_template(
+        'admin_ai_recaps.html',
         entries=entries,
         page=page,
         total_pages=total_pages,

@@ -570,6 +570,109 @@ def get_ai_recap_page(share_id):
     return data
 
 
+def extract_recap_hero_image_url(html_body):
+    """Best-effort hero image URL from published recap HTML (for OG / admin thumbs)."""
+    import re
+
+    if not html_body:
+        return ''
+
+    hero_match = re.search(
+        r'class=["\'][^"\']*hero-image-card[^"\']*["\'][\s\S]{0,800}?<img[^>]+src=["\']([^"\']+)["\']',
+        html_body,
+        re.I,
+    )
+    if hero_match:
+        return (hero_match.group(1) or '').strip()
+
+    for match in re.finditer(
+        r'(https?://[^\s"\']+/static/email_images/([A-Za-z0-9._-]+)|/static/email_images/([A-Za-z0-9._-]+))',
+        html_body,
+    ):
+        filename = match.group(2) or match.group(3) or ''
+        if filename.startswith('solo_'):
+            continue
+        return (match.group(1) or '').strip()
+    return ''
+
+
+def list_ai_recap_pages(page=1, per_page=25):
+    """Return (page_entries, total) for all published AI recap pages, newest first."""
+    page = max(int(page or 1), 1)
+    per_page = max(int(per_page or 25), 1)
+    entries_by_id = {}
+
+    recap_dir = _recap_storage_dir()
+    if os.path.isdir(recap_dir):
+        for name in os.listdir(recap_dir):
+            if not name.endswith('.json'):
+                continue
+            share_id = name[:-5]
+            try:
+                meta = _read_recap_meta_file(share_id)
+            except (OSError, json.JSONDecodeError, ValueError):
+                continue
+            if not meta:
+                continue
+            sid = (meta.get('share_id') or share_id or '').strip()
+            if not sid:
+                continue
+            hero = (meta.get('hero_image_url') or '').strip()
+            if not hero:
+                hero = extract_recap_hero_image_url(read_recap_html_file(sid) or '')
+            entries_by_id[sid] = {
+                'share_id': sid,
+                'created_at': meta.get('created_at') or '',
+                'username': meta.get('username') or '',
+                'game_type': meta.get('game_type') or '',
+                'prompt_style': meta.get('prompt_style') or '',
+                'subject': meta.get('subject') or '',
+                'hero_image_url': hero,
+                'hero_image_error': meta.get('hero_image_error') or '',
+                'image_mode': meta.get('image_mode') or '',
+            }
+
+    conn = _connect()
+    try:
+        rows = conn.execute('''
+            SELECT share_id, created_at, username, game_type, prompt_style, subject,
+                   hero_image_url, hero_image_error, html_body
+            FROM ai_recap_pages
+            ORDER BY created_at DESC
+        ''').fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    finally:
+        conn.close()
+
+    for row in rows:
+        sid = (row['share_id'] or '').strip()
+        if not sid or sid in entries_by_id:
+            continue
+        hero = (row['hero_image_url'] or '').strip()
+        if not hero:
+            hero = extract_recap_hero_image_url(row['html_body'] or '')
+            if not hero:
+                hero = extract_recap_hero_image_url(read_recap_html_file(sid) or '')
+        entries_by_id[sid] = {
+            'share_id': sid,
+            'created_at': row['created_at'] or '',
+            'username': row['username'] or '',
+            'game_type': row['game_type'] or '',
+            'prompt_style': row['prompt_style'] or '',
+            'subject': row['subject'] or '',
+            'hero_image_url': hero,
+            'hero_image_error': row['hero_image_error'] or '',
+            'image_mode': '',
+        }
+
+    pages = list(entries_by_id.values())
+    pages.sort(key=lambda item: item.get('created_at') or '', reverse=True)
+    total = len(pages)
+    start = (page - 1) * per_page
+    return pages[start:start + per_page], total
+
+
 # --- AI illustration files (static/email_images) ---
 
 _AI_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
