@@ -611,6 +611,10 @@ def _is_usable_hero_image_url(url):
     return False
 
 
+# Bump when OG/thumbnail plumbing changes so WhatsApp re-scrapes old share URLs.
+RECAP_SHARE_PREVIEW_VERSION = '2'
+
+
 def recap_share_preview_token(hero_image_url=''):
     """Token for share URLs so WhatsApp/Facebook re-scrape after image changes.
 
@@ -626,6 +630,14 @@ def recap_share_preview_token(hero_image_url=''):
     stem = os.path.splitext(filename)[0]
     safe = re.sub(r'[^A-Za-z0-9_-]', '', stem)[:24]
     return safe or '1'
+
+
+def recap_share_query_args(hero_image_url=''):
+    """Query args for a shareable recap URL (image token + OG version)."""
+    return {
+        'm': recap_share_preview_token(hero_image_url),
+        't': RECAP_SHARE_PREVIEW_VERSION,
+    }
 
 
 def absolutize_hero_image_url(hero_image_url, site_base=''):

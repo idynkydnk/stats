@@ -652,8 +652,8 @@ def run_ai_auto_send_job(
             share_url = url_for(
                 'view_ai_recap',
                 share_id=share_id,
-                m=adminfx.recap_share_preview_token(hero_for_share),
                 _external=True,
+                **adminfx.recap_share_query_args(hero_for_share),
             )
             log_activity(
                 'Published AI recap',
@@ -1896,13 +1896,13 @@ def view_ai_recap(share_id):
     og_image_width = og_preview.get('width') or ''
     og_image_height = og_preview.get('height') or ''
 
-    # Share link token tracks the current hero so uploads remake WhatsApp's cache.
-    share_token = adminfx.recap_share_preview_token(hero_image_url)
+    # Share link includes image token + t= version so WhatsApp re-scrapes after OG fixes.
+    share_query = adminfx.recap_share_query_args(hero_image_url)
     share_url = url_for(
         'view_ai_recap',
         share_id=share_id,
-        m=share_token,
         _external=True,
+        **share_query,
     )
     # WhatsApp wants an undecorated canonical og:url (no cache-bust query params).
     og_url = url_for('view_ai_recap', share_id=share_id, _external=True)
@@ -1911,7 +1911,7 @@ def view_ai_recap(share_id):
         url_for(
             'recap_og_image',
             share_id=share_id,
-            v=share_token,
+            v=f"{share_query['m']}-{share_query['t']}",
             _external=True,
         )
         if hero_image_url
@@ -5363,12 +5363,11 @@ def admin_ai_recaps():
             entry.get('hero_image_url') or '', site_base,
         )
         entry['hero_image_url'] = hero
-        # Token tracks the current hero so WhatsApp scrapes the latest thumbnail.
         entry['share_url'] = url_for(
             'view_ai_recap',
             share_id=entry['share_id'],
-            m=adminfx.recap_share_preview_token(hero),
             _external=True,
+            **adminfx.recap_share_query_args(hero),
         )
     return render_template(
         'admin_ai_recaps.html',
