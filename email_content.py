@@ -106,7 +106,7 @@ def generate_ai_text(prompt):
 
 
 RECAP_PARAGRAPH_LIMIT = (
-    'Keep it to 1-2 short paragraphs. Each paragraph: 2-3 sentences only. '
+    'Keep it to 2-3 short paragraphs. Each paragraph: 3-4 sentences only. '
     'No long blocks of text.'
 )
 
@@ -901,26 +901,46 @@ def _load_caricatures_from_solo_images(players, solo_images):
     return caricatures, loaded_solos
 
 
-def generate_solo_caricature(api_key, player_name, game_type='doubles', game_name=None):
-    """Generate one temporary solo caricature for a player. Returns {name, url, path}."""
+def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=None):
+    """Build the default solo caricature prompt (for preview/edit in the UI)."""
     from player_functions import (
         collect_player_ai_image_traits,
         collect_solo_reference_images,
     )
 
     name = (player_name or '').strip()
-    if not name:
-        raise ValueError('Player name is required.')
-
-    trait_entries = collect_player_ai_image_traits([name])
+    trait_entries = collect_player_ai_image_traits([name]) if name else []
     trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
-    entry = collect_solo_reference_images(name)
+    entry = collect_solo_reference_images(name) if name else None
     reference_parts = _solo_reference_parts_for_player(name, entry)
     has_reference_photos = any(part.get('inline_data') for part in reference_parts)
     variation_cue = _solo_variation_cue(game_type, game_name)
-    solo_prompt = _build_solo_player_prompt(
+    return _build_solo_player_prompt(
         name, trait_phrases, has_reference_photos, variation_cue,
     )
+
+
+def generate_solo_caricature(
+    api_key, player_name, game_type='doubles', game_name=None, custom_prompt=None,
+):
+    """Generate one temporary solo caricature for a player.
+
+    Returns {name, url, path, prompt}. When custom_prompt is set, that text is
+    used as the main illustration prompt (reference photos still attached).
+    """
+    from player_functions import collect_solo_reference_images
+
+    name = (player_name or '').strip()
+    if not name:
+        raise ValueError('Player name is required.')
+
+    entry = collect_solo_reference_images(name)
+    reference_parts = _solo_reference_parts_for_player(name, entry)
+    solo_prompt = (custom_prompt or '').strip()
+    if not solo_prompt:
+        solo_prompt = build_solo_caricature_prompt(
+            name, game_type=game_type, game_name=game_name,
+        )
     try:
         raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
     except Exception as e:
@@ -933,7 +953,7 @@ def generate_solo_caricature(api_key, player_name, game_type='doubles', game_nam
     solo_url, solo_path = _save_email_image(
         raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
     )
-    return {'name': name, 'url': solo_url, 'path': solo_path}
+    return {'name': name, 'url': solo_url, 'path': solo_path, 'prompt': solo_prompt}
 
 
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
@@ -1056,7 +1076,12 @@ def _generate_email_hero_image_two_pass(
         solo_url, solo_path = _save_email_image(
             raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
         )
-        solo_images.append({'name': name, 'url': solo_url, 'path': solo_path})
+        solo_images.append({
+            'name': name,
+            'url': solo_url,
+            'path': solo_path,
+            'prompt': solo_prompt,
+        })
 
     # Keep solo_images in roster order for stable UI.
     by_name = {(item.get('name') or '').strip().lower(): item for item in solo_images}

@@ -195,9 +195,6 @@
         .recap-solo-name a:hover { color: var(--recap-accent); }
         .recap-solo-actions {
             margin-top: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
         }
         .recap-solo-actions .recap-btn {
             padding: 6px 10px;
@@ -205,7 +202,46 @@
             width: 100%;
             justify-content: center;
         }
-        .recap-solo-upload input[type="file"],
+        .recap-solo-card.is-retaking img {
+            border-color: var(--recap-accent);
+        }
+        .recap-solo-retake-panel {
+            display: none;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--recap-line);
+        }
+        .recap-solo-retake-panel.is-open { display: block; }
+        .recap-solo-retake-panel label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--recap-text);
+            margin-bottom: 6px;
+        }
+        .recap-solo-retake-panel .recap-remake-help {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin: 0 0 10px;
+            line-height: 1.45;
+        }
+        .recap-solo-retake-panel textarea {
+            width: 100%;
+            min-height: 130px;
+            resize: vertical;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--recap-line);
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--recap-text);
+            font-size: 13px;
+            font-family: inherit;
+            line-height: 1.45;
+        }
+        .recap-solo-retake-panel textarea:focus {
+            outline: none;
+            border-color: var(--recap-accent);
+        }
         .recap-upload-file {
             width: 100%;
             font-size: 12px;
@@ -418,10 +454,10 @@
         {% if show_creator_view and solo_images %}
         <div class="recap-solo-gallery">
             <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
-            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link. Remake or upload any you dislike, then remake the group picture to use them.</p>
+            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link. Retake any you dislike, then remake the group picture to use them.</p>
             <div class="recap-solo-grid">
                 {% for img in solo_images %}
-                <div class="recap-solo-card">
+                <div class="recap-solo-card" data-solo-card data-player-name="{{ img.name }}">
                     <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
                     <div class="recap-solo-name">
                         {% if game_type == 'vollis' %}
@@ -433,25 +469,44 @@
                         {% endif %}
                     </div>
                     {% if can_remake %}
+                    <script type="application/json" data-solo-prompt-json>{{ img.prompt | tojson }}</script>
                     <div class="recap-solo-actions">
-                        <form class="recap-solo-remake" method="post" action="{{ url_for('remake_ai_recap_solo', share_id=share_id) }}">
-                            <input type="hidden" name="player_name" value="{{ img.name }}">
-                            <button type="submit" class="recap-btn recap-btn-secondary">
-                                <i class="fas fa-sync-alt"></i> Remake
-                            </button>
-                        </form>
-                        <form class="recap-solo-upload" method="post" action="{{ url_for('upload_ai_recap_solo', share_id=share_id) }}" enctype="multipart/form-data">
-                            <input type="hidden" name="player_name" value="{{ img.name }}">
-                            <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif" required>
-                            <button type="submit" class="recap-btn recap-btn-secondary">
-                                <i class="fas fa-upload"></i> Upload
-                            </button>
-                        </form>
+                        <button type="button" class="recap-btn recap-btn-secondary" data-solo-retake>
+                            <i class="fas fa-sync-alt"></i> Retake
+                        </button>
                     </div>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
+            {% if can_remake %}
+            <div class="recap-solo-retake-panel" id="recap-solo-retake-panel" hidden>
+                <form method="post" action="{{ url_for('remake_ai_recap_solo', share_id=share_id) }}" id="recap-solo-remake-form">
+                    <input type="hidden" name="player_name" id="recap-solo-player-name" value="">
+                    <label for="recap-solo-prompt">Caricature prompt for <span id="recap-solo-player-label">player</span></label>
+                    <p class="recap-remake-help">Edit the prompt used to make this portrait, then remake. Reference photos (if any) stay attached automatically.</p>
+                    <textarea id="recap-solo-prompt" name="solo_prompt" placeholder="Single-character caricature…"></textarea>
+                    <div class="recap-remake-actions">
+                        <button type="button" class="recap-btn recap-btn-secondary" data-solo-retake-cancel>Cancel</button>
+                        <button type="submit" class="recap-btn recap-btn-primary" id="recap-solo-remake-btn">
+                            <i class="fas fa-sync-alt"></i> Remake caricature
+                        </button>
+                    </div>
+                </form>
+                <hr class="recap-upload-divider">
+                <form method="post" action="{{ url_for('upload_ai_recap_solo', share_id=share_id) }}" enctype="multipart/form-data" id="recap-solo-upload-form">
+                    <input type="hidden" name="player_name" id="recap-solo-upload-player-name" value="">
+                    <label for="recap-solo-upload-image">Or upload your own picture</label>
+                    <p class="recap-remake-help">JPG, PNG, WebP, or GIF up to 8 MB. Replaces this temporary caricature; remake the group picture to use it in the final image.</p>
+                    <input class="recap-upload-file" id="recap-solo-upload-image" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif" required>
+                    <div class="recap-remake-actions">
+                        <button type="submit" class="recap-btn recap-btn-secondary" id="recap-solo-upload-btn">
+                            <i class="fas fa-upload"></i> Upload picture
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -552,15 +607,6 @@
             });
         }
 
-        document.querySelectorAll('.recap-solo-remake').forEach(function (form) {
-            form.addEventListener('submit', function () {
-                var btn = form.querySelector('button[type="submit"]');
-                if (!btn) return;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
-            });
-        });
-
         var uploadImageForm = document.getElementById('recap-upload-image-form');
         var uploadImageBtn = document.getElementById('recap-upload-image-btn');
         if (uploadImageForm && uploadImageBtn) {
@@ -570,14 +616,84 @@
             });
         }
 
-        document.querySelectorAll('.recap-solo-upload').forEach(function (form) {
-            form.addEventListener('submit', function () {
-                var btn = form.querySelector('button[type="submit"]');
-                if (!btn) return;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+        var soloRetakePanel = document.getElementById('recap-solo-retake-panel');
+        var soloPlayerName = document.getElementById('recap-solo-player-name');
+        var soloUploadPlayerName = document.getElementById('recap-solo-upload-player-name');
+        var soloPlayerLabel = document.getElementById('recap-solo-player-label');
+        var soloPrompt = document.getElementById('recap-solo-prompt');
+        var soloRemakeForm = document.getElementById('recap-solo-remake-form');
+        var soloRemakeBtn = document.getElementById('recap-solo-remake-btn');
+        var soloUploadForm = document.getElementById('recap-solo-upload-form');
+        var soloUploadBtn = document.getElementById('recap-solo-upload-btn');
+
+        function closeSoloRetakePanel() {
+            if (!soloRetakePanel) return;
+            soloRetakePanel.classList.remove('is-open');
+            soloRetakePanel.hidden = true;
+            document.querySelectorAll('[data-solo-card].is-retaking').forEach(function (card) {
+                card.classList.remove('is-retaking');
+            });
+        }
+
+        function soloPromptFromCard(card) {
+            var node = card.querySelector('[data-solo-prompt-json]');
+            if (!node) return '';
+            try {
+                return JSON.parse(node.textContent || '""') || '';
+            } catch (err) {
+                return node.textContent || '';
+            }
+        }
+
+        function openSoloRetakePanel(card) {
+            if (!soloRetakePanel || !card) return;
+            var name = card.getAttribute('data-player-name') || '';
+            var prompt = soloPromptFromCard(card);
+            document.querySelectorAll('[data-solo-card].is-retaking').forEach(function (el) {
+                el.classList.remove('is-retaking');
+            });
+            card.classList.add('is-retaking');
+            if (soloPlayerName) soloPlayerName.value = name;
+            if (soloUploadPlayerName) soloUploadPlayerName.value = name;
+            if (soloPlayerLabel) soloPlayerLabel.textContent = name || 'player';
+            if (soloPrompt) soloPrompt.value = prompt;
+            soloRetakePanel.hidden = false;
+            soloRetakePanel.classList.add('is-open');
+            if (soloPrompt) {
+                soloPrompt.focus();
+                soloPrompt.setSelectionRange(soloPrompt.value.length, soloPrompt.value.length);
+            }
+            soloRetakePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        document.querySelectorAll('[data-solo-retake]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var card = btn.closest('[data-solo-card]');
+                if (!card) return;
+                if (card.classList.contains('is-retaking') && soloRetakePanel && soloRetakePanel.classList.contains('is-open')) {
+                    closeSoloRetakePanel();
+                } else {
+                    openSoloRetakePanel(card);
+                }
             });
         });
+
+        document.querySelectorAll('[data-solo-retake-cancel]').forEach(function (el) {
+            el.addEventListener('click', closeSoloRetakePanel);
+        });
+
+        if (soloRemakeForm && soloRemakeBtn) {
+            soloRemakeForm.addEventListener('submit', function () {
+                soloRemakeBtn.disabled = true;
+                soloRemakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+            });
+        }
+        if (soloUploadForm && soloUploadBtn) {
+            soloUploadForm.addEventListener('submit', function () {
+                soloUploadBtn.disabled = true;
+                soloUploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+            });
+        }
     })();
     </script>
     {% endif %}

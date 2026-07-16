@@ -1840,12 +1840,41 @@ def view_ai_recap(share_id):
 
     remake_summary_prompt = ''
     remake_image_details = ''
+    game_type = row.get('game_type') or 'doubles'
     if can_remake:
         remake_summary_prompt = (
             (row.get('style_instructions') or '').strip()
             or (row.get('custom_prompt') or '').strip()
         )
         remake_image_details = (row.get('image_details') or '').strip()
+
+    # Ensure each solo card has an editable prompt (stored, or rebuilt as fallback).
+    if can_remake and solo_images:
+        from email_content import build_solo_caricature_prompt
+
+        game_name = None
+        try:
+            game_ids = json.loads(row.get('game_ids_json') or '[]')
+        except (json.JSONDecodeError, TypeError):
+            game_ids = []
+        if game_ids and game_type == 'other':
+            try:
+                _games, _players, game_name = _load_games_and_players_for_recap(
+                    game_type, game_ids,
+                )
+            except Exception:
+                game_name = None
+        enriched = []
+        for item in solo_images:
+            entry = dict(item)
+            if not (entry.get('prompt') or '').strip():
+                entry['prompt'] = build_solo_caricature_prompt(
+                    entry.get('name') or '',
+                    game_type=game_type,
+                    game_name=game_name,
+                )
+            enriched.append(entry)
+        solo_images = enriched
 
     return render_template(
         'recap.html',
@@ -1858,7 +1887,7 @@ def view_ai_recap(share_id):
         solo_images=solo_images,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
-        game_type=row.get('game_type') or 'doubles',
+        game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,
         remake_image_details=remake_image_details,
     )
@@ -2139,6 +2168,8 @@ def remake_ai_recap_solo(share_id):
         flash('Which player caricature should be remade?', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
+    custom_prompt = (request.form.get('solo_prompt') or '').strip()
+
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
         flash('Gemini API key not configured.', 'error')
@@ -2175,7 +2206,11 @@ def remake_ai_recap_solo(share_id):
     old_item = solo_images[match_idx]
     try:
         new_item = generate_solo_caricature(
-            api_key, player_name, game_type=game_type, game_name=game_name,
+            api_key,
+            player_name,
+            game_type=game_type,
+            game_name=game_name,
+            custom_prompt=custom_prompt or None,
         )
     except ImageGenerationError as e:
         app.logger.exception('AI recap remake solo failed')
