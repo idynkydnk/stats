@@ -6,6 +6,10 @@
     <title>{{ subject }}</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    {% if session.logged_in %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    {% endif %}
     <style>
         :root {
             --recap-bg: #0b0f14;
@@ -15,6 +19,14 @@
             --recap-muted: #8b949e;
             --recap-accent: #66d9ef;
             --recap-win: #22c55e;
+            /* Align site menu tokens with this page when stats.css is loaded. */
+            --sr-bg: #0b0f14;
+            --sr-panel: #131a24;
+            --sr-text: #e4e8eb;
+            --sr-muted: #8b949e;
+            --sr-line: rgba(255, 255, 255, 0.08);
+            --sr-accent: #66d9ef;
+            --sr-accent-dim: rgba(102, 217, 239, 0.15);
         }
         * { box-sizing: border-box; }
         body {
@@ -26,11 +38,33 @@
         .recap-share-bar {
             position: sticky;
             top: 0;
-            z-index: 20;
+            z-index: 50;
             background: rgba(19, 26, 36, 0.96);
             border-bottom: 1px solid var(--recap-line);
             backdrop-filter: blur(8px);
             padding: 12px 16px;
+        }
+        .recap-share-bar .menu-toggle {
+            /* Match other share-bar buttons; keep above page chrome. */
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--recap-text);
+            border: 1px solid var(--recap-line);
+        }
+        .recap-share-bar .menu-toggle:hover,
+        .recap-share-bar .menu-toggle.active {
+            border-color: var(--recap-accent);
+            color: var(--recap-accent);
+            background: transparent;
+        }
+        .recap-menu-fab {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 4001;
         }
         .recap-share-inner {
             max-width: 720px;
@@ -159,14 +193,29 @@
             text-underline-offset: 2px;
         }
         .recap-solo-name a:hover { color: var(--recap-accent); }
-        .recap-solo-remake {
+        .recap-solo-actions {
             margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
-        .recap-solo-remake .recap-btn {
+        .recap-solo-actions .recap-btn {
             padding: 6px 10px;
             font-size: 11px;
             width: 100%;
             justify-content: center;
+        }
+        .recap-solo-upload input[type="file"],
+        .recap-upload-file {
+            width: 100%;
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin-bottom: 6px;
+        }
+        .recap-upload-divider {
+            border: 0;
+            border-top: 1px solid var(--recap-line);
+            margin: 16px 0 14px;
         }
         .recap-warning {
             background: rgba(251, 191, 36, 0.12);
@@ -259,6 +308,13 @@
     </style>
 </head>
 <body>
+    {% if session.logged_in %}
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="menu-sidebar" id="menu-sidebar">
+        <button class="menu-close" id="menu-close" type="button" aria-label="Close menu">✕</button>
+        {% include 'partials/menu_sidebar.html' %}
+    </div>
+    {% endif %}
     {% if show_creator_view %}
     <div class="recap-share-bar">
         <div class="recap-share-inner">
@@ -282,12 +338,20 @@
                 <a href="{{ url_for('ai_summary') }}" class="recap-btn recap-btn-secondary">
                     <i class="fas fa-plus"></i> New recap
                 </a>
+                <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu">
+                    <i class="fas fa-bars"></i> Menu
+                </button>
                 {% endif %}
             </div>
             <input type="text" class="recap-url-input" id="recap-share-url" value="{{ share_url }}" readonly>
         </div>
     </div>
-    {% if can_remake %}
+    {% elif session.logged_in %}
+    <button class="menu-toggle recap-menu-fab" id="menu-toggle" type="button" aria-label="Open menu">
+        <i class="fas fa-bars"></i> Menu
+    </button>
+    {% endif %}
+    {% if show_creator_view and can_remake %}
     <div class="recap-remake-panel" id="recap-remake-summary-panel">
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form">
@@ -307,7 +371,7 @@
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
                 <label for="recap-image-details">Illustration details</label>
-                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details. Existing individual caricatures you remade are kept and used for the new group picture.</p>
+                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details. Existing individual caricatures you remade or uploaded are kept and used for the new group picture.</p>
                 <textarea id="recap-image-details" name="image_details" placeholder="Example: sunset beach background, everyone celebrating at the net…">{{ remake_image_details }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
@@ -316,9 +380,21 @@
                     </button>
                 </div>
             </form>
+            <hr class="recap-upload-divider">
+            <form method="post" action="{{ url_for('upload_ai_recap_image', share_id=share_id) }}" enctype="multipart/form-data" id="recap-upload-image-form">
+                <label for="recap-upload-image">Or upload your own group picture</label>
+                <p class="recap-remake-help">JPG, PNG, WebP, or GIF up to 8 MB. Replaces the hero image on this recap and the shareable link.</p>
+                <input class="recap-upload-file" id="recap-upload-image" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif" required>
+                <div class="recap-remake-actions">
+                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-upload-image-btn">
+                        <i class="fas fa-upload"></i> Upload group picture
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
     {% endif %}
+    {% if show_creator_view %}
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="recap-flash">
@@ -342,7 +418,7 @@
         {% if show_creator_view and solo_images %}
         <div class="recap-solo-gallery">
             <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
-            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link. Remake any you dislike, then remake the group picture to use them.</p>
+            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link. Remake or upload any you dislike, then remake the group picture to use them.</p>
             <div class="recap-solo-grid">
                 {% for img in solo_images %}
                 <div class="recap-solo-card">
@@ -357,12 +433,21 @@
                         {% endif %}
                     </div>
                     {% if can_remake %}
-                    <form class="recap-solo-remake" method="post" action="{{ url_for('remake_ai_recap_solo', share_id=share_id) }}">
-                        <input type="hidden" name="player_name" value="{{ img.name }}">
-                        <button type="submit" class="recap-btn recap-btn-secondary">
-                            <i class="fas fa-sync-alt"></i> Remake
-                        </button>
-                    </form>
+                    <div class="recap-solo-actions">
+                        <form class="recap-solo-remake" method="post" action="{{ url_for('remake_ai_recap_solo', share_id=share_id) }}">
+                            <input type="hidden" name="player_name" value="{{ img.name }}">
+                            <button type="submit" class="recap-btn recap-btn-secondary">
+                                <i class="fas fa-sync-alt"></i> Remake
+                            </button>
+                        </form>
+                        <form class="recap-solo-upload" method="post" action="{{ url_for('upload_ai_recap_solo', share_id=share_id) }}" enctype="multipart/form-data">
+                            <input type="hidden" name="player_name" value="{{ img.name }}">
+                            <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif" required>
+                            <button type="submit" class="recap-btn recap-btn-secondary">
+                                <i class="fas fa-upload"></i> Upload
+                            </button>
+                        </form>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -475,8 +560,29 @@
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
             });
         });
+
+        var uploadImageForm = document.getElementById('recap-upload-image-form');
+        var uploadImageBtn = document.getElementById('recap-upload-image-btn');
+        if (uploadImageForm && uploadImageBtn) {
+            uploadImageForm.addEventListener('submit', function () {
+                uploadImageBtn.disabled = true;
+                uploadImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+            });
+        }
+
+        document.querySelectorAll('.recap-solo-upload').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var btn = form.querySelector('button[type="submit"]');
+                if (!btn) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+            });
+        });
     })();
     </script>
+    {% endif %}
+    {% if session.logged_in %}
+    <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
     {% endif %}
 </body>
 </html>

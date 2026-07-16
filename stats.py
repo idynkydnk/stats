@@ -1992,6 +1992,129 @@ def _solo_path_for_item(item):
     return path if os.path.isfile(path) else None
 
 
+def _require_recap_creator(share_id):
+    """Load a recap row or abort; ensure the current user is the creator."""
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can change this recap.', 'error')
+        return None, redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    return row, None
+
+
+@app.route('/recap/<share_id>/upload-image/', methods=['POST'])
+@login_required
+def upload_ai_recap_image(share_id):
+    """Replace the group hero illustration with a user-uploaded image."""
+    from email_content import save_uploaded_email_image
+
+    row, early = _require_recap_creator(share_id)
+    if early:
+        return early
+
+    try:
+        new_url, _new_path = save_uploaded_email_image(request.files.get('image'))
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    except Exception as e:
+        app.logger.exception('AI recap group image upload failed')
+        flash(f'Failed to upload picture: {e}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    old_url = row.get('hero_image_url') or ''
+    updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
+    adminfx.update_ai_recap_page(
+        share_id,
+        html_body=updated_html,
+        hero_image_url=new_url,
+        hero_image_error='',
+        image_mode='image',
+    )
+    if old_url and old_url != new_url:
+        old_path = _hero_image_path_from_url(old_url)
+        if old_path:
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    log_activity(
+        'Uploaded AI recap picture',
+        summary=f'Replaced group illustration for /recap/{share_id}',
+    )
+    flash('Group picture uploaded.', 'success')
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+
+@app.route('/recap/<share_id>/upload-solo/', methods=['POST'])
+@login_required
+def upload_ai_recap_solo(share_id):
+    """Replace one temporary solo caricature with a user-uploaded image."""
+    from email_content import (
+        SOLO_IMAGE_PREFIX,
+        delete_solo_image_files,
+        filter_existing_solo_images,
+        save_uploaded_email_image,
+    )
+
+    row, early = _require_recap_creator(share_id)
+    if early:
+        return early
+
+    player_name = (request.form.get('player_name') or '').strip()
+    if not player_name:
+        flash('Which player picture should be replaced?', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    try:
+        solo_images = json.loads(row.get('solo_images_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        solo_images = []
+    solo_images = filter_existing_solo_images(solo_images)
+
+    match_idx = None
+    for index, item in enumerate(solo_images):
+        if (item.get('name') or '').strip().lower() == player_name.lower():
+            match_idx = index
+            player_name = item.get('name') or player_name
+            break
+    if match_idx is None:
+        flash(f'No caricature slot found for {player_name}.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    try:
+        new_url, new_path = save_uploaded_email_image(
+            request.files.get('image'), prefix=SOLO_IMAGE_PREFIX,
+        )
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    except Exception as e:
+        app.logger.exception('AI recap solo image upload failed')
+        flash(f'Failed to upload picture: {e}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    old_item = solo_images[match_idx]
+    solo_images[match_idx] = {'name': player_name, 'url': new_url, 'path': new_path}
+    delete_solo_image_files([old_item])
+    adminfx.update_ai_recap_page(
+        share_id,
+        solo_images_json=json.dumps(solo_images),
+    )
+
+    log_activity(
+        'Uploaded AI solo caricature',
+        summary=f'Replaced {player_name} portrait for /recap/{share_id}',
+    )
+    flash(
+        f'Uploaded picture for {player_name}. Remake the group picture to use it in the final image.',
+        'success',
+    )
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+
 @app.route('/recap/<share_id>/remake-solo/', methods=['POST'])
 @login_required
 def remake_ai_recap_solo(share_id):

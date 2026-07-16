@@ -748,6 +748,32 @@ def _save_email_image(image_bytes, ext, prefix=''):
     return url, abs_path
 
 
+_UPLOAD_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+_MAX_UPLOAD_IMAGE_BYTES = 8 * 1024 * 1024
+
+
+def save_uploaded_email_image(file_storage, prefix=''):
+    """Validate and save a user-uploaded illustration. Returns (url, abs_path)."""
+    if not file_storage or not getattr(file_storage, 'filename', None):
+        raise ValueError('Choose an image file to upload.')
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in _UPLOAD_IMAGE_EXTENSIONS:
+        raise ValueError('Image must be JPG, PNG, WebP, or GIF.')
+    file_storage.stream.seek(0, os.SEEK_END)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    if size <= 0:
+        raise ValueError('That image file is empty.')
+    if size > _MAX_UPLOAD_IMAGE_BYTES:
+        raise ValueError('Image must be 8 MB or smaller.')
+    raw = file_storage.read()
+    if not raw:
+        raise ValueError('Could not read that image file.')
+    # Normalize extension for storage (jpeg → jpg).
+    store_ext = 'jpg' if ext in ('.jpg', '.jpeg') else ext.lstrip('.')
+    return _save_email_image(raw, store_ext, prefix=prefix)
+
+
 def email_images_dir():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'email_images')
     os.makedirs(path, exist_ok=True)
