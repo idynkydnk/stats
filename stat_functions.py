@@ -886,7 +886,7 @@ def partner_stats_by_year(name, games):
 
 
 def opponent_stats_by_year(name, games):
-	"""Record against every opponent, most games against first (single pass over games)."""
+	"""Record against every opponent, highest win % first (single pass over games)."""
 	if not games:
 		return []
 	records = {}
@@ -905,7 +905,7 @@ def opponent_stats_by_year(name, games):
 		total_games = rec['wins'] + rec['losses']
 		stats.append({'opponent': opponent, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
-	stats.sort(key=lambda x: (-x['total_games'], -x['win_percentage']))
+	stats.sort(key=lambda x: (-x['win_percentage'], -x['total_games']))
 	return stats
 
 def total_stats(games, player):
