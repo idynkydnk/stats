@@ -1,4 +1,4 @@
-{# Face circle opens photo manager when logged in. #}
+{# Face circle opens photo manager when logged in; guests get a server-cropped thumb. #}
 {% set display_name = player_name if player_name is defined else player %}
 {% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = [] %}{% endif %}
@@ -7,7 +7,6 @@
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
             title="Manage player photos" aria-label="Manage player photos">
-    {% endif %}
         {% if player_photo_url %}
         <div class="sr-avatar-crop-frame" id="player-avatar-frame">
             <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img">
@@ -15,8 +14,13 @@
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
-    {% if session.logged_in %}
     </button>
+    {% elif player_photo_url %}
+    <img src="{{ url_for('player_face_thumb', name=display_name) }}" alt="{{ display_name }}"
+         class="sr-player-avatar sr-player-photo" id="player-avatar-img"
+         width="64" height="64" loading="lazy">
+    {% else %}
+    <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
     {% endif %}
 </div>
 
@@ -26,36 +30,6 @@
 .sr-avatar-clickable:focus-visible {
     outline: 2px solid var(--sr-accent);
     outline-offset: 2px;
-}
-.sr-player-avatar {
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--sr-accent);
-    background: var(--sr-accent-dim);
-    border: 2px solid var(--sr-line);
-}
-.sr-crop-positioned-img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    object-fit: cover;
-    object-position: 50% 50%;
-    pointer-events: none;
-    -webkit-user-drag: none;
-    user-select: none;
-}
-@media (max-width: 640px) {
-    .sr-player-avatar {
-        font-size: 22px;
-    }
 }
 </style>
 <script>

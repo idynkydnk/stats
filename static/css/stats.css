@@ -1303,7 +1303,7 @@ input[type=number] {
 }
 .sr-hidden { display: none; }
 
-/* Player page face avatar — keep a fixed circle so it can't stretch full-width on mobile. */
+/* Player page face avatar — fixed circle on all viewports (logged-in + guests). */
 .sr-player-header {
     display: flex;
     align-items: flex-start;
@@ -1312,7 +1312,7 @@ input[type=number] {
 }
 .sr-player-avatar-col,
 .sr-avatar-clickable,
-.sr-avatar-crop-frame,
+.sr-player-avatar-col > .sr-avatar-crop-frame,
 .sr-player-avatar {
     width: 64px;
     height: 64px;
@@ -1326,7 +1326,6 @@ input[type=number] {
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    overflow: hidden;
 }
 .sr-avatar-clickable {
     padding: 0;
@@ -1344,6 +1343,7 @@ input[type=number] {
     border: 2px solid var(--sr-line);
     background: var(--sr-bg);
     position: relative;
+    box-sizing: border-box;
     contain: layout paint;
     clip-path: circle(50% at 50% 50%);
 }
@@ -1353,6 +1353,38 @@ input[type=number] {
     max-width: 100%;
     max-height: 100%;
 }
+/* Must be global — crop frames are shown to guests, not only logged-in editors. */
+.sr-crop-positioned-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: 50% 50%;
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+.sr-player-avatar {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--sr-accent);
+    background: var(--sr-accent-dim);
+    border: 2px solid var(--sr-line);
+}
+.sr-player-avatar.sr-player-photo {
+    display: block;
+    padding: 0;
+    object-fit: cover;
+    background: var(--sr-panel);
+}
 .sr-player-info {
     flex: 1;
     min-width: 0;
@@ -1360,11 +1392,14 @@ input[type=number] {
 @media (max-width: 640px) {
     .sr-player-avatar-col,
     .sr-avatar-clickable,
-    .sr-avatar-crop-frame,
+    .sr-player-avatar-col > .sr-avatar-crop-frame,
     .sr-player-avatar {
         width: 56px;
         height: 56px;
         max-width: 56px;
         max-height: 56px;
+    }
+    .sr-player-avatar {
+        font-size: 22px;
     }
 }
