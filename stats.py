@@ -628,12 +628,16 @@ def _send_ai_summary_payload(payload, username='unknown'):
     return emails_sent, errors
 
 
-def run_ai_auto_send_job(username, game_ids, game_type, prompt_style, custom_prompt):
+def run_ai_auto_send_job(
+    username, game_ids, game_type, prompt_style, custom_prompt,
+    image_mode='none', image_details='',
+):
     """Generate AI summary and publish a shareable recap page."""
     with app.app_context():
         try:
             payload = _build_ai_summary_payload(
                 game_type, game_ids, prompt_style, custom_prompt,
+                image_mode=image_mode, image_details=image_details,
             )
             _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=username)
             img_note = _ai_image_log_note(payload)
@@ -1657,7 +1661,11 @@ def _render_select_ai_prompt(
 @app.route('/preview_ai_summary_with_prompt/', methods=['POST'])
 @login_required
 def preview_ai_summary_with_prompt():
-    """Generate AI summary with selected prompt style."""
+    """Generate AI summary with selected prompt style.
+
+    When the background worker is running, queue the job so the user can browse
+    other pages via the menu. Otherwise generate synchronously in this request.
+    """
     selected_game_ids = request.form.getlist('game_ids')
     prompt_style = request.form.get('prompt_style', 'random')
     custom_prompt = request.form.get('custom_prompt', '')
@@ -1678,6 +1686,27 @@ def preview_ai_summary_with_prompt():
             image_details=image_details,
             error=error,
         )
+
+    # Prefer background generation so Menu navigation doesn't cancel the work.
+    if ai_jobs.daemon_is_alive():
+        username = session.get('username') or 'unknown'
+        job_id = ai_jobs.enqueue_job(
+            username,
+            selected_game_ids,
+            game_type,
+            prompt_style,
+            custom_prompt,
+            image_mode=image_mode,
+            image_details=image_details,
+        )
+        log_activity(
+            'Queued AI recap publish',
+            summary=(
+                f'job #{job_id}: {game_type} for {len(selected_game_ids)} game(s), '
+                f'style "{prompt_style}"'
+            ),
+        )
+        return redirect(url_for('ai_summary_job_status', job_id=job_id))
 
     try:
         if game_type == 'vollis':
@@ -1723,6 +1752,44 @@ def preview_ai_summary_with_prompt():
     except Exception as e:
         app.logger.exception('AI recap publish failed')
         return stay_on_prompt(f'Failed to publish recap: {str(e)}')
+
+
+@app.route('/ai_summary/job/<int:job_id>/')
+@login_required
+def ai_summary_job_status(job_id):
+    """Waiting page while a background AI recap job runs — menu stays available."""
+    job = ai_jobs.get_job(job_id)
+    if not job:
+        abort(404)
+    if job.get('username') != session.get('username'):
+        abort(403)
+    if job.get('status') == 'completed' and job.get('share_id'):
+        return redirect(url_for('view_ai_recap', share_id=job['share_id'], published=1))
+    return render_template('ai_summary_job.html', job=job, job_id=job_id)
+
+
+@app.route('/api/ai_summary_job/<int:job_id>/')
+@login_required
+def api_ai_summary_job_status(job_id):
+    """JSON status for background AI recap jobs."""
+    job = ai_jobs.get_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found.'}), 404
+    if job.get('username') != session.get('username'):
+        return jsonify({'success': False, 'error': 'Not allowed.'}), 403
+    share_id = job.get('share_id') or ''
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'status': job.get('status') or 'pending',
+        'error': job.get('error') or '',
+        'share_id': share_id,
+        'result_summary': job.get('result_summary') or '',
+        'recap_url': (
+            url_for('view_ai_recap', share_id=share_id, published=1)
+            if share_id else ''
+        ),
+    })
 
 
 @app.route('/recap/<share_id>/')
@@ -2100,8 +2167,11 @@ def api_generate_and_send_ai_summary():
         return jsonify({'success': False, 'error': 'No games selected.'}), 400
 
     username = session.get('username', 'unknown')
+    image_mode = _normalize_image_mode(request.form.get('image_mode'))
+    image_details = (request.form.get('image_details') or '').strip()
     job_id = ai_jobs.enqueue_job(
         username, game_ids, game_type, prompt_style, custom_prompt,
+        image_mode=image_mode, image_details=image_details,
     )
     worker_alive = ai_jobs.daemon_is_alive()
     log_activity(

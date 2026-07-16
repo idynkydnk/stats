@@ -18,6 +18,12 @@ def _connect():
     return conn
 
 
+def _ensure_column(conn, table, column, col_def):
+    cols = {row[1] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()}
+    if column not in cols:
+        conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {col_def}')
+
+
 def init_ai_auto_send_jobs_db():
     conn = _connect()
     conn.execute('''
@@ -37,6 +43,9 @@ def init_ai_auto_send_jobs_db():
             completed_at DATETIME
         )
     ''')
+    _ensure_column(conn, 'ai_auto_send_jobs', 'image_mode', "TEXT DEFAULT 'none'")
+    _ensure_column(conn, 'ai_auto_send_jobs', 'image_details', 'TEXT')
+    _ensure_column(conn, 'ai_auto_send_jobs', 'share_id', 'TEXT')
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_ai_auto_send_jobs_status '
         'ON ai_auto_send_jobs(status, id)'
@@ -45,19 +54,25 @@ def init_ai_auto_send_jobs_db():
     conn.close()
 
 
-def enqueue_job(username, game_ids, game_type, prompt_style, custom_prompt=''):
+def enqueue_job(
+    username, game_ids, game_type, prompt_style, custom_prompt='',
+    image_mode='none', image_details='',
+):
     init_ai_auto_send_jobs_db()
     conn = _connect()
     cur = conn.execute('''
         INSERT INTO ai_auto_send_jobs
-            (username, game_type, game_ids_json, prompt_style, custom_prompt, status)
-        VALUES (?, ?, ?, ?, ?, 'pending')
+            (username, game_type, game_ids_json, prompt_style, custom_prompt,
+             image_mode, image_details, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     ''', (
         username,
         game_type,
         json.dumps([str(g) for g in game_ids]),
         prompt_style,
         custom_prompt or '',
+        image_mode or 'none',
+        image_details or '',
     ))
     job_id = cur.lastrowid
     conn.commit()
@@ -72,7 +87,8 @@ def claim_next_pending_job():
     try:
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute('''
-            SELECT id, username, game_type, game_ids_json, prompt_style, custom_prompt
+            SELECT id, username, game_type, game_ids_json, prompt_style, custom_prompt,
+                   image_mode, image_details
             FROM ai_auto_send_jobs
             WHERE status = 'pending'
             ORDER BY id ASC
@@ -92,16 +108,21 @@ def claim_next_pending_job():
         conn.commit()
         job = dict(row)
         job['game_ids'] = json.loads(job.pop('game_ids_json'))
+        job['image_mode'] = job.get('image_mode') or 'none'
+        job['image_details'] = job.get('image_details') or ''
         return job
     finally:
         conn.close()
 
 
-def complete_job(job_id, success, emails_sent=0, result_summary=None, error=None):
+def complete_job(
+    job_id, success, emails_sent=0, result_summary=None, error=None, share_id=None,
+):
     conn = _connect()
     conn.execute('''
         UPDATE ai_auto_send_jobs
         SET status = ?, emails_sent = ?, result_summary = ?, error = ?,
+            share_id = COALESCE(?, share_id),
             completed_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (
@@ -109,6 +130,7 @@ def complete_job(job_id, success, emails_sent=0, result_summary=None, error=None
         emails_sent,
         result_summary,
         error,
+        share_id,
         job_id,
     ))
     conn.commit()

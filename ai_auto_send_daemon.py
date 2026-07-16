@@ -50,10 +50,13 @@ def _process_job(job):
         game_type=job['game_type'],
         prompt_style=job['prompt_style'],
         custom_prompt=job.get('custom_prompt') or '',
+        image_mode=job.get('image_mode') or 'none',
+        image_details=job.get('image_details') or '',
     )
     if result.get('success'):
         subject = result.get('subject') or 'Vball Summary'
         share_url = result.get('share_url') or ''
+        share_id = result.get('share_id') or ''
         summary = f'Published "{subject}"'
         if share_url:
             summary += f' — {share_url}'
@@ -61,6 +64,7 @@ def _process_job(job):
             job['id'], True,
             emails_sent=0,
             result_summary=summary,
+            share_id=share_id,
         )
         _log(f'job #{job["id"]} completed: {summary}')
     else:
