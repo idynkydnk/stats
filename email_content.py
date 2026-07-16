@@ -8,7 +8,6 @@ import os
 import html
 import base64
 import uuid
-import random
 from datetime import datetime
 from urllib.parse import quote
 
@@ -511,49 +510,6 @@ def _reference_photo_kind(label):
     return 'other'
 
 
-_VOLLEYBALL_VARIATION_CUES = [
-    'spiking a volleyball, intense athletic pose',
-    'diving for a dig, stretched out horizontally',
-    'setting at the net, hands poised above head',
-    'celebrating a point with a triumphant fist pump',
-    'jumping serve, ball tossed high overhead',
-    'blocking at the net, arms extended wide',
-]
-
-_GAME_VARIATION_CUES = {
-    'gin rummy': [
-        'fanning cards with a sly grin',
-        'slamming winning cards on the table triumphantly',
-        'studying hand with a furrowed brow',
-        'tossing cards aside with a confident smirk',
-    ],
-}
-
-_GENERIC_VARIATION_CUES = [
-    'triumphant celebration pose',
-    'competitive focused stare',
-    'laughing victory gesture',
-    'confident relaxed stance with arms crossed',
-    'surprised reaction with wide eyes',
-]
-
-
-def _normalize_game_name_key(game_name):
-    if not game_name:
-        return ''
-    return str(game_name).split(',')[0].strip().lower()
-
-
-def _solo_variation_cue(game_type, game_name=None):
-    """Pick a random pose/action cue matched to the game played."""
-    if game_type in ('doubles', 'vollis'):
-        return random.choice(_VOLLEYBALL_VARIATION_CUES)
-    key = _normalize_game_name_key(game_name)
-    if key in _GAME_VARIATION_CUES:
-        return random.choice(_GAME_VARIATION_CUES[key])
-    return random.choice(_GENERIC_VARIATION_CUES)
-
-
 def _solo_photo_instruction(kind):
     if kind == 'face':
         return 'Face reference. Use for facial features and expression.'
@@ -581,7 +537,7 @@ def _solo_reference_parts_for_player(name, entry):
     return parts
 
 
-def _build_solo_player_prompt(name, trait_phrases, has_reference_photos, variation_cue):
+def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
     traits_block = ''
     if trait_phrases:
         traits_block = (
@@ -599,12 +555,8 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos, variati
             'No reference photos — invent a unique stylized character '
             'from the signature details below.\n'
         )
-    return f"""Single-character caricature for a game recap email illustration.
-
-Draw exactly ONE person.
+    return f"""Draw exactly ONE person.
 {likeness}{traits_block}
-Fresh variation for this run: {variation_cue}
-
 Plain neutral background. One character only — no other people, no scene. No text or logos."""
 
 
@@ -914,10 +866,7 @@ def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=Non
     entry = collect_solo_reference_images(name) if name else None
     reference_parts = _solo_reference_parts_for_player(name, entry)
     has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-    variation_cue = _solo_variation_cue(game_type, game_name)
-    return _build_solo_player_prompt(
-        name, trait_phrases, has_reference_photos, variation_cue,
-    )
+    return _build_solo_player_prompt(name, trait_phrases, has_reference_photos)
 
 
 def generate_solo_caricature(
@@ -1056,9 +1005,8 @@ def _generate_email_hero_image_two_pass(
         trait_entry = traits_by_name.get(name)
         trait_phrases = trait_entry.get('phrases', []) if trait_entry else []
         has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-        variation_cue = _solo_variation_cue(game_type, game_name)
         solo_prompt = _build_solo_player_prompt(
-            name, trait_phrases, has_reference_photos, variation_cue,
+            name, trait_phrases, has_reference_photos,
         )
         solo_passes.append((name, reference_parts, solo_prompt))
         try:
