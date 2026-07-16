@@ -1096,6 +1096,8 @@ input[type=number] {
     z-index: 4000;
     transition: right 0.3s ease;
     padding: 20px;
+    /* Keep the last item clear of the home indicator / browser chrome. */
+    padding-bottom: max(80px, calc(20px + env(safe-area-inset-bottom, 0px)));
     visibility: hidden;
     overflow-y: auto;
 }
