@@ -311,17 +311,24 @@
         {% if todays_stats %}
         <div class="sr-card" style="margin-top: 30px;">
             <h2 style="font-size: 16px; margin-bottom: 12px;">Today's Stats</h2>
-            <table class="sr-stats-table">
-                <thead><tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>%</th><th>+/-</th></tr></thead>
+            <table class="sr-stats-table" data-default-sort="winpct" data-default-dir="desc">
+                <thead><tr>
+                    <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
+                </tr></thead>
                 <tbody>
                 {% for stat in todays_stats %}
                 <tr>
-                    <td>{{ loop.index }}</td>
+                    <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('other_player_stats', year=year, name=stat[0]) }}">{{ stat[0] }}</a></td>
-                    <td>{{ stat[1] }}</td>
-                    <td>{{ stat[2] }}</td>
-                    <td>{{ "%.0f"|format(stat[3]*100) }}</td>
-                    <td>{% if stat[4] > 0 %}+{% endif %}{{ stat[4] }}</td>
+                    <td data-value="{{ stat[1] }}">{{ stat[1] }}</td>
+                    <td data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                    <td data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3]*100) }}</td>
+                    <td data-value="{{ stat[4] }}">{% if stat[4] > 0 %}+{% endif %}{{ stat[4] }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -385,6 +392,7 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 <script>
 // Set user timezone so game timestamps use correct local time (including DST)
 (function() {

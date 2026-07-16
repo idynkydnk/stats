@@ -111,26 +111,26 @@
                     <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
                 </div>
                 <div class="sr-table-wrap">
-                    <table class="sr-table">
+                    <table class="sr-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Player</th>
-                                <th class="sr-numeric">W</th>
-                                <th class="sr-numeric">L</th>
-                                <th class="sr-numeric">Win%</th>
-                                <th class="sr-numeric">+/-</th>
+                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody id="today-stats-tbody">
                             {% for player in today_stats %}
                             <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
-                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
+                                <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
+                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
+                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
+                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ player[4] }}" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
                                     {% if player[4] > 0 %}+{% endif %}{{ player[4] }}
                                 </td>
                             </tr>
@@ -162,10 +162,10 @@
                 </div>
                 {% if stats %}
                 <div class="sr-table-wrap">
-                    <table class="sr-table" id="sr-table">
+                    <table class="sr-table" id="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank"># <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="rating" class="sr-numeric">
                                     <span class="sr-rating-header">
@@ -219,14 +219,14 @@
                 <p class="sr-section-label" style="margin-bottom: 2px;">Fewer than {{ minimum_games }} games</p>
                 <p style="font-size: 12px; color: var(--sr-muted); margin: 0 0 10px;">These players haven't played enough games this year to be ranked in the main table yet ({{ minimum_games }} game{{ 's' if minimum_games != 1 else '' }} needed{{ ', based on total games played this year' if minimum_games > 1 else '' }}).</p>
                 <div class="sr-table-wrap">
-                    <table class="sr-table">
+                    <table class="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Player</th>
-                                <th class="sr-numeric">
+                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="rating" class="sr-numeric">
                                 <span class="sr-rating-header">
-                                    Rating
+                                    Rating <span class="sr-sort-arrow">▼</span>
                                     <button type="button" class="sr-rating-info-btn sr-rating-info-btn-rare" aria-label="What is Rating?"><i class="fas fa-info-circle"></i></button>
                                     <div class="sr-rating-popover sr-rating-popover-rare" role="tooltip" hidden>
                                         <div class="sr-rating-popover-title">Rating (TrueSkill)</div>
@@ -236,22 +236,22 @@
                                     </div>
                                 </span>
                             </th>
-                                <th class="sr-numeric">W</th>
-                                <th class="sr-numeric">L</th>
-                                <th class="sr-numeric">Win%</th>
-                                <th class="sr-numeric">Games</th>
+                                <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for player in rare_stats %}
                             <tr>
-                                <td class="sr-rank">{{ loop.index }}</td>
+                                <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating">{{ player[4] }}</td>
-                                <td class="sr-numeric sr-win">{{ player[1] }}</td>
-                                <td class="sr-numeric sr-loss">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric">{{ player[1] + player[2] }}</td>
+                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
+                                <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
+                                <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
+                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

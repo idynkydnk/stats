@@ -180,17 +180,24 @@ textarea { resize: vertical; min-height: 60px; }
             <h2 style="font-size: 16px; margin-bottom: 12px;">Today's Stats</h2>
             <div id="add-game-todays-stats-body">
             {% if todays_stats %}
-            <table class="sr-stats-table">
-                <thead><tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>%</th><th>+/-</th></tr></thead>
+            <table class="sr-stats-table" data-default-sort="winpct" data-default-dir="desc">
+                <thead><tr>
+                    <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
+                </tr></thead>
                 <tbody>
                 {% for player in todays_stats %}
                 <tr>
-                    <td>{{ loop.index }}</td>
+                    <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
-                    <td>{{ player[1] }}</td>
-                    <td>{{ player[2] }}</td>
-                    <td>{{ "%.0f"|format(player[3]*100) }}</td>
-                    <td>{% if player[4] > 0 %}+{% endif %}{{ player[4] }}</td>
+                    <td data-value="{{ player[1] }}">{{ player[1] }}</td>
+                    <td data-value="{{ player[2] }}">{{ player[2] }}</td>
+                    <td data-value="{{ player[3] }}">{{ "%.0f"|format(player[3]*100) }}</td>
+                    <td data-value="{{ player[4] }}">{% if player[4] > 0 %}+{% endif %}{{ player[4] }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -240,6 +247,7 @@ textarea { resize: vertical; min-height: 60px; }
         </div>
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 <script>
 (function() {
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -324,15 +332,23 @@ function refreshTodaysDoublesDashboard() {
             if (!statsBody || !grid) return;
             var stats = (d && d.stats) ? d.stats : [];
             if (stats.length) {
-                var stHtml = '<table class="sr-stats-table"><thead><tr><th>#</th><th>Player</th><th>W</th><th>L</th><th>%</th><th>+/-</th></tr></thead><tbody>';
+                var stHtml = '<table class="sr-stats-table" data-default-sort="winpct" data-default-dir="desc"><thead><tr>' +
+                    '<th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>' +
+                    '</tr></thead><tbody>';
                 for (var i = 0; i < stats.length; i++) {
                     var p = stats[i];
                     var pct = Math.round((p[3] || 0) * 100);
                     var pm = p[4];
-                    stHtml += '<tr><td>' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + escapeHtmlDoubles(p[0]) + '</a></td><td>' + p[1] + '</td><td>' + p[2] + '</td><td>' + pct + '</td><td>' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
+                    stHtml += '<tr><td class="sr-rank" data-value="' + (i + 1) + '">' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + escapeHtmlDoubles(p[0]) + '</a></td><td data-value="' + p[1] + '">' + p[1] + '</td><td data-value="' + p[2] + '">' + p[2] + '</td><td data-value="' + (p[3] || 0) + '">' + pct + '</td><td data-value="' + pm + '">' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
                 }
                 stHtml += '</tbody></table>';
                 statsBody.innerHTML = stHtml;
+                if (window.initStatsSorting) window.initStatsSorting();
             } else {
                 statsBody.innerHTML = '<p id="add-game-no-stats-msg" style="margin:0;font-size:14px;color:var(--sr-muted);">No doubles played today yet.</p>';
             }

@@ -38,26 +38,26 @@
                 <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
             </a>
             <div class="sr-table-wrap">
-                <table class="sr-table">
+                <table class="sr-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Player</th>
-                            <th class="sr-numeric">W</th>
-                            <th class="sr-numeric">L</th>
-                            <th class="sr-numeric">Win%</th>
-                            <th class="sr-numeric">Games</th>
+                            <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                         </tr>
                     </thead>
                     <tbody id="volleyball-card-tbody-{{ loop.index }}">
                         {% for stat in card.stats %}
                         <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
-                            <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}">{{ loop.index }}</td>
+                            <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                             <td class="sr-player"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
-                            <td class="sr-numeric sr-win">{{ stat[1] }}</td>
-                            <td class="sr-numeric sr-loss">{{ stat[2] }}</td>
-                            <td class="sr-numeric sr-winpct">{{ "%.0f"|format(stat[3] * 100) }}%</td>
-                            <td class="sr-numeric">{{ stat[1] + stat[2] }}</td>
+                            <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
+                            <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                            <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
+                            <td class="sr-numeric" data-value="{{ stat[1] + stat[2] }}">{{ stat[1] + stat[2] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

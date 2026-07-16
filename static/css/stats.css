@@ -506,17 +506,26 @@ input[type=number] {
     letter-spacing: 0.5px;
     color: var(--sr-muted);
     border-bottom: 1px solid var(--sr-line);
-    cursor: pointer;
-    user-select: none;
     white-space: nowrap;
     transition: color 0.2s;
 }
 
-.sr-table th:hover {
+.sr-table th[data-sort],
+.sr-mini-table th[data-sort],
+.sr-stats-table th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sr-table th[data-sort]:hover,
+.sr-mini-table th[data-sort]:hover,
+.sr-stats-table th[data-sort]:hover {
     color: var(--sr-text);
 }
 
-.sr-table th.sr-sorted {
+.sr-table th.sr-sorted,
+.sr-mini-table th.sr-sorted,
+.sr-stats-table th.sr-sorted {
     color: var(--sr-accent);
 }
 
@@ -529,7 +538,9 @@ input[type=number] {
     opacity: 0.5;
 }
 
-.sr-table th.sr-sorted .sr-sort-arrow {
+.sr-table th.sr-sorted .sr-sort-arrow,
+.sr-mini-table th.sr-sorted .sr-sort-arrow,
+.sr-stats-table th.sr-sorted .sr-sort-arrow {
     opacity: 1;
 }
 

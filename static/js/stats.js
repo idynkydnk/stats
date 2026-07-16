@@ -220,88 +220,113 @@ function filterAllTables(query, tables, filterActive, filterChip, noResults) {
 // ============================================
 // TABLE SORTING
 // ============================================
-let currentSort = { column: 2, direction: 'desc' }; // Default: Rating desc
+const tableSortState = new WeakMap();
 
 function initSorting() {
-    const table = document.getElementById('sr-table');
-    if (!table) return;
-    
+    document.querySelectorAll('table').forEach(initTableSorting);
+}
+
+function initTableSorting(table) {
+    if (!table || table.dataset.sortReady === '1') return;
+
     const headers = table.querySelectorAll('th[data-sort]');
-    
-    headers.forEach((header, index) => {
+    if (!headers.length) return;
+
+    table.dataset.sortReady = '1';
+    const state = { column: -1, direction: 'desc' };
+    tableSortState.set(table, state);
+
+    headers.forEach((header) => {
         header.addEventListener('click', function(e) {
             if (e.target.closest('.sr-rating-info-btn')) return;
-            const sortKey = this.dataset.sort;
+
+            const columnIndex = this.cellIndex;
             const isNumeric = this.classList.contains('sr-numeric');
-            
-            // Toggle direction if same column
-            if (currentSort.column === index) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            const st = tableSortState.get(table);
+
+            if (st.column === columnIndex) {
+                st.direction = st.direction === 'asc' ? 'desc' : 'asc';
             } else {
-                currentSort.column = index;
-                currentSort.direction = isNumeric ? 'desc' : 'asc'; // Default desc for numbers
+                st.column = columnIndex;
+                st.direction = isNumeric ? 'desc' : 'asc';
             }
-            
-            sortTable(table, index, currentSort.direction, isNumeric);
-            updateSortIndicators(headers, index, currentSort.direction);
+
+            sortTable(table, columnIndex, st.direction, isNumeric);
+            updateSortIndicators(headers, this, st.direction);
         });
     });
-    
-    // Apply default sort
-    const defaultHeader = headers[currentSort.column];
-    if (defaultHeader) {
-        const isNumeric = defaultHeader.classList.contains('sr-numeric');
-        sortTable(table, currentSort.column, currentSort.direction, isNumeric);
-        updateSortIndicators(headers, currentSort.column, currentSort.direction);
+
+    // Show the default-sort indicator without reordering (keeps server order)
+    const defaultKey = table.dataset.defaultSort;
+    if (defaultKey) {
+        const defaultHeader = table.querySelector('th[data-sort="' + defaultKey + '"]');
+        if (defaultHeader) {
+            state.column = defaultHeader.cellIndex;
+            state.direction = table.dataset.defaultDir || (defaultHeader.classList.contains('sr-numeric') ? 'desc' : 'asc');
+            updateSortIndicators(headers, defaultHeader, state.direction);
+        }
     }
 }
 
 function sortTable(table, columnIndex, direction, isNumeric) {
     const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
     const rows = Array.from(tbody.querySelectorAll('tr'));
-    
+    const wasCollapsed = !!tbody.querySelector('.sr-hidden');
+    const collapseLimit = parseInt(table.dataset.collapseLimit || '5', 10);
+
     rows.sort((a, b) => {
         const aCell = a.cells[columnIndex];
         const bCell = b.cells[columnIndex];
-        
+        if (!aCell || !bCell) return 0;
+
         let aVal = aCell.dataset.value !== undefined ? aCell.dataset.value : aCell.textContent.trim();
         let bVal = bCell.dataset.value !== undefined ? bCell.dataset.value : bCell.textContent.trim();
-        
+
         if (isNumeric) {
-            aVal = parseFloat(aVal) || 0;
-            bVal = parseFloat(bVal) || 0;
+            aVal = parseFloat(aVal);
+            bVal = parseFloat(bVal);
+            if (isNaN(aVal)) aVal = 0;
+            if (isNaN(bVal)) bVal = 0;
             return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        } else {
-            aVal = aVal.toLowerCase();
-            bVal = bVal.toLowerCase();
-            if (direction === 'asc') {
-                return aVal.localeCompare(bVal);
-            } else {
-                return bVal.localeCompare(aVal);
-            }
         }
+
+        aVal = String(aVal).toLowerCase();
+        bVal = String(bVal).toLowerCase();
+        if (direction === 'asc') {
+            return aVal.localeCompare(bVal);
+        }
+        return bVal.localeCompare(aVal);
     });
-    
-    // Re-append sorted rows and update rank numbers
+
     rows.forEach((row, index) => {
         tbody.appendChild(row);
+
         const rankCell = row.querySelector('.sr-rank');
         if (rankCell) {
             rankCell.textContent = index + 1;
-            rankCell.className = 'sr-rank';
-            if (index === 0) rankCell.classList.add('sr-rank-1');
-            else if (index === 1) rankCell.classList.add('sr-rank-2');
-            else if (index === 2) rankCell.classList.add('sr-rank-3');
+            if (table.classList.contains('sr-table')) {
+                rankCell.className = 'sr-rank';
+                if (index === 0) rankCell.classList.add('sr-rank-1');
+                else if (index === 1) rankCell.classList.add('sr-rank-2');
+                else if (index === 2) rankCell.classList.add('sr-rank-3');
+            }
+        }
+
+        if (wasCollapsed) {
+            if (index >= collapseLimit) row.classList.add('sr-hidden');
+            else row.classList.remove('sr-hidden');
         }
     });
 }
 
-function updateSortIndicators(headers, activeIndex, direction) {
-    headers.forEach((header, index) => {
+function updateSortIndicators(headers, activeHeader, direction) {
+    headers.forEach((header) => {
         const arrow = header.querySelector('.sr-sort-arrow');
         if (!arrow) return;
-        
-        if (index === activeIndex) {
+
+        if (header === activeHeader) {
             header.classList.add('sr-sorted');
             arrow.textContent = direction === 'asc' ? '▲' : '▼';
         } else {
@@ -310,6 +335,8 @@ function updateSortIndicators(headers, activeIndex, direction) {
         }
     });
 }
+
+window.initStatsSorting = initSorting;
 
 function toggleCardRows(tbodyId, btn, limit) {
     const tbody = document.getElementById(tbodyId);
