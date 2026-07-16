@@ -377,7 +377,7 @@ def crop_image_with_focus(image_bytes, x_pct, y_pct, zoom, output_aspect=1.0, ma
         bottom = ih
 
     cropped = img.crop((int(left), int(top), int(right), int(bottom)))
-    cropped = cropped.resize((out_w, out_h), Image.Resampling.LANCZOS)
+    cropped = cropped.resize((out_w, out_h), _pil_lanczos())
     buf = io.BytesIO()
     cropped.save(buf, format='JPEG', quality=90)
     return buf.getvalue(), 'image/jpeg'
@@ -429,7 +429,7 @@ def crop_image_with_rect(image_bytes, x_pct, y_pct, w_pct, h_pct, max_pixels=768
     else:
         out_w = max_pixels
         out_h = max(1, int(max_pixels / aspect))
-    cropped = cropped.resize((out_w, out_h), Image.Resampling.LANCZOS)
+    cropped = cropped.resize((out_w, out_h), _pil_lanczos())
     buf = io.BytesIO()
     cropped.save(buf, format='JPEG', quality=90)
     return buf.getvalue(), 'image/jpeg'
@@ -658,6 +658,16 @@ def _validate_photo_upload(file_storage):
     return ext
 
 
+def _pil_lanczos():
+    """LANCZOS filter compatible with older Pillow (no Image.Resampling)."""
+    from PIL import Image
+
+    try:
+        return Image.Resampling.LANCZOS
+    except AttributeError:
+        return Image.LANCZOS
+
+
 def _pil_image_to_rgb(img):
     from PIL import Image
 
@@ -676,7 +686,6 @@ def _pil_image_to_rgb(img):
 def _jpeg_bytes_under_limit(img, max_bytes=MAX_STORED_PHOTO_BYTES):
     """Encode image as JPEG under max_bytes by lowering quality, then size."""
     import io
-    from PIL import Image
 
     img = _pil_image_to_rgb(img)
     w, h = img.size
@@ -685,7 +694,7 @@ def _jpeg_bytes_under_limit(img, max_bytes=MAX_STORED_PHOTO_BYTES):
         scale = MAX_STORED_PHOTO_DIMENSION / float(longest)
         img = img.resize(
             (max(1, int(w * scale)), max(1, int(h * scale))),
-            Image.Resampling.LANCZOS,
+            _pil_lanczos(),
         )
 
     best = None
@@ -704,7 +713,7 @@ def _jpeg_bytes_under_limit(img, max_bytes=MAX_STORED_PHOTO_BYTES):
             break
         working = working.resize(
             (max(1, ww // 2), max(1, hh // 2)),
-            Image.Resampling.LANCZOS,
+            _pil_lanczos(),
         )
     return best
 
