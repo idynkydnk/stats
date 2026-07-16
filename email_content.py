@@ -622,7 +622,7 @@ def _image_details_block(image_details):
     clean = (image_details or '').strip()
     if not clean:
         return ''
-    return f'\nAdditional scene details from the user: {clean}\n'
+    return f'\n{clean}\n'
 
 
 def _image_roster_block(players):
@@ -645,8 +645,7 @@ def _build_scene_image_prompt(game_type, players, game_name=None, image_details=
     sport_desc = _sport_desc_for_image(game_type, game_name)
     roster_block, player_count, players = _image_roster_block(players)
     details_block = _image_details_block(image_details)
-    return f"""Group illustration for a game recap email.
-Game: {sport_desc}.
+    return f"""Game: {sport_desc}.
 {details_block}{roster_block}
 Use each attached character reference exactly — same face, hair, outfit per person.
 Draw all {player_count} people in the scene — one per Person number."""
@@ -1771,7 +1770,7 @@ def build_doubles_email_payload(
         score = f"{game[4]}-{game[7]}"
         comment_str = ""
         if len(game) > 9 and game[9]:
-            comment_str = f" - Comment: {game[9]}"
+            comment_str = f" - {game[9]}"
         context += f"- {winners} def. {losers} ({score}){comment_str}\n"
 
     style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
@@ -2401,7 +2400,7 @@ def build_other_email_payload(
         gn = game.get('game_name', '')
         game_label = f" [{gn}]" if gn else ""
         comment = game.get('comment', '')
-        comment_str = f" - Comment: {comment}" if comment else ""
+        comment_str = f" - {comment}" if comment else ""
         context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
 
     style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
