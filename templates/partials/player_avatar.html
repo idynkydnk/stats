@@ -49,6 +49,7 @@
     background: var(--sr-bg);
     position: relative;
     flex-shrink: 0;
+    box-sizing: border-box;
     contain: layout paint;
     clip-path: circle(50% at 50% 50%);
 }
@@ -68,6 +69,7 @@
     color: var(--sr-accent);
     background: var(--sr-accent-dim);
     border: 2px solid var(--sr-line);
+    box-sizing: border-box;
 }
 .sr-crop-positioned-img {
     position: absolute;
@@ -80,6 +82,8 @@
     object-fit: cover;
     object-position: 50% 50%;
     pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
 }
 @media (max-width: 480px) {
     .sr-avatar-clickable,

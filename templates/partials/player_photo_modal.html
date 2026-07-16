@@ -43,7 +43,7 @@
                         </label>
                         <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="face-photo-remove-btn" hidden>Remove face</button>
                     </div>
-                    <p class="sr-face-drag-hint" id="face-drag-hint" hidden>Drag to reposition · scroll or +/− to zoom</p>
+                    <p class="sr-face-drag-hint" id="face-drag-hint" hidden>Drag to move · pinch or +/− to zoom</p>
                     <div class="sr-face-zoom-controls" id="face-zoom-controls" hidden>
                         <button type="button" class="sr-face-zoom-btn" id="face-zoom-out" title="Zoom out">−</button>
                         <span class="sr-face-zoom-label" id="face-zoom-label">100%</span>
@@ -172,31 +172,32 @@
     flex-wrap: wrap;
 }
 .sr-face-photo-preview-wrap { flex-shrink: 0; }
-.sr-face-crop-frame {
-    width: 72px;
-    height: 72px;
+.sr-face-crop-frame,
+.sr-avatar-crop-frame {
     border-radius: 50%;
     overflow: hidden;
     border: 2px solid var(--sr-line);
     background: var(--sr-bg);
+    position: relative;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    contain: layout paint;
+    clip-path: circle(50% at 50% 50%);
+}
+.sr-face-crop-frame {
+    width: 120px;
+    height: 120px;
     cursor: grab;
     touch-action: none;
     user-select: none;
-    position: relative;
+    -webkit-user-select: none;
+    overscroll-behavior: contain;
 }
 .sr-face-crop-frame:active { cursor: grabbing; }
 .sr-face-crop-frame[hidden] { display: none !important; }
 .sr-avatar-crop-frame {
     width: 64px;
     height: 64px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid var(--sr-line);
-    background: var(--sr-bg);
-    position: relative;
-    flex-shrink: 0;
-    contain: layout paint;
-    clip-path: circle(50% at 50% 50%);
 }
 .sr-avatar-clickable .sr-avatar-crop-frame {
     width: 100%;
@@ -213,6 +214,26 @@
     object-fit: cover;
     object-position: 50% 50%;
     pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+.sr-face-photo-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-bg);
+    box-sizing: border-box;
+}
+.sr-face-photo-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--sr-accent);
+    background: var(--sr-accent-dim);
 }
 @media (max-width: 480px) {
     .sr-avatar-clickable,
@@ -224,23 +245,16 @@
         width: 100%;
         height: 100%;
     }
-}
-.sr-face-photo-preview {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--sr-line);
-    background: var(--sr-bg);
-}
-.sr-face-photo-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--sr-accent);
-    background: var(--sr-accent-dim);
+    .sr-face-crop-frame,
+    .sr-face-photo-preview {
+        width: 140px;
+        height: 140px;
+    }
+    .sr-face-zoom-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+    }
 }
 .sr-face-photo-preview[hidden],
 .sr-face-photo-empty[hidden],
@@ -582,7 +596,13 @@ window.PlayerPhotoManager = (function() {
     var faceDragging = false;
     var faceDragLastX = 0;
     var faceDragLastY = 0;
-    var orientedSizeCache = {};
+    var faceDragRaf = 0;
+    var facePendingDx = 0;
+    var facePendingDy = 0;
+    var facePointers = new Map();
+    var facePinchStartDist = 0;
+    var facePinchStartZoom = 1;
+    var faceSaveTimer = null;
     var listMetaEls = null;
 
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
@@ -707,37 +727,16 @@ window.PlayerPhotoManager = (function() {
     }
 
     function orientedImageSize(img, callback) {
-        var key = img.currentSrc || img.src;
+        // Trust the img element's natural size — browsers already apply EXIF
+        // orientation for display. createImageBitmap can disagree and warp the crop.
         var nw = img.naturalWidth;
         var nh = img.naturalHeight;
         if (!nw || !nh) return;
-
-        if (orientedSizeCache[key]) {
-            var cached = orientedSizeCache[key];
-            callback(cached.w, cached.h);
-            return;
-        }
-
-        // Lay out immediately so photos are visible, then refine for EXIF if needed.
         callback(nw, nh);
+    }
 
-        if (!window.createImageBitmap || !key) {
-            orientedSizeCache[key] = { w: nw, h: nh };
-            return;
-        }
-        fetch(key, { credentials: 'same-origin' })
-            .then(function(r) { return r.blob(); })
-            .then(function(blob) { return createImageBitmap(blob); })
-            .then(function(bitmap) {
-                orientedSizeCache[key] = { w: bitmap.width, h: bitmap.height };
-                if (bitmap.width !== nw || bitmap.height !== nh) {
-                    callback(bitmap.width, bitmap.height);
-                }
-                bitmap.close();
-            })
-            .catch(function() {
-                orientedSizeCache[key] = { w: nw, h: nh };
-            });
+    function photoUrlBase(url) {
+        return (url || '').split('?')[0];
     }
 
     function cropFrameFor(img) {
@@ -818,8 +817,9 @@ window.PlayerPhotoManager = (function() {
         var clampZoom = maxZoom === MAX_BODY_ZOOM ? clampBodyZoom : clampFaceZoom;
         var layoutAttempts = 0;
         function applyWithSize(iw, ih) {
-            var frameW = frameEl.offsetWidth || frameEl.getBoundingClientRect().width;
-            var frameH = frameEl.offsetHeight || frameEl.getBoundingClientRect().height;
+            // Use content box so border does not skew the crop vs the clipped circle.
+            var frameW = frameEl.clientWidth || frameEl.offsetWidth || frameEl.getBoundingClientRect().width;
+            var frameH = frameEl.clientHeight || frameEl.offsetHeight || frameEl.getBoundingClientRect().height;
             if (!iw || !ih) return false;
             if (frameW < 1 || frameH < 1) {
                 if (layoutAttempts++ < 30) {
@@ -832,7 +832,7 @@ window.PlayerPhotoManager = (function() {
             var z = clampZoom(focus.z);
             var fx = clampFocus(focus.x) / 100;
             var fy = clampFocus(focus.y) / 100;
-            var frameAspect = frameEl.offsetWidth / frameEl.offsetHeight;
+            var frameAspect = frameW / frameH;
             var imgAspect = iw / ih;
             var coverScale;
             if (imgAspect > frameAspect) {
@@ -903,13 +903,16 @@ window.PlayerPhotoManager = (function() {
         }
     }
 
-    function applyFaceCrop(x, y, z) {
+    function applyFaceCrop(x, y, z, opts) {
+        opts = opts || {};
         if (typeof x === 'number') faceFocus.x = clampFocus(x);
         if (typeof y === 'number') faceFocus.y = clampFocus(y);
         if (typeof z === 'number') faceFocus.z = clampFaceZoom(z);
         applyFaceStyles(modalFacePreview);
-        if (headerAvatarImg) applyFaceStyles(headerAvatarImg);
-        updateListAvatarPreview();
+        if (!opts.previewOnly) {
+            if (headerAvatarImg) applyFaceStyles(headerAvatarImg);
+            updateListAvatarPreview();
+        }
         updateFaceZoomLabel();
     }
 
@@ -1007,6 +1010,13 @@ window.PlayerPhotoManager = (function() {
     }
 
     function saveFaceFocus() {
+        if (faceSaveTimer) {
+            clearTimeout(faceSaveTimer);
+            faceSaveTimer = null;
+        }
+        // Sync page/list avatars to the same crop that was just previewed.
+        if (headerAvatarImg) applyFaceStyles(headerAvatarImg);
+        updateListAvatarPreview();
         var fd = new FormData();
         fd.append('focus_x', faceFocus.x);
         fd.append('focus_y', faceFocus.y);
@@ -1016,9 +1026,18 @@ window.PlayerPhotoManager = (function() {
         }).catch(function() {});
     }
 
-    function adjustFaceZoom(delta) {
-        applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z + delta);
-        saveFaceFocus();
+    function saveFaceFocusDebounced() {
+        if (faceSaveTimer) clearTimeout(faceSaveTimer);
+        faceSaveTimer = setTimeout(saveFaceFocus, 250);
+    }
+
+    function adjustFaceZoom(delta, opts) {
+        applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z + delta, opts);
+        if (opts && opts.previewOnly) {
+            saveFaceFocusDebounced();
+        } else {
+            saveFaceFocus();
+        }
     }
 
     function relayoutModalPhotos() {
@@ -1042,7 +1061,11 @@ window.PlayerPhotoManager = (function() {
             requestAnimationFrame(relayoutModalPhotos);
         });
     }
-    function closeModal() { if (modal) modal.hidden = true; }
+    function closeModal() {
+        // Ensure the page avatar matches the latest crop when leaving the editor.
+        applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
+        if (modal) modal.hidden = true;
+    }
 
     function updateListAvatarPreview() {
         if (!listAvatarWrap) return;
@@ -1147,24 +1170,52 @@ window.PlayerPhotoManager = (function() {
         });
     }
 
+    function applyCropWhenReady(img, focus, isBody) {
+        if (!img) return;
+        function run() { applyPhotoCrop(img, focus, isBody); }
+        if (img.complete && img.naturalWidth) {
+            run();
+            relayoutCropSoon(img, focus, isBody);
+            return;
+        }
+        img.addEventListener('load', function onLoad() {
+            img.removeEventListener('load', onLoad);
+            run();
+            relayoutCropSoon(img, focus, isBody);
+        });
+    }
+
     function setFacePreview(url, focus) {
         if (url) {
             if (faceCropFrame) faceCropFrame.hidden = false;
+            var nextFocus = focus
+                ? { x: focus.x, y: focus.y, z: focus.z != null ? focus.z : 1 }
+                : { x: faceFocus.x, y: faceFocus.y, z: faceFocus.z };
+            faceFocus = {
+                x: clampFocus(nextFocus.x),
+                y: clampFocus(nextFocus.y),
+                z: clampFaceZoom(nextFocus.z),
+            };
             if (modalFacePreview) {
-                modalFacePreview.src = url + '?t=' + Date.now();
+                var modalBase = photoUrlBase(modalFacePreview.src);
+                var nextBase = photoUrlBase(url);
+                if (modalBase !== nextBase || !modalFacePreview.src) {
+                    modalFacePreview.src = url + '?t=' + Date.now();
+                }
             }
             if (modalFaceEmpty) modalFaceEmpty.hidden = true;
             if (faceRemoveBtn) faceRemoveBtn.hidden = false;
             if (faceDragHint) faceDragHint.hidden = false;
             if (faceZoomControls) faceZoomControls.hidden = false;
-            if (focus) {
-                applyFaceCrop(focus.x, focus.y, focus.z != null ? focus.z : 1);
-            } else {
-                applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
-            }
+            applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
+            applyCropWhenReady(modalFacePreview, faceFocus, false);
             if (headerAvatarImg) {
-                headerAvatarImg.src = url + '?t=' + Date.now();
-                applyFaceStyles(headerAvatarImg);
+                // Keep the page avatar on its existing URL when possible so the
+                // crop is not wiped by a cache-bust reload race.
+                if (photoUrlBase(headerAvatarImg.src) !== photoUrlBase(url)) {
+                    headerAvatarImg.src = url + '?t=' + Date.now();
+                }
+                applyCropWhenReady(headerAvatarImg, faceFocus, false);
             } else if (headerAvatarFallback) {
                 var frame = document.createElement('div');
                 frame.id = 'player-avatar-frame';
@@ -1177,7 +1228,7 @@ window.PlayerPhotoManager = (function() {
                 frame.appendChild(img);
                 headerAvatarFallback.replaceWith(frame);
                 headerAvatarImg = img;
-                applyPhotoCrop(img, focus || { x: 50, y: 50, z: 1 }, false);
+                applyCropWhenReady(img, faceFocus, false);
             }
             if (listAvatarWrap) {
                 var listFrame = listAvatarWrap.querySelector('.sr-avatar-crop-frame, .pl-avatar-fallback');
@@ -1461,42 +1512,102 @@ window.PlayerPhotoManager = (function() {
     }
     if (faceRemoveBtn) faceRemoveBtn.addEventListener('click', removeFace);
     if (faceCropFrame) {
-        faceCropFrame.addEventListener('pointerdown', function(e) {
-            if (!modalFacePreview || !modalFacePreview.src) return;
-            faceDragging = true;
-            faceDragLastX = e.clientX;
-            faceDragLastY = e.clientY;
-            faceCropFrame.setPointerCapture(e.pointerId);
-        });
-        faceCropFrame.addEventListener('pointermove', function(e) {
-            if (!faceDragging) return;
-            var rect = faceCropFrame.getBoundingClientRect();
-            if (!rect.width || !rect.height) return;
-            var dx = e.clientX - faceDragLastX;
-            var dy = e.clientY - faceDragLastY;
-            faceDragLastX = e.clientX;
-            faceDragLastY = e.clientY;
+        function flushFaceDrag() {
+            faceDragRaf = 0;
+            if (!facePendingDx && !facePendingDy) return;
+            // Track the finger 1:1 against the displayed image (not the frame),
+            // and drag the photo with the finger (not inverted focus).
+            var dispW = (modalFacePreview && modalFacePreview.offsetWidth) || faceCropFrame.clientWidth || 1;
+            var dispH = (modalFacePreview && modalFacePreview.offsetHeight) || faceCropFrame.clientHeight || 1;
+            var dx = facePendingDx;
+            var dy = facePendingDy;
+            facePendingDx = 0;
+            facePendingDy = 0;
             applyFaceCrop(
-                faceFocus.x + (dx / rect.width) * 100,
-                faceFocus.y + (dy / rect.height) * 100,
-                faceFocus.z
+                faceFocus.x - (dx / dispW) * 100,
+                faceFocus.y - (dy / dispH) * 100,
+                faceFocus.z,
+                { previewOnly: true }
             );
-        });
-        function endFaceDrag(e) {
-            if (!faceDragging) return;
-            faceDragging = false;
+        }
+
+        function endFacePointer(e) {
+            facePointers.delete(e.pointerId);
             if (faceCropFrame.hasPointerCapture(e.pointerId)) {
                 faceCropFrame.releasePointerCapture(e.pointerId);
             }
-            saveFaceFocus();
+            if (facePointers.size < 2) {
+                facePinchStartDist = 0;
+            }
+            if (facePointers.size === 0) {
+                if (faceDragRaf) {
+                    cancelAnimationFrame(faceDragRaf);
+                    flushFaceDrag();
+                }
+                faceDragging = false;
+                applyFaceCrop(faceFocus.x, faceFocus.y, faceFocus.z);
+                saveFaceFocus();
+            } else if (facePointers.size === 1) {
+                // Resume single-finger drag after pinch.
+                var remaining = facePointers.values().next().value;
+                faceDragging = true;
+                faceDragLastX = remaining.x;
+                faceDragLastY = remaining.y;
+            }
         }
-        faceCropFrame.addEventListener('pointerup', endFaceDrag);
-        faceCropFrame.addEventListener('pointercancel', endFaceDrag);
+
+        faceCropFrame.addEventListener('pointerdown', function(e) {
+            if (!modalFacePreview || !modalFacePreview.src) return;
+            facePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            try { faceCropFrame.setPointerCapture(e.pointerId); } catch (err) {}
+            e.preventDefault();
+            if (facePointers.size >= 2) {
+                faceDragging = false;
+                facePendingDx = 0;
+                facePendingDy = 0;
+                var pts = Array.from(facePointers.values());
+                facePinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+                facePinchStartZoom = faceFocus.z;
+                return;
+            }
+            faceDragging = true;
+            faceDragLastX = e.clientX;
+            faceDragLastY = e.clientY;
+        });
+        faceCropFrame.addEventListener('pointermove', function(e) {
+            if (!facePointers.has(e.pointerId)) return;
+            facePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (facePointers.size >= 2) {
+                var pts = Array.from(facePointers.values());
+                var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+                if (facePinchStartDist > 0 && dist > 0) {
+                    applyFaceCrop(
+                        faceFocus.x,
+                        faceFocus.y,
+                        facePinchStartZoom * (dist / facePinchStartDist),
+                        { previewOnly: true }
+                    );
+                }
+                e.preventDefault();
+                return;
+            }
+            if (!faceDragging) return;
+            facePendingDx += e.clientX - faceDragLastX;
+            facePendingDy += e.clientY - faceDragLastY;
+            faceDragLastX = e.clientX;
+            faceDragLastY = e.clientY;
+            if (!faceDragRaf) {
+                faceDragRaf = requestAnimationFrame(flushFaceDrag);
+            }
+            e.preventDefault();
+        });
+        faceCropFrame.addEventListener('pointerup', endFacePointer);
+        faceCropFrame.addEventListener('pointercancel', endFacePointer);
         faceCropFrame.addEventListener('wheel', function(e) {
             if (!modalFacePreview || !modalFacePreview.src) return;
             e.preventDefault();
             var delta = e.deltaY > 0 ? -FACE_ZOOM_STEP : FACE_ZOOM_STEP;
-            adjustFaceZoom(delta);
+            adjustFaceZoom(delta, { previewOnly: true });
         }, { passive: false });
     }
     if (faceZoomIn) faceZoomIn.addEventListener('click', function() { adjustFaceZoom(FACE_ZOOM_STEP); });
