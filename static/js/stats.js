@@ -268,6 +268,51 @@ function initTableSorting(table) {
     }
 }
 
+// Win% sorts use the same minimum-games rule as leaderboards: pool // 30.
+function minimumGamesThreshold(numGames) {
+    if (!numGames || numGames < 30) return 1;
+    return Math.floor(numGames / 30);
+}
+
+function cellNumericValue(row, cellIndex) {
+    if (cellIndex < 0 || !row.cells[cellIndex]) return NaN;
+    const cell = row.cells[cellIndex];
+    const raw = cell.dataset.value !== undefined ? cell.dataset.value : cell.textContent.trim();
+    const n = parseFloat(raw);
+    return isNaN(n) ? NaN : n;
+}
+
+function findSortColumnIndex(table, sortKey) {
+    const headers = table.querySelectorAll('th[data-sort]');
+    for (let i = 0; i < headers.length; i++) {
+        if (headers[i].dataset.sort === sortKey) return headers[i].cellIndex;
+    }
+    return -1;
+}
+
+function rowGamesPlayed(table, row) {
+    const gamesIdx = findSortColumnIndex(table, 'games');
+    if (gamesIdx >= 0) {
+        const games = cellNumericValue(row, gamesIdx);
+        if (!isNaN(games)) return games;
+    }
+    const wins = cellNumericValue(row, findSortColumnIndex(table, 'wins'));
+    const losses = cellNumericValue(row, findSortColumnIndex(table, 'losses'));
+    if (!isNaN(wins) && !isNaN(losses)) return wins + losses;
+    return 0;
+}
+
+function winPctMinGamesForTable(table, rows) {
+    const fromAttr = parseInt(table.dataset.winpctMinGames || '', 10);
+    if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
+
+    let poolGames = 0;
+    rows.forEach((row) => {
+        poolGames += rowGamesPlayed(table, row);
+    });
+    return minimumGamesThreshold(poolGames);
+}
+
 function sortTable(table, columnIndex, direction, isNumeric) {
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
@@ -275,6 +320,9 @@ function sortTable(table, columnIndex, direction, isNumeric) {
     const rows = Array.from(tbody.querySelectorAll('tr'));
     const wasCollapsed = !!tbody.querySelector('.sr-hidden');
     const collapseLimit = parseInt(table.dataset.collapseLimit || '5', 10);
+    const sortHeader = table.querySelectorAll('th')[columnIndex];
+    const sortKey = sortHeader ? sortHeader.dataset.sort : '';
+    const winPctMinGames = sortKey === 'winpct' ? winPctMinGamesForTable(table, rows) : 1;
 
     rows.sort((a, b) => {
         const aCell = a.cells[columnIndex];
@@ -289,6 +337,21 @@ function sortTable(table, columnIndex, direction, isNumeric) {
             bVal = parseFloat(bVal);
             if (isNaN(aVal)) aVal = 0;
             if (isNaN(bVal)) bVal = 0;
+
+            // Qualified sample first, then win%, then games as tiebreaker.
+            if (sortKey === 'winpct') {
+                const aGames = rowGamesPlayed(table, a);
+                const bGames = rowGamesPlayed(table, b);
+                const aQual = aGames >= winPctMinGames ? 1 : 0;
+                const bQual = bGames >= winPctMinGames ? 1 : 0;
+                if (aQual !== bQual) return bQual - aQual;
+
+                if (aVal !== bVal) {
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                return bGames - aGames;
+            }
+
             return direction === 'asc' ? aVal - bVal : bVal - aVal;
         }
 

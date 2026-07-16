@@ -232,24 +232,24 @@
         {% if partner_stats %}
         <div class="sr-card">
             <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
-            <table class="sr-mini-table" data-default-sort="games" data-default-dir="desc" data-collapse-limit="5">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="partner">Partner <span class="sr-sort-arrow">▼</span></th>
-                    <th data-sort="games" class="sr-numeric">GP <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="games" class="sr-numeric">GP <span class="sr-sort-arrow">▼</span></th>
                 </tr></thead>
                 <tbody id="partner-tbody">
                 {% for stat in partner_stats %}
                 <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
+                    <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['partner']) }}">{{ stat['partner'] }}</a></td>
-                    <td data-value="{{ stat['total_games'] }}">{{ stat['total_games'] }}</td>
                     <td class="sr-win" data-value="{{ stat['wins'] }}">{{ stat['wins'] }}</td>
                     <td class="sr-loss" data-value="{{ stat['losses'] }}">{{ stat['losses'] }}</td>
-                    <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
+                    <td data-value="{{ stat['total_games'] }}">{{ stat['total_games'] }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -263,24 +263,24 @@
         {% if opponent_stats %}
         <div class="sr-card">
             <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="opponent">Opponent <span class="sr-sort-arrow">▼</span></th>
-                    <th data-sort="games" class="sr-numeric">GP <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                    <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="games" class="sr-numeric">GP <span class="sr-sort-arrow">▼</span></th>
                 </tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
                 <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
+                    <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
-                    <td data-value="{{ stat['total_games'] }}">{{ stat['total_games'] }}</td>
                     <td class="sr-win" data-value="{{ stat['wins'] }}">{{ stat['wins'] }}</td>
                     <td class="sr-loss" data-value="{{ stat['losses'] }}">{{ stat['losses'] }}</td>
-                    <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
+                    <td data-value="{{ stat['total_games'] }}">{{ stat['total_games'] }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>

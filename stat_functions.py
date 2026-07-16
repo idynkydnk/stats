@@ -860,8 +860,25 @@ def build_player_network_data(year):
 	}
 
 
-def partner_stats_by_year(name, games):
-	"""Record with every partner, most games together first (single pass over games)."""
+def minimum_games_threshold(num_games):
+	"""Same formula as doubles/other leaderboards: qualify at ~1/30 of the pool."""
+	if not num_games or num_games < 30:
+		return 1
+	return num_games // 30
+
+
+def sort_by_winpct_with_minimum(stats, min_games):
+	"""Rank by win% but keep sub-minimum samples below qualified rows."""
+	stats.sort(key=lambda x: (
+		0 if x['total_games'] >= min_games else 1,
+		-x['win_percentage'],
+		-x['total_games'],
+	))
+	return stats
+
+
+def partner_stats_by_year(name, games, min_games=None):
+	"""Record with every partner, ranked by win% with leaderboard minimum-games rule."""
 	if not games:
 		return []
 	records = {}
@@ -881,12 +898,13 @@ def partner_stats_by_year(name, games):
 		total_games = rec['wins'] + rec['losses']
 		stats.append({'partner': partner, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
-	stats.sort(key=lambda x: (-x['total_games'], -x['win_percentage']))
-	return stats
+	if min_games is None:
+		min_games = minimum_games_threshold(len(games))
+	return sort_by_winpct_with_minimum(stats, min_games)
 
 
-def opponent_stats_by_year(name, games):
-	"""Record against every opponent, highest win % first (single pass over games)."""
+def opponent_stats_by_year(name, games, min_games=None):
+	"""Record against every opponent, ranked by win% with leaderboard minimum-games rule."""
 	if not games:
 		return []
 	records = {}
@@ -905,8 +923,9 @@ def opponent_stats_by_year(name, games):
 		total_games = rec['wins'] + rec['losses']
 		stats.append({'opponent': opponent, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
-	stats.sort(key=lambda x: (-x['win_percentage'], -x['total_games']))
-	return stats
+	if min_games is None:
+		min_games = minimum_games_threshold(len(games))
+	return sort_by_winpct_with_minimum(stats, min_games)
 
 def total_stats(games, player):
 	stats = []

@@ -2820,8 +2820,14 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    partner_stats = partner_stats_by_year(name, games)
-    opponent_stats = opponent_stats_by_year(name, games)
+    # Same //30 rule as doubles leaderboard, based on year volume; capped so
+    # low-volume players aren't asked for more games with one partner than they played.
+    winpct_min_games = min(
+        minimum_games_threshold(year_games_count(year)),
+        max(1, len(games) // 2) if games else 1,
+    )
+    partner_stats = partner_stats_by_year(name, games, winpct_min_games)
+    opponent_stats = opponent_stats_by_year(name, games, winpct_min_games)
 
     # TrueSkill rating + rank for this year
     player_rating = None
@@ -2858,6 +2864,7 @@ def player_stats(year, name):
         all_years=all_years, stats=stats, games=games,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
+        winpct_min_games=winpct_min_games,
         **player_avatar_context(name))
 
 @app.route('/vollis_player/<year>/<name>/')
@@ -2866,9 +2873,15 @@ def vollis_player_stats(year, name):
     all_years = all_years_vollis_player(name)
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
-    opponent_stats = vollis_opponent_stats_by_year(name, games)
+    year_games = vollis_year_games(year)
+    winpct_min_games = min(
+        minimum_games_threshold(len(year_games) if year_games else 0),
+        max(1, len(games) // 2) if games else 1,
+    )
+    opponent_stats = vollis_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
+        winpct_min_games=winpct_min_games,
         **player_avatar_context(name))
 
 @app.route('/other_player/<year>/<name>/')
@@ -2877,9 +2890,15 @@ def other_player_stats(year, name):
     all_years = all_years_other_player(name)
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
-    opponent_stats = other_opponent_stats_by_year(name, games)
+    year_games = other_year_games(year)
+    winpct_min_games = min(
+        minimum_games_threshold(len(year_games) if year_games else 0),
+        max(1, len(games) // 2) if games else 1,
+    )
+    opponent_stats = other_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats,
+        winpct_min_games=winpct_min_games,
         **player_avatar_context(name))
 
 

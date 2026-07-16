@@ -29,13 +29,13 @@
         left: 0;
         right: 0;
         margin-top: 4px;
-        background: var(--sr-card-bg, #1a2332);
-        border: 1px solid var(--sr-border, rgba(255, 255, 255, 0.1));
+        background: var(--sr-panel);
+        border: 1px solid var(--sr-line);
         border-radius: 8px;
         max-height: 400px;
         overflow-y: auto;
         z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         display: none;
     }
     
@@ -45,14 +45,14 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--sr-muted, #9aa4b2);
-        border-bottom: 1px solid var(--sr-border, rgba(255, 255, 255, 0.1));
+        color: var(--sr-muted);
+        border-bottom: 1px solid var(--sr-line);
     }
     
     .sr-search-dropdown-item {
         display: block;
         padding: 10px 12px;
-        border-bottom: 1px solid var(--sr-border, rgba(255, 255, 255, 0.05));
+        border-bottom: 1px solid var(--sr-line);
         cursor: pointer;
         transition: background-color 0.15s ease;
         text-decoration: none;
@@ -60,7 +60,7 @@
     }
     
     .sr-search-dropdown-item:hover {
-        background-color: rgba(110, 231, 255, 0.1);
+        background-color: var(--sr-accent-dim);
     }
     
     .sr-search-dropdown-item:last-child {
@@ -70,13 +70,13 @@
     .sr-search-player-name {
         font-weight: 600;
         font-size: 14px;
-        color: var(--sr-text, #e6edf3);
+        color: var(--sr-text);
         margin-bottom: 2px;
     }
     
     .sr-search-player-info {
         font-size: 12px;
-        color: var(--sr-muted, #9aa4b2);
+        color: var(--sr-muted);
     }
     
     .sr-search-wrap {
