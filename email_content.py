@@ -693,105 +693,82 @@ def _reference_parts_from_caricatures(players, caricatures):
     return parts
 
 
-def _reference_photo_instruction(kind, index, player_count):
-    """Explain how each photo type should be used for one roster slot (single-pass)."""
-    if kind == 'face':
-        return (
-            f'Face reference for person {index}/{player_count}. '
-            f'Use for facial features and expression. Same person as character #{index}.'
-        )
-    if kind == 'body':
-        return (
-            f'Full-body reference for person {index}/{player_count}. '
-            f'Use for outfit, pose, and body type. Same person as character #{index} — '
-            f'NOT a second character.'
-        )
-    return (
-        f'Reference photo for person {index}/{player_count}. '
-        f'Same person as character #{index} — NOT a separate character.'
-    )
+def _reference_parts_for_player(index, player_count, name, entry, trait_phrases=None):
+    """Face pic + signature looks for one roster slot (single-pass group image)."""
+    parts = [{'text': f'Person {index}:'}]
+    face_parts = [
+        ref for ref in (entry or {}).get('parts') or []
+        if _reference_photo_kind(ref.get('label')) == 'face'
+    ]
+    if face_parts:
+        parts.append({'text': f'Face pic for Person {index}.'})
+        for ref in face_parts:
+            parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
+    else:
+        parts.append({'text': f'No face pic for Person {index} — invent a distinct look.'})
 
-
-def _reference_parts_for_player(index, player_count, name, entry):
-    """Build grouped reference parts for single-pass multi-person illustration."""
-    parts = [{
-        'text': (
-            f'=== PERSON {index} OF {player_count} ===\n'
-            f'All images in this group are the SAME person. '
-            f'Draw person #{index} exactly once. '
-            f'Do not draw them again anywhere else in the scene.'
-        ),
-    }]
-    if not entry or not entry.get('parts'):
+    phrases = [p for p in (trait_phrases or []) if p]
+    if phrases:
         parts.append({
             'text': (
-                f'No reference photos for person {index}/{player_count}. Invent one unique '
-                f'stylized character — clearly different from every other person.'
+                f'Signature looks for Person {index}:\n'
+                + '\n'.join(f'- {phrase}' for phrase in phrases)
             ),
         })
-        parts.append({'text': f'=== END PERSON {index} — one character only ==='})
-        return parts
-
-    for ref in entry['parts']:
-        kind = _reference_photo_kind(ref['label'])
-        parts.append({'text': _reference_photo_instruction(kind, index, player_count)})
-        parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
-
-    parts.append({
-        'text': (
-            f'=== END PERSON {index} — exactly one person in the final illustration ==='
-        ),
-    })
+    else:
+        parts.append({'text': f'No signature looks listed for Person {index}.'})
     return parts
 
 
 def _reference_parts_for_api(players):
-    from player_functions import collect_player_reference_images
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_player_reference_images,
+    )
 
     players = _dedupe_players_preserve_order(players)
     if not players:
         return []
 
     player_count = len(players)
-
     references = collect_player_reference_images(
         players,
         max_players=player_count,
         max_body_per_player=SINGLE_PASS_BODY_PHOTOS_PER_PLAYER,
     )
     refs_by_name = {entry['name']: entry for entry in references}
+    traits_by_name = {
+        entry['name']: entry.get('phrases') or []
+        for entry in collect_player_ai_image_traits(players)
+    }
 
     parts = [{
         'text': (
-            f'ROSTER: Create exactly {player_count} different people in the scene — no more, no fewer.\n'
-            f'Each player has at most one face reference photo plus signature-look text. '
-            f'One heading = one person = one visible person in the scene.'
+            f'{player_count} players, with each having a face pic and signature looks '
+            f'(Person 1 through Person {player_count}):'
         ),
     }]
     for index, name in enumerate(players, start=1):
         parts.extend(_reference_parts_for_player(
-            index, player_count, name, refs_by_name.get(name),
+            index,
+            player_count,
+            name,
+            refs_by_name.get(name),
+            trait_phrases=traits_by_name.get(name),
         ))
-    parts.append({
-        'text': (
-            f'FINAL CHECK: The scene must contain exactly {player_count} people. '
-            f'Not {player_count - 1 if player_count > 1 else 0}. Not {player_count + 1}. '
-            f'Each roster player appears once. No duplicate people.'
-        ),
-    })
     return parts
 
 
 def _build_single_pass_image_prompt(game_type, players, game_name=None, image_details=''):
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    roster_block, player_count, players = _image_roster_block(players)
+    players = _dedupe_players_preserve_order(players)
+    player_count = len(players)
     details_block = _image_details_block(image_details)
     return f"""Group illustration for a game recap email.
 Game: {sport_desc}.
-{details_block}{roster_block}
-Use each attached reference photo for the matching numbered person only.
-Create exactly {player_count} people — one per reference group. No duplicates. No bystanders.
-No text or logos in the image."""
+{details_block}
+{player_count} players, with each having a face pic and signature looks attached below.
+Draw all {player_count} people in the scene — one per Person number."""
 
 
 def _is_quota_error(msg):
@@ -1096,7 +1073,7 @@ def _illustration_status_note(illustrated_players, all_players, strategy):
     if len(all_players) > MAX_TWO_PASS_PLAYERS:
         return (
             f'One group illustration with all {len(illustrated_players)} players '
-            f'(face references only).'
+            f'(face pics + signature looks).'
         )
     return 'One AI-generated group illustration included in email.'
 
