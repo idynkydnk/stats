@@ -177,6 +177,58 @@
             left: -9999px;
             opacity: 0;
         }
+        .recap-remake-panel {
+            display: none;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 0 16px 14px;
+            border-bottom: 1px solid var(--recap-line);
+            background: rgba(19, 26, 36, 0.96);
+        }
+        .recap-remake-panel.is-open { display: block; }
+        .recap-remake-panel-inner {
+            background: var(--recap-panel);
+            border: 1px solid var(--recap-line);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .recap-remake-panel label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--recap-text);
+            margin-bottom: 6px;
+        }
+        .recap-remake-panel .recap-remake-help {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin: 0 0 10px;
+            line-height: 1.45;
+        }
+        .recap-remake-panel textarea {
+            width: 100%;
+            min-height: 110px;
+            resize: vertical;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--recap-line);
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--recap-text);
+            font-size: 13px;
+            font-family: inherit;
+            line-height: 1.45;
+        }
+        .recap-remake-panel textarea:focus {
+            outline: none;
+            border-color: var(--recap-accent);
+        }
+        .recap-remake-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: flex-end;
+        }
         @media (max-width: 640px) {
             .recap-share-inner {
                 align-items: stretch;
@@ -204,16 +256,12 @@
                     <i class="fas fa-copy"></i> Copy link
                 </button>
                 {% if can_remake %}
-                <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form" style="display:inline;margin:0;">
-                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-remake-summary-btn">
-                        <i class="fas fa-pen"></i> Remake summary
-                    </button>
-                </form>
-                <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form" style="display:inline;margin:0;">
-                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-remake-btn">
-                        <i class="fas fa-sync-alt"></i> Remake picture
-                    </button>
-                </form>
+                <button type="button" class="recap-btn recap-btn-secondary" id="recap-remake-summary-toggle">
+                    <i class="fas fa-pen"></i> Remake summary
+                </button>
+                <button type="button" class="recap-btn recap-btn-secondary" id="recap-remake-image-toggle">
+                    <i class="fas fa-sync-alt"></i> Remake picture
+                </button>
                 {% endif %}
                 {% if session.logged_in %}
                 <a href="{{ url_for('ai_summary') }}" class="recap-btn recap-btn-secondary">
@@ -224,6 +272,38 @@
             <input type="text" class="recap-url-input" id="recap-share-url" value="{{ share_url }}" readonly>
         </div>
     </div>
+    {% if can_remake %}
+    <div class="recap-remake-panel" id="recap-remake-summary-panel">
+        <div class="recap-remake-panel-inner">
+            <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form">
+                <label for="recap-summary-prompt">Writing style prompt</label>
+                <p class="recap-remake-help">Tweak the style used for this recap, then remake. Clear the box to invent a fresh random style instead.</p>
+                <textarea id="recap-summary-prompt" name="custom_prompt" placeholder="Example: You are a pirate captain writing a recap of the day's battles…">{{ remake_summary_prompt }}</textarea>
+                <div class="recap-remake-actions">
+                    <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="summary">Cancel</button>
+                    <button type="submit" class="recap-btn recap-btn-primary" id="recap-remake-summary-btn">
+                        <i class="fas fa-pen"></i> Remake summary
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="recap-remake-panel" id="recap-remake-image-panel">
+        <div class="recap-remake-panel-inner">
+            <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
+                <label for="recap-image-details">Illustration details</label>
+                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details.</p>
+                <textarea id="recap-image-details" name="image_details" placeholder="Example: sunset beach background, everyone celebrating at the net…">{{ remake_image_details }}</textarea>
+                <div class="recap-remake-actions">
+                    <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
+                    <button type="submit" class="recap-btn recap-btn-primary" id="recap-remake-btn">
+                        <i class="fas fa-sync-alt"></i> Remake picture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="recap-flash">
@@ -247,7 +327,7 @@
         {% if show_creator_view and solo_images %}
         <div class="recap-solo-gallery">
             <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
-            <p class="recap-solo-note">Behind-the-scenes portraits from illustration generation.</p>
+            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link.</p>
             <div class="recap-solo-grid">
                 {% for img in solo_images %}
                 <div class="recap-solo-card">
@@ -292,6 +372,51 @@
                 });
             });
         }
+
+        var summaryPanel = document.getElementById('recap-remake-summary-panel');
+        var imagePanel = document.getElementById('recap-remake-image-panel');
+        var summaryToggle = document.getElementById('recap-remake-summary-toggle');
+        var imageToggle = document.getElementById('recap-remake-image-toggle');
+
+        function closeRemakePanels() {
+            if (summaryPanel) summaryPanel.classList.remove('is-open');
+            if (imagePanel) imagePanel.classList.remove('is-open');
+        }
+
+        function openRemakePanel(panel) {
+            closeRemakePanels();
+            if (panel) {
+                panel.classList.add('is-open');
+                var ta = panel.querySelector('textarea');
+                if (ta) {
+                    ta.focus();
+                    ta.setSelectionRange(ta.value.length, ta.value.length);
+                }
+            }
+        }
+
+        if (summaryToggle && summaryPanel) {
+            summaryToggle.addEventListener('click', function () {
+                if (summaryPanel.classList.contains('is-open')) {
+                    closeRemakePanels();
+                } else {
+                    openRemakePanel(summaryPanel);
+                }
+            });
+        }
+        if (imageToggle && imagePanel) {
+            imageToggle.addEventListener('click', function () {
+                if (imagePanel.classList.contains('is-open')) {
+                    closeRemakePanels();
+                } else {
+                    openRemakePanel(imagePanel);
+                }
+            });
+        }
+
+        document.querySelectorAll('[data-remake-cancel]').forEach(function (el) {
+            el.addEventListener('click', closeRemakePanels);
+        });
 
         var remakeForm = document.getElementById('recap-remake-form');
         var remakeBtn = document.getElementById('recap-remake-btn');

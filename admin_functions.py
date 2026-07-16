@@ -513,7 +513,8 @@ def init_ai_recap_pages_db():
 def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          plain_text_body='', hero_image_url='', hero_image_error='',
                          game_ids_json='[]', prompt_style='', solo_images_json='',
-                         image_details='', image_mode='none', custom_prompt=''):
+                         image_details='', image_mode='none', custom_prompt='',
+                         style_instructions=''):
     """Persist a published recap to disk (no SQLite — avoids db disk I/O errors)."""
     safe_id = _safe_recap_share_id(share_id)
     write_recap_html_file(safe_id, html_body)
@@ -524,6 +525,7 @@ def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
         'game_type': game_type,
         'prompt_style': prompt_style or '',
         'custom_prompt': custom_prompt or '',
+        'style_instructions': style_instructions or custom_prompt or '',
         'subject': subject or '',
         'plain_text_body': plain_text_body or '',
         'hero_image_url': hero_image_url or '',
@@ -675,6 +677,7 @@ def list_ai_email_images():
         except OSError:
             continue
         total_bytes += stat.st_size
+        is_solo = name.startswith('solo_')
         images.append({
             'filename': name,
             'path': path,
@@ -683,7 +686,10 @@ def list_ai_email_images():
             'size_label': _format_bytes(stat.st_size),
             'mtime': stat.st_mtime,
             'mtime_label': datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime('%Y-%m-%d %H:%M'),
-            'in_use': name in referenced,
+            # Solo caricatures are temporary creator previews; don't treat as
+            # permanently "in use" so unused cleanup can remove them.
+            'in_use': (name in referenced) and not is_solo,
+            'is_solo': is_solo,
         })
     images.sort(key=lambda item: item['mtime'], reverse=True)
     unused_bytes = sum(item['size_bytes'] for item in images if not item['in_use'])

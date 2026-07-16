@@ -25,6 +25,11 @@ MAX_TWO_PASS_PLAYERS = 4
 SOLO_BODY_PHOTOS_PER_PLAYER = 1
 SINGLE_PASS_BODY_PHOTOS_PER_PLAYER = 0
 
+# Temporary solo caricatures (creator preview only). Prefix makes them easy to
+# find and expire; group hero images keep the bare uuid filename.
+SOLO_IMAGE_PREFIX = 'solo_'
+SOLO_IMAGE_MAX_AGE_HOURS = 48
+
 IMAGE_MODES = ('none', 'image')
 DEFAULT_IMAGE_MODE = 'none'
 _LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
@@ -129,6 +134,15 @@ _LEGACY_PROMPT_STYLE_ALIASES = {
 def _normalize_prompt_style(prompt_style):
     clean = (prompt_style or '').strip().lower()
     return _LEGACY_PROMPT_STYLE_ALIASES.get(clean, clean or 'random')
+
+
+def _strip_recap_paragraph_limit(text):
+    """Remove the appended length constraint so the user can edit the style cleanly."""
+    clean = (text or '').strip()
+    limit = RECAP_PARAGRAPH_LIMIT.strip()
+    if clean.endswith(limit):
+        clean = clean[: -len(limit)].rstrip()
+    return clean
 
 
 def _build_recap_style_instructions(prompt_style, context, custom_prompt=''):
@@ -842,16 +856,88 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None):
     raise ValueError(f'no image in response (finish={fr})')
 
 
-def _save_email_image(image_bytes, ext):
+def _save_email_image(image_bytes, ext, prefix=''):
     base = os.path.dirname(os.path.abspath(__file__))
     dest_dir = os.path.join(base, 'static', 'email_images')
     os.makedirs(dest_dir, exist_ok=True)
-    filename = f'{uuid.uuid4().hex}.{ext}'
+    filename = f'{prefix}{uuid.uuid4().hex}.{ext}'
     abs_path = os.path.join(dest_dir, filename)
     with open(abs_path, 'wb') as f:
         f.write(image_bytes)
     url = f'{SITE_BASE_URL}/static/email_images/{filename}'
     return url, abs_path
+
+
+def email_images_dir():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'email_images')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def delete_solo_image_files(solo_images):
+    """Delete files listed in a solo_images [{url, path, name}, ...] list."""
+    deleted = 0
+    for item in solo_images or []:
+        path = (item or {}).get('path')
+        if not path:
+            url = (item or {}).get('url') or ''
+            marker = '/static/email_images/'
+            if marker in url:
+                filename = url.split(marker, 1)[1].split('?', 1)[0]
+                path = os.path.join(email_images_dir(), os.path.basename(filename))
+        if not path or not os.path.isfile(path):
+            continue
+        # Only remove temporary solo caricatures, never the group hero.
+        if not os.path.basename(path).startswith(SOLO_IMAGE_PREFIX):
+            continue
+        try:
+            os.remove(path)
+            deleted += 1
+        except OSError:
+            pass
+    return deleted
+
+
+def cleanup_expired_solo_images(max_age_hours=None):
+    """Remove temporary solo caricature files older than max_age_hours."""
+    import time
+
+    hours = SOLO_IMAGE_MAX_AGE_HOURS if max_age_hours is None else max_age_hours
+    cutoff = time.time() - (float(hours) * 3600)
+    directory = email_images_dir()
+    deleted = 0
+    for name in os.listdir(directory):
+        if not name.startswith(SOLO_IMAGE_PREFIX):
+            continue
+        path = os.path.join(directory, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            if os.path.getmtime(path) >= cutoff:
+                continue
+            os.remove(path)
+            deleted += 1
+        except OSError:
+            continue
+    return deleted
+
+
+def filter_existing_solo_images(solo_images):
+    """Keep only solo entries whose files still exist on disk."""
+    kept = []
+    for item in solo_images or []:
+        if not item:
+            continue
+        path = item.get('path')
+        if not path:
+            url = item.get('url') or ''
+            marker = '/static/email_images/'
+            if marker in url:
+                filename = url.split(marker, 1)[1].split('?', 1)[0]
+                path = os.path.join(email_images_dir(), os.path.basename(filename))
+        if path and os.path.isfile(path):
+            kept.append(item)
+    return kept
 
 
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
@@ -946,8 +1032,9 @@ def _generate_email_hero_image_two_pass(
 ):
     """Solo caricature per player (<=4), then one group scene.
 
-    Solo caricatures stay in memory only and are not saved to disk. Only the
-    final group illustration is persisted.
+    Solo caricatures are saved temporarily (creator preview only; auto-expire)
+    and used as in-memory references for the group scene. Only the group
+    illustration is kept permanently.
     """
     from player_functions import (
         collect_player_ai_image_traits,
@@ -964,6 +1051,7 @@ def _generate_email_hero_image_two_pass(
     traits_by_name = {entry['name']: entry for entry in trait_entries}
 
     solo_passes = []
+    solo_images = []
     caricatures = {}
     for name in players:
         entry = collect_solo_reference_images(name)
@@ -985,9 +1073,13 @@ def _generate_email_hero_image_two_pass(
             raise ImageGenerationError(
                 _friendly_image_error(e, api_calls=len(solo_passes)),
                 image_prompt=partial_prompt,
-                solo_images=[],
+                solo_images=solo_images,
             ) from e
         caricatures[name] = (raw, mime)
+        solo_url, solo_path = _save_email_image(
+            raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
+        )
+        solo_images.append({'name': name, 'url': solo_url, 'path': solo_path})
 
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
     scene_prompt = _build_scene_image_prompt(
@@ -1000,10 +1092,10 @@ def _generate_email_hero_image_two_pass(
         raise ImageGenerationError(
             _friendly_image_error(e, api_calls=len(players) + 1),
             image_prompt=image_prompt,
-            solo_images=[],
+            solo_images=solo_images,
         ) from e
     url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt, []
+    return url, path, image_prompt, solo_images
 
 
 def generate_email_hero_image(
@@ -1771,8 +1863,10 @@ def build_doubles_email_payload(
         'date_obj': date_obj,
         'formatted_date': formatted_date,
         'ai_prompt': prompt,
+        'style_instructions': _strip_recap_paragraph_limit(style_instructions),
         'image_prompt': image_prompt or '',
         'image_mode': _normalize_image_mode(image_mode),
+        'image_details': (image_details or '').strip(),
         'illustration_note': (illustration_meta or {}).get('note', ''),
         'illustration_meta': illustration_meta or {},
     }
@@ -2225,8 +2319,10 @@ def build_vollis_email_payload(
         'date_obj': date_obj,
         'formatted_date': formatted_date,
         'ai_prompt': prompt,
+        'style_instructions': _strip_recap_paragraph_limit(style_instructions),
         'image_prompt': image_prompt or '',
         'image_mode': _normalize_image_mode(image_mode),
+        'image_details': (image_details or '').strip(),
         'illustration_note': (illustration_meta or {}).get('note', ''),
         'illustration_meta': illustration_meta or {},
     }
@@ -2401,8 +2497,10 @@ def build_other_email_payload(
         'date_obj': date_obj,
         'formatted_date': formatted_date,
         'ai_prompt': prompt,
+        'style_instructions': _strip_recap_paragraph_limit(style_instructions),
         'image_prompt': image_prompt or '',
         'image_mode': _normalize_image_mode(image_mode),
+        'image_details': (image_details or '').strip(),
         'illustration_note': (illustration_meta or {}).get('note', ''),
         'illustration_meta': illustration_meta or {},
     }

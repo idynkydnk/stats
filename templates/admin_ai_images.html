@@ -184,7 +184,7 @@
                 <div class="adm-img-thumb-wrap">
                     <input class="adm-img-check" type="checkbox" name="filenames" value="{{ img.filename }}"
                            data-in-use="{{ '1' if img.in_use else '0' }}">
-                    {% if img.in_use %}<span class="adm-img-badge">In use</span>{% endif %}
+                    {% if img.in_use %}<span class="adm-img-badge">In use</span>{% elif img.is_solo %}<span class="adm-img-badge">Temp solo</span>{% endif %}
                     <img src="{{ img.url }}" alt="{{ img.filename }}" loading="lazy">
                 </div>
                 <div class="adm-img-meta">

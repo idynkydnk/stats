@@ -495,6 +495,9 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
     """Save a generated AI recap as a public shareable page."""
     illustration_meta = payload.get('illustration_meta') or {}
     solo_images = illustration_meta.get('solo_images') or []
+    style_instructions = (payload.get('style_instructions') or '').strip()
+    # Prefer the resolved style for later remakes; fall back to the typed custom prompt.
+    saved_custom = style_instructions or (custom_prompt or '').strip()
     share_id = secrets.token_urlsafe(9)
     while adminfx.get_ai_recap_page(share_id):
         share_id = secrets.token_urlsafe(9)
@@ -509,7 +512,8 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         hero_image_error=payload.get('hero_image_error') or '',
         game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
         prompt_style=prompt_style or '',
-        custom_prompt=custom_prompt or '',
+        custom_prompt=saved_custom,
+        style_instructions=style_instructions,
         solo_images_json=json.dumps(solo_images) if solo_images else '',
         image_details=payload.get('image_details') or '',
         image_mode=payload.get('image_mode') or 'none',
@@ -1703,9 +1707,14 @@ def preview_ai_summary_with_prompt():
 @app.route('/recap/<share_id>/')
 def view_ai_recap(share_id):
     """Public shareable AI recap page."""
+    from email_content import cleanup_expired_solo_images, filter_existing_solo_images
+
     row = adminfx.get_ai_recap_page(share_id)
     if not row:
         abort(404)
+
+    # Drop expired temporary solo caricatures (creator-only previews).
+    cleanup_expired_solo_images()
 
     solo_images = []
     try:
@@ -1714,6 +1723,19 @@ def view_ai_recap(share_id):
         solo_images = []
 
     show_creator_view = request.args.get('published') == '1'
+    # Solos are never shown on the public shareable link — only the creator
+    # view (?published=1), and only while the temp files still exist.
+    if show_creator_view and solo_images:
+        kept = filter_existing_solo_images(solo_images)
+        if len(kept) != len(solo_images):
+            adminfx.update_ai_recap_page(
+                share_id,
+                solo_images_json=json.dumps(kept) if kept else '[]',
+            )
+        solo_images = kept
+    else:
+        solo_images = []
+
     share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
     created_at = row.get('created_at') or ''
     if isinstance(created_at, str) and len(created_at) >= 16:
@@ -1728,6 +1750,15 @@ def view_ai_recap(share_id):
         and row.get('username') == session.get('username')
     )
 
+    remake_summary_prompt = ''
+    remake_image_details = ''
+    if can_remake:
+        remake_summary_prompt = (
+            (row.get('style_instructions') or '').strip()
+            or (row.get('custom_prompt') or '').strip()
+        )
+        remake_image_details = (row.get('image_details') or '').strip()
+
     return render_template(
         'recap.html',
         subject=row.get('subject') or 'Game Recap',
@@ -1736,10 +1767,12 @@ def view_ai_recap(share_id):
         share_id=share_id,
         show_creator_view=show_creator_view,
         can_remake=can_remake,
-        solo_images=solo_images if show_creator_view else [],
+        solo_images=solo_images,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=row.get('game_type') or 'doubles',
+        remake_summary_prompt=remake_summary_prompt,
+        remake_image_details=remake_image_details,
     )
 
 
@@ -1769,7 +1802,11 @@ def remake_ai_recap_image(share_id):
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
     game_type = row.get('game_type') or 'doubles'
-    image_details = (row.get('image_details') or '').strip()
+    # Prefer freshly edited details from the remake form; fall back to saved ones.
+    if 'image_details' in request.form:
+        image_details = (request.form.get('image_details') or '').strip()
+    else:
+        image_details = (row.get('image_details') or '').strip()
     # Remake always generates an image, even if the original mode was "none".
     image_mode = 'image'
 
@@ -1801,12 +1838,21 @@ def remake_ai_recap_image(share_id):
         adminfx.update_ai_recap_page(
             share_id,
             hero_image_error=hero_err or 'Failed to remake picture.',
+            image_details=image_details,
         )
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    from email_content import delete_solo_image_files
 
     old_url = row.get('hero_image_url') or ''
     updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
     solo_images = (illustration_meta or {}).get('solo_images') or []
+
+    try:
+        old_solos = json.loads(row.get('solo_images_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        old_solos = []
+    delete_solo_image_files(old_solos)
 
     adminfx.update_ai_recap_page(
         share_id,
@@ -1814,6 +1860,7 @@ def remake_ai_recap_image(share_id):
         hero_image_url=new_url,
         hero_image_error='',
         image_mode=image_mode,
+        image_details=image_details,
         solo_images_json=json.dumps(solo_images) if solo_images else '[]',
     )
 
@@ -1854,10 +1901,18 @@ def remake_ai_recap_summary(share_id):
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
     game_type = row.get('game_type') or 'doubles'
-    prompt_style = _normalize_prompt_style(row.get('prompt_style') or 'random')
-    custom_prompt = (row.get('custom_prompt') or '').strip()
-    if prompt_style == 'custom' and not custom_prompt:
-        # Older recaps may lack a saved custom prompt — fall back to random.
+    if 'custom_prompt' in request.form:
+        custom_prompt = (request.form.get('custom_prompt') or '').strip()
+    else:
+        custom_prompt = (
+            (row.get('style_instructions') or '').strip()
+            or (row.get('custom_prompt') or '').strip()
+        )
+
+    if custom_prompt:
+        prompt_style = 'custom'
+    else:
+        # Empty prompt → invent a fresh random style (same as original "random").
         prompt_style = 'random'
 
     try:
@@ -1879,13 +1934,17 @@ def remake_ai_recap_summary(share_id):
     if old_hero:
         html_body = replace_recap_hero_image(html_body, old_hero)
 
+    style_instructions = (payload.get('style_instructions') or '').strip()
+    saved_custom = style_instructions or custom_prompt
+
     adminfx.update_ai_recap_page(
         share_id,
         html_body=html_body,
         plain_text_body=payload.get('plain_text_body') or '',
         subject=payload.get('subject') or row.get('subject') or '',
         prompt_style=prompt_style,
-        custom_prompt=custom_prompt,
+        custom_prompt=saved_custom,
+        style_instructions=style_instructions,
         hero_image_url=old_hero,
         hero_image_error=row.get('hero_image_error') or '',
     )
@@ -4366,8 +4425,11 @@ def opt_out_ai_emails():
 @app.route('/cleanup_tokens')
 def cleanup_tokens():
     """Clean up expired authentication tokens (can be called periodically)"""
+    from email_content import cleanup_expired_solo_images
+
     cleanup_expired_tokens()
-    return 'Expired tokens cleaned up successfully', 200
+    solos_removed = cleanup_expired_solo_images()
+    return f'Expired tokens cleaned up successfully; removed {solos_removed} expired solo image(s)', 200
 
 def get_players_who_played_on_date(target_date):
     """Get all players who played on a specific date with their email addresses"""
