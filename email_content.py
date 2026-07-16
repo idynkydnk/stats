@@ -5,10 +5,12 @@ database, call Gemini for the summary text, and return HTML/payload dicts. Sendi
 the email (Flask-Mail) stays in stats.py.
 """
 import os
+import html
 import base64
 import uuid
 import random
 from datetime import datetime
+from urllib.parse import quote
 
 from flask import current_app
 
@@ -928,16 +930,106 @@ def filter_existing_solo_images(solo_images):
     for item in solo_images or []:
         if not item:
             continue
-        path = item.get('path')
-        if not path:
-            url = item.get('url') or ''
-            marker = '/static/email_images/'
-            if marker in url:
-                filename = url.split(marker, 1)[1].split('?', 1)[0]
-                path = os.path.join(email_images_dir(), os.path.basename(filename))
+        path = _solo_image_path(item)
         if path and os.path.isfile(path):
-            kept.append(item)
+            kept.append({**item, 'path': path})
     return kept
+
+
+def _solo_image_path(item):
+    """Resolve a solo image dict to an absolute file path if possible."""
+    if not item:
+        return None
+    path = item.get('path')
+    if path and os.path.isfile(path):
+        return path
+    url = item.get('url') or ''
+    marker = '/static/email_images/'
+    if marker not in url:
+        return None
+    filename = url.split(marker, 1)[1].split('?', 1)[0]
+    path = os.path.join(email_images_dir(), os.path.basename(filename))
+    return path if os.path.isfile(path) else None
+
+
+def _ext_to_mime(path_or_ext):
+    ext = os.path.splitext(path_or_ext)[1].lower().lstrip('.')
+    if ext in ('jpg', 'jpeg'):
+        return 'image/jpeg'
+    if ext == 'gif':
+        return 'image/gif'
+    if ext == 'webp':
+        return 'image/webp'
+    return 'image/png'
+
+
+def _load_caricatures_from_solo_images(players, solo_images):
+    """Load on-disk solo files into {name: (raw_bytes, mime)} for players that have them."""
+    by_name = {}
+    for item in solo_images or []:
+        name = (item or {}).get('name')
+        if not name:
+            continue
+        by_name[name.strip().lower()] = item
+
+    caricatures = {}
+    loaded_solos = []
+    for name in players:
+        item = by_name.get((name or '').strip().lower())
+        if not item:
+            continue
+        path = _solo_image_path(item)
+        if not path:
+            continue
+        try:
+            with open(path, 'rb') as handle:
+                raw = handle.read()
+        except OSError:
+            continue
+        if not raw:
+            continue
+        caricatures[name] = (raw, _ext_to_mime(path))
+        loaded_solos.append({
+            'name': name,
+            'url': item.get('url') or '',
+            'path': path,
+        })
+    return caricatures, loaded_solos
+
+
+def generate_solo_caricature(api_key, player_name, game_type='doubles', game_name=None):
+    """Generate one temporary solo caricature for a player. Returns {name, url, path}."""
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+    )
+
+    name = (player_name or '').strip()
+    if not name:
+        raise ValueError('Player name is required.')
+
+    trait_entries = collect_player_ai_image_traits([name])
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    entry = collect_solo_reference_images(name)
+    reference_parts = _solo_reference_parts_for_player(name, entry)
+    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+    variation_cue = _solo_variation_cue(game_type, game_name)
+    solo_prompt = _build_solo_player_prompt(
+        name, trait_phrases, has_reference_photos, variation_cue,
+    )
+    try:
+        raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=1),
+            image_prompt=_image_prompt_bundle(reference_parts, solo_prompt),
+            solo_images=[],
+        ) from e
+
+    solo_url, solo_path = _save_email_image(
+        raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
+    )
+    return {'name': name, 'url': solo_url, 'path': solo_path}
 
 
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
@@ -1029,12 +1121,16 @@ def _generate_email_hero_image_single_pass(
 
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
+    existing_solo_images=None, reuse_existing_solos=False,
 ):
     """Solo caricature per player (<=4), then one group scene.
 
     Solo caricatures are saved temporarily (creator preview only; auto-expire)
     and used as in-memory references for the group scene. Only the group
     illustration is kept permanently.
+
+    When reuse_existing_solos is True, any matching on-disk solos in
+    existing_solo_images are kept and only missing players are regenerated.
     """
     from player_functions import (
         collect_player_ai_image_traits,
@@ -1047,13 +1143,22 @@ def _generate_email_hero_image_two_pass(
     if len(players) > MAX_TWO_PASS_PLAYERS:
         raise ValueError(f'Two-pass illustration supports at most {MAX_TWO_PASS_PLAYERS} players')
 
+    caricatures = {}
+    solo_images = []
+    if reuse_existing_solos and existing_solo_images:
+        caricatures, solo_images = _load_caricatures_from_solo_images(
+            players, existing_solo_images,
+        )
+
     trait_entries = collect_player_ai_image_traits(players)
     traits_by_name = {entry['name']: entry for entry in trait_entries}
 
     solo_passes = []
-    solo_images = []
-    caricatures = {}
     for name in players:
+        if name in caricatures:
+            solo_passes.append((name, [], f'[Reused existing solo caricature for {name}]'))
+            continue
+
         entry = collect_solo_reference_images(name)
         reference_parts = _solo_reference_parts_for_player(name, entry)
         trait_entry = traits_by_name.get(name)
@@ -1081,6 +1186,10 @@ def _generate_email_hero_image_two_pass(
         )
         solo_images.append({'name': name, 'url': solo_url, 'path': solo_path})
 
+    # Keep solo_images in roster order for stable UI.
+    by_name = {(item.get('name') or '').strip().lower(): item for item in solo_images}
+    solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
+
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
     scene_prompt = _build_scene_image_prompt(
         game_type, players, game_name=game_name, image_details=image_details,
@@ -1100,6 +1209,7 @@ def _generate_email_hero_image_two_pass(
 
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
+    existing_solo_images=None, reuse_existing_solos=False,
 ):
     """Generate the email hero image using two-pass (<=4 players) or single-pass (>4)."""
     players, strategy, _all_players = _illustration_players(player_names, game_type, games)
@@ -1109,6 +1219,8 @@ def generate_email_hero_image(
         return _generate_email_hero_image_two_pass(
             api_key, game_type, players, game_name=game_name,
             image_details=image_details,
+            existing_solo_images=existing_solo_images,
+            reuse_existing_solos=reuse_existing_solos,
         )
     return _generate_email_hero_image_single_pass(
         api_key, game_type, players, game_name=game_name,
@@ -1118,7 +1230,7 @@ def generate_email_hero_image(
 
 def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
-    image_details='',
+    image_details='', existing_solo_images=None, reuse_existing_solos=False,
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -1129,6 +1241,8 @@ def _try_generate_email_hero_image(
             api_key, game_type, games, player_names,
             game_name=game_name,
             image_details=image_details,
+            existing_solo_images=existing_solo_images,
+            reuse_existing_solos=reuse_existing_solos,
         )
         if solo_images:
             meta = {**meta, 'solo_images': solo_images}
@@ -1194,6 +1308,35 @@ def format_name_for_email(name):
     if not name:
         return ""
     return str(name).strip()
+
+
+def _player_page_url(game_type, year, name):
+    """Absolute URL to a player's stats page for the given game type."""
+    clean = format_name_for_email(name)
+    if not clean:
+        return ''
+    year_str = str(year or datetime.now().year)
+    encoded = quote(clean, safe='')
+    if game_type == 'vollis':
+        return f'{SITE_BASE_URL}/vollis_player/{year_str}/{encoded}/'
+    if game_type == 'other':
+        return f'{SITE_BASE_URL}/other_player/{year_str}/{encoded}/'
+    return f'{SITE_BASE_URL}/player/{year_str}/{encoded}/'
+
+
+def player_name_link_html(game_type, year, name, css_class='player-name'):
+    """Linked player name for email/recap HTML (escapes display text)."""
+    clean = format_name_for_email(name)
+    if not clean:
+        return ''
+    url = _player_page_url(game_type, year, clean)
+    display = html.escape(clean)
+    class_attr = f' class="{css_class}"' if css_class else ''
+    return (
+        f'<a{class_attr} href="{url}" '
+        f'style="color:inherit;text-decoration:underline;text-underline-offset:2px;">'
+        f'{display}</a>'
+    )
 
 
 def _plain_footer_lines(stats_link, date_obj):
@@ -1512,6 +1655,8 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                             <tbody>
             """
 
+    stats_year = date_obj.year
+
     for index, stat in enumerate(stats, start=1):
         player_name = stat[0]
         wins = stat[1]
@@ -1530,7 +1675,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
         html_body += f"""
                                 <tr>
                                     <td class="stats-rank">{index}</td>
-                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
+                                    <td class="stats-player">{player_name_link_html('doubles', stats_year, player_name, css_class='')}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.0f}%</td>
@@ -1569,10 +1714,10 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
     for game in games:
         time_display = _email_game_time_cell(game)
 
-        winner1 = format_name_for_email(game[2]) if game[2] else ""
-        winner2 = format_name_for_email(game[3]) if game[3] else ""
-        loser1 = format_name_for_email(game[5]) if game[5] else ""
-        loser2 = format_name_for_email(game[6]) if game[6] else ""
+        winner1 = player_name_link_html('doubles', stats_year, game[2]) if game[2] else ""
+        winner2 = player_name_link_html('doubles', stats_year, game[3]) if game[3] else ""
+        loser1 = player_name_link_html('doubles', stats_year, game[5]) if game[5] else ""
+        loser2 = player_name_link_html('doubles', stats_year, game[6]) if game[6] else ""
 
         winner_score = game[4] if len(game) > 4 and game[4] is not None else ""
         loser_score = game[7] if len(game) > 7 and game[7] is not None else ""
@@ -1580,9 +1725,9 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
         html_body += f"""
                                 <tr>
                                     <td class="time-cell">{time_display}</td>
-                                    <td class="team-cell winner-team"><span class="player-name">{winner1}</span><span class="player-name">{winner2}</span></td>
+                                    <td class="team-cell winner-team">{winner1}{winner2}</td>
                                     <td class="score-winner">{winner_score}</td>
-                                    <td class="team-cell loser-team"><span class="player-name">{loser1}</span><span class="player-name">{loser2}</span></td>
+                                    <td class="team-cell loser-team">{loser1}{loser2}</td>
                                     <td class="score-loser">{loser_score}</td>
                                 </tr>
                 """
@@ -1593,8 +1738,6 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                         </div>
                     </div>
             """
-
-    stats_year = date_obj.year
 
     html_body += f"""
                     <div class="footer">
@@ -1939,6 +2082,8 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                             <tbody>
             """
 
+    stats_year = date_obj.year
+
     for index, stat in enumerate(stats, start=1):
         player_name = stat[0]
         wins = stat[1]
@@ -1948,7 +2093,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
         html_body += f"""
                                 <tr>
                                     <td class="stats-rank">{index}</td>
-                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
+                                    <td class="stats-player">{player_name_link_html('vollis', stats_year, player_name, css_class='')}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.0f}%</td>
@@ -1986,22 +2131,21 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
     for game in games:
         time_display = _email_game_time_cell(game)
 
-        winner = format_name_for_email(game[2]) if game[2] else ""
-        loser = format_name_for_email(game[4]) if game[4] else ""
+        winner = player_name_link_html('vollis', stats_year, game[2]) if game[2] else ""
+        loser = player_name_link_html('vollis', stats_year, game[4]) if game[4] else ""
         winner_score = game[3] if len(game) > 3 and game[3] is not None else ""
         loser_score = game[5] if len(game) > 5 and game[5] is not None else ""
 
         html_body += f"""
                                 <tr>
                                     <td class="time-cell">{time_display}</td>
-                                    <td class="team-cell winner-team"><span class="player-name">{winner}</span></td>
+                                    <td class="team-cell winner-team">{winner}</td>
                                     <td class="score-winner">{winner_score}</td>
-                                    <td class="team-cell loser-team"><span class="player-name">{loser}</span></td>
+                                    <td class="team-cell loser-team">{loser}</td>
                                     <td class="score-loser">{loser_score}</td>
                                 </tr>
                 """
 
-    stats_year = date_obj.year
     html_body += f"""
                             </tbody>
                         </table>
@@ -2090,6 +2234,8 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                             <tbody>
             """
 
+    stats_year = date_obj.year
+
     for index, stat in enumerate(stats, start=1):
         player_name = stat[0]
         wins = stat[1]
@@ -2099,7 +2245,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
         html_body += f"""
                                 <tr>
                                     <td class="stats-rank">{index}</td>
-                                    <td class="stats-player">{format_name_for_email(player_name)}</td>
+                                    <td class="stats-player">{player_name_link_html('other', stats_year, player_name, css_class='')}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.0f}%</td>
@@ -2139,8 +2285,14 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
 
         winners = game.get('winners', [])
         losers = game.get('losers', [])
-        winner_names = "<br>".join(format_name_for_email(w['name']) for w in winners if w.get('name'))
-        loser_names = "<br>".join(format_name_for_email(l['name']) for l in losers if l.get('name'))
+        winner_names = "<br>".join(
+            player_name_link_html('other', stats_year, w['name'], css_class='')
+            for w in winners if w.get('name')
+        )
+        loser_names = "<br>".join(
+            player_name_link_html('other', stats_year, l['name'], css_class='')
+            for l in losers if l.get('name')
+        )
         w_score = game.get('winner_score') or ''
         l_score = game.get('loser_score') or ''
 
@@ -2154,7 +2306,6 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                                 </tr>
                 """
 
-    stats_year = date_obj.year
     html_body += f"""
                             </tbody>
                         </table>

@@ -777,6 +777,23 @@ def inject_base_template():
     }
 
 
+@app.template_filter('game_year')
+def game_year_filter(date_str):
+    """Extract a 4-digit year from a display date like 07/15/2026 or 07/15/26."""
+    import re
+    s = str(date_str or '')
+    match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{2,4})', s)
+    if match:
+        year = match.group(3)
+        if len(year) == 2:
+            year = ('19' if int(year) >= 70 else '20') + year
+        return year
+    match = re.match(r'(\d{4})', s)
+    if match:
+        return match.group(1)
+    return str(date.today().year)
+
+
 def init_auth_tokens_db():
     """Initialize the auth_tokens table for remember me functionality"""
     conn = sqlite3.connect(_stats_db_path())
@@ -1547,8 +1564,10 @@ def _serialize_ai_summary_game(game_type, game):
         return {
             'id': game[0],
             'date': game[1],
+            'winner_names': [n for n in (game[2], game[3]) if n],
             'winners': f'{game[2]} & {game[3]}',
             'winner_score': game[4],
+            'loser_names': [n for n in (game[5], game[6]) if n],
             'losers': f'{game[5]} & {game[6]}',
             'loser_score': game[7],
         }
@@ -1556,8 +1575,10 @@ def _serialize_ai_summary_game(game_type, game):
         return {
             'id': game[0],
             'date': game[1],
+            'winner_names': [game[2]] if game[2] else [],
             'winners': game[2],
             'winner_score': game[3],
+            'loser_names': [game[4]] if game[4] else [],
             'losers': game[4],
             'loser_score': game[5],
         }
@@ -1801,6 +1822,8 @@ def remake_ai_recap_image(share_id):
         flash('This recap has no saved games to remake the picture from.', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
+    from email_content import delete_solo_image_files, filter_existing_solo_images
+
     game_type = row.get('game_type') or 'doubles'
     # Prefer freshly edited details from the remake form; fall back to saved ones.
     if 'image_details' in request.form:
@@ -1809,6 +1832,12 @@ def remake_ai_recap_image(share_id):
         image_details = (row.get('image_details') or '').strip()
     # Remake always generates an image, even if the original mode was "none".
     image_mode = 'image'
+
+    try:
+        old_solos = json.loads(row.get('solo_images_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        old_solos = []
+    reuse_solos = filter_existing_solo_images(old_solos)
 
     try:
         games, players, game_name = _load_games_and_players_for_recap(game_type, game_ids)
@@ -1826,6 +1855,8 @@ def remake_ai_recap_image(share_id):
                 game_name=game_name,
                 image_mode=image_mode,
                 image_details=image_details,
+                existing_solo_images=reuse_solos,
+                reuse_existing_solos=bool(reuse_solos),
             )
         )
     except Exception as e:
@@ -1842,17 +1873,14 @@ def remake_ai_recap_image(share_id):
         )
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
-    from email_content import delete_solo_image_files
-
     old_url = row.get('hero_image_url') or ''
     updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
-    solo_images = (illustration_meta or {}).get('solo_images') or []
+    solo_images = (illustration_meta or {}).get('solo_images') or reuse_solos
 
-    try:
-        old_solos = json.loads(row.get('solo_images_json') or '[]')
-    except (json.JSONDecodeError, TypeError):
-        old_solos = []
-    delete_solo_image_files(old_solos)
+    # Drop any old solo files that were replaced (not reused).
+    reused_paths = {item.get('path') for item in solo_images if item.get('path')}
+    stale = [item for item in old_solos if _solo_path_for_item(item) not in reused_paths]
+    delete_solo_image_files(stale)
 
     adminfx.update_ai_recap_page(
         share_id,
@@ -1877,6 +1905,109 @@ def remake_ai_recap_image(share_id):
         summary=f'Regenerated illustration for /recap/{share_id}',
     )
     flash('Picture remade.', 'success')
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+
+def _solo_path_for_item(item):
+    """Best-effort absolute path for a solo image dict (for remake cleanup)."""
+    if not item:
+        return None
+    path = item.get('path')
+    if path and os.path.isfile(path):
+        return path
+    url = item.get('url') or ''
+    marker = '/static/email_images/'
+    if marker not in url:
+        return None
+    filename = url.split(marker, 1)[1].split('?', 1)[0]
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'static', 'email_images', os.path.basename(filename))
+    return path if os.path.isfile(path) else None
+
+
+@app.route('/recap/<share_id>/remake-solo/', methods=['POST'])
+@login_required
+def remake_ai_recap_solo(share_id):
+    """Regenerate one temporary solo caricature for the creator preview gallery."""
+    from email_content import (
+        ImageGenerationError,
+        delete_solo_image_files,
+        filter_existing_solo_images,
+        generate_solo_caricature,
+    )
+
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can remake this caricature.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    player_name = (request.form.get('player_name') or '').strip()
+    if not player_name:
+        flash('Which player caricature should be remade?', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        flash('Gemini API key not configured.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    try:
+        solo_images = json.loads(row.get('solo_images_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        solo_images = []
+    solo_images = filter_existing_solo_images(solo_images)
+
+    match_idx = None
+    for index, item in enumerate(solo_images):
+        if (item.get('name') or '').strip().lower() == player_name.lower():
+            match_idx = index
+            player_name = item.get('name') or player_name
+            break
+    if match_idx is None:
+        flash(f'No caricature found for {player_name}.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    game_type = row.get('game_type') or 'doubles'
+    game_name = None
+    try:
+        game_ids = json.loads(row.get('game_ids_json') or '[]')
+    except (json.JSONDecodeError, TypeError):
+        game_ids = []
+    if game_ids and game_type == 'other':
+        try:
+            _games, _players, game_name = _load_games_and_players_for_recap(game_type, game_ids)
+        except Exception:
+            game_name = None
+
+    old_item = solo_images[match_idx]
+    try:
+        new_item = generate_solo_caricature(
+            api_key, player_name, game_type=game_type, game_name=game_name,
+        )
+    except ImageGenerationError as e:
+        app.logger.exception('AI recap remake solo failed')
+        flash(f'Failed to remake caricature for {player_name}: {e}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    except Exception as e:
+        app.logger.exception('AI recap remake solo failed')
+        flash(f'Failed to remake caricature for {player_name}: {e}', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    solo_images[match_idx] = new_item
+    delete_solo_image_files([old_item])
+    adminfx.update_ai_recap_page(
+        share_id,
+        solo_images_json=json.dumps(solo_images),
+    )
+
+    log_activity(
+        'Remade AI solo caricature',
+        summary=f'Regenerated {player_name} portrait for /recap/{share_id}',
+    )
+    flash(f'Remade caricature for {player_name}. Remake the group picture to use it in the final image.', 'success')
     return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
 

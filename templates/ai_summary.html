@@ -221,6 +221,14 @@
             text-align: center;
             padding: 20px 0;
         }
+        .sr-player-link {
+            color: inherit;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .sr-player-link:hover {
+            color: var(--sr-accent);
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -276,11 +284,19 @@
                         <div class="sr-game-info">
                             <div class="sr-game-date">{{ game[1] }}</div>
                             <div class="sr-game-row winners">
-                                <span class="sr-game-names">{{ game[2] }} & {{ game[3] }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('player_stats', year=game[1]|game_year, name=game[2]) }}" onclick="event.stopPropagation()">{{ game[2] }}</a>
+                                    &amp;
+                                    <a class="sr-player-link" href="{{ url_for('player_stats', year=game[1]|game_year, name=game[3]) }}" onclick="event.stopPropagation()">{{ game[3] }}</a>
+                                </span>
                                 <span class="sr-game-score">{{ game[4] }}</span>
                             </div>
                             <div class="sr-game-row losers">
-                                <span class="sr-game-names">{{ game[5] }} & {{ game[6] }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('player_stats', year=game[1]|game_year, name=game[5]) }}" onclick="event.stopPropagation()">{{ game[5] }}</a>
+                                    &amp;
+                                    <a class="sr-player-link" href="{{ url_for('player_stats', year=game[1]|game_year, name=game[6]) }}" onclick="event.stopPropagation()">{{ game[6] }}</a>
+                                </span>
                                 <span class="sr-game-score">{{ game[7] }}</span>
                             </div>
                         </div>
@@ -310,11 +326,15 @@
                         <div class="sr-game-info">
                             <div class="sr-game-date">{{ game[1] }}</div>
                             <div class="sr-game-row winners">
-                                <span class="sr-game-names">{{ game[2] }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('vollis_player_stats', year=game[1]|game_year, name=game[2]) }}" onclick="event.stopPropagation()">{{ game[2] }}</a>
+                                </span>
                                 <span class="sr-game-score">{{ game[3] }}</span>
                             </div>
                             <div class="sr-game-row losers">
-                                <span class="sr-game-names">{{ game[4] }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('vollis_player_stats', year=game[1]|game_year, name=game[4]) }}" onclick="event.stopPropagation()">{{ game[4] }}</a>
+                                </span>
                                 <span class="sr-game-score">{{ game[5] }}</span>
                             </div>
                         </div>
@@ -345,7 +365,9 @@
                             <div class="sr-game-date">{{ game.game_date }}{% if game.game_name %} &middot; {{ game.game_name }}{% endif %}</div>
                             {% for winner in game.winners %}
                             <div class="sr-game-row winners">
-                                <span class="sr-game-names">{{ winner.name }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('other_player_stats', year=game.game_date|game_year, name=winner.name) }}" onclick="event.stopPropagation()">{{ winner.name }}</a>
+                                </span>
                                 <span class="sr-game-score">
                                     {% if winner.score is not none %}{{ winner.score }}
                                     {% elif loop.first and game.winner_score is not none and (not game.winners or game.winners[0].score is none) %}{{ game.winner_score }}
@@ -355,7 +377,9 @@
                             {% endfor %}
                             {% for loser in game.losers %}
                             <div class="sr-game-row losers">
-                                <span class="sr-game-names">{{ loser.name }}</span>
+                                <span class="sr-game-names">
+                                    <a class="sr-player-link" href="{{ url_for('other_player_stats', year=game.game_date|game_year, name=loser.name) }}" onclick="event.stopPropagation()">{{ loser.name }}</a>
+                                </span>
                                 <span class="sr-game-score">
                                     {% if loser.score is not none %}{{ loser.score }}
                                     {% elif loop.first and game.loser_score is not none and (not game.losers or game.losers[0].score is none) %}{{ game.loser_score }}
@@ -430,6 +454,39 @@ let currentTab = 'doubles';
                 .replace(/"/g, '&quot;');
         }
 
+        function yearFromDate(dateStr) {
+            var s = String(dateStr || '');
+            var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+            if (m) {
+                var y = m[3];
+                if (y.length === 2) y = (parseInt(y, 10) >= 70 ? '19' : '20') + y;
+                return y;
+            }
+            m = s.match(/^(\d{4})/);
+            return m ? m[1] : String(new Date().getFullYear());
+        }
+
+        function playerPageUrl(gameType, year, name) {
+            var encoded = encodeURIComponent(String(name || ''));
+            var y = encodeURIComponent(String(year || new Date().getFullYear()));
+            if (gameType === 'vollis') return '/vollis_player/' + y + '/' + encoded + '/';
+            if (gameType === 'other') return '/other_player/' + y + '/' + encoded + '/';
+            return '/player/' + y + '/' + encoded + '/';
+        }
+
+        function playerLinkHtml(gameType, year, name) {
+            if (!name) return '';
+            return '<a class="sr-player-link" href="' + playerPageUrl(gameType, year, name) + '" onclick="event.stopPropagation()">'
+                + escapeHtml(name) + '</a>';
+        }
+
+        function namesLinksHtml(gameType, year, names, joiner) {
+            var parts = (names || []).filter(Boolean).map(function(name) {
+                return playerLinkHtml(gameType, year, name);
+            });
+            return parts.join(joiner || ' &amp; ');
+        }
+
         function renderSearchCard(game) {
             var card = document.createElement('div');
             card.className = 'sr-game-card sr-search-card';
@@ -457,13 +514,15 @@ let currentTab = 'doubles';
             }
             info.appendChild(dateLine);
 
+            var year = yearFromDate(game.date);
+
             if (currentTab === 'other') {
                 (game.winners || []).forEach(function(winner, index) {
                     var row = document.createElement('div');
                     row.className = 'sr-game-row winners';
                     var names = document.createElement('span');
                     names.className = 'sr-game-names';
-                    names.textContent = winner.name || '';
+                    names.innerHTML = playerLinkHtml('other', year, winner.name || '');
                     var score = document.createElement('span');
                     score.className = 'sr-game-score';
                     if (winner.score != null) score.textContent = winner.score;
@@ -477,7 +536,7 @@ let currentTab = 'doubles';
                     row.className = 'sr-game-row losers';
                     var names = document.createElement('span');
                     names.className = 'sr-game-names';
-                    names.textContent = loser.name || '';
+                    names.innerHTML = playerLinkHtml('other', year, loser.name || '');
                     var score = document.createElement('span');
                     score.className = 'sr-game-score';
                     if (loser.score != null) score.textContent = loser.score;
@@ -487,15 +546,17 @@ let currentTab = 'doubles';
                     info.appendChild(row);
                 });
             } else {
+                var winNames = game.winner_names || (game.winners ? [game.winners] : []);
+                var loseNames = game.loser_names || (game.losers ? [game.losers] : []);
                 var winRow = document.createElement('div');
                 winRow.className = 'sr-game-row winners';
-                winRow.innerHTML = '<span class="sr-game-names">' + escapeHtml(game.winners) + '</span>'
+                winRow.innerHTML = '<span class="sr-game-names">' + namesLinksHtml(currentTab, year, winNames) + '</span>'
                     + '<span class="sr-game-score">' + escapeHtml(game.winner_score) + '</span>';
                 info.appendChild(winRow);
 
                 var loseRow = document.createElement('div');
                 loseRow.className = 'sr-game-row losers';
-                loseRow.innerHTML = '<span class="sr-game-names">' + escapeHtml(game.losers) + '</span>'
+                loseRow.innerHTML = '<span class="sr-game-names">' + namesLinksHtml(currentTab, year, loseNames) + '</span>'
                     + '<span class="sr-game-score">' + escapeHtml(game.loser_score) + '</span>';
                 info.appendChild(loseRow);
             }

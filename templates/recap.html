@@ -153,6 +153,21 @@
             font-size: 12px;
             margin-top: 6px;
         }
+        .recap-solo-name a {
+            color: inherit;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .recap-solo-name a:hover { color: var(--recap-accent); }
+        .recap-solo-remake {
+            margin-top: 8px;
+        }
+        .recap-solo-remake .recap-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+            width: 100%;
+            justify-content: center;
+        }
         .recap-warning {
             background: rgba(251, 191, 36, 0.12);
             border: 1px solid rgba(251, 191, 36, 0.28);
@@ -292,7 +307,7 @@
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
                 <label for="recap-image-details">Illustration details</label>
-                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details.</p>
+                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details. Existing individual caricatures you remade are kept and used for the new group picture.</p>
                 <textarea id="recap-image-details" name="image_details" placeholder="Example: sunset beach background, everyone celebrating at the net…">{{ remake_image_details }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
@@ -327,12 +342,28 @@
         {% if show_creator_view and solo_images %}
         <div class="recap-solo-gallery">
             <p class="recap-solo-title"><i class="fas fa-user-friends"></i> Individual player caricatures</p>
-            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link.</p>
+            <p class="recap-solo-note">Temporary behind-the-scenes portraits — only you see these; they expire and are not on the shareable link. Remake any you dislike, then remake the group picture to use them.</p>
             <div class="recap-solo-grid">
                 {% for img in solo_images %}
                 <div class="recap-solo-card">
                     <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
-                    <div class="recap-solo-name">{{ img.name }}</div>
+                    <div class="recap-solo-name">
+                        {% if game_type == 'vollis' %}
+                        <a href="{{ url_for('vollis_player_stats', year=created_at_fmt|game_year, name=img.name) }}">{{ img.name }}</a>
+                        {% elif game_type == 'other' %}
+                        <a href="{{ url_for('other_player_stats', year=created_at_fmt|game_year, name=img.name) }}">{{ img.name }}</a>
+                        {% else %}
+                        <a href="{{ url_for('player_stats', year=created_at_fmt|game_year, name=img.name) }}">{{ img.name }}</a>
+                        {% endif %}
+                    </div>
+                    {% if can_remake %}
+                    <form class="recap-solo-remake" method="post" action="{{ url_for('remake_ai_recap_solo', share_id=share_id) }}">
+                        <input type="hidden" name="player_name" value="{{ img.name }}">
+                        <button type="submit" class="recap-btn recap-btn-secondary">
+                            <i class="fas fa-sync-alt"></i> Remake
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -435,6 +466,15 @@
                 remakeSummaryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
             });
         }
+
+        document.querySelectorAll('.recap-solo-remake').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var btn = form.querySelector('button[type="submit"]');
+                if (!btn) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+            });
+        });
     })();
     </script>
     {% endif %}
