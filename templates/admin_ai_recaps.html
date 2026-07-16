@@ -85,6 +85,12 @@
     gap: 6px;
 }
 .adm-recap-actions .adm-btn:hover { background: rgba(110, 231, 255, 0.25); }
+.adm-recap-actions .adm-btn-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+.adm-recap-actions .adm-btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
 .adm-pagination {
     display: flex;
     gap: 8px;
@@ -119,8 +125,8 @@
 
 <div class="adm-section">
     <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
-        Every published AI recap page. Open the share link to preview, or copy it for WhatsApp —
-        pages with an illustration use that image as the link thumbnail.
+        Every published AI recap page. Open or copy the share link, or delete a page to kill the link.
+        Illustrations stay on disk until you clean them up under AI Images.
     </p>
     {% if entries %}
     <div class="adm-recap-list">
@@ -161,6 +167,14 @@
                     <button type="button" class="adm-btn" data-copy-url="{{ e.share_url }}">
                         <i class="fas fa-copy"></i> Copy link
                     </button>
+                    <form method="POST" action="{{ url_for('admin_ai_recaps_delete') }}" style="display:inline;margin:0;">
+                        <input type="hidden" name="share_id" value="{{ e.share_id }}">
+                        <input type="hidden" name="page" value="{{ page }}">
+                        <button type="submit" class="adm-btn adm-btn-danger"
+                                onclick="return confirm('Delete this AI recap permanently? The share link will stop working.');">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

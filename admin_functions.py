@@ -561,13 +561,54 @@ def get_ai_recap_page(share_id):
         row = None
     finally:
         conn.close()
-    if not row:
-        return None
-    data = dict(row)
+    if row:
+        data = dict(row)
+        file_html = read_recap_html_file(safe_id)
+        if file_html is not None:
+            data['html_body'] = file_html
+        return data
+
+    # Oldest publishes may only have an HTML file on disk.
     file_html = read_recap_html_file(safe_id)
-    if file_html is not None:
-        data['html_body'] = file_html
-    return data
+    if file_html is None:
+        return None
+    try:
+        mtime = os.path.getmtime(_recap_html_path(safe_id))
+        created_at = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime(
+            '%Y-%m-%d %H:%M:%S'
+        )
+    except OSError:
+        created_at = ''
+    return {
+        'share_id': safe_id,
+        'created_at': created_at,
+        'username': '',
+        'game_type': 'doubles',
+        'prompt_style': '',
+        'subject': 'Game Recap',
+        'html_body': file_html,
+        'plain_text_body': '',
+        'hero_image_url': extract_recap_hero_image_url(file_html),
+        'hero_image_error': '',
+        'game_ids_json': '[]',
+        'solo_images_json': '',
+    }
+
+
+def _is_usable_hero_image_url(url):
+    """True when url can be used as a public WhatsApp/Open Graph image."""
+    value = (url or '').strip()
+    if not value:
+        return False
+    if value.startswith('cid:'):
+        return False
+    if value.startswith('https://') or value.startswith('http://'):
+        return '/static/email_images/' in value or value.lower().endswith(
+            ('.png', '.jpg', '.jpeg', '.gif', '.webp')
+        )
+    if value.startswith('/static/email_images/'):
+        return True
+    return False
 
 
 def extract_recap_hero_image_url(html_body):
@@ -578,12 +619,14 @@ def extract_recap_hero_image_url(html_body):
         return ''
 
     hero_match = re.search(
-        r'class=["\'][^"\']*hero-image-card[^"\']*["\'][\s\S]{0,800}?<img[^>]+src=["\']([^"\']+)["\']',
+        r'class=["\'][^"\']*hero-image-card[^"\']*["\'][\s\S]{0,1200}?<img[^>]+src=["\']([^"\']+)["\']',
         html_body,
         re.I,
     )
     if hero_match:
-        return (hero_match.group(1) or '').strip()
+        candidate = (hero_match.group(1) or '').strip()
+        if _is_usable_hero_image_url(candidate):
+            return candidate
 
     for match in re.finditer(
         r'(https?://[^\s"\']+/static/email_images/([A-Za-z0-9._-]+)|/static/email_images/([A-Za-z0-9._-]+))',
@@ -592,8 +635,77 @@ def extract_recap_hero_image_url(html_body):
         filename = match.group(2) or match.group(3) or ''
         if filename.startswith('solo_'):
             continue
-        return (match.group(1) or '').strip()
+        candidate = (match.group(1) or '').strip()
+        if _is_usable_hero_image_url(candidate):
+            return candidate
     return ''
+
+
+def ensure_recap_hero_image_url(share_id, row=None):
+    """Return a usable hero URL, backfilling JSON meta when found in HTML."""
+    try:
+        safe_id = _safe_recap_share_id(share_id)
+    except ValueError:
+        return ''
+
+    data = row
+    if data is None:
+        data = get_ai_recap_page(safe_id) or {}
+
+    hero = (data.get('hero_image_url') or '').strip()
+    if _is_usable_hero_image_url(hero):
+        return hero
+
+    hero = extract_recap_hero_image_url(data.get('html_body') or '')
+    if not hero:
+        hero = extract_recap_hero_image_url(read_recap_html_file(safe_id) or '')
+    if not _is_usable_hero_image_url(hero):
+        return ''
+
+    try:
+        update_ai_recap_page(safe_id, hero_image_url=hero)
+    except (OSError, ValueError, TypeError):
+        pass
+    return hero
+
+
+def delete_ai_recap_page(share_id):
+    """Remove a published AI recap from disk (and legacy SQLite if present).
+
+    Returns True if anything was deleted, False if the recap was not found.
+    Illustration files in static/email_images/ are left alone (clean up via AI Images).
+    """
+    try:
+        safe_id = _safe_recap_share_id(share_id)
+    except ValueError:
+        return False
+
+    removed = False
+    for path in (
+        _recap_html_path(safe_id),
+        _recap_meta_path(safe_id),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recaps', f'{safe_id}.html'),
+    ):
+        try:
+            os.remove(path)
+            removed = True
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass
+
+    conn = _connect()
+    try:
+        cur = conn.execute('DELETE FROM ai_recap_pages WHERE share_id = ?', (safe_id,))
+        conn.commit()
+        if cur.rowcount:
+            removed = True
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+    return removed
 
 
 def list_ai_recap_pages(page=1, per_page=25):
@@ -603,26 +715,39 @@ def list_ai_recap_pages(page=1, per_page=25):
     entries_by_id = {}
 
     recap_dir = _recap_storage_dir()
+    disk_ids = set()
     if os.path.isdir(recap_dir):
         for name in os.listdir(recap_dir):
-            if not name.endswith('.json'):
-                continue
-            share_id = name[:-5]
-            try:
-                meta = _read_recap_meta_file(share_id)
-            except (OSError, json.JSONDecodeError, ValueError):
-                continue
-            if not meta:
-                continue
+            if name.endswith('.json') or name.endswith('.html'):
+                disk_ids.add(name.rsplit('.', 1)[0])
+
+    for share_id in disk_ids:
+        try:
+            meta = _read_recap_meta_file(share_id)
+        except (OSError, json.JSONDecodeError, ValueError):
+            meta = None
+        if meta:
             sid = (meta.get('share_id') or share_id or '').strip()
             if not sid:
                 continue
-            hero = (meta.get('hero_image_url') or '').strip()
-            if not hero:
-                hero = extract_recap_hero_image_url(read_recap_html_file(sid) or '')
+            hero = ensure_recap_hero_image_url(sid, {
+                **meta,
+                'html_body': read_recap_html_file(sid) or '',
+            })
+            created_at = meta.get('created_at') or ''
+            if not created_at:
+                path = _recap_html_path(sid)
+                if not os.path.isfile(path):
+                    path = _recap_meta_path(sid)
+                try:
+                    created_at = datetime.fromtimestamp(
+                        os.path.getmtime(path), tz=timezone.utc,
+                    ).strftime('%Y-%m-%d %H:%M:%S')
+                except OSError:
+                    created_at = ''
             entries_by_id[sid] = {
                 'share_id': sid,
-                'created_at': meta.get('created_at') or '',
+                'created_at': created_at,
                 'username': meta.get('username') or '',
                 'game_type': meta.get('game_type') or '',
                 'prompt_style': meta.get('prompt_style') or '',
@@ -631,6 +756,45 @@ def list_ai_recap_pages(page=1, per_page=25):
                 'hero_image_error': meta.get('hero_image_error') or '',
                 'image_mode': meta.get('image_mode') or '',
             }
+            continue
+
+        # HTML on disk without JSON (older publishes): recover from SQLite or HTML alone.
+        page_row = get_ai_recap_page(share_id)
+        if not page_row:
+            html = read_recap_html_file(share_id) or ''
+            if not html:
+                continue
+            try:
+                mtime = os.path.getmtime(_recap_html_path(share_id))
+                created_at = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime(
+                    '%Y-%m-%d %H:%M:%S'
+                )
+            except OSError:
+                created_at = ''
+            page_row = {
+                'share_id': share_id,
+                'created_at': created_at,
+                'username': '',
+                'game_type': '',
+                'prompt_style': '',
+                'subject': 'Game Recap',
+                'html_body': html,
+                'hero_image_url': '',
+                'hero_image_error': '',
+            }
+        sid = (page_row.get('share_id') or share_id).strip()
+        hero = ensure_recap_hero_image_url(sid, page_row)
+        entries_by_id[sid] = {
+            'share_id': sid,
+            'created_at': page_row.get('created_at') or '',
+            'username': page_row.get('username') or '',
+            'game_type': page_row.get('game_type') or '',
+            'prompt_style': page_row.get('prompt_style') or '',
+            'subject': page_row.get('subject') or '',
+            'hero_image_url': hero,
+            'hero_image_error': page_row.get('hero_image_error') or '',
+            'image_mode': page_row.get('image_mode') or '',
+        }
 
     conn = _connect()
     try:
@@ -649,11 +813,7 @@ def list_ai_recap_pages(page=1, per_page=25):
         sid = (row['share_id'] or '').strip()
         if not sid or sid in entries_by_id:
             continue
-        hero = (row['hero_image_url'] or '').strip()
-        if not hero:
-            hero = extract_recap_hero_image_url(row['html_body'] or '')
-            if not hero:
-                hero = extract_recap_hero_image_url(read_recap_html_file(sid) or '')
+        hero = ensure_recap_hero_image_url(sid, dict(row))
         entries_by_id[sid] = {
             'share_id': sid,
             'created_at': row['created_at'] or '',

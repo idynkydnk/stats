@@ -1824,7 +1824,8 @@ def view_ai_recap(share_id):
     else:
         solo_images = []
 
-    share_url = url_for('view_ai_recap', share_id=share_id, _external=True)
+    # m=1 busts stale WhatsApp/Facebook previews from before og:image existed.
+    share_url = url_for('view_ai_recap', share_id=share_id, m=1, _external=True)
     created_at = row.get('created_at') or ''
     if isinstance(created_at, str) and len(created_at) >= 16:
         created_at_fmt = created_at[:16].replace('T', ' ')
@@ -1876,9 +1877,7 @@ def view_ai_recap(share_id):
             enriched.append(entry)
         solo_images = enriched
 
-    hero_image_url = (row.get('hero_image_url') or '').strip()
-    if not hero_image_url:
-        hero_image_url = adminfx.extract_recap_hero_image_url(row.get('html_body') or '')
+    hero_image_url = adminfx.ensure_recap_hero_image_url(share_id, row)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     if hero_image_url.startswith('/'):
         hero_image_url = site_base + hero_image_url
@@ -5266,12 +5265,15 @@ def admin_ai_recaps():
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     for entry in entries:
         entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+        # Include m=1 so copied links get a fresh WhatsApp/Facebook preview scrape.
         entry['share_url'] = url_for(
-            'view_ai_recap', share_id=entry['share_id'], _external=True,
+            'view_ai_recap', share_id=entry['share_id'], m=1, _external=True,
         )
         hero = (entry.get('hero_image_url') or '').strip()
         if hero.startswith('/'):
             hero = site_base + hero
+        elif hero.startswith('http://'):
+            hero = 'https://' + hero[len('http://'):]
         entry['hero_image_url'] = hero
     return render_template(
         'admin_ai_recaps.html',
@@ -5280,6 +5282,31 @@ def admin_ai_recaps():
         total_pages=total_pages,
         total_entries=total_entries,
     )
+
+
+@app.route('/admin/ai-recaps/delete', methods=['POST'])
+@admin_required
+def admin_ai_recaps_delete():
+    """Delete a published AI recap page."""
+    share_id = (request.form.get('share_id') or '').strip()
+    page = max(int(request.form.get('page', 1) or 1), 1)
+    if not share_id:
+        flash('No recap selected.', 'error')
+        return redirect(url_for('admin_ai_recaps', page=page))
+
+    row = adminfx.get_ai_recap_page(share_id)
+    if adminfx.delete_ai_recap_page(share_id):
+        subject = ((row or {}).get('subject') or 'Game Recap').strip()
+        username = ((row or {}).get('username') or 'unknown').strip()
+        log_activity(
+            'Deleted AI recap',
+            target=share_id,
+            summary=f'{subject} by {username}',
+        )
+        flash(f'Deleted recap "{subject}".', 'success')
+    else:
+        flash('Recap not found.', 'error')
+    return redirect(url_for('admin_ai_recaps', page=page))
 
 
 @app.route('/admin/ai-images/')
