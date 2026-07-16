@@ -99,7 +99,9 @@ textarea { resize: vertical; min-height: 60px; }
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Doubles</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+                {% set header_back_url = url_for('stats', year=year) %}
+                {% set header_back_label = 'Stats' %}
+                {% set header_hide_year = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>

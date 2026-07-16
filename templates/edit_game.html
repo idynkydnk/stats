@@ -59,7 +59,7 @@
                 {% else %}
                 <a href="{{ url_for('edit_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Edit Games</a>
                 {% endif %}
-            
+                {% set header_custom_nav = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>

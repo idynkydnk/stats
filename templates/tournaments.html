@@ -16,7 +16,8 @@
     <h1 class="sr-title">Tournaments</h1>
     <div class="sr-header-actions">
         <a href="{{ url_for('index') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
-        <a href="{{ url_for('add_tournament') }}" class="sr-link-btn"><i class="fas fa-plus"></i> Add Tournament</a>
+        <a href="{{ url_for('add_tournament') }}" class="sr-link-btn sr-link-btn-accent"><i class="fas fa-plus"></i> Add Tournament</a>
+        {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>

@@ -139,7 +139,7 @@
             <h1 class="sr-title">Edit Other Game</h1>
             <div class="sr-header-actions">
                 <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Back</a>
-            
+                {% set header_custom_nav = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>

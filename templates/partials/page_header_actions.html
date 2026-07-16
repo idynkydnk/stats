@@ -1,7 +1,15 @@
-{# Contextual header actions. Set active_tab ('doubles'|'vollis'|'other') for stats pages. #}
-{# Optional: header_mode ('games' shows Stats back link), year, display_year, all_years, year_route_base #}
+{# Shared header actions: back link, year select, Add menu, Menu button.
+   Optional overrides (set before include):
+     header_back_url / header_back_label — custom back link (skips default Games/Stats)
+     header_custom_nav=true — page already rendered back/year; only Add + Menu
+     header_hide_year=true — skip the year dropdown
+     game_name — for other games lists, keep year links on the filtered route
+#}
 {% set tab = active_tab|default(none) %}
 {% set yr = display_year|default(year)|default(none) %}
+{% set custom_nav = header_custom_nav|default(false) %}
+{% set hide_year = header_hide_year|default(false) %}
+{% set back_label = header_back_label|default('Stats') %}
 
 {% if year_route_base is defined %}
     {% set year_base = year_route_base %}
@@ -19,20 +27,36 @@
     {% set year_base = 'other_stats' %}
 {% endif %}
 
-{% if header_mode|default('stats') == 'games' and stats_url is defined %}
-<a href="{{ stats_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
-{% elif tab and games_url is defined %}
-<a href="{{ games_url }}" class="sr-link-btn"><i class="fas fa-list-alt"></i> Games</a>
-{% endif %}
+{% if not custom_nav %}
+    {% if header_back_url is defined and header_back_url %}
+    <a href="{{ header_back_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> {{ back_label }}</a>
+    {% elif header_mode|default('stats') == 'games' and stats_url is defined %}
+    <a href="{{ stats_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+    {% elif tab and games_url is defined %}
+    <a href="{{ games_url }}" class="sr-link-btn"><i class="fas fa-list-alt"></i> Games</a>
+    {% endif %}
 
-{% if all_years is defined and year_base is defined and yr is not none %}
-<div class="sr-year-select-wrap">
-    <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value">
-        {% for yr_option in all_years %}
-        <option value="{% if header_mode|default('stats') == 'games' %}{{ url_for('games', year=yr_option, page=1) if tab == 'doubles' else (url_for('vollis_games', year=yr_option) if tab == 'vollis' else url_for('other_games', year=yr_option)) }}{% else %}{{ url_for(year_base, year=yr_option) }}{% endif %}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
-        {% endfor %}
-    </select>
-</div>
+    {% if not hide_year and all_years is defined and year_base is defined and yr is not none %}
+    <div class="sr-year-select-wrap">
+        <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
+            {% for yr_option in all_years %}
+            {% if header_mode|default('stats') == 'games' %}
+                {% if tab == 'doubles' %}
+                <option value="{{ url_for('games', year=yr_option, page=1) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+                {% elif tab == 'vollis' %}
+                <option value="{{ url_for('vollis_games', year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+                {% elif tab == 'other' and game_name is defined and game_name %}
+                <option value="{{ url_for('other_games_by_name', year=yr_option, game_name=game_name) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+                {% else %}
+                <option value="{{ url_for('other_games', year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+                {% endif %}
+            {% else %}
+            <option value="{{ url_for(year_base, year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+            {% endif %}
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
 {% endif %}
 
 {% if session.logged_in %}

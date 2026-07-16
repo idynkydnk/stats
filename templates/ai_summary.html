@@ -235,9 +235,9 @@
 <header class="sr-header sr-header-compact">
             <h1 class="sr-title"><i class="fas fa-robot" style="margin-right: 10px; color: var(--sr-accent);"></i>AI Summary</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('index') }}" class="sr-link-btn">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+                {% set header_back_url = url_for('index') %}
+                {% set header_back_label = 'Back' %}
+                {% set header_hide_year = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>

@@ -132,6 +132,7 @@
     <h1 class="sr-title">AI Images</h1>
     <div class="sr-header-actions">
         <a href="{{ url_for('admin_dashboard') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Admin</a>
+        {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>

@@ -109,12 +109,13 @@
                     <i class="fas fa-arrow-left"></i> Stats
                 </a>
                 <div class="sr-year-select-wrap">
-                    <select class="sr-year-select" onchange="window.location.href=this.value">
+                    <select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
                         {% for yr in all_years %}
                         <option value="{{ url_for('edit_games', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                {% set header_custom_nav = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>

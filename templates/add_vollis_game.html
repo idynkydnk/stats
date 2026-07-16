@@ -108,8 +108,9 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Vollis</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('vollis_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
-            
+                {% set header_back_url = url_for('vollis_stats', year=year) %}
+                {% set header_back_label = 'Stats' %}
+                {% set header_hide_year = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
