@@ -611,6 +611,50 @@ def _is_usable_hero_image_url(url):
     return False
 
 
+def recap_share_preview_token(hero_image_url=''):
+    """Token for share URLs so WhatsApp/Facebook re-scrape after image changes.
+
+    Derived from the hero filename so uploads/remakes automatically get a new
+    share link (and thus a fresh link preview).
+    """
+    import re
+
+    url = (hero_image_url or '').strip()
+    if not url:
+        return '0'
+    filename = url.rstrip('/').split('/')[-1].split('?')[0]
+    stem = os.path.splitext(filename)[0]
+    safe = re.sub(r'[^A-Za-z0-9_-]', '', stem)[:24]
+    return safe or '1'
+
+
+def absolutize_hero_image_url(hero_image_url, site_base=''):
+    """Return an https absolute hero URL suitable for Open Graph tags."""
+    url = (hero_image_url or '').strip()
+    if not url:
+        return ''
+    base = (site_base or '').rstrip('/')
+    if url.startswith('/'):
+        url = (base + url) if base else url
+    elif url.startswith('http://'):
+        url = 'https://' + url[len('http://'):]
+    return url
+
+
+def og_image_mime_type(hero_image_url=''):
+    """Best-effort image MIME type for og:image:type."""
+    path = (hero_image_url or '').split('?', 1)[0].lower()
+    if path.endswith('.jpg') or path.endswith('.jpeg'):
+        return 'image/jpeg'
+    if path.endswith('.gif'):
+        return 'image/gif'
+    if path.endswith('.webp'):
+        return 'image/webp'
+    if path.endswith('.png'):
+        return 'image/png'
+    return ''
+
+
 def extract_recap_hero_image_url(html_body):
     """Best-effort hero image URL from published recap HTML (for OG / admin thumbs)."""
     import re

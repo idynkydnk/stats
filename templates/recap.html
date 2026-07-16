@@ -12,6 +12,9 @@
     {% if hero_image_url %}
     <meta property="og:image" content="{{ hero_image_url }}">
     <meta property="og:image:secure_url" content="{{ hero_image_url }}">
+    {% if og_image_type %}<meta property="og:image:type" content="{{ og_image_type }}">{% endif %}
+    <meta property="og:image:alt" content="{{ subject }}">
+    <link rel="image_src" href="{{ hero_image_url }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="{{ hero_image_url }}">
     {% else %}

@@ -645,7 +645,16 @@ def run_ai_auto_send_job(
                 payload, prompt_style, custom_prompt, game_ids, username=username,
             )
             subject = payload.get('subject') or 'Vball Summary'
-            share_url = url_for('view_ai_recap', share_id=share_id, m=1, _external=True)
+            hero_for_share = adminfx.absolutize_hero_image_url(
+                payload.get('hero_image_url') or '',
+                app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL,
+            )
+            share_url = url_for(
+                'view_ai_recap',
+                share_id=share_id,
+                m=adminfx.recap_share_preview_token(hero_for_share),
+                _external=True,
+            )
             log_activity(
                 'Published AI recap',
                 summary=(
@@ -1824,8 +1833,6 @@ def view_ai_recap(share_id):
     else:
         solo_images = []
 
-    # m=1 busts stale WhatsApp/Facebook previews from before og:image existed.
-    share_url = url_for('view_ai_recap', share_id=share_id, m=1, _external=True)
     created_at = row.get('created_at') or ''
     if isinstance(created_at, str) and len(created_at) >= 16:
         created_at_fmt = created_at[:16].replace('T', ' ')
@@ -1877,13 +1884,19 @@ def view_ai_recap(share_id):
             enriched.append(entry)
         solo_images = enriched
 
-    hero_image_url = adminfx.ensure_recap_hero_image_url(share_id, row)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
-    if hero_image_url.startswith('/'):
-        hero_image_url = site_base + hero_image_url
-    elif hero_image_url.startswith('http://'):
-        # WhatsApp prefers https for link-preview images.
-        hero_image_url = 'https://' + hero_image_url[len('http://'):]
+    hero_image_url = adminfx.absolutize_hero_image_url(
+        adminfx.ensure_recap_hero_image_url(share_id, row),
+        site_base,
+    )
+    # Preview token tracks the current hero file so uploads/remakes bust WhatsApp cache.
+    share_url = url_for(
+        'view_ai_recap',
+        share_id=share_id,
+        m=adminfx.recap_share_preview_token(hero_image_url),
+        _external=True,
+    )
+    og_image_type = adminfx.og_image_mime_type(hero_image_url)
 
     og_description = (row.get('plain_text_body') or '').strip()
     if og_description:
@@ -1904,6 +1917,7 @@ def view_ai_recap(share_id):
         can_remake=can_remake,
         solo_images=solo_images,
         hero_image_url=hero_image_url,
+        og_image_type=og_image_type,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=game_type,
@@ -2020,7 +2034,10 @@ def remake_ai_recap_image(share_id):
         'Remade AI recap picture',
         summary=f'Regenerated illustration for /recap/{share_id}',
     )
-    flash('Picture remade.', 'success')
+    flash(
+        'Picture remade. Copy the share link again so WhatsApp shows the new thumbnail.',
+        'success',
+    )
     return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
 
@@ -2093,7 +2110,10 @@ def upload_ai_recap_image(share_id):
         'Uploaded AI recap picture',
         summary=f'Replaced group illustration for /recap/{share_id}',
     )
-    flash('Group picture uploaded.', 'success')
+    flash(
+        'Group picture uploaded. Copy the share link again so WhatsApp shows the new thumbnail.',
+        'success',
+    )
     return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
 
@@ -5265,16 +5285,17 @@ def admin_ai_recaps():
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     for entry in entries:
         entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
-        # Include m=1 so copied links get a fresh WhatsApp/Facebook preview scrape.
-        entry['share_url'] = url_for(
-            'view_ai_recap', share_id=entry['share_id'], m=1, _external=True,
+        hero = adminfx.absolutize_hero_image_url(
+            entry.get('hero_image_url') or '', site_base,
         )
-        hero = (entry.get('hero_image_url') or '').strip()
-        if hero.startswith('/'):
-            hero = site_base + hero
-        elif hero.startswith('http://'):
-            hero = 'https://' + hero[len('http://'):]
         entry['hero_image_url'] = hero
+        # Token tracks the current hero so WhatsApp scrapes the latest thumbnail.
+        entry['share_url'] = url_for(
+            'view_ai_recap',
+            share_id=entry['share_id'],
+            m=adminfx.recap_share_preview_token(hero),
+            _external=True,
+        )
     return render_template(
         'admin_ai_recaps.html',
         entries=entries,
