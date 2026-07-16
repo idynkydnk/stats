@@ -1891,17 +1891,13 @@ def view_ai_recap(share_id):
         adminfx.ensure_recap_hero_image_url(share_id, row),
         site_base,
     )
-    # WhatsApp drops multi-MB AI PNGs; serve a compressed JPEG for og:image.
+    # Warm the on-disk OG JPEG cache when possible (WhatsApp requires <600KB).
     og_preview = ensure_recap_og_image(hero_image_url) if hero_image_url else {}
-    og_image_url = adminfx.absolutize_hero_image_url(
-        og_preview.get('url') or hero_image_url, site_base,
-    )
-    og_image_type = adminfx.og_image_mime_type(og_image_url) if og_image_url else ''
     og_image_width = og_preview.get('width') or ''
     og_image_height = og_preview.get('height') or ''
 
-    # Share link token tracks the preview/hero so uploads remake WhatsApp's cache.
-    share_token = adminfx.recap_share_preview_token(og_image_url or hero_image_url)
+    # Share link token tracks the current hero so uploads remake WhatsApp's cache.
+    share_token = adminfx.recap_share_preview_token(hero_image_url)
     share_url = url_for(
         'view_ai_recap',
         share_id=share_id,
@@ -1910,13 +1906,25 @@ def view_ai_recap(share_id):
     )
     # WhatsApp wants an undecorated canonical og:url (no cache-bust query params).
     og_url = url_for('view_ai_recap', share_id=share_id, _external=True)
+    # Always point crawlers at our compressed JPEG endpoint, not the full PNG.
+    og_image_url = (
+        url_for(
+            'recap_og_image',
+            share_id=share_id,
+            v=share_token,
+            _external=True,
+        )
+        if hero_image_url
+        else ''
+    )
 
     og_description = (row.get('plain_text_body') or '').strip()
     if og_description:
         # One short line for link previews (WhatsApp/iMessage/etc.).
         og_description = ' '.join(og_description.split())
-        if len(og_description) > 180:
-            og_description = og_description[:177].rstrip() + '…'
+        # WhatsApp shows roughly 1-2 short description lines.
+        if len(og_description) > 120:
+            og_description = og_description[:117].rstrip() + '…'
     else:
         og_description = 'Game recap'
 
@@ -1932,7 +1940,7 @@ def view_ai_recap(share_id):
         solo_images=solo_images,
         hero_image_url=hero_image_url,
         og_image_url=og_image_url,
-        og_image_type=og_image_type,
+        og_image_type='image/jpeg' if og_image_url else '',
         og_image_width=og_image_width,
         og_image_height=og_image_height,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
@@ -1941,6 +1949,47 @@ def view_ai_recap(share_id):
         remake_summary_prompt=remake_summary_prompt,
         remake_image_details=remake_image_details,
         og_description=og_description,
+    )
+
+
+@app.route('/recap/<share_id>/og.jpg')
+def recap_og_image(share_id):
+    """Public WhatsApp/Open Graph thumbnail (JPEG under 600KB)."""
+    import io
+    from flask import send_file
+    from email_content import build_recap_og_jpeg
+
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    hero_image_url = adminfx.absolutize_hero_image_url(
+        adminfx.ensure_recap_hero_image_url(share_id, row),
+        site_base,
+    )
+    if not hero_image_url:
+        abort(404)
+
+    try:
+        data, _width, _height, cache_path = build_recap_og_jpeg(hero_image_url)
+    except Exception:
+        app.logger.exception('Failed to build OG image for /recap/%s/', share_id)
+        abort(404)
+
+    if cache_path and os.path.isfile(cache_path):
+        return send_file(
+            cache_path,
+            mimetype='image/jpeg',
+            conditional=True,
+            max_age=86400,
+            download_name=f'{share_id}-og.jpg',
+        )
+    return send_file(
+        io.BytesIO(data),
+        mimetype='image/jpeg',
+        max_age=86400,
+        download_name=f'{share_id}-og.jpg',
     )
 
 

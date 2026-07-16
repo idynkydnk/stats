@@ -718,6 +718,15 @@ def _email_image_path_from_url(image_url):
     return path if os.path.isfile(path) else None
 
 
+def _pil_lanczos():
+    from PIL import Image
+
+    try:
+        return Image.Resampling.LANCZOS
+    except AttributeError:
+        return Image.LANCZOS
+
+
 def _jpeg_preview_under_limit(img, max_bytes=OG_IMAGE_MAX_BYTES, max_width=OG_IMAGE_MAX_WIDTH):
     """Encode a PIL image as JPEG under max_bytes for WhatsApp og:image."""
     import io
@@ -732,12 +741,13 @@ def _jpeg_preview_under_limit(img, max_bytes=OG_IMAGE_MAX_BYTES, max_width=OG_IM
     elif img.mode != 'RGB':
         img = img.convert('RGB')
 
+    resample = _pil_lanczos()
     w, h = img.size
     if w > max_width:
         scale = max_width / float(w)
         img = img.resize(
             (max(1, int(w * scale)), max(1, int(h * scale))),
-            Image.Resampling.LANCZOS,
+            resample,
         )
 
     best = None
@@ -756,9 +766,87 @@ def _jpeg_preview_under_limit(img, max_bytes=OG_IMAGE_MAX_BYTES, max_width=OG_IM
             break
         working = working.resize(
             (max(1, ww // 2), max(1, hh // 2)),
-            Image.Resampling.LANCZOS,
+            resample,
         )
     return best, (working.size if working is not None else img.size)
+
+
+def _load_hero_image_bytes(hero_image_url):
+    """Load hero image bytes from disk, or fall back to the public URL."""
+    import urllib.request
+
+    hero_path = _email_image_path_from_url(hero_image_url)
+    if hero_path:
+        with open(hero_path, 'rb') as handle:
+            return handle.read(), hero_path
+
+    url = (hero_image_url or '').strip()
+    if url.startswith('/'):
+        url = SITE_BASE_URL.rstrip('/') + url
+    if not url.startswith('http://') and not url.startswith('https://'):
+        raise FileNotFoundError(f'Hero image not found for {hero_image_url!r}')
+
+    request = urllib.request.Request(
+        url,
+        headers={'User-Agent': 'StatsRecapOG/1.0'},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return response.read(), None
+
+
+def build_recap_og_jpeg(hero_image_url):
+    """Return (jpeg_bytes, width, height, cache_path) for a WhatsApp-safe preview.
+
+    Writes a cached og_*.jpg beside the hero when possible. Always returns
+    in-memory JPEG bytes when the hero file can be read, even if disk cache fails.
+    """
+    import io
+    from PIL import Image, ImageOps
+
+    raw, hero_path = _load_hero_image_bytes(hero_image_url)
+    if not raw:
+        raise FileNotFoundError(f'Hero image empty for {hero_image_url!r}')
+
+    marker = '/static/email_images/'
+    if hero_path:
+        filename = os.path.basename(hero_path)
+    elif marker in (hero_image_url or ''):
+        filename = os.path.basename(
+            hero_image_url.split(marker, 1)[1].split('?', 1)[0]
+        )
+    else:
+        filename = 'hero.png'
+
+    stem = os.path.splitext(filename)[0] or 'hero'
+    if stem.startswith(OG_IMAGE_PREFIX):
+        with Image.open(io.BytesIO(raw)) as img:
+            return raw, img.size[0], img.size[1], hero_path
+
+    og_filename = f'{OG_IMAGE_PREFIX}{stem}.jpg'
+    og_path = os.path.join(email_images_dir(), og_filename)
+
+    if os.path.isfile(og_path) and 0 < os.path.getsize(og_path) <= OG_IMAGE_MAX_BYTES:
+        with open(og_path, 'rb') as handle:
+            data = handle.read()
+        with Image.open(io.BytesIO(data)) as img:
+            return data, img.size[0], img.size[1], og_path
+
+    img = Image.open(io.BytesIO(raw))
+    img = ImageOps.exif_transpose(img)
+    data, (width, height) = _jpeg_preview_under_limit(img)
+    if not data:
+        raise ValueError('Failed to compress hero image for WhatsApp preview.')
+
+    try:
+        tmp_path = f'{og_path}.tmp'
+        with open(tmp_path, 'wb') as handle:
+            handle.write(data)
+        os.replace(tmp_path, og_path)
+        cache_path = og_path
+    except OSError:
+        cache_path = None
+
+    return data, width, height, cache_path
 
 
 def ensure_recap_og_image(hero_image_url):
@@ -767,59 +855,37 @@ def ensure_recap_og_image(hero_image_url):
     AI/uploaded heroes are often multi-MB PNGs; WhatsApp drops previews over 600KB.
     Returns {url, width, height, path} or empty dict when no usable preview exists.
     """
+    if not (hero_image_url or '').strip():
+        return {}
     try:
-        import io
-        from PIL import Image, ImageOps
-    except ImportError:
-        return {}
-
-    hero_path = _email_image_path_from_url(hero_image_url)
-    if not hero_path:
-        return {}
-
-    stem = os.path.splitext(os.path.basename(hero_path))[0]
-    if stem.startswith(OG_IMAGE_PREFIX):
-        # Already pointing at a preview file.
+        data, width, height, cache_path = build_recap_og_jpeg(hero_image_url)
+    except Exception as exc:
         try:
-            with Image.open(hero_path) as img:
-                width, height = img.size
+            from flask import current_app
+            current_app.logger.exception(
+                'Failed to build WhatsApp OG preview for %s: %s',
+                hero_image_url, exc,
+            )
         except Exception:
-            width, height = 0, 0
+            pass
+        return {}
+
+    if cache_path and os.path.isfile(cache_path):
+        url = f'{SITE_BASE_URL}/static/email_images/{os.path.basename(cache_path)}'
         return {
-            'url': f'{SITE_BASE_URL}/static/email_images/{os.path.basename(hero_path)}',
+            'url': url,
             'width': width,
             'height': height,
-            'path': hero_path,
+            'path': cache_path,
+            'bytes': data,
         }
-
-    og_filename = f'{OG_IMAGE_PREFIX}{stem}.jpg'
-    og_path = os.path.join(email_images_dir(), og_filename)
-    og_url = f'{SITE_BASE_URL}/static/email_images/{og_filename}'
-
-    if os.path.isfile(og_path) and os.path.getsize(og_path) <= OG_IMAGE_MAX_BYTES:
-        try:
-            with Image.open(og_path) as img:
-                width, height = img.size
-        except Exception:
-            width, height = 0, 0
-        return {'url': og_url, 'width': width, 'height': height, 'path': og_path}
-
-    try:
-        with open(hero_path, 'rb') as handle:
-            raw = handle.read()
-        img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img)
-        data, (width, height) = _jpeg_preview_under_limit(img)
-        if not data:
-            return {}
-        tmp_path = f'{og_path}.tmp'
-        with open(tmp_path, 'wb') as handle:
-            handle.write(data)
-        os.replace(tmp_path, og_path)
-    except Exception:
-        return {}
-
-    return {'url': og_url, 'width': width, 'height': height, 'path': og_path}
+    return {
+        'url': '',
+        'width': width,
+        'height': height,
+        'path': '',
+        'bytes': data,
+    }
 
 
 def delete_recap_og_image_for_hero(hero_image_url):
