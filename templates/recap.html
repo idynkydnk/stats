@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ subject }}</title>
+    <meta name="description" content="{{ og_description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ share_url }}">
+    <meta property="og:title" content="{{ subject }}">
+    <meta property="og:description" content="{{ og_description }}">
+    {% if hero_image_url %}
+    <meta property="og:image" content="{{ hero_image_url }}">
+    <meta property="og:image:secure_url" content="{{ hero_image_url }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ hero_image_url }}">
+    {% else %}
+    <meta name="twitter:card" content="summary">
+    {% endif %}
+    <meta name="twitter:title" content="{{ subject }}">
+    <meta name="twitter:description" content="{{ og_description }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% if session.logged_in %}

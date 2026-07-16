@@ -1876,6 +1876,22 @@ def view_ai_recap(share_id):
             enriched.append(entry)
         solo_images = enriched
 
+    hero_image_url = (row.get('hero_image_url') or '').strip()
+    if hero_image_url.startswith('/'):
+        hero_image_url = (
+            (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+            + hero_image_url
+        )
+
+    og_description = (row.get('plain_text_body') or '').strip()
+    if og_description:
+        # One short line for link previews (WhatsApp/iMessage/etc.).
+        og_description = ' '.join(og_description.split())
+        if len(og_description) > 180:
+            og_description = og_description[:177].rstrip() + '…'
+    else:
+        og_description = 'Game recap'
+
     return render_template(
         'recap.html',
         subject=row.get('subject') or 'Game Recap',
@@ -1885,11 +1901,13 @@ def view_ai_recap(share_id):
         show_creator_view=show_creator_view,
         can_remake=can_remake,
         solo_images=solo_images,
+        hero_image_url=hero_image_url,
         hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,
         remake_image_details=remake_image_details,
+        og_description=og_description,
     )
 
 
