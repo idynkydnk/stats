@@ -268,10 +268,11 @@ function initTableSorting(table) {
     }
 }
 
-// Win% sorts use the same minimum-games rule as leaderboards: pool // 30.
-function minimumGamesThreshold(numGames) {
-    if (!numGames || numGames < 30) return 1;
-    return Math.floor(numGames / 30);
+// Player-page win% sorts: need ~5% of that player's games with the matchup.
+function playerMatchupMinGames(playerGames) {
+    if (!playerGames) return 1;
+    if (playerGames < 20) return Math.max(1, Math.floor(playerGames / 4));
+    return Math.max(5, Math.floor(playerGames / 20));
 }
 
 function cellNumericValue(row, cellIndex) {
@@ -291,6 +292,10 @@ function findSortColumnIndex(table, sortKey) {
 }
 
 function rowGamesPlayed(table, row) {
+    if (row.dataset.games !== undefined && row.dataset.games !== '') {
+        const fromAttr = parseFloat(row.dataset.games);
+        if (!isNaN(fromAttr)) return fromAttr;
+    }
     const gamesIdx = findSortColumnIndex(table, 'games');
     if (gamesIdx >= 0) {
         const games = cellNumericValue(row, gamesIdx);
@@ -306,11 +311,34 @@ function winPctMinGamesForTable(table, rows) {
     const fromAttr = parseInt(table.dataset.winpctMinGames || '', 10);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
 
+    const playerGames = parseInt(table.dataset.playerGames || '', 10);
+    if (!isNaN(playerGames) && playerGames > 0) return playerMatchupMinGames(playerGames);
+
     let poolGames = 0;
     rows.forEach((row) => {
         poolGames += rowGamesPlayed(table, row);
     });
-    return minimumGamesThreshold(poolGames);
+    return playerMatchupMinGames(poolGames);
+}
+
+function applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit) {
+    let shown = 0;
+    rows.forEach((row) => {
+        if (sortKey === 'winpct' && winPctMinGames > 0) {
+            const qualifies = rowGamesPlayed(table, row) >= winPctMinGames;
+            if (!qualifies) {
+                row.classList.add('sr-hidden');
+                return;
+            }
+            shown += 1;
+            if (shown > collapseLimit) row.classList.add('sr-hidden');
+            else row.classList.remove('sr-hidden');
+            return;
+        }
+        if (shown >= collapseLimit) row.classList.add('sr-hidden');
+        else row.classList.remove('sr-hidden');
+        shown += 1;
+    });
 }
 
 function sortTable(table, columnIndex, direction, isNumeric) {
@@ -376,12 +404,11 @@ function sortTable(table, columnIndex, direction, isNumeric) {
                 else if (index === 2) rankCell.classList.add('sr-rank-3');
             }
         }
-
-        if (wasCollapsed) {
-            if (index >= collapseLimit) row.classList.add('sr-hidden');
-            else row.classList.remove('sr-hidden');
-        }
     });
+
+    if (wasCollapsed) {
+        applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit);
+    }
 }
 
 function updateSortIndicators(headers, activeHeader, direction) {
@@ -400,6 +427,31 @@ function updateSortIndicators(headers, activeHeader, direction) {
 }
 
 window.initStatsSorting = initSorting;
+
+function toggleRows(tbodyId, btn, limit) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    const table = tbody.closest('table');
+    const maxRows = limit || parseInt((table && table.dataset.collapseLimit) || '5', 10);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const hidden = tbody.querySelectorAll('.sr-hidden');
+    if (!btn.dataset.expandLabel) btn.dataset.expandLabel = btn.textContent;
+
+    if (hidden.length > 0) {
+        hidden.forEach((row) => row.classList.remove('sr-hidden'));
+        btn.textContent = 'Show less';
+        return;
+    }
+
+    const st = table ? tableSortState.get(table) : null;
+    const sortHeader = st && st.column >= 0 ? table.querySelectorAll('th')[st.column] : null;
+    const sortKey = sortHeader ? sortHeader.dataset.sort : (table && table.dataset.defaultSort) || '';
+    const winPctMinGames = sortKey === 'winpct' ? winPctMinGamesForTable(table, rows) : 0;
+    applyCollapsedRows(table, rows, sortKey, winPctMinGames, maxRows);
+    btn.textContent = btn.dataset.expandLabel;
+}
+window.toggleRows = toggleRows;
 
 function toggleCardRows(tbodyId, btn, limit) {
     const tbody = document.getElementById(tbodyId);

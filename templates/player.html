@@ -232,7 +232,7 @@
         {% if partner_stats %}
         <div class="sr-card">
             <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
@@ -243,7 +243,7 @@
                 </tr></thead>
                 <tbody id="partner-tbody">
                 {% for stat in partner_stats %}
-                <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['partner']) }}">{{ stat['partner'] }}</a></td>
@@ -263,7 +263,7 @@
         {% if opponent_stats %}
         <div class="sr-card">
             <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
@@ -274,7 +274,7 @@
                 </tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
-                <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
@@ -327,19 +327,6 @@
 {% block extra_js %}
     <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
     <script>
-        function toggleRows(tbodyId, btn) {
-            const tbody = document.getElementById(tbodyId);
-            const hidden = tbody.querySelectorAll('.sr-hidden');
-            if (!btn.dataset.expandLabel) btn.dataset.expandLabel = btn.textContent;
-            if (hidden.length > 0) {
-                hidden.forEach(row => row.classList.remove('sr-hidden'));
-                btn.textContent = 'Show less';
-            } else {
-                const rows = tbody.querySelectorAll('tr');
-                rows.forEach((row, i) => { if (i >= 5) row.classList.add('sr-hidden'); });
-                btn.textContent = btn.dataset.expandLabel;
-            }
-        }
         function toggleGames(btn) {
             const list = document.getElementById('games-list');
             const hidden = list.querySelectorAll('[data-hidden="true"]');

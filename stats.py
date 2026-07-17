@@ -2820,12 +2820,8 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    # Same //30 rule as doubles leaderboard, based on year volume; capped so
-    # low-volume players aren't asked for more games with one partner than they played.
-    winpct_min_games = min(
-        minimum_games_threshold(year_games_count(year)),
-        max(1, len(games) // 2) if games else 1,
-    )
+    # ~5% of this player's games that year (see player_matchup_min_games).
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     partner_stats = partner_stats_by_year(name, games, winpct_min_games)
     opponent_stats = opponent_stats_by_year(name, games, winpct_min_games)
 
@@ -2873,14 +2869,10 @@ def vollis_player_stats(year, name):
     all_years = all_years_vollis_player(name)
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
-    year_games = vollis_year_games(year)
-    winpct_min_games = min(
-        minimum_games_threshold(len(year_games) if year_games else 0),
-        max(1, len(games) // 2) if games else 1,
-    )
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     opponent_stats = vollis_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
-        year=year, player=name, all_years=all_years, stats=stats,
+        year=year, player=name, all_years=all_years, stats=stats, games=games,
         winpct_min_games=winpct_min_games,
         **player_avatar_context(name))
 
@@ -2890,14 +2882,10 @@ def other_player_stats(year, name):
     all_years = all_years_other_player(name)
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
-    year_games = other_year_games(year)
-    winpct_min_games = min(
-        minimum_games_threshold(len(year_games) if year_games else 0),
-        max(1, len(games) // 2) if games else 1,
-    )
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     opponent_stats = other_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
-        year=year, player=name, all_years=all_years, stats=stats,
+        year=year, player=name, all_years=all_years, stats=stats, games=games,
         winpct_min_games=winpct_min_games,
         **player_avatar_context(name))
 

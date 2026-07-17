@@ -194,9 +194,9 @@ def vollis_opponent_stats_by_year(name, games, min_games=None):
         win_percent = wins / (wins + losses)
         total_games = wins + losses
         stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
-    from stat_functions import minimum_games_threshold, sort_by_winpct_with_minimum
+    from stat_functions import player_matchup_min_games, sort_by_winpct_with_minimum
     if min_games is None:
-        min_games = minimum_games_threshold(len(games))
+        min_games = player_matchup_min_games(len(games))
     return sort_by_winpct_with_minimum(stats, min_games)
 
 def total_vollis_stats(name, games):
