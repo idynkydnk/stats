@@ -1038,6 +1038,59 @@ def _ig_text_height(draw, text, font):
     return box[3] - box[1]
 
 
+def _ig_summary_text_from_html(summary_el):
+    """Extract summary plain text, preserving paragraph breaks from <br>/<p>."""
+    from bs4 import BeautifulSoup
+
+    if summary_el is None:
+        return ''
+    # Work on a copy so we don't mutate the parsed email tree.
+    node = BeautifulSoup(str(summary_el), 'html.parser')
+    root = node.select_one('.summary-text') or node
+    for br in root.find_all('br'):
+        br.replace_with('\n')
+    for p in root.find_all('p'):
+        p.insert_before('\n\n')
+        p.insert_after('\n\n')
+        p.unwrap()
+    return root.get_text('', strip=False)
+
+
+def _ig_normalize_summary_paragraphs(text):
+    """Ensure summary has blank-line paragraph breaks for Instagram slides."""
+    import re
+
+    text = (text or '').replace('\r\n', '\n').replace('\r', '\n').strip()
+    if not text:
+        return text
+    lines = [ln.strip() for ln in text.split('\n')]
+    text = '\n'.join(lines)
+    while '\n\n\n' in text:
+        text = text.replace('\n\n\n', '\n\n')
+    text = text.strip()
+    if '\n\n' in text:
+        return text
+    if '\n' in text:
+        return '\n\n'.join(p for p in (part.strip() for part in text.split('\n')) if p)
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    if len(sentences) <= 2:
+        return text
+    n = len(sentences)
+    if n <= 5:
+        mid = (n + 1) // 2
+        parts = [' '.join(sentences[:mid]), ' '.join(sentences[mid:])]
+    else:
+        a = max(1, n // 3)
+        b = max(a + 1, (2 * n) // 3)
+        parts = [
+            ' '.join(sentences[:a]),
+            ' '.join(sentences[a:b]),
+            ' '.join(sentences[b:]),
+        ]
+    return '\n\n'.join(p for p in parts if p)
+
+
 def _ig_wrap_text(draw, text, font, max_width):
     """Word-wrap text to fit max_width; returns list of lines."""
     text = (text or '').replace('\r\n', '\n').replace('\r', '\n')
@@ -1132,7 +1185,7 @@ def parse_recap_for_instagram(html_body, plain_text_body='', subject='', hero_im
 
     summary_el = soup.select_one('.summary-text')
     if summary_el:
-        summary = summary_el.get_text('\n', strip=True)
+        summary = _ig_summary_text_from_html(summary_el)
     elif plain_text_body:
         # Fall back to plain text SUMMARY section.
         plain = plain_text_body.replace('\r\n', '\n')
@@ -1142,6 +1195,7 @@ def parse_recap_for_instagram(html_body, plain_text_body='', subject='', hero_im
                 if stop in chunk:
                     chunk = chunk.split(stop, 1)[0]
             summary = chunk.strip()
+    summary = _ig_normalize_summary_paragraphs(summary)
 
     stats_table = soup.select_one('table.stats-table')
     if stats_table:
@@ -1332,9 +1386,14 @@ def _ig_render_summary_slide(data):
         draw, text, max_w, max_h, size_start=40, size_min=24, bold=False, line_gap=1.35,
     )
     ty = panel[1] + inner_pad
+    line_gap = int(line_h * 1.35)
+    para_gap = int(line_h * 0.75)
     for line in lines:
+        if not line:
+            ty += para_gap
+            continue
         draw.text((pad + inner_pad, ty), line, font=font, fill=IG_TEXT)
-        ty += int(line_h * 1.35)
+        ty += line_gap
     return canvas
 
 

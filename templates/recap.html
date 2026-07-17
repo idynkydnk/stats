@@ -517,8 +517,13 @@
         .ig-slide-summary {
             font-size: 34px;
             line-height: 1.4;
-            white-space: pre-wrap;
             word-break: break-word;
+        }
+        .ig-slide-summary p {
+            margin: 0 0 0.9em;
+        }
+        .ig-slide-summary p:last-child {
+            margin-bottom: 0;
         }
         .ig-slide-stats-table {
             width: 100%;
@@ -953,6 +958,17 @@
                     .replace(/"/g, '&quot;');
             }
 
+            function summaryHtml(text) {
+                var parts = String(text == null ? '' : text).split(/\n\s*\n/);
+                var paras = [];
+                for (var i = 0; i < parts.length; i++) {
+                    var p = parts[i].trim();
+                    if (!p) continue;
+                    paras.push('<p>' + esc(p).replace(/\n/g, '<br>') + '</p>');
+                }
+                return paras.length ? paras.join('') : '<p>No summary available.</p>';
+            }
+
             function headerHtml(title, sub) {
                 return '<div class="ig-slide-eyebrow">Game Recap</div><div class="ig-slide-rule"></div>' +
                     '<h2 class="ig-slide-title">' + esc(title) + '</h2>' +
@@ -1004,7 +1020,7 @@
                     '<div class="ig-slide" data-ig-export="photo">' + photoInner + '</div>' +
                     '<div class="ig-slide" data-ig-export="summary"><div class="ig-slide-pad">' +
                         headerHtml('AI Summary', dateLabel) +
-                        '<div class="ig-slide-panel"><div class="ig-slide-summary">' + esc(summary) + '</div></div>' +
+                        '<div class="ig-slide-panel"><div class="ig-slide-summary">' + summaryHtml(summary) + '</div></div>' +
                     '</div></div>' +
                     '<div class="ig-slide" data-ig-export="stats"><div class="ig-slide-pad">' +
                         headerHtml('Player Stats', dateLabel) +
