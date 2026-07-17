@@ -233,7 +233,7 @@
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
             <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ partner_winpct_min_games }} games</strong> first, then smaller samples, 1–3 games last</p>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ partner_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="10" data-winpct-min-games="{{ partner_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="partner">Partner <span class="sr-sort-arrow">▼</span></th>
@@ -255,7 +255,7 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% if partner_stats|length > 5 %}
+            {% if partner_stats|length > 10 %}
             <button class="sr-show-more" onclick="toggleRows('partner-tbody', this)">Show all {{ partner_stats|length }} partners</button>
             {% endif %}
         </div>
@@ -265,7 +265,7 @@
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
             <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ opponent_winpct_min_games }} games</strong> first, then smaller samples, 1–3 games last</p>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ opponent_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="10" data-winpct-min-games="{{ opponent_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="opponent">Opponent <span class="sr-sort-arrow">▼</span></th>
@@ -287,7 +287,7 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% if opponent_stats|length > 5 %}
+            {% if opponent_stats|length > 10 %}
             <button class="sr-show-more" onclick="toggleRows('opponent-tbody', this)">Show all {{ opponent_stats|length }} opponents</button>
             {% endif %}
         </div>

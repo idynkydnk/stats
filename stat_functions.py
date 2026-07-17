@@ -893,7 +893,7 @@ def matchup_sample_tier(total_games, min_games):
 	return 2
 
 
-def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
+def sort_by_winpct_with_minimum(stats, min_games, preview_limit=10):
 	"""Rank by win% in three sample-size bands.
 
 	1) meets min_games, 2) below min but more than 3 games, 3) 1–3 games.

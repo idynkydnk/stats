@@ -3069,7 +3069,7 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    # Same min-games bar for partners and opponents. Preview is always top 5.
+    # Same min-games bar for partners and opponents. Preview is always top 10.
     n_games = len(games) if games else 0
     partner_winpct_min_games = player_matchup_min_games(n_games)
     opponent_winpct_min_games = partner_winpct_min_games
