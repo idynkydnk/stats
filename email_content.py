@@ -175,8 +175,8 @@ def _build_recap_prompt(style_instructions, context):
     return f"""{style_instructions}
 
 Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
+If any games include comments, you must weave every comment into the summary. Do not skip or ignore comments.
 Only quote a comment if it is already in the data enclosed in quotation marks.
-Weave any comments smoothly into the narrative.
 
 {context}"""
 
