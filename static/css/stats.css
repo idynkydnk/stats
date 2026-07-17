@@ -1303,7 +1303,8 @@ input[type=number] {
 }
 .sr-hidden { display: none; }
 
-/* Player page: name/face stays pinned while scrolling (fixed-when-pinned for iOS). */
+/* Player page: name/face stays pinned while scrolling.
+   Desktop uses position:sticky. Mobile uses position:fixed (iOS sticky slides away). */
 :root {
     --sr-player-sticky-h: 88px;
     --sr-section-title-h: 44px;
@@ -1337,12 +1338,30 @@ input[type=number] {
     box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.55);
 }
 .sr-player-header.is-fixed {
-    position: fixed;
-    top: 0;
-    margin: 0;
-    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 12px;
     box-sizing: border-box;
-    /* left/width set in JS to match .sr-container content box */
+    /* Own compositor layer — reduces iOS scroll jitter */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+@media (max-width: 768px) {
+    .sr-player-header.is-fixed {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+@media (max-width: 480px) {
+    .sr-player-header.is-fixed {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
 }
 
 /* Section title + column headers stick under the player name/face. */
