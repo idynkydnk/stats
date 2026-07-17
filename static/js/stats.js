@@ -268,11 +268,10 @@ function initTableSorting(table) {
     }
 }
 
-// Player-page win% sorts: need ~5% of that player's games with the matchup.
+// Player-page win% sorts: ~5% of that player's games (min 1).
 function playerMatchupMinGames(playerGames) {
     if (!playerGames) return 1;
-    if (playerGames < 20) return Math.max(1, Math.floor(playerGames / 4));
-    return Math.max(5, Math.floor(playerGames / 20));
+    return Math.max(1, Math.floor(playerGames / 20));
 }
 
 function cellNumericValue(row, cellIndex) {
@@ -323,8 +322,8 @@ function winPctMinGamesForTable(table, rows) {
 
 function applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit) {
     let shown = 0;
-    rows.forEach((row) => {
-        if (sortKey === 'winpct' && winPctMinGames > 0) {
+    if (sortKey === 'winpct' && winPctMinGames > 0) {
+        rows.forEach((row) => {
             const qualifies = rowGamesPlayed(table, row) >= winPctMinGames;
             if (!qualifies) {
                 row.classList.add('sr-hidden');
@@ -333,8 +332,17 @@ function applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit)
             shown += 1;
             if (shown > collapseLimit) row.classList.add('sr-hidden');
             else row.classList.remove('sr-hidden');
-            return;
+        });
+        // Never leave the collapsed preview empty when there are rows.
+        if (shown === 0 && rows.length) {
+            rows.forEach((row, i) => {
+                if (i >= collapseLimit) row.classList.add('sr-hidden');
+                else row.classList.remove('sr-hidden');
+            });
         }
+        return;
+    }
+    rows.forEach((row) => {
         if (shown >= collapseLimit) row.classList.add('sr-hidden');
         else row.classList.remove('sr-hidden');
         shown += 1;

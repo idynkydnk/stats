@@ -870,14 +870,12 @@ def minimum_games_threshold(num_games):
 def player_matchup_min_games(player_games):
 	"""Min games with one partner/opponent to rank by win% on a player page.
 
-	Scales with that player's year volume (~5% of their games), floored at 5
-	once they've played enough for that to be meaningful.
+	About 5% of that player's year games (player_games // 20), minimum 1.
+	Low-volume players (e.g. 17 games) get a bar of 1 so someone still shows.
 	"""
 	if not player_games:
 		return 1
-	if player_games < 20:
-		return max(1, player_games // 4)
-	return max(5, player_games // 20)
+	return max(1, player_games // 20)
 
 
 def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
@@ -895,6 +893,10 @@ def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
 			stat['preview_hidden'] = shown > preview_limit
 		else:
 			stat['preview_hidden'] = True
+	# Never leave the collapsed preview empty when there are rows.
+	if shown == 0 and stats:
+		for i, stat in enumerate(stats):
+			stat['preview_hidden'] = i >= preview_limit
 	return stats
 
 

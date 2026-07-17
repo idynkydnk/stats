@@ -1306,9 +1306,16 @@ input[type=number] {
 /* Player page face avatar — fixed circle on all viewports (logged-in + guests). */
 .sr-player-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
-    margin-bottom: 20px;
+    margin: 0 0 20px;
+    padding: 10px 0 12px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--sr-bg);
+    border-bottom: 1px solid var(--sr-line);
+    box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.55);
 }
 .sr-player-avatar-col,
 .sr-avatar-clickable,
