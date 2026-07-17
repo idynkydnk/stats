@@ -1303,6 +1303,29 @@ input[type=number] {
 }
 .sr-hidden { display: none; }
 
+/* Partner/opponent win% sort: min-games group, then everyone else. */
+.sr-matchup-split td {
+    padding: 10px 8px 8px !important;
+    border-top: 1px solid var(--sr-line);
+    background: transparent !important;
+    color: var(--sr-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center !important;
+}
+.sr-matchup-split td::before,
+.sr-matchup-split td::after {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 1px;
+    margin: 0 8px;
+    vertical-align: middle;
+    background: var(--sr-line);
+}
+
 /* Player page: name/face stays pinned while scrolling.
    Desktop uses position:sticky. Mobile uses position:fixed (iOS sticky slides away). */
 :root {

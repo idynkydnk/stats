@@ -878,13 +878,19 @@ def player_matchup_min_games(player_games):
 
 
 def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
-	"""Rank by win% (min_games first), and always preview the top N rows."""
+	"""Rank by win% among partners/opponents meeting min_games first.
+
+	Below-min rows follow underneath (sorted by games, then win%). Preview
+	shows the top N of the full ranked list.
+	"""
 	for stat in stats:
 		stat['meets_min'] = stat.get('total_games', 0) >= min_games
+	# Qualify first by win%; below-min by sample size so 1–3 game 100%s
+	# don't sit right under the main group.
 	stats.sort(key=lambda x: (
 		0 if x['meets_min'] else 1,
-		-x['win_percentage'],
-		-x['total_games'],
+		(-x['win_percentage'], -x['total_games']) if x['meets_min']
+		else (-x['total_games'], -x['win_percentage']),
 	))
 	for i, stat in enumerate(stats):
 		stat['preview_hidden'] = i >= preview_limit
