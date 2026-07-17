@@ -581,30 +581,26 @@
             line-height: 1.25;
             word-break: break-word;
         }
-        .ig-photo-bg {
+        .ig-photo-fg {
             position: absolute;
             inset: 0;
-            background-size: cover;
-            background-position: center;
-            filter: blur(36px) brightness(0.72);
-            transform: scale(1.08);
         }
-        .ig-photo-fg {
+        .ig-photo-fg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+        }
+        .ig-photo-fg::after {
+            content: '';
             position: absolute;
             left: 0;
             right: 0;
-            top: 0;
-            bottom: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-        .ig-photo-fg img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: block;
+            bottom: 0;
+            height: 360px;
+            background: linear-gradient(to top, rgba(11, 15, 20, 0.86), rgba(11, 15, 20, 0));
+            pointer-events: none;
         }
         .ig-photo-title {
             position: absolute;
@@ -616,6 +612,7 @@
             font-weight: 700;
             line-height: 1.2;
             text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+            z-index: 1;
         }
         .ig-photo-placeholder {
             position: absolute;
@@ -700,7 +697,7 @@
     <div class="recap-ig-panel{% if request.args.get('ig') == '1' %} is-open{% endif %}" id="recap-ig-panel">
         <div class="recap-ig-panel-inner">
             <h3><i class="fab fa-instagram"></i> Instagram carousel</h3>
-            <p class="recap-ig-help">Four 1080×1350 (4:5) portraits — photo, summary, stats, and games. Use <strong>Save</strong> to export crisp slides from this page (full names, no cropped people). Rebuild refreshes the server copies too.</p>
+            <p class="recap-ig-help">Four 1080×1350 (4:5) portraits — photo, summary, stats, and games. <strong>Save</strong> downloads the same slide as the thumbnail. Rebuild regenerates all four on the server.</p>
             <div class="recap-ig-grid" id="recap-ig-grid">
                 {% for slide in instagram_slides %}
                 <div class="recap-ig-card" data-ig-card="{{ slide.kind }}">
@@ -708,7 +705,7 @@
                         <img src="{{ slide.url }}" alt="{{ slide.label }} Instagram slide" data-ig-preview="{{ slide.kind }}">
                     </a>
                     <div class="recap-ig-card-label">{{ loop.index }}. {{ slide.label }}</div>
-                    <button type="button" class="recap-btn recap-btn-secondary" data-ig-save="{{ slide.kind }}" data-ig-filename="{{ slide.filename }}">
+                    <button type="button" class="recap-btn recap-btn-secondary" data-ig-save="{{ slide.kind }}" data-ig-filename="{{ slide.filename }}" data-ig-url="{{ slide.url }}">
                         <i class="fas fa-download"></i> Save
                     </button>
                 </div>
@@ -989,7 +986,6 @@
                 var photoInner;
                 if (hero) {
                     photoInner =
-                        '<div class="ig-photo-bg" style="background-image:url(\'' + esc(hero).replace(/'/g, '%27') + '\')"></div>' +
                         '<div class="ig-photo-fg"><img src="' + esc(hero) + '" alt=""></div>' +
                         '<div class="ig-photo-title">' + esc(title) + '</div>';
                 } else {
@@ -1064,6 +1060,15 @@
                 setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
             }
 
+            function downloadServerSlide(url, filename) {
+                return fetch(url, { credentials: 'same-origin', cache: 'no-store' }).then(function (resp) {
+                    if (!resp.ok) throw new Error('Could not download slide');
+                    return resp.blob();
+                }).then(function (blob) {
+                    downloadBlob(blob, filename);
+                });
+            }
+
             function exportSlide(kind, filename) {
                 var node = root.querySelector('[data-ig-export="' + kind + '"]');
                 if (!node) return Promise.reject(new Error('Slide missing'));
@@ -1080,21 +1085,24 @@
                     return fetch(dataUrl).then(function (r) { return r.blob(); });
                 }).then(function (blob) {
                     downloadBlob(blob, filename || (kind + '.jpg'));
-                    var preview = document.querySelector('[data-ig-preview="' + kind + '"]');
-                    if (preview) {
-                        preview.src = URL.createObjectURL(blob);
-                    }
                 });
+            }
+
+            function saveSlide(el) {
+                var kind = el.getAttribute('data-ig-save');
+                var filename = el.getAttribute('data-ig-filename') || (kind + '.jpg');
+                var url = el.getAttribute('data-ig-url') || '';
+                // Prefer the server JPEG (same file as the thumbnail). Client export is fallback only.
+                if (url) return downloadServerSlide(url, filename);
+                return exportSlide(kind, filename);
             }
 
             document.querySelectorAll('[data-ig-save]').forEach(function (el) {
                 el.addEventListener('click', function () {
-                    var kind = el.getAttribute('data-ig-save');
-                    var filename = el.getAttribute('data-ig-filename') || (kind + '.jpg');
                     var original = el.innerHTML;
                     el.disabled = true;
                     el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
-                    exportSlide(kind, filename).catch(function (err) {
+                    saveSlide(el).catch(function (err) {
                         window.alert(err && err.message ? err.message : 'Export failed');
                     }).finally(function () {
                         el.disabled = false;
@@ -1111,12 +1119,9 @@
                     saveAll.disabled = true;
                     saveAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
                     var chain = Promise.resolve();
-                    buttons.forEach(function (el, idx) {
+                    buttons.forEach(function (el) {
                         chain = chain.then(function () {
-                            return exportSlide(
-                                el.getAttribute('data-ig-save'),
-                                el.getAttribute('data-ig-filename')
-                            ).then(function () {
+                            return saveSlide(el).then(function () {
                                 return new Promise(function (r) { setTimeout(r, 350); });
                             });
                         });
