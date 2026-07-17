@@ -411,7 +411,8 @@
             gap: 8px;
             min-width: 0;
         }
-        .recap-ig-card a.recap-ig-thumb {
+        .recap-ig-card a.recap-ig-thumb,
+        .recap-ig-card .recap-ig-thumb {
             display: block;
             aspect-ratio: 4 / 5;
             border-radius: 10px;
@@ -444,6 +445,170 @@
             gap: 8px;
             margin-top: 14px;
             justify-content: flex-end;
+        }
+        /* Full-size HTML slides used for browser export (off-screen, must keep real size). */
+        .recap-ig-export-root {
+            position: fixed;
+            left: -10000px;
+            top: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .ig-slide {
+            width: 1080px;
+            height: 1350px;
+            background: #0b0f14;
+            color: #e4e8eb;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .ig-slide * { box-sizing: border-box; }
+        .ig-slide-eyebrow {
+            color: #66d9ef;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            margin: 0 0 12px;
+        }
+        .ig-slide-rule {
+            width: 72px;
+            height: 4px;
+            background: #66d9ef;
+            margin: 0 auto 22px;
+            border-radius: 2px;
+        }
+        .ig-slide-title {
+            font-size: 52px;
+            font-weight: 700;
+            text-align: center;
+            margin: 0 0 10px;
+            line-height: 1.15;
+            padding: 0 64px;
+        }
+        .ig-slide-sub {
+            font-size: 28px;
+            color: #8b949e;
+            text-align: center;
+            margin: 0 0 28px;
+        }
+        .ig-slide-pad { padding: 64px 56px 56px; height: 100%; }
+        .ig-slide-panel {
+            background: #131a24;
+            border-radius: 28px;
+            padding: 36px 40px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .ig-slide-summary {
+            font-size: 34px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .ig-slide-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 28px;
+        }
+        .ig-slide-stats-table th {
+            color: #8b949e;
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 8px;
+            border-bottom: 2px solid rgba(255,255,255,0.12);
+        }
+        .ig-slide-stats-table td {
+            padding: 14px 8px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .ig-slide-stats-table tr:nth-child(odd) td { background: rgba(255,255,255,0.03); }
+        .ig-slide-stats-table .rank { color: #66d9ef; font-weight: 700; width: 48px; }
+        .ig-slide-stats-table .player { text-align: left; font-weight: 600; }
+        .ig-slide-stats-table .pos { color: #4ade80; font-weight: 700; }
+        .ig-slide-stats-table .neg { color: #f87171; font-weight: 700; }
+        .ig-game-card {
+            background: #131a24;
+            border-radius: 18px;
+            padding: 18px 24px;
+            margin-bottom: 14px;
+        }
+        .ig-game-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+            gap: 16px;
+        }
+        .ig-game-time { color: #8b949e; font-size: 22px; }
+        .ig-game-score { font-size: 34px; font-weight: 700; white-space: nowrap; }
+        .ig-game-winners {
+            color: #4ade80;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+        .ig-game-losers {
+            color: #f87171;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.25;
+            word-break: break-word;
+        }
+        .ig-photo-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(36px) brightness(0.72);
+            transform: scale(1.08);
+        }
+        .ig-photo-fg {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .ig-photo-fg img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .ig-photo-title {
+            position: absolute;
+            left: 48px;
+            right: 48px;
+            bottom: 48px;
+            text-align: center;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+        }
+        .ig-photo-placeholder {
+            position: absolute;
+            inset: 80px;
+            border: 3px solid #66d9ef;
+            border-radius: 36px;
+            background: #131a24;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
         }
         @media (max-width: 640px) {
             .recap-ig-grid {
@@ -481,7 +646,7 @@
                 <button type="button" class="recap-btn recap-btn-primary" id="recap-copy-btn">
                     <i class="fas fa-copy"></i> Copy link
                 </button>
-                {% if instagram_slides %}
+                {% if instagram_slides or ig_slide_data %}
                 <button type="button" class="recap-btn recap-btn-secondary" id="recap-ig-toggle">
                     <i class="fab fa-instagram"></i> Instagram
                 </button>
@@ -511,32 +676,49 @@
         <i class="fas fa-bars"></i> Menu
     </button>
     {% endif %}
-    {% if show_creator_view and instagram_slides %}
-    <div class="recap-ig-panel" id="recap-ig-panel">
+    {% if show_creator_view and (instagram_slides or ig_slide_data) %}
+    <div class="recap-ig-panel{% if request.args.get('ig') == '1' %} is-open{% endif %}" id="recap-ig-panel">
         <div class="recap-ig-panel-inner">
             <h3><i class="fab fa-instagram"></i> Instagram carousel</h3>
-            <p class="recap-ig-help">Four 1080×1350 (4:5) portraits — photo, summary, stats, and games. Download each or grab the zip, then post as an Instagram carousel.</p>
-            <div class="recap-ig-grid">
+            <p class="recap-ig-help">Four 1080×1350 (4:5) portraits — photo, summary, stats, and games. Use <strong>Save</strong> to export crisp slides from this page (full names, no cropped people). Rebuild refreshes the server copies too.</p>
+            <div class="recap-ig-grid" id="recap-ig-grid">
                 {% for slide in instagram_slides %}
-                <div class="recap-ig-card">
+                <div class="recap-ig-card" data-ig-card="{{ slide.kind }}">
                     <a class="recap-ig-thumb" href="{{ slide.url }}" target="_blank" rel="noopener">
-                        <img src="{{ slide.url }}" alt="{{ slide.label }} Instagram slide">
+                        <img src="{{ slide.url }}" alt="{{ slide.label }} Instagram slide" data-ig-preview="{{ slide.kind }}">
                     </a>
                     <div class="recap-ig-card-label">{{ loop.index }}. {{ slide.label }}</div>
-                    <a class="recap-btn recap-btn-secondary" href="{{ slide.url }}?download=1" download="{{ slide.filename }}">
+                    <button type="button" class="recap-btn recap-btn-secondary" data-ig-save="{{ slide.kind }}" data-ig-filename="{{ slide.filename }}">
                         <i class="fas fa-download"></i> Save
-                    </a>
+                    </button>
                 </div>
+                {% else %}
+                <div class="recap-ig-card"><div class="recap-ig-card-label">1. Photo</div><button type="button" class="recap-btn recap-btn-secondary" data-ig-save="photo" data-ig-filename="1_photo.jpg"><i class="fas fa-download"></i> Save</button></div>
+                <div class="recap-ig-card"><div class="recap-ig-card-label">2. Summary</div><button type="button" class="recap-btn recap-btn-secondary" data-ig-save="summary" data-ig-filename="2_summary.jpg"><i class="fas fa-download"></i> Save</button></div>
+                <div class="recap-ig-card"><div class="recap-ig-card-label">3. Stats</div><button type="button" class="recap-btn recap-btn-secondary" data-ig-save="stats" data-ig-filename="3_stats.jpg"><i class="fas fa-download"></i> Save</button></div>
+                <div class="recap-ig-card"><div class="recap-ig-card-label">4. Games</div><button type="button" class="recap-btn recap-btn-secondary" data-ig-save="games" data-ig-filename="4_games.jpg"><i class="fas fa-download"></i> Save</button></div>
                 {% endfor %}
             </div>
             <div class="recap-ig-actions">
                 <button type="button" class="recap-btn recap-btn-secondary" id="recap-ig-close">Close</button>
-                <a class="recap-btn recap-btn-primary" href="{{ url_for('recap_instagram_zip', share_id=share_id) }}">
-                    <i class="fas fa-file-archive"></i> Download all (zip)
+                <form method="post" action="{{ url_for('rebuild_ai_recap_instagram', share_id=share_id) }}" style="display:inline;margin:0;">
+                    <button type="submit" class="recap-btn recap-btn-secondary" id="recap-ig-rebuild-btn">
+                        <i class="fas fa-sync-alt"></i> Rebuild slides
+                    </button>
+                </form>
+                <button type="button" class="recap-btn recap-btn-primary" id="recap-ig-save-all">
+                    <i class="fas fa-download"></i> Save all 4
+                </button>
+                {% if instagram_slides %}
+                <a class="recap-btn recap-btn-secondary" href="{{ url_for('recap_instagram_zip', share_id=share_id) }}?v={{ ig_cache_bust }}">
+                    <i class="fas fa-file-archive"></i> Zip
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
+    <div class="recap-ig-export-root" id="recap-ig-export-root" aria-hidden="true"></div>
+    <script type="application/json" id="recap-ig-data">{{ ig_slide_data | tojson }}</script>
     {% endif %}
     {% if show_creator_view and can_remake %}
     <div class="recap-remake-panel" id="recap-remake-summary-panel">
@@ -733,6 +915,190 @@
         if (igClose) {
             igClose.addEventListener('click', closeRemakePanels);
         }
+
+        var rebuildBtn = document.getElementById('recap-ig-rebuild-btn');
+        if (rebuildBtn) {
+            rebuildBtn.closest('form').addEventListener('submit', function () {
+                rebuildBtn.disabled = true;
+                rebuildBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rebuilding…';
+            });
+        }
+
+        // HTML → JPEG export for Instagram slides (full names, no cropped photo).
+        (function setupIgExport() {
+            var dataNode = document.getElementById('recap-ig-data');
+            var root = document.getElementById('recap-ig-export-root');
+            if (!dataNode || !root) return;
+
+            var data = {};
+            try { data = JSON.parse(dataNode.textContent || '{}') || {}; } catch (e) { data = {}; }
+
+            function esc(s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function headerHtml(title, sub) {
+                return '<div class="ig-slide-eyebrow">Game Recap</div><div class="ig-slide-rule"></div>' +
+                    '<h2 class="ig-slide-title">' + esc(title) + '</h2>' +
+                    (sub ? '<p class="ig-slide-sub">' + esc(sub) + '</p>' : '');
+            }
+
+            function buildSlides() {
+                var hero = data.hero_image_url || '';
+                var title = data.title || 'Game Recap';
+                var dateLabel = data.date_label || '';
+                var summary = data.summary || 'No summary available.';
+                var stats = data.stats_rows || [];
+                var games = data.games_rows || [];
+
+                var photoInner;
+                if (hero) {
+                    photoInner =
+                        '<div class="ig-photo-bg" style="background-image:url(\'' + esc(hero).replace(/'/g, '%27') + '\')"></div>' +
+                        '<div class="ig-photo-fg"><img src="' + esc(hero) + '" alt=""></div>' +
+                        '<div class="ig-photo-title">' + esc(title) + '</div>';
+                } else {
+                    photoInner =
+                        '<div class="ig-photo-placeholder">' + headerHtml(data.section_title || title, dateLabel) + '</div>';
+                }
+
+                var statsRows = stats.map(function (row) {
+                    var diff = row.diff || '';
+                    var diffClass = diff.indexOf('-') === 0 ? 'neg' : (diff.indexOf('+') === 0 ? 'pos' : '');
+                    return '<tr><td class="rank">' + esc(row.rank) + '</td><td class="player">' + esc(row.player) +
+                        '</td><td>' + esc(row.w) + '</td><td>' + esc(row.l) + '</td><td>' + esc(row.win_pct) +
+                        '</td><td class="' + diffClass + '">' + esc(diff) + '</td></tr>';
+                }).join('');
+
+                var gamesHtml = games.map(function (g) {
+                    var score = (g.w_score || g.l_score)
+                        ? esc(g.w_score || '–') + '  –  ' + esc(g.l_score || '–')
+                        : '–';
+                    return '<div class="ig-game-card"><div class="ig-game-top"><span class="ig-game-time">' +
+                        esc(g.time || '') + '</span><span class="ig-game-score">' + score +
+                        '</span></div><div class="ig-game-winners">' + esc(g.winners || '') +
+                        '</div><div class="ig-game-losers">' + esc(g.losers || '') + '</div></div>';
+                }).join('');
+
+                var gamesSub = (games.length ? games.length + ' game' + (games.length === 1 ? '' : 's') : '');
+                if (dateLabel && gamesSub) gamesSub = dateLabel + ' · ' + gamesSub;
+                else gamesSub = dateLabel || gamesSub;
+
+                root.innerHTML =
+                    '<div class="ig-slide" data-ig-export="photo">' + photoInner + '</div>' +
+                    '<div class="ig-slide" data-ig-export="summary"><div class="ig-slide-pad">' +
+                        headerHtml('AI Summary', dateLabel) +
+                        '<div class="ig-slide-panel"><div class="ig-slide-summary">' + esc(summary) + '</div></div>' +
+                    '</div></div>' +
+                    '<div class="ig-slide" data-ig-export="stats"><div class="ig-slide-pad">' +
+                        headerHtml('Player Stats', dateLabel) +
+                        '<div class="ig-slide-panel"><table class="ig-slide-stats-table"><thead><tr>' +
+                        '<th>#</th><th>Player</th><th>W</th><th>L</th><th>Win %</th><th>+/-</th></tr></thead><tbody>' +
+                        (statsRows || '<tr><td colspan="6">No stats</td></tr>') +
+                        '</tbody></table></div></div></div>' +
+                    '<div class="ig-slide" data-ig-export="games"><div class="ig-slide-pad">' +
+                        headerHtml('Games', gamesSub) +
+                        (gamesHtml || '<div class="ig-slide-panel">No games</div>') +
+                    '</div></div>';
+            }
+
+            buildSlides();
+
+            var htmlToImagePromise = null;
+            function loadHtmlToImage() {
+                if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
+                if (htmlToImagePromise) return htmlToImagePromise;
+                htmlToImagePromise = new Promise(function (resolve, reject) {
+                    var s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
+                    s.onload = function () { resolve(window.htmlToImage); };
+                    s.onerror = function () { reject(new Error('Could not load export library')); };
+                    document.head.appendChild(s);
+                });
+                return htmlToImagePromise;
+            }
+
+            function downloadBlob(blob, filename) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+            }
+
+            function exportSlide(kind, filename) {
+                var node = root.querySelector('[data-ig-export="' + kind + '"]');
+                if (!node) return Promise.reject(new Error('Slide missing'));
+                return loadHtmlToImage().then(function (htmlToImage) {
+                    return htmlToImage.toJpeg(node, {
+                        width: 1080,
+                        height: 1350,
+                        pixelRatio: 1,
+                        quality: 0.92,
+                        cacheBust: true,
+                        backgroundColor: '#0b0f14'
+                    });
+                }).then(function (dataUrl) {
+                    return fetch(dataUrl).then(function (r) { return r.blob(); });
+                }).then(function (blob) {
+                    downloadBlob(blob, filename || (kind + '.jpg'));
+                    var preview = document.querySelector('[data-ig-preview="' + kind + '"]');
+                    if (preview) {
+                        preview.src = URL.createObjectURL(blob);
+                    }
+                });
+            }
+
+            document.querySelectorAll('[data-ig-save]').forEach(function (el) {
+                el.addEventListener('click', function () {
+                    var kind = el.getAttribute('data-ig-save');
+                    var filename = el.getAttribute('data-ig-filename') || (kind + '.jpg');
+                    var original = el.innerHTML;
+                    el.disabled = true;
+                    el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+                    exportSlide(kind, filename).catch(function (err) {
+                        window.alert(err && err.message ? err.message : 'Export failed');
+                    }).finally(function () {
+                        el.disabled = false;
+                        el.innerHTML = original;
+                    });
+                });
+            });
+
+            var saveAll = document.getElementById('recap-ig-save-all');
+            if (saveAll) {
+                saveAll.addEventListener('click', function () {
+                    var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-ig-save]'));
+                    var original = saveAll.innerHTML;
+                    saveAll.disabled = true;
+                    saveAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+                    var chain = Promise.resolve();
+                    buttons.forEach(function (el, idx) {
+                        chain = chain.then(function () {
+                            return exportSlide(
+                                el.getAttribute('data-ig-save'),
+                                el.getAttribute('data-ig-filename')
+                            ).then(function () {
+                                return new Promise(function (r) { setTimeout(r, 350); });
+                            });
+                        });
+                    });
+                    chain.catch(function (err) {
+                        window.alert(err && err.message ? err.message : 'Export failed');
+                    }).finally(function () {
+                        saveAll.disabled = false;
+                        saveAll.innerHTML = original;
+                    });
+                });
+            }
+        })();
 
         if (summaryToggle && summaryPanel) {
             summaryToggle.addEventListener('click', function () {

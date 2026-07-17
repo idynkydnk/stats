@@ -605,7 +605,8 @@ def _build_scene_image_prompt(game_type, players, game_name=None, image_details=
     return f"""Game: {sport_desc}.
 {details_block}{roster_block}
 Use each attached character reference exactly — same face, hair, outfit per person.
-Draw all {player_count} people in the scene — one per Person number."""
+Draw all {player_count} people in the scene — one per Person number.
+Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
 
 
 def _reference_parts_from_caricatures(players, caricatures):
@@ -910,7 +911,7 @@ def delete_recap_og_image_for_hero(hero_image_url):
 IG_SLIDE_W = 1080
 IG_SLIDE_H = 1350
 # Bump when slide layout changes so cached JPEGs are rebuilt.
-IG_SLIDE_VERSION = 2
+IG_SLIDE_VERSION = 3
 IG_SLIDE_FILES = (
     ('1_photo.jpg', 'photo'),
     ('2_summary.jpg', 'summary'),
@@ -1222,7 +1223,7 @@ def _ig_new_canvas():
 
 def _ig_render_photo_slide(data):
     import io
-    from PIL import Image, ImageDraw, ImageOps
+    from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
     canvas = _ig_new_canvas()
     draw = ImageDraw.Draw(canvas)
@@ -1234,13 +1235,21 @@ def _ig_render_photo_slide(data):
             img = Image.open(io.BytesIO(raw))
             img = ImageOps.exif_transpose(img)
             img = img.convert('RGB')
-            # Contain (letterbox) so nobody gets cropped out of the AI scene.
-            # Leave a little bottom room for the title gradient.
-            max_h = IG_SLIDE_H - 140
-            fitted = ImageOps.contain(img, (IG_SLIDE_W, max_h), method=_pil_lanczos())
-            px = (IG_SLIDE_W - fitted.size[0]) // 2
-            py = max(0, (max_h - fitted.size[1]) // 2)
-            canvas.paste(fitted, (px, py))
+            resample = _pil_lanczos()
+            # Instagram-style fill: blurred cover background + full uncropped foreground.
+            # Nobody gets cut off; empty bands are filled with a soft version of the scene.
+            bg = ImageOps.fit(img, (IG_SLIDE_W, IG_SLIDE_H), method=resample)
+            bg = bg.filter(ImageFilter.GaussianBlur(radius=36))
+            # Slightly darken the blur so the sharp foreground pops.
+            dim = Image.new('RGB', (IG_SLIDE_W, IG_SLIDE_H), IG_BG)
+            bg = Image.blend(bg, dim, 0.28)
+            canvas.paste(bg, (0, 0))
+            # Leave bottom room for the title gradient.
+            max_h = IG_SLIDE_H - 150
+            foreground = ImageOps.contain(img, (IG_SLIDE_W, max_h), method=resample)
+            px = (IG_SLIDE_W - foreground.size[0]) // 2
+            py = max(0, (max_h - foreground.size[1]) // 2)
+            canvas.paste(foreground, (px, py))
             # Bottom gradient for title readability.
             overlay = Image.new('RGBA', (IG_SLIDE_W, IG_SLIDE_H), (0, 0, 0, 0))
             odraw = ImageDraw.Draw(overlay)

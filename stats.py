@@ -1959,13 +1959,26 @@ def view_ai_recap(share_id):
     else:
         og_description = 'Game recap'
 
-    # Instagram carousel slides (creator view): generate on demand if missing.
+    # Instagram carousel slides (creator view): generate on demand if missing/outdated.
     instagram_slides = []
+    ig_slide_data = {}
+    ig_cache_bust = ''
     if show_creator_view:
-        from email_content import IG_SLIDE_FILES, list_instagram_slide_paths
+        from email_content import (
+            IG_SLIDE_FILES,
+            IG_SLIDE_VERSION,
+            list_instagram_slide_paths,
+            parse_recap_for_instagram,
+        )
 
+        ig_slide_data = parse_recap_for_instagram(
+            row.get('html_body') or '',
+            plain_text_body=row.get('plain_text_body') or '',
+            subject=row.get('subject') or '',
+            hero_image_url=hero_image_url or '',
+        )
         slide_paths = list_instagram_slide_paths(share_id)
-        if not slide_paths:
+        if not slide_paths or request.args.get('rebuild_ig') == '1':
             slide_paths = _refresh_instagram_slides(
                 share_id,
                 html_body=row.get('html_body') or '',
@@ -1974,7 +1987,12 @@ def view_ai_recap(share_id):
                 hero_image_url=hero_image_url or '',
                 force=True,
             )
+        ig_cache_bust = f'v{IG_SLIDE_VERSION}'
         if slide_paths:
+            try:
+                ig_cache_bust = f'v{IG_SLIDE_VERSION}-{int(os.path.getmtime(slide_paths[0]))}'
+            except OSError:
+                pass
             labels = {
                 'photo': 'Photo',
                 'summary': 'Summary',
@@ -1990,6 +2008,7 @@ def view_ai_recap(share_id):
                         'recap_instagram_slide',
                         share_id=share_id,
                         filename=filename,
+                        v=ig_cache_bust,
                     ),
                 })
 
@@ -2015,6 +2034,8 @@ def view_ai_recap(share_id):
         remake_image_details=remake_image_details,
         og_description=og_description,
         instagram_slides=instagram_slides,
+        ig_slide_data=ig_slide_data,
+        ig_cache_bust=ig_cache_bust,
     )
 
 
@@ -2092,14 +2113,16 @@ def recap_instagram_slide(share_id, filename):
     if not os.path.isfile(path):
         abort(404)
 
-    return send_file(
+    response = send_file(
         path,
         mimetype='image/jpeg',
         conditional=True,
-        max_age=3600,
+        max_age=0,
         download_name=f'{share_id}-{filename}',
         as_attachment=bool(request.args.get('download')),
     )
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @app.route('/recap/<share_id>/instagram.zip')
@@ -2140,6 +2163,37 @@ def recap_instagram_zip(share_id):
         as_attachment=True,
         download_name=f'{share_id}-instagram.zip',
     )
+
+
+@app.route('/recap/<share_id>/instagram/rebuild/', methods=['POST'])
+@login_required
+def rebuild_ai_recap_instagram(share_id):
+    """Force-regenerate Instagram carousel JPEGs (creator only)."""
+    from email_content import delete_instagram_slides
+
+    row, early = _require_recap_creator(share_id)
+    if early:
+        return early
+
+    delete_instagram_slides(share_id)
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    hero_image_url = adminfx.absolutize_hero_image_url(
+        adminfx.ensure_recap_hero_image_url(share_id, row),
+        site_base,
+    )
+    paths = _refresh_instagram_slides(
+        share_id,
+        html_body=row.get('html_body') or '',
+        plain_text_body=row.get('plain_text_body') or '',
+        subject=row.get('subject') or '',
+        hero_image_url=hero_image_url or '',
+        force=True,
+    )
+    if paths:
+        flash('Instagram slides rebuilt.', 'success')
+    else:
+        flash('Could not rebuild Instagram slides.', 'error')
+    return redirect(url_for('view_ai_recap', share_id=share_id, published=1, ig=1))
 
 
 @app.route('/recap/<share_id>/remake-image/', methods=['POST'])
