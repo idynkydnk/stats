@@ -4,7 +4,7 @@
 <style>
 .sr-player-header {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 16px;
             margin-bottom: 20px;
         }
@@ -74,7 +74,7 @@
             margin: 24px 0 12px 0;
             color: var(--sr-text);
         }
-        .sr-mini-table { width: 100%; border-collapse: collapse; }
+        .sr-mini-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .sr-mini-table th, .sr-mini-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
         .sr-mini-table th { color: var(--sr-muted); font-size: 11px; text-transform: uppercase; font-weight: 500; }
         .sr-mini-table td { font-size: 14px; }
@@ -146,7 +146,7 @@
         {% endif %}
 
         {% if opponent_stats %}
-        <div class="sr-card">
+        <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats vs Opponents</h3>
             <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}" data-player-games="{{ games|length if games else 0 }}">
                 <thead><tr>
@@ -177,5 +177,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+<script src="{{ url_for('static', filename='js/stats.js', v='20260716g') }}"></script>
 {% endblock %}

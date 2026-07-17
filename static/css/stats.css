@@ -1303,19 +1303,79 @@ input[type=number] {
 }
 .sr-hidden { display: none; }
 
-/* Player page face avatar — fixed circle on all viewports (logged-in + guests). */
+/* Player page: name/face stays pinned while scrolling (fixed-when-pinned for iOS). */
+:root {
+    --sr-player-sticky-h: 88px;
+    --sr-section-title-h: 44px;
+}
+.sr-player-sticky-sentinel {
+    height: 1px;
+    margin: 0 0 -1px;
+    padding: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.sr-player-sticky-spacer {
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
 .sr-player-header {
     display: flex;
     align-items: center;
     gap: 16px;
     margin: 0 0 20px;
     padding: 10px 0 12px;
+    position: -webkit-sticky;
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 200;
     background: var(--sr-bg);
     border-bottom: 1px solid var(--sr-line);
     box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.55);
+}
+.sr-player-header.is-fixed {
+    position: fixed;
+    top: 0;
+    margin: 0;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
+    /* left/width set in JS to match .sr-container content box */
+}
+
+/* Section title + column headers stick under the player name/face. */
+.sr-player-section {
+    overflow: visible;
+}
+.sr-player-section .sr-section-title {
+    position: -webkit-sticky;
+    position: sticky;
+    top: var(--sr-player-sticky-h);
+    z-index: 36;
+    background: var(--sr-panel);
+    margin: -20px -20px 0;
+    padding: 16px 20px 10px;
+}
+.sr-player-section .sr-mini-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.sr-player-section .sr-mini-table thead th {
+    position: -webkit-sticky;
+    position: sticky;
+    top: calc(var(--sr-player-sticky-h) + var(--sr-section-title-h));
+    z-index: 35;
+    background: var(--sr-panel);
+    box-shadow: 0 1px 0 var(--sr-line);
+}
+@media (max-width: 480px) {
+    .sr-player-section .sr-section-title {
+        margin: -10px -10px 0;
+        padding: 12px 10px 8px;
+    }
 }
 .sr-player-avatar-col,
 .sr-avatar-clickable,

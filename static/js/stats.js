@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initSearch();
     initSorting();
     initRatingInfoPopover();
+    initPlayerPageSticky();
 });
 
 // ============================================
@@ -435,6 +436,98 @@ function updateSortIndicators(headers, activeHeader, direction) {
 }
 
 window.initStatsSorting = initSorting;
+
+// ============================================
+// PLAYER PAGE STICKY NAME/FACE + SECTION HEADS
+// ============================================
+// iOS Safari often drops position:sticky while scrolling down; pin with
+// position:fixed once the header reaches the top, and keep section titles /
+// column headers stuck beneath it via --sr-player-sticky-h.
+function initPlayerPageSticky() {
+    const header = document.querySelector('.sr-player-header');
+    if (!header) return;
+
+    const container = header.closest('.sr-container') || document.body;
+    const sections = document.querySelectorAll('.sr-player-section');
+
+    const sentinel = document.createElement('div');
+    sentinel.className = 'sr-player-sticky-sentinel';
+    sentinel.setAttribute('aria-hidden', 'true');
+    header.parentNode.insertBefore(sentinel, header);
+
+    const spacer = document.createElement('div');
+    spacer.className = 'sr-player-sticky-spacer';
+    spacer.setAttribute('aria-hidden', 'true');
+    header.parentNode.insertBefore(spacer, header.nextSibling);
+
+    function measureOffsets() {
+        const h = Math.ceil(header.getBoundingClientRect().height);
+        document.documentElement.style.setProperty('--sr-player-sticky-h', h + 'px');
+        sections.forEach((section) => {
+            const title = section.querySelector('.sr-section-title');
+            if (!title) return;
+            const th = Math.ceil(title.getBoundingClientRect().height);
+            section.style.setProperty('--sr-section-title-h', th + 'px');
+        });
+        if (header.classList.contains('is-fixed')) {
+            spacer.style.height = h + 'px';
+        }
+        return h;
+    }
+
+    function syncFixedGeometry() {
+        const rect = container.getBoundingClientRect();
+        const cs = window.getComputedStyle(container);
+        const padL = parseFloat(cs.paddingLeft) || 0;
+        const padR = parseFloat(cs.paddingRight) || 0;
+        header.style.left = (rect.left + padL) + 'px';
+        header.style.width = Math.max(0, rect.width - padL - padR) + 'px';
+        header.style.right = 'auto';
+    }
+
+    function setPinned(pinned) {
+        if (pinned === header.classList.contains('is-fixed')) {
+            if (pinned) syncFixedGeometry();
+            return;
+        }
+        header.classList.toggle('is-fixed', pinned);
+        if (pinned) {
+            syncFixedGeometry();
+            spacer.style.height = Math.ceil(header.getBoundingClientRect().height) + 'px';
+        } else {
+            header.style.left = '';
+            header.style.width = '';
+            header.style.right = '';
+            spacer.style.height = '0px';
+        }
+        measureOffsets();
+    }
+
+    if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            if (!entry) return;
+            setPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+        }, { threshold: [0], rootMargin: '0px' });
+        io.observe(sentinel);
+    } else {
+        window.addEventListener('scroll', function() {
+            const top = sentinel.getBoundingClientRect().top;
+            setPinned(top < 0);
+        }, { passive: true });
+    }
+
+    window.addEventListener('resize', function() {
+        measureOffsets();
+        if (header.classList.contains('is-fixed')) syncFixedGeometry();
+    });
+    window.addEventListener('scroll', function() {
+        if (header.classList.contains('is-fixed')) syncFixedGeometry();
+    }, { passive: true });
+
+    measureOffsets();
+}
+window.initPlayerPageSticky = initPlayerPageSticky;
 
 function toggleRows(tbodyId, btn, limit) {
     const tbody = document.getElementById(tbodyId);
