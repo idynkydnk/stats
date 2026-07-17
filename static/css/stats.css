@@ -120,11 +120,11 @@ html.sr-light .sr-form-dot {
     z-index: 0;
 }
 
-/* Header Section */
+/* Header Section — above sticky player name (z-index 200) so Add/Menu dropdowns win. */
 .sr-header {
     padding: 24px 0 16px;
     position: relative;
-    z-index: 50;
+    z-index: 300;
 }
 
 .sr-header-compact {
