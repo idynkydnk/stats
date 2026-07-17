@@ -868,30 +868,32 @@ def minimum_games_threshold(num_games):
 
 
 def player_matchup_min_games(player_games):
-	"""Min games with one partner/opponent to rank by win% on a player page.
+	"""Min games with one partner/opponent to rank in the top win% group.
 
-	About 5% of that player's year games (player_games // 20), minimum 1.
-	Low-volume players (e.g. 17 games) get a bar of 1 so someone still shows.
+	About 5% of that player's year games (player_games // 20), with a floor of 5.
+	Rows below the minimum still appear under a divider when the list is expanded.
 	"""
 	if not player_games:
-		return 1
-	return max(1, player_games // 20)
+		return 5
+	return max(5, player_games // 20)
 
 
 def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
-	"""Rank by win% but keep sub-minimum samples below qualified rows."""
+	"""Rank by win%: meet min_games first, then everyone else underneath."""
+	for stat in stats:
+		stat['meets_min'] = stat.get('total_games', 0) >= min_games
 	stats.sort(key=lambda x: (
-		0 if x['total_games'] >= min_games else 1,
+		0 if x['meets_min'] else 1,
 		-x['win_percentage'],
 		-x['total_games'],
 	))
 	shown = 0
 	for stat in stats:
-		qualifies = stat['total_games'] >= min_games
-		if qualifies:
+		if stat['meets_min']:
 			shown += 1
 			stat['preview_hidden'] = shown > preview_limit
 		else:
+			# Below-min rows stay under the divider; hidden until "Show all".
 			stat['preview_hidden'] = True
 	# Never leave the collapsed preview empty when there are rows.
 	if shown == 0 and stats:
