@@ -177,13 +177,8 @@ def _build_recap_prompt(style_instructions, context):
 Write in clean, professional sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
 Only quote a comment if it is already in the data enclosed in quotation marks.
 Weave any comments smoothly into the narrative.
-CRITICAL: Keep each paragraph to 2-3 sentences. Aim for under 100 words total. Be concise—readers will skim, not read long text.
 
-Here is the game data:
-
-{context}
-
-Write the recap:"""
+{context}"""
 
 
 def _email_hero_styles():
@@ -257,6 +252,15 @@ def _email_games_table_styles():
                         line-height: 1.35;
                         overflow-wrap: anywhere;
                         word-break: break-word;
+                        text-decoration: none;
+                        color: inherit;
+                    }
+                    a.player-name:link,
+                    a.player-name:visited,
+                    a.player-name:hover,
+                    a.player-name:active {
+                        text-decoration: none;
+                        color: inherit;
                     }
                     .score-winner {
                         color: #4ade80;
@@ -2333,6 +2337,11 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
                         text-align: left !important;
                         font-weight: 500;
                     }}
+                    .stats-player a,
+                    .stats-table a {{
+                        color: inherit;
+                        text-decoration: none;
+                    }}
                     .diff-positive {{
                         color: #4ade80;
                         font-weight: 600;
@@ -2801,6 +2810,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                     .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
+                    .stats-player a, .stats-table a {{ color: inherit; text-decoration: none; }}
                     {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
@@ -2953,6 +2963,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     .stats-table tbody tr:nth-child(odd) {{ background: rgba(255, 255, 255, 0.02); }}
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
+                    .stats-player a, .stats-table a {{ color: inherit; text-decoration: none; }}
                     {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}

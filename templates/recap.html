@@ -290,6 +290,18 @@
             max-width: 600px;
             margin: 0 auto;
         }
+        /* Player name links in the embedded recap — no underlines. */
+        .recap-body a,
+        .recap-body a:link,
+        .recap-body a:visited,
+        .recap-body a:hover,
+        .recap-body a:active,
+        .recap-body .player-name {
+            text-decoration: none !important;
+        }
+        .recap-body a:hover {
+            opacity: 0.85;
+        }
         /* Full-bleed AI illustration across the browser width. */
         .recap-body .hero-image-card {
             width: 100vw;
