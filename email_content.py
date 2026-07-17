@@ -110,8 +110,8 @@ def generate_ai_text(prompt):
 
 
 RECAP_PARAGRAPH_LIMIT = (
-    'Keep it to 2-3 short paragraphs. Each paragraph: 3-4 sentences only. '
-    'No long blocks of text.'
+    'Keep it to 2 paragraphs. Each paragraph: 3-4 sentences only. '
+    'Talk about any notable stats.'
 )
 
 AI_RANDOM_STYLE_META_PROMPT = f"""You are designing instructions for an AI that will write a game recap email.
@@ -561,8 +561,7 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
         )
     else:
         likeness = (
-            'No reference photos — invent a unique stylized character '
-            'from the signature details below.\n'
+            'invent a unique character from the signature details below.\n'
         )
     return f"""Draw exactly ONE person.
 {likeness}{traits_block}
