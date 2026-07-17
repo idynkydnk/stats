@@ -909,6 +909,8 @@ def delete_recap_og_image_for_hero(hero_image_url):
 # Instagram carousel slides: 4:5 portrait (1080×1350) — Instagram's preferred feed size.
 IG_SLIDE_W = 1080
 IG_SLIDE_H = 1350
+# Bump when slide layout changes so cached JPEGs are rebuilt.
+IG_SLIDE_VERSION = 2
 IG_SLIDE_FILES = (
     ('1_photo.jpg', 'photo'),
     ('2_summary.jpg', 'summary'),
@@ -962,6 +964,14 @@ def list_instagram_slide_paths(share_id):
     try:
         base = instagram_slides_dir(share_id)
     except ValueError:
+        return []
+    version_path = os.path.join(base, 'version.txt')
+    try:
+        with open(version_path, 'r', encoding='utf-8') as handle:
+            version = int((handle.read() or '').strip() or '0')
+    except (OSError, ValueError):
+        version = 0
+    if version != IG_SLIDE_VERSION:
         return []
     paths = []
     for filename, _kind in IG_SLIDE_FILES:
@@ -1224,15 +1234,20 @@ def _ig_render_photo_slide(data):
             img = Image.open(io.BytesIO(raw))
             img = ImageOps.exif_transpose(img)
             img = img.convert('RGB')
-            # Cover-crop to square.
-            img = ImageOps.fit(img, (IG_SLIDE_W, IG_SLIDE_H), method=_pil_lanczos())
-            canvas.paste(img, (0, 0))
+            # Contain (letterbox) so nobody gets cropped out of the AI scene.
+            # Leave a little bottom room for the title gradient.
+            max_h = IG_SLIDE_H - 140
+            fitted = ImageOps.contain(img, (IG_SLIDE_W, max_h), method=_pil_lanczos())
+            px = (IG_SLIDE_W - fitted.size[0]) // 2
+            py = max(0, (max_h - fitted.size[1]) // 2)
+            canvas.paste(fitted, (px, py))
             # Bottom gradient for title readability.
             overlay = Image.new('RGBA', (IG_SLIDE_W, IG_SLIDE_H), (0, 0, 0, 0))
             odraw = ImageDraw.Draw(overlay)
-            for i in range(320):
-                alpha = int(210 * (i / 319.0))
-                y = IG_SLIDE_H - 320 + i
+            grad_h = 360
+            for i in range(grad_h):
+                alpha = int(220 * (i / (grad_h - 1)))
+                y = IG_SLIDE_H - grad_h + i
                 odraw.line([(0, y), (IG_SLIDE_W, y)], fill=(11, 15, 20, alpha))
             canvas = Image.alpha_composite(canvas.convert('RGBA'), overlay).convert('RGB')
             draw = ImageDraw.Draw(canvas)
@@ -1412,7 +1427,7 @@ def _ig_render_games_slide(data):
     if data.get('date_label'):
         subtitle = f'{data["date_label"]} · {subtitle}'
     y = _ig_draw_header(draw, 'Games', subtitle)
-    pad = 56
+    pad = 48
     if not games:
         empty = _ig_load_font(34)
         msg = 'No games available.'
@@ -1420,74 +1435,92 @@ def _ig_render_games_slide(data):
         draw.text(((IG_SLIDE_W - mw) / 2, y + 40), msg, font=empty, fill=IG_MUTED)
         return canvas
 
-    available = IG_SLIDE_H - y - pad
-    # Prefer taller rows when few games so the slide feels filled.
-    ideal = available // max(len(games), 1)
-    row_h = min(110, max(56, ideal))
-    while row_h * len(games) > available and row_h > 48:
-        row_h -= 2
-    # Vertically center the block when it doesn't fill the slide.
-    block_h = row_h * len(games)
-    if block_h < available:
-        y += (available - block_h) // 2
-
-    time_font = _ig_load_font(max(20, min(26, row_h // 3)))
-    name_font = _ig_load_font(max(22, min(34, row_h // 2 - 4)), bold=True)
-    score_font = _ig_load_font(max(26, min(42, row_h // 2)), bold=True)
-
     left = pad
     right = IG_SLIDE_W - pad
-    for i, game in enumerate(games):
-        if y + row_h > IG_SLIDE_H - pad + 8:
-            more = f'+{len(games) - i} more'
+    inner = 22
+    name_max_w = right - left - inner * 2
+    available = IG_SLIDE_H - y - pad
+
+    # Stacked card layout so full doubles names fit (no side-by-side squeeze):
+    # time + score on top row, winners, then losers — each name can wrap full width.
+    def _prepare(name_size):
+        time_font = _ig_load_font(max(18, min(24, name_size - 6)))
+        name_font = _ig_load_font(name_size, bold=True)
+        score_font = _ig_load_font(max(24, min(36, name_size + 4)), bold=True)
+        line_h = max(_ig_text_height(draw, 'Ag', name_font), name_size)
+        gap = 1.22
+        cards = []
+        total_h = 0
+        needs_smaller = False
+        for game in games:
+            winners = (game.get('winners') or '').replace('\n', ' & ').strip()
+            losers = (game.get('losers') or '').replace('\n', ' & ').strip()
+            w_all = _ig_wrap_text(draw, winners, name_font, name_max_w) or ['']
+            l_all = _ig_wrap_text(draw, losers, name_font, name_max_w) or ['']
+            if len(w_all) > 2 or len(l_all) > 2:
+                needs_smaller = True
+            w_lines = w_all[:2]
+            l_lines = l_all[:2]
+            w_score = (game.get('w_score') or '').strip()
+            l_score = (game.get('l_score') or '').strip()
+            if w_score and l_score:
+                score_text = f'{w_score}  –  {l_score}'
+            elif w_score or l_score:
+                score_text = f'{w_score or "–"}  –  {l_score or "–"}'
+            else:
+                score_text = '–'
+            names_h = int((len(w_lines) + len(l_lines)) * line_h * gap) + 6
+            card_h = 14 + 30 + names_h + 14
+            cards.append({
+                'time': (game.get('time') or '').strip(),
+                'w_lines': w_lines,
+                'l_lines': l_lines,
+                'score': score_text,
+                'h': card_h,
+            })
+            total_h += card_h + 10
+        return time_font, name_font, score_font, line_h, gap, cards, total_h, needs_smaller
+
+    start_size = 30 if len(games) <= 6 else 26 if len(games) <= 8 else 22
+    prepared = None
+    for size in range(start_size, 17, -2):
+        result = _prepare(size)
+        time_font, name_font, score_font, line_h, gap, cards, total_h, needs_smaller = result
+        prepared = result
+        if total_h <= available and not needs_smaller:
+            break
+
+    time_font, name_font, score_font, line_h, gap, cards, total_h, _ = prepared
+    if total_h < available:
+        y += (available - total_h) // 2
+
+    for i, card in enumerate(cards):
+        if y + card['h'] > IG_SLIDE_H - pad + 8:
+            more = f'+{len(cards) - i} more'
             mf = _ig_load_font(26)
             mw = _ig_text_width(draw, more, mf)
             draw.text(((IG_SLIDE_W - mw) / 2, y), more, font=mf, fill=IG_MUTED)
             break
         draw.rounded_rectangle(
-            [left, y, right, y + row_h - 8],
+            [left, y, right, y + card['h']],
             radius=16,
             fill=IG_PANEL,
         )
-        time_label = (game.get('time') or '').strip()
-        # Vertically center the score line; time sits above it when present.
-        content_h = int(row_h * 0.55)
-        cy = y + (row_h - 8 - content_h) // 2
-        if time_label:
-            draw.text((left + 20, cy), time_label, font=time_font, fill=IG_MUTED)
-            cy += int(row_h * 0.28)
-
-        winners = (game.get('winners') or '').replace('\n', ' & ').strip()
-        losers = (game.get('losers') or '').replace('\n', ' & ').strip()
-        w_score = (game.get('w_score') or '').strip()
-        l_score = (game.get('l_score') or '').strip()
-
-        score_bits = []
-        if w_score:
-            score_bits.append(w_score)
-        score_bits.append('–')
-        if l_score:
-            score_bits.append(l_score)
-        score_text = '  '.join(score_bits)
-
-        # Fit names
-        max_name_w = (right - left - 40 - _ig_text_width(draw, score_text, score_font) - 48) / 2
-
-        def _fit(name, font, max_w):
-            display = name
-            while display and _ig_text_width(draw, display, font) > max_w:
-                display = display[:-2] + '…' if len(display) > 2 else display[:-1]
-            return display
-
-        w_disp = _fit(winners, name_font, max_name_w)
-        l_disp = _fit(losers, name_font, max_name_w)
-        # Layout: winners left, score center, losers right
-        draw.text((left + 20, cy), w_disp, font=name_font, fill=IG_WIN)
-        sw = _ig_text_width(draw, score_text, score_font)
-        draw.text(((IG_SLIDE_W - sw) / 2, cy - 2), score_text, font=score_font, fill=IG_TEXT)
-        lw = _ig_text_width(draw, l_disp, name_font)
-        draw.text((right - 20 - lw, cy), l_disp, font=name_font, fill=IG_LOSS)
-        y += row_h
+        cy = y + 12
+        # Time left, score right on the same row.
+        if card['time']:
+            draw.text((left + inner, cy), card['time'], font=time_font, fill=IG_MUTED)
+        sw = _ig_text_width(draw, card['score'], score_font)
+        draw.text((right - inner - sw, cy - 2), card['score'], font=score_font, fill=IG_TEXT)
+        cy += 32
+        for line in card['w_lines']:
+            draw.text((left + inner, cy), line, font=name_font, fill=IG_WIN)
+            cy += int(line_h * gap)
+        cy += 4
+        for line in card['l_lines']:
+            draw.text((left + inner, cy), line, font=name_font, fill=IG_LOSS)
+            cy += int(line_h * gap)
+        y += card['h'] + 10
     return canvas
 
 
@@ -1525,6 +1558,11 @@ def build_instagram_slides(share_id, html_body, plain_text_body='', subject='',
         path = os.path.join(out_dir, filename)
         _ig_save_jpeg(img, path)
         paths.append(path)
+    version_path = os.path.join(out_dir, 'version.txt')
+    tmp_version = f'{version_path}.tmp'
+    with open(tmp_version, 'w', encoding='utf-8') as handle:
+        handle.write(str(IG_SLIDE_VERSION))
+    os.replace(tmp_version, version_path)
     return paths
 
 
