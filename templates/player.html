@@ -232,7 +232,7 @@
         {% if partner_stats %}
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats with Partners ({{ partner_stats|length }})</h3>
-            <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ partner_winpct_min_games }} games</strong> first, then the rest</p>
+            <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ partner_winpct_min_games }} games</strong> first, then smaller samples, 1–3 games last</p>
             <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ partner_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
@@ -244,7 +244,7 @@
                 </tr></thead>
                 <tbody id="partner-tbody">
                 {% for stat in partner_stats %}
-                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}">
+                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}" data-sample-tier="{{ stat['sample_tier'] }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['partner']) }}">{{ stat['partner'] }}</a></td>
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
@@ -264,7 +264,7 @@
         {% if opponent_stats %}
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
-            <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ opponent_winpct_min_games }} games</strong> first, then the rest</p>
+            <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ opponent_winpct_min_games }} games</strong> first, then smaller samples, 1–3 games last</p>
             <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ opponent_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
@@ -276,7 +276,7 @@
                 </tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
-                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}">
+                <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}" data-sample-tier="{{ stat['sample_tier'] }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
@@ -327,7 +327,7 @@
 
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js', v='20260717k') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20260717l') }}"></script>
     <script>
         function toggleGames(btn) {
             const list = document.getElementById('games-list');

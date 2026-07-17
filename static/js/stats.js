@@ -310,10 +310,27 @@ function rowGamesPlayed(table, row) {
     return 0;
 }
 
+// Tiny samples (1–3 games) always rank below mid-size below-min rows.
+const MATCHUP_TINY_MAX_GAMES = 3;
+
 function rowMeetsMin(table, row, winPctMinGames) {
     if (row.dataset.meetsMin === '1') return true;
     if (row.dataset.meetsMin === '0') return false;
     return rowGamesPlayed(table, row) >= winPctMinGames;
+}
+
+function matchupSampleTier(games, winPctMinGames) {
+    if (games >= winPctMinGames) return 0;
+    if (games > MATCHUP_TINY_MAX_GAMES) return 1;
+    return 2;
+}
+
+function rowSampleTier(table, row, winPctMinGames) {
+    if (row.dataset.sampleTier !== undefined && row.dataset.sampleTier !== '') {
+        const fromAttr = parseInt(row.dataset.sampleTier, 10);
+        if (!isNaN(fromAttr)) return fromAttr;
+    }
+    return matchupSampleTier(rowGamesPlayed(table, row), winPctMinGames);
 }
 
 function winPctMinGamesForTable(table, rows) {
@@ -357,10 +374,10 @@ function sortTable(table, columnIndex, direction, isNumeric) {
             if (sortKey === 'winpct') {
                 const aGames = rowGamesPlayed(table, a);
                 const bGames = rowGamesPlayed(table, b);
-                const aQual = rowMeetsMin(table, a, winPctMinGames) ? 1 : 0;
-                const bQual = rowMeetsMin(table, b, winPctMinGames) ? 1 : 0;
-                if (aQual !== bQual) return bQual - aQual;
-                // Both groups: win% first, then games as tiebreaker.
+                const aTier = rowSampleTier(table, a, winPctMinGames);
+                const bTier = rowSampleTier(table, b, winPctMinGames);
+                if (aTier !== bTier) return aTier - bTier;
+                // Within each band: win% first, then games as tiebreaker.
                 if (aVal !== bVal) {
                     return direction === 'asc' ? aVal - bVal : bVal - aVal;
                 }

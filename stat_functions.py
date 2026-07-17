@@ -879,16 +879,32 @@ def player_matchup_min_games(player_games, per_game=1):
 	return max(1, min(player_games // 40, round(0.9 * (player_games ** 0.5))))
 
 
-def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
-	"""Rank by win% among partners/opponents meeting min_games first.
+# Tiny samples (1–3 games) always rank below mid-size below-min rows.
+MATCHUP_TINY_MAX_GAMES = 3
 
-	Below-min rows follow underneath, still sorted by win%. Preview shows
-	the top N of the full ranked list.
+
+def matchup_sample_tier(total_games, min_games):
+	"""0 = meets min, 1 = below min but not tiny, 2 = 1–3 games."""
+	games = total_games or 0
+	if games >= min_games:
+		return 0
+	if games > MATCHUP_TINY_MAX_GAMES:
+		return 1
+	return 2
+
+
+def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
+	"""Rank by win% in three sample-size bands.
+
+	1) meets min_games, 2) below min but more than 3 games, 3) 1–3 games.
+	Within each band: win% then games. Preview shows the top N overall.
 	"""
 	for stat in stats:
-		stat['meets_min'] = stat.get('total_games', 0) >= min_games
+		games = stat.get('total_games', 0) or 0
+		stat['meets_min'] = games >= min_games
+		stat['sample_tier'] = matchup_sample_tier(games, min_games)
 	stats.sort(key=lambda x: (
-		0 if x['meets_min'] else 1,
+		x['sample_tier'],
 		-x['win_percentage'],
 		-x['total_games'],
 	))
