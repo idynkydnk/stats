@@ -700,7 +700,7 @@ def _rest_error_detail(resp):
         return resp.text[:300] if resp.text else f'HTTP {resp.status_code}'
 
 
-def _generate_image_bytes(prompt, api_key, reference_parts=None):
+def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None):
     """One API call to the free-tier Gemini image model."""
     import requests
 
@@ -712,9 +712,12 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None):
         f'https://generativelanguage.googleapis.com/v1beta/models/'
         f'{GEMINI_IMAGE_MODEL}:generateContent'
     )
+    generation_config = {'responseModalities': ['IMAGE']}
+    if aspect_ratio:
+        generation_config['imageConfig'] = {'aspectRatio': aspect_ratio}
     payload = {
         'contents': [{'parts': parts}],
-        'generationConfig': {'responseModalities': ['IMAGE']},
+        'generationConfig': generation_config,
     }
     resp = requests.post(url, headers=headers, json=payload, timeout=120)
     if resp.status_code >= 400:
@@ -747,6 +750,34 @@ def _save_email_image(image_bytes, ext, prefix=''):
         f.write(image_bytes)
     url = f'{SITE_BASE_URL}/static/email_images/{filename}'
     return url, abs_path
+
+
+def _normalize_image_bytes_to_aspect(image_bytes, ratio_w=4, ratio_h=5):
+    """Center-crop/scale image bytes to an exact aspect ratio (default Instagram 4:5)."""
+    import io
+    from PIL import Image, ImageOps
+
+    img = Image.open(io.BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img)
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+    width, height = img.size
+    if width < 2 or height < 2:
+        return image_bytes, 'image/jpeg'
+    target = ratio_w / float(ratio_h)
+    current = width / float(height)
+    if abs(current - target) < 0.01:
+        out_w, out_h = width, height
+    elif current > target:
+        out_h = height
+        out_w = max(1, int(round(height * target)))
+    else:
+        out_w = width
+        out_h = max(1, int(round(width / target)))
+    fitted = ImageOps.fit(img, (out_w, out_h), method=_pil_lanczos())
+    buf = io.BytesIO()
+    fitted.save(buf, format='JPEG', quality=92, optimize=True)
+    return buf.getvalue(), 'image/jpeg'
 
 
 def _email_image_path_from_url(image_url):
@@ -954,7 +985,7 @@ def delete_recap_og_image_for_hero(hero_image_url):
 IG_SLIDE_W = 1080
 IG_SLIDE_H = 1350
 # Bump when slide layout changes so cached JPEGs are rebuilt.
-IG_SLIDE_VERSION = 3
+IG_SLIDE_VERSION = 4
 IG_SLIDE_FILES = (
     ('1_photo.jpg', 'photo'),
     ('2_summary.jpg', 'summary'),
@@ -1320,7 +1351,7 @@ def _ig_new_canvas():
 
 def _ig_render_photo_slide(data):
     import io
-    from PIL import Image, ImageDraw, ImageFilter, ImageOps
+    from PIL import Image, ImageDraw, ImageOps
 
     canvas = _ig_new_canvas()
     draw = ImageDraw.Draw(canvas)
@@ -1333,20 +1364,9 @@ def _ig_render_photo_slide(data):
             img = ImageOps.exif_transpose(img)
             img = img.convert('RGB')
             resample = _pil_lanczos()
-            # Instagram-style fill: blurred cover background + full uncropped foreground.
-            # Nobody gets cut off; empty bands are filled with a soft version of the scene.
-            bg = ImageOps.fit(img, (IG_SLIDE_W, IG_SLIDE_H), method=resample)
-            bg = bg.filter(ImageFilter.GaussianBlur(radius=36))
-            # Slightly darken the blur so the sharp foreground pops.
-            dim = Image.new('RGB', (IG_SLIDE_W, IG_SLIDE_H), IG_BG)
-            bg = Image.blend(bg, dim, 0.28)
-            canvas.paste(bg, (0, 0))
-            # Leave bottom room for the title gradient.
-            max_h = IG_SLIDE_H - 150
-            foreground = ImageOps.contain(img, (IG_SLIDE_W, max_h), method=resample)
-            px = (IG_SLIDE_W - foreground.size[0]) // 2
-            py = max(0, (max_h - foreground.size[1]) // 2)
-            canvas.paste(foreground, (px, py))
+            # Fill the full Instagram 4:5 frame (no blur letterboxing).
+            fitted = ImageOps.fit(img, (IG_SLIDE_W, IG_SLIDE_H), method=resample)
+            canvas.paste(fitted, (0, 0))
             # Bottom gradient for title readability.
             overlay = Image.new('RGBA', (IG_SLIDE_W, IG_SLIDE_H), (0, 0, 0, 0))
             odraw = ImageDraw.Draw(overlay)
@@ -2069,13 +2089,17 @@ def _generate_email_hero_image_two_pass(
     )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
     try:
-        raw, mime = _generate_image_bytes(scene_prompt, api_key, reference_parts=scene_refs)
+        raw, mime = _generate_image_bytes(
+            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+        )
     except Exception as e:
         raise ImageGenerationError(
             _friendly_image_error(e, api_calls=len(players) + 1),
             image_prompt=image_prompt,
             solo_images=solo_images,
         ) from e
+    # Guarantee Instagram 4:5 even if the model returns a near-miss ratio.
+    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt, solo_images, scene_prompt
 
