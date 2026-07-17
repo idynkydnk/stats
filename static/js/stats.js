@@ -291,12 +291,7 @@ function findSortColumnIndex(table, sortKey) {
     return -1;
 }
 
-function isMatchupDataRow(row) {
-    return row && !row.classList.contains('sr-matchup-split');
-}
-
 function rowGamesPlayed(table, row) {
-    if (!isMatchupDataRow(row)) return 0;
     if (row.dataset.games !== undefined && row.dataset.games !== '') {
         const fromAttr = parseFloat(row.dataset.games);
         if (!isNaN(fromAttr)) return fromAttr;
@@ -313,7 +308,6 @@ function rowGamesPlayed(table, row) {
 }
 
 function rowMeetsMin(table, row, winPctMinGames) {
-    if (!isMatchupDataRow(row)) return false;
     if (row.dataset.meetsMin === '1') return true;
     if (row.dataset.meetsMin === '0') return false;
     return rowGamesPlayed(table, row) >= winPctMinGames;
@@ -325,51 +319,18 @@ function winPctMinGamesForTable(table, rows) {
     return playerMatchupMinGames(parseInt(table.dataset.playerGames || '', 10));
 }
 
-function syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, collapsed) {
-    const tbody = table.querySelector('tbody');
-    if (!tbody) return;
-    let split = tbody.querySelector('.sr-matchup-split');
-    const hasBoth = dataRows.some((row) => rowMeetsMin(table, row, winPctMinGames))
-        && dataRows.some((row) => !rowMeetsMin(table, row, winPctMinGames));
-
-    if (sortKey === 'winpct' && hasBoth) {
-        if (!split) {
-            split = document.createElement('tr');
-            split.className = 'sr-matchup-split';
-            const td = document.createElement('td');
-            td.colSpan = table.querySelectorAll('thead th').length || 6;
-            td.textContent = 'Fewer than ' + winPctMinGames + ' games';
-            split.appendChild(td);
-        }
-        let lastQual = null;
-        dataRows.forEach((row) => {
-            tbody.appendChild(row);
-            if (rowMeetsMin(table, row, winPctMinGames)) lastQual = row;
-        });
-        if (lastQual) tbody.insertBefore(split, lastQual.nextSibling);
-        if (collapsed) split.classList.add('sr-hidden');
-        else split.classList.remove('sr-hidden');
-        return;
-    }
-
-    if (split) split.classList.add('sr-hidden');
-    dataRows.forEach((row) => tbody.appendChild(row));
-}
-
-function applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit) {
-    const dataRows = rows.filter(isMatchupDataRow);
-    dataRows.forEach((row, i) => {
+function applyCollapsedRows(rows, collapseLimit) {
+    rows.forEach((row, i) => {
         if (i >= collapseLimit) row.classList.add('sr-hidden');
         else row.classList.remove('sr-hidden');
     });
-    syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, true);
 }
 
 function sortTable(table, columnIndex, direction, isNumeric) {
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
 
-    const dataRows = Array.from(tbody.querySelectorAll('tr')).filter(isMatchupDataRow);
+    const dataRows = Array.from(tbody.querySelectorAll('tr'));
     const wasCollapsed = dataRows.some((row) => row.classList.contains('sr-hidden'));
     const collapseLimit = parseInt(table.dataset.collapseLimit || '5', 10);
     const sortHeader = table.querySelectorAll('th')[columnIndex];
@@ -419,7 +380,7 @@ function sortTable(table, columnIndex, direction, isNumeric) {
         return bVal.localeCompare(aVal);
     });
 
-    syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, wasCollapsed);
+    dataRows.forEach((row) => tbody.appendChild(row));
 
     let rank = 0;
     dataRows.forEach((row) => {
@@ -437,9 +398,7 @@ function sortTable(table, columnIndex, direction, isNumeric) {
     });
 
     if (wasCollapsed) {
-        applyCollapsedRows(table, dataRows, sortKey, winPctMinGames, collapseLimit);
-    } else {
-        syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, false);
+        applyCollapsedRows(dataRows, collapseLimit);
     }
 }
 
@@ -605,11 +564,7 @@ function toggleRows(tbodyId, btn, limit) {
         return;
     }
 
-    const st = table ? tableSortState.get(table) : null;
-    const sortHeader = st && st.column >= 0 ? table.querySelectorAll('th')[st.column] : null;
-    const sortKey = sortHeader ? sortHeader.dataset.sort : (table && table.dataset.defaultSort) || '';
-    const winPctMinGames = sortKey === 'winpct' ? winPctMinGamesForTable(table, rows) : 0;
-    applyCollapsedRows(table, rows, sortKey, winPctMinGames, maxRows);
+    applyCollapsedRows(rows, maxRows);
     btn.textContent = btn.dataset.expandLabel;
 }
 window.toggleRows = toggleRows;
