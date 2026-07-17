@@ -867,30 +867,31 @@ def minimum_games_threshold(num_games):
 	return num_games // 30
 
 
-def player_matchup_min_games(player_games):
+def player_matchup_min_games(player_games, per_game=1):
 	"""Min games with one partner/opponent to rank ahead on win% sorts.
 
-	About 5% of that player's year games (player_games // 20), minimum 1.
+	About 2.5% of that player's games when facing one person per game
+	(player_games // 40). Doubles opponents use per_game=2 (games // 80)
+	because two opponents are recorded each game.
 	"""
 	if not player_games:
 		return 1
-	return max(1, player_games // 20)
+	divisor = 40 * max(1, int(per_game or 1))
+	return max(1, player_games // divisor)
 
 
 def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
 	"""Rank by win% among partners/opponents meeting min_games first.
 
-	Below-min rows follow underneath (sorted by games, then win%). Preview
-	shows the top N of the full ranked list.
+	Below-min rows follow underneath, still sorted by win%. Preview shows
+	the top N of the full ranked list.
 	"""
 	for stat in stats:
 		stat['meets_min'] = stat.get('total_games', 0) >= min_games
-	# Qualify first by win%; below-min by sample size so 1–3 game 100%s
-	# don't sit right under the main group.
 	stats.sort(key=lambda x: (
 		0 if x['meets_min'] else 1,
-		(-x['win_percentage'], -x['total_games']) if x['meets_min']
-		else (-x['total_games'], -x['win_percentage']),
+		-x['win_percentage'],
+		-x['total_games'],
 	))
 	for i, stat in enumerate(stats):
 		stat['preview_hidden'] = i >= preview_limit
@@ -919,7 +920,7 @@ def partner_stats_by_year(name, games, min_games=None):
 		stats.append({'partner': partner, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
 	if min_games is None:
-		min_games = player_matchup_min_games(len(games))
+		min_games = player_matchup_min_games(len(games), per_game=1)
 	return sort_by_winpct_with_minimum(stats, min_games)
 
 
@@ -944,7 +945,8 @@ def opponent_stats_by_year(name, games, min_games=None):
 		stats.append({'opponent': opponent, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
 	if min_games is None:
-		min_games = player_matchup_min_games(len(games))
+		# Doubles: two opponents per game → lower bar than partners.
+		min_games = player_matchup_min_games(len(games), per_game=2)
 	return sort_by_winpct_with_minimum(stats, min_games)
 
 def total_stats(games, player):

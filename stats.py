@@ -3069,10 +3069,12 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    # ~5% of this player's games (see player_matchup_min_games); preview is always top 5.
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
-    partner_stats = partner_stats_by_year(name, games, winpct_min_games)
-    opponent_stats = opponent_stats_by_year(name, games, winpct_min_games)
+    # Partners: 1 per game; opponents: 2 per game. Preview is always top 5.
+    n_games = len(games) if games else 0
+    partner_winpct_min_games = player_matchup_min_games(n_games, per_game=1)
+    opponent_winpct_min_games = player_matchup_min_games(n_games, per_game=2)
+    partner_stats = partner_stats_by_year(name, games, partner_winpct_min_games)
+    opponent_stats = opponent_stats_by_year(name, games, opponent_winpct_min_games)
 
     # TrueSkill rating + rank for this year
     player_rating = None
@@ -3109,7 +3111,8 @@ def player_stats(year, name):
         all_years=all_years, stats=stats, games=games,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
-        winpct_min_games=winpct_min_games,
+        partner_winpct_min_games=partner_winpct_min_games,
+        opponent_winpct_min_games=opponent_winpct_min_games,
         **player_avatar_context(name))
 
 @app.route('/vollis_player/<year>/<name>/')
@@ -3118,7 +3121,8 @@ def vollis_player_stats(year, name):
     all_years = all_years_vollis_player(name)
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
+    # Vollis is 1v1 — one opponent per game.
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0, per_game=1)
     opponent_stats = vollis_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats, games=games,
@@ -3131,7 +3135,8 @@ def other_player_stats(year, name):
     all_years = all_years_other_player(name)
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
+    # Other is 1v1 — one opponent per game.
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0, per_game=1)
     opponent_stats = other_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats, games=games,

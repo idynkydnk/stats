@@ -269,10 +269,11 @@ function initTableSorting(table) {
     }
 }
 
-// ~5% of that player's games (min 1) for win% ranking priority.
-function playerMatchupMinGames(playerGames) {
+// ~2.5% of games for 1 matchup/game; doubles opponents use perGame=2 (half bar).
+function playerMatchupMinGames(playerGames, perGame) {
     if (!playerGames) return 1;
-    return Math.max(1, Math.floor(playerGames / 20));
+    const slots = Math.max(1, parseInt(perGame, 10) || 1);
+    return Math.max(1, Math.floor(playerGames / (40 * slots)));
 }
 
 function cellNumericValue(row, cellIndex) {
@@ -316,7 +317,10 @@ function rowMeetsMin(table, row, winPctMinGames) {
 function winPctMinGamesForTable(table, rows) {
     const fromAttr = parseInt(table.dataset.winpctMinGames || '', 10);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-    return playerMatchupMinGames(parseInt(table.dataset.playerGames || '', 10));
+    return playerMatchupMinGames(
+        parseInt(table.dataset.playerGames || '', 10),
+        table.dataset.matchupPerGame
+    );
 }
 
 function applyCollapsedRows(rows, collapseLimit) {
@@ -357,16 +361,11 @@ function sortTable(table, columnIndex, direction, isNumeric) {
                 const aQual = rowMeetsMin(table, a, winPctMinGames) ? 1 : 0;
                 const bQual = rowMeetsMin(table, b, winPctMinGames) ? 1 : 0;
                 if (aQual !== bQual) return bQual - aQual;
-
-                if (aQual) {
-                    if (aVal !== bVal) {
-                        return direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    }
-                    return bGames - aGames;
+                // Both groups: win% first, then games as tiebreaker.
+                if (aVal !== bVal) {
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
                 }
-                // Below-min: bigger samples first, then win%.
-                if (aGames !== bGames) return bGames - aGames;
-                return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                return bGames - aGames;
             }
 
             return direction === 'asc' ? aVal - bVal : bVal - aVal;
