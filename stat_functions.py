@@ -870,14 +870,13 @@ def minimum_games_threshold(num_games):
 def player_matchup_min_games(player_games, per_game=1):
 	"""Min games with one partner/opponent to rank ahead on win% sorts.
 
-	About 2.5% of that player's games when facing one person per game
-	(player_games // 40). Doubles opponents use per_game=2 (games // 80)
-	because two opponents are recorded each game.
+	About 2.5% of that player's games (player_games // 40), slowed for huge
+	totals via 0.9*sqrt so All-years bars stay usable. Partners and opponents
+	use the same bar (per_game is ignored).
 	"""
 	if not player_games:
 		return 1
-	divisor = 40 * max(1, int(per_game or 1))
-	return max(1, player_games // divisor)
+	return max(1, min(player_games // 40, round(0.9 * (player_games ** 0.5))))
 
 
 def sort_by_winpct_with_minimum(stats, min_games, preview_limit=5):
@@ -920,7 +919,7 @@ def partner_stats_by_year(name, games, min_games=None):
 		stats.append({'partner': partner, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
 	if min_games is None:
-		min_games = player_matchup_min_games(len(games), per_game=1)
+		min_games = player_matchup_min_games(len(games))
 	return sort_by_winpct_with_minimum(stats, min_games)
 
 
@@ -945,8 +944,7 @@ def opponent_stats_by_year(name, games, min_games=None):
 		stats.append({'opponent': opponent, 'wins': rec['wins'], 'losses': rec['losses'],
 			'win_percentage': rec['wins'] / total_games, 'total_games': total_games})
 	if min_games is None:
-		# Doubles: two opponents per game → lower bar than partners.
-		min_games = player_matchup_min_games(len(games), per_game=2)
+		min_games = player_matchup_min_games(len(games))
 	return sort_by_winpct_with_minimum(stats, min_games)
 
 def total_stats(games, player):

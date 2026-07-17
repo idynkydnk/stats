@@ -269,11 +269,13 @@ function initTableSorting(table) {
     }
 }
 
-// ~2.5% of games for 1 matchup/game; doubles opponents use perGame=2 (half bar).
-function playerMatchupMinGames(playerGames, perGame) {
+// ~2.5% of games (games // 40), slowed for huge totals via 0.9*sqrt. Same bar for partners and opponents.
+function playerMatchupMinGames(playerGames) {
     if (!playerGames) return 1;
-    const slots = Math.max(1, parseInt(perGame, 10) || 1);
-    return Math.max(1, Math.floor(playerGames / (40 * slots)));
+    return Math.max(1, Math.min(
+        Math.floor(playerGames / 40),
+        Math.round(0.9 * Math.sqrt(playerGames))
+    ));
 }
 
 function cellNumericValue(row, cellIndex) {
@@ -317,10 +319,7 @@ function rowMeetsMin(table, row, winPctMinGames) {
 function winPctMinGamesForTable(table, rows) {
     const fromAttr = parseInt(table.dataset.winpctMinGames || '', 10);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-    return playerMatchupMinGames(
-        parseInt(table.dataset.playerGames || '', 10),
-        table.dataset.matchupPerGame
-    );
+    return playerMatchupMinGames(parseInt(table.dataset.playerGames || '', 10));
 }
 
 function applyCollapsedRows(rows, collapseLimit) {

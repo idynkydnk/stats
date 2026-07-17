@@ -265,7 +265,7 @@
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats vs Opponents ({{ opponent_stats|length }})</h3>
             <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ opponent_winpct_min_games }} games</strong> first, then the rest</p>
-            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ opponent_winpct_min_games }}" data-matchup-per-game="2" data-player-games="{{ games|length }}">
+            <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ opponent_winpct_min_games }}" data-matchup-per-game="1" data-player-games="{{ games|length }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="opponent">Opponent <span class="sr-sort-arrow">▼</span></th>
@@ -327,7 +327,7 @@
 
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js', v='20260717i') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20260717k') }}"></script>
     <script>
         function toggleGames(btn) {
             const list = document.getElementById('games-list');

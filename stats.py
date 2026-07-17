@@ -3069,10 +3069,10 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    # Partners: 1 per game; opponents: 2 per game. Preview is always top 5.
+    # Same min-games bar for partners and opponents. Preview is always top 5.
     n_games = len(games) if games else 0
-    partner_winpct_min_games = player_matchup_min_games(n_games, per_game=1)
-    opponent_winpct_min_games = player_matchup_min_games(n_games, per_game=2)
+    partner_winpct_min_games = player_matchup_min_games(n_games)
+    opponent_winpct_min_games = partner_winpct_min_games
     partner_stats = partner_stats_by_year(name, games, partner_winpct_min_games)
     opponent_stats = opponent_stats_by_year(name, games, opponent_winpct_min_games)
 
@@ -3122,7 +3122,7 @@ def vollis_player_stats(year, name):
     games = games_from_vollis_player_by_year(year, name)
     stats = total_vollis_stats(name, games)
     # Vollis is 1v1 — one opponent per game.
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0, per_game=1)
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     opponent_stats = vollis_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('vollis_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats, games=games,
@@ -3136,7 +3136,7 @@ def other_player_stats(year, name):
     games = games_from_other_player_by_year(year, name)
     stats = total_other_stats(name, games)
     # Other is 1v1 — one opponent per game.
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0, per_game=1)
+    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     opponent_stats = other_opponent_stats_by_year(name, games, winpct_min_games)
     return render_template('other_player.html', opponent_stats=opponent_stats,
         year=year, player=name, all_years=all_years, stats=stats, games=games,
