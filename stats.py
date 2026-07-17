@@ -3069,7 +3069,7 @@ def player_stats(year, name):
     games = games_from_player_by_year(year, name)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
-    # ~5% of this player's games that year, floor 5 (see player_matchup_min_games).
+    # ~5% of this player's games (see player_matchup_min_games); preview is always top 5.
     winpct_min_games = player_matchup_min_games(len(games) if games else 0)
     partner_stats = partner_stats_by_year(name, games, winpct_min_games)
     opponent_stats = opponent_stats_by_year(name, games, winpct_min_games)

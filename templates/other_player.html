@@ -148,7 +148,6 @@
         {% if opponent_stats %}
         <div class="sr-card sr-player-section">
             <h3 class="sr-section-title">Stats vs Opponents</h3>
-            <p class="sr-matchup-sort-note">Sorted by win% · <strong>≥{{ winpct_min_games }} games</strong> first, then the rest</p>
             <table class="sr-mini-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5" data-winpct-min-games="{{ winpct_min_games }}" data-player-games="{{ games|length if games else 0 }}">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
@@ -160,9 +159,6 @@
                 </tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
-                {% if not stat['meets_min'] and loop.index0 > 0 and opponent_stats[loop.index0 - 1]['meets_min'] %}
-                <tr class="sr-matchup-split sr-hidden"><td colspan="6">Fewer than {{ winpct_min_games }} games</td></tr>
-                {% endif %}
                 <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('other_player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
@@ -181,5 +177,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/stats.js', v='20260717c') }}"></script>
+<script src="{{ url_for('static', filename='js/stats.js', v='20260717e') }}"></script>
 {% endblock %}

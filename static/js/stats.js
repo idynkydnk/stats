@@ -269,10 +269,10 @@ function initTableSorting(table) {
     }
 }
 
-// Player-page win% sorts: ~5% of that player's games (floor 5).
+// ~5% of that player's games (min 1) for win% ranking priority.
 function playerMatchupMinGames(playerGames) {
-    if (!playerGames) return 5;
-    return Math.max(5, Math.floor(playerGames / 20));
+    if (!playerGames) return 1;
+    return Math.max(1, Math.floor(playerGames / 20));
 }
 
 function cellNumericValue(row, cellIndex) {
@@ -291,12 +291,7 @@ function findSortColumnIndex(table, sortKey) {
     return -1;
 }
 
-function isMatchupDataRow(row) {
-    return row && !row.classList.contains('sr-matchup-split');
-}
-
 function rowGamesPlayed(table, row) {
-    if (!isMatchupDataRow(row)) return 0;
     if (row.dataset.games !== undefined && row.dataset.games !== '') {
         const fromAttr = parseFloat(row.dataset.games);
         if (!isNaN(fromAttr)) return fromAttr;
@@ -313,7 +308,6 @@ function rowGamesPlayed(table, row) {
 }
 
 function rowMeetsMin(table, row, winPctMinGames) {
-    if (!isMatchupDataRow(row)) return false;
     if (row.dataset.meetsMin === '1') return true;
     if (row.dataset.meetsMin === '0') return false;
     return rowGamesPlayed(table, row) >= winPctMinGames;
@@ -322,99 +316,28 @@ function rowMeetsMin(table, row, winPctMinGames) {
 function winPctMinGamesForTable(table, rows) {
     const fromAttr = parseInt(table.dataset.winpctMinGames || '', 10);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-
-    const playerGames = parseInt(table.dataset.playerGames || '', 10);
-    if (!isNaN(playerGames) && playerGames > 0) return playerMatchupMinGames(playerGames);
-
-    let poolGames = 0;
-    rows.forEach((row) => {
-        if (isMatchupDataRow(row)) poolGames += rowGamesPlayed(table, row);
-    });
-    return playerMatchupMinGames(poolGames);
-}
-
-function syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, collapsed) {
-    const tbody = table.querySelector('tbody');
-    if (!tbody) return null;
-    let split = tbody.querySelector('.sr-matchup-split');
-    const hasBothGroups = dataRows.some((row) => rowMeetsMin(table, row, winPctMinGames))
-        && dataRows.some((row) => !rowMeetsMin(table, row, winPctMinGames));
-
-    if (sortKey === 'winpct' && hasBothGroups) {
-        if (!split) {
-            split = document.createElement('tr');
-            split.className = 'sr-matchup-split';
-            const td = document.createElement('td');
-            td.colSpan = table.querySelectorAll('thead th').length || 6;
-            td.textContent = 'Fewer than ' + winPctMinGames + ' games';
-            split.appendChild(td);
-        }
-        // Place divider after the last qualified row.
-        let lastQual = null;
-        dataRows.forEach((row) => {
-            tbody.appendChild(row);
-            if (rowMeetsMin(table, row, winPctMinGames)) lastQual = row;
-        });
-        if (lastQual && lastQual.nextSibling !== split) {
-            tbody.insertBefore(split, lastQual.nextSibling);
-        } else if (!lastQual) {
-            tbody.insertBefore(split, tbody.firstChild);
-        }
-        if (collapsed) split.classList.add('sr-hidden');
-        else split.classList.remove('sr-hidden');
-        return split;
-    }
-
-    if (split) split.classList.add('sr-hidden');
-    dataRows.forEach((row) => tbody.appendChild(row));
-    return split;
+    return playerMatchupMinGames(parseInt(table.dataset.playerGames || '', 10));
 }
 
 function applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit) {
-    const dataRows = rows.filter(isMatchupDataRow);
-    let shown = 0;
-    if (sortKey === 'winpct' && winPctMinGames > 0) {
-        dataRows.forEach((row) => {
-            const qualifies = rowMeetsMin(table, row, winPctMinGames);
-            if (!qualifies) {
-                row.classList.add('sr-hidden');
-                return;
-            }
-            shown += 1;
-            if (shown > collapseLimit) row.classList.add('sr-hidden');
-            else row.classList.remove('sr-hidden');
-        });
-        // Never leave the collapsed preview empty when there are rows.
-        if (shown === 0 && dataRows.length) {
-            dataRows.forEach((row, i) => {
-                if (i >= collapseLimit) row.classList.add('sr-hidden');
-                else row.classList.remove('sr-hidden');
-            });
-        }
-        syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, true);
-        return;
-    }
-    dataRows.forEach((row) => {
-        if (shown >= collapseLimit) row.classList.add('sr-hidden');
+    rows.forEach((row, i) => {
+        if (i >= collapseLimit) row.classList.add('sr-hidden');
         else row.classList.remove('sr-hidden');
-        shown += 1;
     });
-    syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, true);
 }
 
 function sortTable(table, columnIndex, direction, isNumeric) {
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
 
-    const allRows = Array.from(tbody.querySelectorAll('tr'));
-    const dataRows = allRows.filter(isMatchupDataRow);
-    const wasCollapsed = dataRows.some((row) => row.classList.contains('sr-hidden'));
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const wasCollapsed = rows.some((row) => row.classList.contains('sr-hidden'));
     const collapseLimit = parseInt(table.dataset.collapseLimit || '5', 10);
     const sortHeader = table.querySelectorAll('th')[columnIndex];
     const sortKey = sortHeader ? sortHeader.dataset.sort : '';
-    const winPctMinGames = winPctMinGamesForTable(table, dataRows);
+    const winPctMinGames = winPctMinGamesForTable(table, rows);
 
-    dataRows.sort((a, b) => {
+    rows.sort((a, b) => {
         const aCell = a.cells[columnIndex];
         const bCell = b.cells[columnIndex];
         if (!aCell || !bCell) return 0;
@@ -428,7 +351,7 @@ function sortTable(table, columnIndex, direction, isNumeric) {
             if (isNaN(aVal)) aVal = 0;
             if (isNaN(bVal)) bVal = 0;
 
-            // Qualified sample first, then win%, then games as tiebreaker.
+            // Soft min first, then win%, then games as tiebreaker.
             if (sortKey === 'winpct') {
                 const aGames = rowGamesPlayed(table, a);
                 const bGames = rowGamesPlayed(table, b);
@@ -453,27 +376,22 @@ function sortTable(table, columnIndex, direction, isNumeric) {
         return bVal.localeCompare(aVal);
     });
 
-    syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, wasCollapsed);
-
-    let rank = 0;
-    dataRows.forEach((row) => {
-        rank += 1;
+    rows.forEach((row, index) => {
+        tbody.appendChild(row);
         const rankCell = row.querySelector('.sr-rank');
         if (rankCell) {
-            rankCell.textContent = rank;
+            rankCell.textContent = index + 1;
             if (table.classList.contains('sr-table')) {
                 rankCell.className = 'sr-rank';
-                if (rank === 1) rankCell.classList.add('sr-rank-1');
-                else if (rank === 2) rankCell.classList.add('sr-rank-2');
-                else if (rank === 3) rankCell.classList.add('sr-rank-3');
+                if (index === 0) rankCell.classList.add('sr-rank-1');
+                else if (index === 1) rankCell.classList.add('sr-rank-2');
+                else if (index === 2) rankCell.classList.add('sr-rank-3');
             }
         }
     });
 
     if (wasCollapsed) {
-        applyCollapsedRows(table, dataRows, sortKey, winPctMinGames, collapseLimit);
-    } else {
-        syncMatchupSplitRow(table, dataRows, sortKey, winPctMinGames, false);
+        applyCollapsedRows(table, rows, sortKey, winPctMinGames, collapseLimit);
     }
 }
 
