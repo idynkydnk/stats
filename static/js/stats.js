@@ -444,6 +444,7 @@ function initPlayerPageSticky() {
     const header = document.querySelector('.sr-player-header');
     if (!header) return;
 
+    const root = document.documentElement;
     const sections = document.querySelectorAll('.sr-player-section');
     const needsFixedPin = window.matchMedia('(hover: none) and (pointer: coarse)').matches
         || window.matchMedia('(max-width: 768px)').matches;
@@ -460,22 +461,23 @@ function initPlayerPageSticky() {
     }
 
     function publishStickyHeight(h) {
-        document.documentElement.style.setProperty('--sr-player-sticky-h', h + 'px');
+        root.style.setProperty('--sr-player-sticky-h', h + 'px');
     }
 
     function measureHeaderHeight() {
         return Math.ceil(header.getBoundingClientRect().height);
     }
 
-    // Desktop keeps pure sticky; still publish heights for section heads.
-    if (!needsFixedPin) {
-        publishStickyHeight(measureHeaderHeight());
-        measureSectionOffsets();
-        window.addEventListener('resize', function() {
-            publishStickyHeight(measureHeaderHeight());
-            measureSectionOffsets();
-        });
-        return;
+    function setCompact(compact) {
+        const isCompact = header.classList.contains('is-compact');
+        if (compact === isCompact) return;
+        if (compact) {
+            header.classList.add('is-compact');
+            root.classList.add('sr-player-pinned');
+        } else {
+            header.classList.remove('is-compact');
+            root.classList.remove('sr-player-pinned');
+        }
     }
 
     const homeParent = header.parentNode;
@@ -483,6 +485,37 @@ function initPlayerPageSticky() {
     sentinel.className = 'sr-player-sticky-sentinel';
     sentinel.setAttribute('aria-hidden', 'true');
     homeParent.insertBefore(sentinel, header);
+
+    // Desktop keeps pure sticky; compact the chrome once the header sticks.
+    if (!needsFixedPin) {
+        function updateDesktopCompact() {
+            const stuck = sentinel.getBoundingClientRect().top < 0;
+            setCompact(stuck);
+            publishStickyHeight(measureHeaderHeight());
+            measureSectionOffsets();
+        }
+
+        let ticking = false;
+        function onScroll() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(function() {
+                ticking = false;
+                updateDesktopCompact();
+            });
+        }
+
+        publishStickyHeight(measureHeaderHeight());
+        measureSectionOffsets();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', function() {
+            publishStickyHeight(measureHeaderHeight());
+            measureSectionOffsets();
+            updateDesktopCompact();
+        });
+        updateDesktopCompact();
+        return;
+    }
 
     const spacer = document.createElement('div');
     spacer.className = 'sr-player-sticky-spacer';
@@ -504,12 +537,14 @@ function initPlayerPageSticky() {
         if (pinned) {
             flowHeight = measureHeaderHeight();
             header.classList.add('is-fixed');
+            setCompact(true);
             // Reparent to <body> so iOS can't treat fixed as scrolling with a container.
             document.body.appendChild(header);
             spacer.style.height = flowHeight + 'px';
             publishStickyHeight(measureHeaderHeight());
         } else {
             header.classList.remove('is-fixed');
+            setCompact(false);
             homeParent.insertBefore(header, spacer);
             spacer.style.height = '0px';
             flowHeight = measureHeaderHeight();
