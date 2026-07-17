@@ -501,12 +501,45 @@ def _dedupe_players_preserve_order(player_names):
     return ordered
 
 
-def _illustration_players(player_names, game_type, games):
+MAX_ILLUSTRATION_PLAYERS = 4
+
+
+def resolve_illustration_players(player_names, selected_players=None):
+    """Pick who appears in the illustration (max 4).
+
+    selected_players, when provided, must be a subset of the game roster.
+    If empty/invalid, defaults to the first 4 alphabetically.
+    """
+    all_players = _ordered_email_image_players(player_names)
+    if not all_players:
+        return []
+    if len(all_players) <= MAX_ILLUSTRATION_PLAYERS and not selected_players:
+        return list(all_players)
+
+    roster_by_key = {name.lower(): name for name in all_players}
+    chosen = []
+    seen = set()
+    for name in selected_players or []:
+        clean = (name or '').strip()
+        key = clean.lower()
+        if not key or key not in roster_by_key or key in seen:
+            continue
+        chosen.append(roster_by_key[key])
+        seen.add(key)
+        if len(chosen) >= MAX_ILLUSTRATION_PLAYERS:
+            break
+    if chosen:
+        return chosen
+    return all_players[:MAX_ILLUSTRATION_PLAYERS]
+
+
+def _illustration_players(player_names, game_type, games, selected_players=None):
     """Choose roster for illustration. Always two-pass: solo caricatures, then group."""
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
         return [], 'two_pass', all_players
-    return all_players, 'two_pass', all_players
+    illustrated = resolve_illustration_players(all_players, selected_players)
+    return illustrated, 'two_pass', all_players
 
 
 def _reference_photo_kind(label):
@@ -1925,8 +1958,10 @@ def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_pro
     return '\n\n'.join(sections)
 
 
-def _illustration_meta(player_names, game_type, games):
-    players, strategy, all_players = _illustration_players(player_names, game_type, games)
+def _illustration_meta(player_names, game_type, games, selected_players=None):
+    players, strategy, all_players = _illustration_players(
+        player_names, game_type, games, selected_players=selected_players,
+    )
     api_calls = (len(players) + 1) if players else 0
     return {
         'strategy': strategy,
@@ -1940,6 +1975,11 @@ def _illustration_meta(player_names, game_type, games):
 def _illustration_status_note(illustrated_players, all_players, strategy):
     if not illustrated_players:
         return ''
+    if len(all_players) > len(illustrated_players):
+        return (
+            f'Illustration uses {len(illustrated_players)} of {len(all_players)} players '
+            f'(solo caricature each, then a group scene).'
+        )
     return (
         f'Illustration uses one caricature per player, then a group scene '
         f'({len(illustrated_players)} players).'
@@ -2043,9 +2083,12 @@ def _generate_email_hero_image_two_pass(
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
+    selected_players=None,
 ):
     """Generate hero image: one solo caricature per player, then one group scene."""
-    players, _strategy, _all_players = _illustration_players(player_names, game_type, games)
+    players, _strategy, _all_players = _illustration_players(
+        player_names, game_type, games, selected_players=selected_players,
+    )
     if not players:
         raise ValueError('No players in roster for illustration')
     return _generate_email_hero_image_two_pass(
@@ -2060,12 +2103,14 @@ def generate_email_hero_image(
 def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
     image_details='', existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None,
+    custom_scene_prompt=None, selected_players=None,
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
         return None, None, None, '', None
-    meta = _illustration_meta(player_names, game_type, games)
+    meta = _illustration_meta(
+        player_names, game_type, games, selected_players=selected_players,
+    )
     try:
         url, path, image_prompt, solo_images, scene_prompt = generate_email_hero_image(
             api_key, game_type, games, player_names,
@@ -2074,6 +2119,7 @@ def _try_generate_email_hero_image(
             existing_solo_images=existing_solo_images,
             reuse_existing_solos=reuse_existing_solos,
             custom_scene_prompt=custom_scene_prompt,
+            selected_players=selected_players,
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
@@ -2594,7 +2640,7 @@ def create_doubles_email_html(summary, stats, games, date_obj, hero_image_url=No
 
 def build_doubles_email_payload(
     selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
-    image_details='',
+    image_details='', illustration_players=None,
 ):
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
@@ -2812,6 +2858,7 @@ def build_doubles_email_payload(
         _try_generate_email_hero_image(
             api_key, 'doubles', games, players_set, image_mode=image_mode,
             image_details=image_details,
+            selected_players=illustration_players,
         )
     )
     html_body = create_doubles_email_html(
@@ -3166,7 +3213,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
 
 def build_vollis_email_payload(
     selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
-    image_details='',
+    image_details='', illustration_players=None,
 ):
     from vollis_functions import convert_vollis_ampm
     from player_functions import get_player_by_name
@@ -3278,6 +3325,7 @@ def build_vollis_email_payload(
         _try_generate_email_hero_image(
             api_key, 'vollis', games, players_set, image_mode=image_mode,
             image_details=image_details,
+            selected_players=illustration_players,
         )
     )
     html_body = create_vollis_email_html(
@@ -3319,7 +3367,7 @@ def build_vollis_email_payload(
 
 def build_other_email_payload(
     selected_game_ids, prompt_style='random', custom_prompt='', image_mode='none',
-    image_details='',
+    image_details='', illustration_players=None,
 ):
     from other_functions import readable_games_data, _is_valid_player_name
     from player_functions import get_player_by_name
@@ -3453,6 +3501,7 @@ def build_other_email_payload(
             api_key, 'other', games, players_set, game_name=game_name_label,
             image_mode=image_mode,
             image_details=image_details,
+            selected_players=illustration_players,
         )
     )
     html_body = create_other_email_html(

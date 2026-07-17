@@ -45,6 +45,7 @@ def init_ai_auto_send_jobs_db():
     ''')
     _ensure_column(conn, 'ai_auto_send_jobs', 'image_mode', "TEXT DEFAULT 'none'")
     _ensure_column(conn, 'ai_auto_send_jobs', 'image_details', 'TEXT')
+    _ensure_column(conn, 'ai_auto_send_jobs', 'illustration_players_json', 'TEXT')
     _ensure_column(conn, 'ai_auto_send_jobs', 'share_id', 'TEXT')
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_ai_auto_send_jobs_status '
@@ -56,15 +57,16 @@ def init_ai_auto_send_jobs_db():
 
 def enqueue_job(
     username, game_ids, game_type, prompt_style, custom_prompt='',
-    image_mode='none', image_details='',
+    image_mode='none', image_details='', illustration_players=None,
 ):
     init_ai_auto_send_jobs_db()
     conn = _connect()
+    players_json = json.dumps(list(illustration_players or []), default=str)
     cur = conn.execute('''
         INSERT INTO ai_auto_send_jobs
             (username, game_type, game_ids_json, prompt_style, custom_prompt,
-             image_mode, image_details, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+             image_mode, image_details, illustration_players_json, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     ''', (
         username,
         game_type,
@@ -73,6 +75,7 @@ def enqueue_job(
         custom_prompt or '',
         image_mode or 'none',
         image_details or '',
+        players_json,
     ))
     job_id = cur.lastrowid
     conn.commit()
@@ -88,7 +91,7 @@ def claim_next_pending_job():
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute('''
             SELECT id, username, game_type, game_ids_json, prompt_style, custom_prompt,
-                   image_mode, image_details
+                   image_mode, image_details, illustration_players_json
             FROM ai_auto_send_jobs
             WHERE status = 'pending'
             ORDER BY id ASC
@@ -110,6 +113,13 @@ def claim_next_pending_job():
         job['game_ids'] = json.loads(job.pop('game_ids_json'))
         job['image_mode'] = job.get('image_mode') or 'none'
         job['image_details'] = job.get('image_details') or ''
+        try:
+            job['illustration_players'] = json.loads(
+                job.pop('illustration_players_json') or '[]'
+            )
+        except (json.JSONDecodeError, TypeError):
+            job.pop('illustration_players_json', None)
+            job['illustration_players'] = []
         return job
     finally:
         conn.close()

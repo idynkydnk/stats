@@ -52,6 +52,7 @@ def _process_job(job):
         custom_prompt=job.get('custom_prompt') or '',
         image_mode=job.get('image_mode') or 'none',
         image_details=job.get('image_details') or '',
+        illustration_players=job.get('illustration_players') or [],
     )
     if result.get('success'):
         subject = result.get('subject') or 'Vball Summary'

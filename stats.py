@@ -475,7 +475,7 @@ def _ai_summary_preview_from_form(form):
 
 def _build_ai_summary_payload(
     game_type, selected_game_ids, prompt_style, custom_prompt, image_mode='none',
-    image_details='',
+    image_details='', illustration_players=None,
 ):
     """Build AI email payload for doubles, vollis, or other games."""
     kwargs = {
@@ -483,6 +483,7 @@ def _build_ai_summary_payload(
         'custom_prompt': custom_prompt,
         'image_mode': image_mode,
         'image_details': image_details,
+        'illustration_players': illustration_players,
     }
     if game_type == 'vollis':
         return build_vollis_email_payload(selected_game_ids, **kwargs)
@@ -663,7 +664,7 @@ def _send_ai_summary_payload(payload, username='unknown'):
 
 def run_ai_auto_send_job(
     username, game_ids, game_type, prompt_style, custom_prompt,
-    image_mode='none', image_details='',
+    image_mode='none', image_details='', illustration_players=None,
 ):
     """Generate AI summary and publish a shareable recap page."""
     with app.app_context():
@@ -671,6 +672,7 @@ def run_ai_auto_send_job(
             payload = _build_ai_summary_payload(
                 game_type, game_ids, prompt_style, custom_prompt,
                 image_mode=image_mode, image_details=image_details,
+                illustration_players=illustration_players,
             )
             _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=username)
             img_note = _ai_image_log_note(payload)
@@ -1669,6 +1671,16 @@ def api_ai_summary_game_search():
         'games': [_serialize_ai_summary_game(game_type, game) for game in games],
     })
 
+def _roster_players_for_games(game_ids, game_type):
+    """Alphabetical unique player names for the selected games."""
+    from email_content import _ordered_email_image_players
+    try:
+        _games, players, _game_name = _load_games_and_players_for_recap(game_type, game_ids)
+    except Exception:
+        return []
+    return _ordered_email_image_players(players)
+
+
 @app.route('/select_ai_prompt/', methods=['POST'])
 @login_required
 def select_ai_prompt():
@@ -1678,11 +1690,19 @@ def select_ai_prompt():
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary'))
-    return render_template('select_prompt.html', game_ids=selected_game_ids, game_type=game_type)
+    roster_players = _roster_players_for_games(selected_game_ids, game_type)
+    return render_template(
+        'select_prompt.html',
+        game_ids=selected_game_ids,
+        game_type=game_type,
+        roster_players=roster_players,
+        selected_illustration_players=roster_players[:4],
+    )
 
 
 def _render_select_ai_prompt(
-    game_ids, game_type, prompt_style='', custom_prompt='', image_details='', error=None,
+    game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
+    illustration_players=None, error=None,
 ):
     """Re-show the style picker with prior selections after a recoverable error."""
     if error:
@@ -1690,6 +1710,8 @@ def _render_select_ai_prompt(
     style = _normalize_prompt_style(prompt_style) if prompt_style else ''
     if style and style not in ('random', 'custom'):
         style = 'random'
+    roster_players = _roster_players_for_games(game_ids, game_type)
+    selected = illustration_players if illustration_players is not None else roster_players[:4]
     return render_template(
         'select_prompt.html',
         game_ids=game_ids,
@@ -1697,6 +1719,8 @@ def _render_select_ai_prompt(
         selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
+        roster_players=roster_players,
+        selected_illustration_players=selected,
     )
 
 
@@ -1714,6 +1738,7 @@ def preview_ai_summary_with_prompt():
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
     image_details = (request.form.get('image_details') or '').strip()
+    illustration_players = request.form.getlist('illustration_players')
     
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
@@ -1726,8 +1751,24 @@ def preview_ai_summary_with_prompt():
             prompt_style=prompt_style,
             custom_prompt=custom_prompt,
             image_details=image_details,
+            illustration_players=illustration_players,
             error=error,
         )
+
+    if image_mode == 'image':
+        roster_players = _roster_players_for_games(selected_game_ids, game_type)
+        if len(roster_players) > 4:
+            from email_content import resolve_illustration_players
+            picked = resolve_illustration_players(roster_players, illustration_players)
+            if len(illustration_players) == 0 or len(picked) == 0:
+                return stay_on_prompt(
+                    'Select up to 4 players for the illustration.'
+                )
+            if len(illustration_players) > 4:
+                return stay_on_prompt(
+                    'Illustrations support at most 4 players. Uncheck extras and try again.'
+                )
+            illustration_players = picked
 
     # Prefer background generation so Menu navigation doesn't cancel the work.
     if ai_jobs.daemon_is_alive():
@@ -1740,6 +1781,7 @@ def preview_ai_summary_with_prompt():
             custom_prompt,
             image_mode=image_mode,
             image_details=image_details,
+            illustration_players=illustration_players,
         )
         log_activity(
             'Queued AI recap publish',
@@ -1755,16 +1797,19 @@ def preview_ai_summary_with_prompt():
             payload = build_vollis_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
                 image_mode=image_mode, image_details=image_details,
+                illustration_players=illustration_players,
             )
         elif game_type == 'other':
             payload = build_other_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
                 image_mode=image_mode, image_details=image_details,
+                illustration_players=illustration_players,
             )
         else:
             payload = build_doubles_email_payload(
                 selected_game_ids, prompt_style=prompt_style, custom_prompt=custom_prompt,
                 image_mode=image_mode, image_details=image_details,
+                illustration_players=illustration_players,
             )
     except ValueError as ve:
         log_activity('AI summary failed', summary=f'{game_type} summary for {len(selected_game_ids)} game(s): {str(ve)[:200]}')
@@ -2258,10 +2303,20 @@ def remake_ai_recap_image(share_id):
         if not players:
             raise ValueError('No players found for the saved games.')
 
+        from email_content import resolve_illustration_players
+        # Prefer the players from the previous solos (preserves the original pick).
+        prior_names = [
+            (item.get('name') or '').strip()
+            for item in reuse_solos
+            if (item.get('name') or '').strip()
+        ]
+        illustration_players = resolve_illustration_players(players, prior_names)
+
         if not scene_prompt:
             from email_content import build_scene_image_prompt
             scene_prompt = build_scene_image_prompt(
-                game_type, players, game_name=game_name, image_details=image_details,
+                game_type, illustration_players, game_name=game_name,
+                image_details=image_details,
             )
 
         new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
@@ -2276,6 +2331,7 @@ def remake_ai_recap_image(share_id):
                 existing_solo_images=reuse_solos,
                 reuse_existing_solos=bool(reuse_solos),
                 custom_scene_prompt=scene_prompt,
+                selected_players=illustration_players,
             )
         )
     except Exception as e:
@@ -2690,9 +2746,11 @@ def api_generate_and_send_ai_summary():
     username = session.get('username', 'unknown')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
     image_details = (request.form.get('image_details') or '').strip()
+    illustration_players = request.form.getlist('illustration_players')
     job_id = ai_jobs.enqueue_job(
         username, game_ids, game_type, prompt_style, custom_prompt,
         image_mode=image_mode, image_details=image_details,
+        illustration_players=illustration_players,
     )
     worker_alive = ai_jobs.daemon_is_alive()
     log_activity(
