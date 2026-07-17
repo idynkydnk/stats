@@ -375,7 +375,80 @@
             margin-top: 12px;
             justify-content: flex-end;
         }
+        .recap-ig-panel {
+            display: none;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+        .recap-ig-panel.is-open { display: block; }
+        .recap-ig-panel-inner {
+            background: var(--recap-panel);
+            border: 1px solid var(--recap-line);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .recap-ig-panel h3 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--recap-text);
+        }
+        .recap-ig-help {
+            font-size: 12px;
+            color: var(--recap-muted);
+            margin: 0 0 14px;
+            line-height: 1.45;
+        }
+        .recap-ig-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .recap-ig-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+        .recap-ig-card a.recap-ig-thumb {
+            display: block;
+            aspect-ratio: 4 / 5;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--recap-line);
+            background: rgba(0, 0, 0, 0.25);
+        }
+        .recap-ig-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .recap-ig-card-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--recap-muted);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .recap-ig-card .recap-btn {
+            padding: 8px 10px;
+            font-size: 12px;
+            justify-content: center;
+        }
+        .recap-ig-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+            justify-content: flex-end;
+        }
         @media (max-width: 640px) {
+            .recap-ig-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
             .recap-share-inner {
                 align-items: stretch;
             }
@@ -408,6 +481,11 @@
                 <button type="button" class="recap-btn recap-btn-primary" id="recap-copy-btn">
                     <i class="fas fa-copy"></i> Copy link
                 </button>
+                {% if instagram_slides %}
+                <button type="button" class="recap-btn recap-btn-secondary" id="recap-ig-toggle">
+                    <i class="fab fa-instagram"></i> Instagram
+                </button>
+                {% endif %}
                 {% if can_remake %}
                 <button type="button" class="recap-btn recap-btn-secondary" id="recap-remake-summary-toggle">
                     <i class="fas fa-pen"></i> Remake summary
@@ -432,6 +510,33 @@
     <button class="menu-toggle recap-menu-fab" id="menu-toggle" type="button" aria-label="Open menu">
         <i class="fas fa-bars"></i> Menu
     </button>
+    {% endif %}
+    {% if show_creator_view and instagram_slides %}
+    <div class="recap-ig-panel" id="recap-ig-panel">
+        <div class="recap-ig-panel-inner">
+            <h3><i class="fab fa-instagram"></i> Instagram carousel</h3>
+            <p class="recap-ig-help">Four 1080×1350 (4:5) portraits — photo, summary, stats, and games. Download each or grab the zip, then post as an Instagram carousel.</p>
+            <div class="recap-ig-grid">
+                {% for slide in instagram_slides %}
+                <div class="recap-ig-card">
+                    <a class="recap-ig-thumb" href="{{ slide.url }}" target="_blank" rel="noopener">
+                        <img src="{{ slide.url }}" alt="{{ slide.label }} Instagram slide">
+                    </a>
+                    <div class="recap-ig-card-label">{{ loop.index }}. {{ slide.label }}</div>
+                    <a class="recap-btn recap-btn-secondary" href="{{ slide.url }}?download=1" download="{{ slide.filename }}">
+                        <i class="fas fa-download"></i> Save
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="recap-ig-actions">
+                <button type="button" class="recap-btn recap-btn-secondary" id="recap-ig-close">Close</button>
+                <a class="recap-btn recap-btn-primary" href="{{ url_for('recap_instagram_zip', share_id=share_id) }}">
+                    <i class="fas fa-file-archive"></i> Download all (zip)
+                </a>
+            </div>
+        </div>
+    </div>
     {% endif %}
     {% if show_creator_view and can_remake %}
     <div class="recap-remake-panel" id="recap-remake-summary-panel">
@@ -592,12 +697,16 @@
 
         var summaryPanel = document.getElementById('recap-remake-summary-panel');
         var imagePanel = document.getElementById('recap-remake-image-panel');
+        var igPanel = document.getElementById('recap-ig-panel');
         var summaryToggle = document.getElementById('recap-remake-summary-toggle');
         var imageToggle = document.getElementById('recap-remake-image-toggle');
+        var igToggle = document.getElementById('recap-ig-toggle');
+        var igClose = document.getElementById('recap-ig-close');
 
         function closeRemakePanels() {
             if (summaryPanel) summaryPanel.classList.remove('is-open');
             if (imagePanel) imagePanel.classList.remove('is-open');
+            if (igPanel) igPanel.classList.remove('is-open');
         }
 
         function openRemakePanel(panel) {
@@ -610,6 +719,19 @@
                     ta.setSelectionRange(ta.value.length, ta.value.length);
                 }
             }
+        }
+
+        if (igToggle && igPanel) {
+            igToggle.addEventListener('click', function () {
+                if (igPanel.classList.contains('is-open')) {
+                    closeRemakePanels();
+                } else {
+                    openRemakePanel(igPanel);
+                }
+            });
+        }
+        if (igClose) {
+            igClose.addEventListener('click', closeRemakePanels);
         }
 
         if (summaryToggle && summaryPanel) {

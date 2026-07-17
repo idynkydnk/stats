@@ -906,6 +906,668 @@ def delete_recap_og_image_for_hero(hero_image_url):
         return False
 
 
+# Instagram carousel slides: 4:5 portrait (1080×1350) — Instagram's preferred feed size.
+IG_SLIDE_W = 1080
+IG_SLIDE_H = 1350
+IG_SLIDE_FILES = (
+    ('1_photo.jpg', 'photo'),
+    ('2_summary.jpg', 'summary'),
+    ('3_stats.jpg', 'stats'),
+    ('4_games.jpg', 'games'),
+)
+IG_BG = (11, 15, 20)
+IG_PANEL = (19, 26, 36)
+IG_LINE = (255, 255, 255, 20)
+IG_TEXT = (228, 232, 235)
+IG_MUTED = (139, 148, 158)
+IG_ACCENT = (102, 217, 239)
+IG_WIN = (74, 222, 128)
+IG_LOSS = (248, 113, 113)
+
+
+def instagram_slides_dir(share_id):
+    """Directory for a recap's Instagram slide JPEGs."""
+    safe_id = ''.join(ch for ch in (share_id or '') if ch.isalnum() or ch in ('-', '_'))
+    if not safe_id:
+        raise ValueError('Invalid recap id')
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'static', 'recaps', safe_id,
+    )
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def delete_instagram_slides(share_id):
+    """Remove generated Instagram slides for a recap, if any."""
+    import shutil
+
+    try:
+        path = instagram_slides_dir(share_id)
+    except ValueError:
+        return False
+    if not os.path.isdir(path):
+        return False
+    try:
+        shutil.rmtree(path)
+        return True
+    except OSError:
+        return False
+
+
+def list_instagram_slide_paths(share_id):
+    """Return ordered list of existing slide paths, or [] if incomplete/outdated."""
+    from PIL import Image
+
+    try:
+        base = instagram_slides_dir(share_id)
+    except ValueError:
+        return []
+    paths = []
+    for filename, _kind in IG_SLIDE_FILES:
+        path = os.path.join(base, filename)
+        if not os.path.isfile(path) or os.path.getsize(path) <= 0:
+            return []
+        try:
+            with Image.open(path) as img:
+                if img.size != (IG_SLIDE_W, IG_SLIDE_H):
+                    return []
+        except OSError:
+            return []
+        paths.append(path)
+    return paths
+
+
+def _ig_load_font(size, bold=False):
+    """Best-effort system font for Instagram slides (macOS + Linux)."""
+    from PIL import ImageFont
+
+    candidates = []
+    if bold:
+        candidates.extend([
+            '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+            '/Library/Fonts/Arial Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+        ])
+    candidates.extend([
+        '/System/Library/Fonts/Supplemental/Arial.ttf',
+        '/Library/Fonts/Arial.ttf',
+        '/System/Library/Fonts/Helvetica.ttc',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+        '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+    ])
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                return ImageFont.truetype(path, size=size)
+            except OSError:
+                continue
+    return ImageFont.load_default()
+
+
+def _ig_text_width(draw, text, font):
+    if hasattr(draw, 'textlength'):
+        try:
+            return draw.textlength(text, font=font)
+        except Exception:
+            pass
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0]
+
+
+def _ig_text_height(draw, text, font):
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[3] - box[1]
+
+
+def _ig_wrap_text(draw, text, font, max_width):
+    """Word-wrap text to fit max_width; returns list of lines."""
+    text = (text or '').replace('\r\n', '\n').replace('\r', '\n')
+    lines = []
+    for paragraph in text.split('\n'):
+        words = paragraph.split()
+        if not words:
+            lines.append('')
+            continue
+        current = words[0]
+        for word in words[1:]:
+            trial = f'{current} {word}'
+            if _ig_text_width(draw, trial, font) <= max_width:
+                current = trial
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+    return lines
+
+
+def _ig_fit_wrapped_lines(draw, text, max_width, max_height, size_start, size_min, bold=False, line_gap=1.28):
+    """Shrink font until wrapped text fits in max_height. Returns (lines, font, line_h)."""
+    for size in range(size_start, size_min - 1, -2):
+        font = _ig_load_font(size, bold=bold)
+        lines = _ig_wrap_text(draw, text, font, max_width)
+        if not lines:
+            return [], font, 0
+        line_h = max(_ig_text_height(draw, 'Ag', font), size)
+        total = int(len(lines) * line_h * line_gap)
+        if total <= max_height:
+            return lines, font, line_h
+    font = _ig_load_font(size_min, bold=bold)
+    lines = _ig_wrap_text(draw, text, font, max_width)
+    line_h = max(_ig_text_height(draw, 'Ag', font), size_min)
+    # Truncate with ellipsis if still too tall.
+    max_lines = max(1, int(max_height / (line_h * line_gap)))
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        if lines:
+            lines[-1] = lines[-1].rstrip('.…') + '…'
+    return lines, font, line_h
+
+
+def _ig_draw_header(draw, title, subtitle=''):
+    """Accent eyebrow + title at top of a text slide."""
+    pad = 72
+    eyebrow_font = _ig_load_font(28, bold=True)
+    title_font = _ig_load_font(52, bold=True)
+    y = pad
+    eyebrow = 'GAME RECAP'
+    ew = _ig_text_width(draw, eyebrow, eyebrow_font)
+    draw.text(((IG_SLIDE_W - ew) / 2, y), eyebrow, font=eyebrow_font, fill=IG_ACCENT)
+    y += 44
+    # Underline accent bar
+    bar_w = 72
+    draw.rectangle(
+        [(IG_SLIDE_W - bar_w) // 2, y, (IG_SLIDE_W + bar_w) // 2, y + 4],
+        fill=IG_ACCENT,
+    )
+    y += 28
+    title_lines = _ig_wrap_text(draw, title or 'Recap', title_font, IG_SLIDE_W - pad * 2)
+    for line in title_lines[:3]:
+        tw = _ig_text_width(draw, line, title_font)
+        draw.text(((IG_SLIDE_W - tw) / 2, y), line, font=title_font, fill=IG_TEXT)
+        y += 60
+    if subtitle:
+        sub_font = _ig_load_font(30)
+        sw = _ig_text_width(draw, subtitle, sub_font)
+        draw.text(((IG_SLIDE_W - sw) / 2, y), subtitle, font=sub_font, fill=IG_MUTED)
+        y += 48
+    return y + 12
+
+
+def parse_recap_for_instagram(html_body, plain_text_body='', subject='', hero_image_url=''):
+    """Extract slide content from stored recap HTML / plain text."""
+    from bs4 import BeautifulSoup
+
+    title = (subject or '').strip() or 'Game Recap'
+    summary = ''
+    stats_rows = []
+    games_rows = []
+    date_label = ''
+
+    soup = BeautifulSoup(html_body or '', 'html.parser')
+    h1 = soup.find('h1')
+    if h1:
+        title = h1.get_text(' ', strip=True) or title
+        # "Volleyball Recap - 07/16/2026" → date bit
+        if ' - ' in title:
+            date_label = title.rsplit(' - ', 1)[-1].strip()
+
+    summary_el = soup.select_one('.summary-text')
+    if summary_el:
+        summary = summary_el.get_text('\n', strip=True)
+    elif plain_text_body:
+        # Fall back to plain text SUMMARY section.
+        plain = plain_text_body.replace('\r\n', '\n')
+        if '\nSUMMARY\n' in plain:
+            chunk = plain.split('\nSUMMARY\n', 1)[1]
+            for stop in ('\nPLAYER STATS\n', '\nGAMES'):
+                if stop in chunk:
+                    chunk = chunk.split(stop, 1)[0]
+            summary = chunk.strip()
+
+    stats_table = soup.select_one('table.stats-table')
+    if stats_table:
+        for tr in stats_table.select('tbody tr'):
+            cells = [td.get_text(' ', strip=True) for td in tr.find_all(['td', 'th'])]
+            if len(cells) >= 5:
+                stats_rows.append({
+                    'rank': cells[0],
+                    'player': cells[1],
+                    'w': cells[2],
+                    'l': cells[3],
+                    'win_pct': cells[4],
+                    'diff': cells[5] if len(cells) > 5 else '',
+                })
+
+    def _team_cell_text(td):
+        if td is None:
+            return ''
+        names = [
+            a.get_text(' ', strip=True)
+            for a in td.select('a.player-name, .player-name, a')
+            if a.get_text(' ', strip=True)
+        ]
+        if names:
+            return ' & '.join(names)
+        # Fallback: block-level names become newlines in get_text.
+        return ' & '.join(
+            part.strip() for part in td.get_text('\n', strip=True).split('\n') if part.strip()
+        )
+
+    games_table = soup.select_one('table.games-table')
+    if games_table:
+        for tr in games_table.select('tbody tr'):
+            cells = tr.find_all(['td', 'th'])
+            if len(cells) < 4:
+                continue
+            time_cell = cells[0].get_text(' ', strip=True)
+            if len(cells) >= 5:
+                games_rows.append({
+                    'time': time_cell,
+                    'winners': _team_cell_text(cells[1]),
+                    'w_score': cells[2].get_text(' ', strip=True),
+                    'losers': _team_cell_text(cells[3]),
+                    'l_score': cells[4].get_text(' ', strip=True),
+                })
+            else:
+                games_rows.append({
+                    'time': time_cell,
+                    'winners': _team_cell_text(cells[1]),
+                    'w_score': cells[2].get_text(' ', strip=True) if len(cells) > 2 else '',
+                    'losers': _team_cell_text(cells[3]) if len(cells) > 3 else '',
+                    'l_score': '',
+                })
+
+    hero = (hero_image_url or '').strip()
+    if not hero:
+        img = soup.select_one('.hero-image-card img')
+        if img and img.get('src'):
+            hero = img['src'].strip()
+
+    section_title = title
+    if 'Recap' in title:
+        section_title = title.split('Recap')[0].strip() + ' Recap'
+        if section_title == ' Recap':
+            section_title = title
+
+    return {
+        'title': title,
+        'section_title': section_title,
+        'date_label': date_label,
+        'summary': summary,
+        'stats_rows': stats_rows,
+        'games_rows': games_rows,
+        'hero_image_url': hero,
+    }
+
+
+def _ig_new_canvas():
+    from PIL import Image
+
+    return Image.new('RGB', (IG_SLIDE_W, IG_SLIDE_H), IG_BG)
+
+
+def _ig_render_photo_slide(data):
+    import io
+    from PIL import Image, ImageDraw, ImageOps
+
+    canvas = _ig_new_canvas()
+    draw = ImageDraw.Draw(canvas)
+    hero_url = data.get('hero_image_url') or ''
+
+    if hero_url:
+        try:
+            raw, _path = _load_hero_image_bytes(hero_url)
+            img = Image.open(io.BytesIO(raw))
+            img = ImageOps.exif_transpose(img)
+            img = img.convert('RGB')
+            # Cover-crop to square.
+            img = ImageOps.fit(img, (IG_SLIDE_W, IG_SLIDE_H), method=_pil_lanczos())
+            canvas.paste(img, (0, 0))
+            # Bottom gradient for title readability.
+            overlay = Image.new('RGBA', (IG_SLIDE_W, IG_SLIDE_H), (0, 0, 0, 0))
+            odraw = ImageDraw.Draw(overlay)
+            for i in range(320):
+                alpha = int(210 * (i / 319.0))
+                y = IG_SLIDE_H - 320 + i
+                odraw.line([(0, y), (IG_SLIDE_W, y)], fill=(11, 15, 20, alpha))
+            canvas = Image.alpha_composite(canvas.convert('RGBA'), overlay).convert('RGB')
+            draw = ImageDraw.Draw(canvas)
+        except Exception:
+            # Fall through to title card if hero can't load.
+            hero_url = ''
+
+    if not hero_url:
+        # Branded placeholder when there's no illustration.
+        pad = 80
+        draw.rounded_rectangle(
+            [pad, pad, IG_SLIDE_W - pad, IG_SLIDE_H - pad],
+            radius=36,
+            fill=IG_PANEL,
+            outline=IG_ACCENT,
+            width=3,
+        )
+        eyebrow_font = _ig_load_font(28, bold=True)
+        title_font = _ig_load_font(52, bold=True)
+        sub_font = _ig_load_font(30)
+        note_font = _ig_load_font(34)
+        cy = IG_SLIDE_H // 2 - 80
+        eyebrow = 'GAME RECAP'
+        ew = _ig_text_width(draw, eyebrow, eyebrow_font)
+        draw.text(((IG_SLIDE_W - ew) / 2, cy), eyebrow, font=eyebrow_font, fill=IG_ACCENT)
+        cy += 44
+        bar_w = 72
+        draw.rectangle(
+            [(IG_SLIDE_W - bar_w) // 2, cy, (IG_SLIDE_W + bar_w) // 2, cy + 4],
+            fill=IG_ACCENT,
+        )
+        cy += 28
+        title = data.get('section_title') or 'Game Recap'
+        for line in _ig_wrap_text(draw, title, title_font, IG_SLIDE_W - pad * 2 - 40)[:3]:
+            tw = _ig_text_width(draw, line, title_font)
+            draw.text(((IG_SLIDE_W - tw) / 2, cy), line, font=title_font, fill=IG_TEXT)
+            cy += 60
+        if data.get('date_label'):
+            sw = _ig_text_width(draw, data['date_label'], sub_font)
+            draw.text(((IG_SLIDE_W - sw) / 2, cy), data['date_label'], font=sub_font, fill=IG_MUTED)
+        return canvas
+
+    # Title over photo
+    title = data.get('title') or 'Game Recap'
+    title_font = _ig_load_font(44, bold=True)
+    lines = _ig_wrap_text(draw, title, title_font, IG_SLIDE_W - 96)
+    y = IG_SLIDE_H - 72 - int(len(lines[:3]) * 52)
+    for line in lines[:3]:
+        tw = _ig_text_width(draw, line, title_font)
+        draw.text(((IG_SLIDE_W - tw) / 2, y), line, font=title_font, fill=IG_TEXT)
+        y += 52
+    return canvas
+
+
+def _ig_render_summary_slide(data):
+    from PIL import ImageDraw
+
+    canvas = _ig_new_canvas()
+    draw = ImageDraw.Draw(canvas)
+    y = _ig_draw_header(draw, 'AI Summary', data.get('date_label') or '')
+    pad = 72
+    panel = [pad - 16, y, IG_SLIDE_W - pad + 16, IG_SLIDE_H - pad]
+    draw.rounded_rectangle(panel, radius=28, fill=IG_PANEL)
+    inner_pad = 40
+    text = (data.get('summary') or '').strip() or 'No summary available.'
+    max_w = IG_SLIDE_W - pad * 2 - inner_pad * 2
+    max_h = panel[3] - panel[1] - inner_pad * 2
+    lines, font, line_h = _ig_fit_wrapped_lines(
+        draw, text, max_w, max_h, size_start=40, size_min=24, bold=False, line_gap=1.35,
+    )
+    ty = panel[1] + inner_pad
+    for line in lines:
+        draw.text((pad + inner_pad, ty), line, font=font, fill=IG_TEXT)
+        ty += int(line_h * 1.35)
+    return canvas
+
+
+def _ig_render_stats_slide(data):
+    from PIL import ImageDraw
+
+    canvas = _ig_new_canvas()
+    draw = ImageDraw.Draw(canvas)
+    y = _ig_draw_header(draw, 'Player Stats', data.get('date_label') or '')
+    rows = data.get('stats_rows') or []
+    pad = 56
+    if not rows:
+        empty = _ig_load_font(34)
+        msg = 'No stats available.'
+        mw = _ig_text_width(draw, msg, empty)
+        draw.text(((IG_SLIDE_W - mw) / 2, y + 40), msg, font=empty, fill=IG_MUTED)
+        return canvas
+
+    # Column layout
+    cols = [
+        ('#', 70, 'center'),
+        ('Player', 340, 'left'),
+        ('W', 90, 'center'),
+        ('L', 90, 'center'),
+        ('Win %', 140, 'center'),
+        ('+/-', 120, 'center'),
+    ]
+    table_w = sum(c[1] for c in cols)
+    x0 = (IG_SLIDE_W - table_w) // 2
+    available = IG_SLIDE_H - y - pad - 40
+    row_h = min(72, max(44, available // (len(rows) + 1)))
+    header_font = _ig_load_font(max(22, min(28, row_h - 18)), bold=True)
+    cell_font = _ig_load_font(max(24, min(34, row_h - 14)))
+    name_font = _ig_load_font(max(24, min(34, row_h - 14)), bold=True)
+
+    # Header row
+    hx = x0
+    for label, width, align in cols:
+        tw = _ig_text_width(draw, label, header_font)
+        if align == 'center':
+            tx = hx + (width - tw) / 2
+        else:
+            tx = hx + 8
+        draw.text((tx, y + (row_h - 28) / 2), label, font=header_font, fill=IG_MUTED)
+        hx += width
+    y += row_h
+    draw.line([(x0, y), (x0 + table_w, y)], fill=(255, 255, 255, 40), width=2)
+    y += 8
+
+    for i, row in enumerate(rows):
+        if y + row_h > IG_SLIDE_H - pad:
+            # Overflow indicator
+            more = f'+{len(rows) - i} more'
+            mf = _ig_load_font(26)
+            mw = _ig_text_width(draw, more, mf)
+            draw.text(((IG_SLIDE_W - mw) / 2, y + 8), more, font=mf, fill=IG_MUTED)
+            break
+        if i % 2 == 0:
+            draw.rounded_rectangle(
+                [x0 - 8, y, x0 + table_w + 8, y + row_h - 4],
+                radius=10,
+                fill=(24, 32, 44),
+            )
+        values = [
+            (row.get('rank') or '', cols[0][1], 'center', IG_ACCENT, header_font),
+            (row.get('player') or '', cols[1][1], 'left', IG_TEXT, name_font),
+            (row.get('w') or '', cols[2][1], 'center', IG_TEXT, cell_font),
+            (row.get('l') or '', cols[3][1], 'center', IG_TEXT, cell_font),
+            (row.get('win_pct') or '', cols[4][1], 'center', IG_TEXT, cell_font),
+            (row.get('diff') or '', cols[5][1], 'center', IG_TEXT, cell_font),
+        ]
+        diff = (row.get('diff') or '').strip()
+        if diff.startswith('+') and diff not in ('+', '+0', '0'):
+            values[5] = (diff, cols[5][1], 'center', IG_WIN, name_font)
+        elif diff.startswith('-'):
+            values[5] = (diff, cols[5][1], 'center', IG_LOSS, name_font)
+
+        hx = x0
+        for text, width, align, color, font in values:
+            # Truncate long player names
+            display = text
+            while display and _ig_text_width(draw, display, font) > width - 12:
+                display = display[:-2] + '…' if len(display) > 2 else display[:-1]
+            tw = _ig_text_width(draw, display, font)
+            if align == 'center':
+                tx = hx + (width - tw) / 2
+            else:
+                tx = hx + 8
+            th = _ig_text_height(draw, display or 'Ag', font)
+            draw.text((tx, y + (row_h - 4 - th) / 2), display, font=font, fill=color)
+            hx += width
+        y += row_h
+    return canvas
+
+
+def _ig_render_games_slide(data):
+    from PIL import ImageDraw
+
+    canvas = _ig_new_canvas()
+    draw = ImageDraw.Draw(canvas)
+    games = data.get('games_rows') or []
+    subtitle = f'{len(games)} game{"s" if len(games) != 1 else ""}'
+    if data.get('date_label'):
+        subtitle = f'{data["date_label"]} · {subtitle}'
+    y = _ig_draw_header(draw, 'Games', subtitle)
+    pad = 56
+    if not games:
+        empty = _ig_load_font(34)
+        msg = 'No games available.'
+        mw = _ig_text_width(draw, msg, empty)
+        draw.text(((IG_SLIDE_W - mw) / 2, y + 40), msg, font=empty, fill=IG_MUTED)
+        return canvas
+
+    available = IG_SLIDE_H - y - pad
+    # Prefer taller rows when few games so the slide feels filled.
+    ideal = available // max(len(games), 1)
+    row_h = min(110, max(56, ideal))
+    while row_h * len(games) > available and row_h > 48:
+        row_h -= 2
+    # Vertically center the block when it doesn't fill the slide.
+    block_h = row_h * len(games)
+    if block_h < available:
+        y += (available - block_h) // 2
+
+    time_font = _ig_load_font(max(20, min(26, row_h // 3)))
+    name_font = _ig_load_font(max(22, min(34, row_h // 2 - 4)), bold=True)
+    score_font = _ig_load_font(max(26, min(42, row_h // 2)), bold=True)
+
+    left = pad
+    right = IG_SLIDE_W - pad
+    for i, game in enumerate(games):
+        if y + row_h > IG_SLIDE_H - pad + 8:
+            more = f'+{len(games) - i} more'
+            mf = _ig_load_font(26)
+            mw = _ig_text_width(draw, more, mf)
+            draw.text(((IG_SLIDE_W - mw) / 2, y), more, font=mf, fill=IG_MUTED)
+            break
+        draw.rounded_rectangle(
+            [left, y, right, y + row_h - 8],
+            radius=16,
+            fill=IG_PANEL,
+        )
+        time_label = (game.get('time') or '').strip()
+        # Vertically center the score line; time sits above it when present.
+        content_h = int(row_h * 0.55)
+        cy = y + (row_h - 8 - content_h) // 2
+        if time_label:
+            draw.text((left + 20, cy), time_label, font=time_font, fill=IG_MUTED)
+            cy += int(row_h * 0.28)
+
+        winners = (game.get('winners') or '').replace('\n', ' & ').strip()
+        losers = (game.get('losers') or '').replace('\n', ' & ').strip()
+        w_score = (game.get('w_score') or '').strip()
+        l_score = (game.get('l_score') or '').strip()
+
+        score_bits = []
+        if w_score:
+            score_bits.append(w_score)
+        score_bits.append('–')
+        if l_score:
+            score_bits.append(l_score)
+        score_text = '  '.join(score_bits)
+
+        # Fit names
+        max_name_w = (right - left - 40 - _ig_text_width(draw, score_text, score_font) - 48) / 2
+
+        def _fit(name, font, max_w):
+            display = name
+            while display and _ig_text_width(draw, display, font) > max_w:
+                display = display[:-2] + '…' if len(display) > 2 else display[:-1]
+            return display
+
+        w_disp = _fit(winners, name_font, max_name_w)
+        l_disp = _fit(losers, name_font, max_name_w)
+        # Layout: winners left, score center, losers right
+        draw.text((left + 20, cy), w_disp, font=name_font, fill=IG_WIN)
+        sw = _ig_text_width(draw, score_text, score_font)
+        draw.text(((IG_SLIDE_W - sw) / 2, cy - 2), score_text, font=score_font, fill=IG_TEXT)
+        lw = _ig_text_width(draw, l_disp, name_font)
+        draw.text((right - 20 - lw, cy), l_disp, font=name_font, fill=IG_LOSS)
+        y += row_h
+    return canvas
+
+
+def _ig_save_jpeg(img, path, quality=88):
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+    tmp = f'{path}.tmp'
+    img.save(tmp, format='JPEG', quality=quality, optimize=True)
+    os.replace(tmp, path)
+    return path
+
+
+def build_instagram_slides(share_id, html_body, plain_text_body='', subject='',
+                           hero_image_url=''):
+    """Render and save 4 Instagram-ready square JPEGs for a recap.
+
+    Returns list of absolute file paths in carousel order.
+    """
+    data = parse_recap_for_instagram(
+        html_body,
+        plain_text_body=plain_text_body,
+        subject=subject,
+        hero_image_url=hero_image_url,
+    )
+    out_dir = instagram_slides_dir(share_id)
+    renderers = {
+        'photo': _ig_render_photo_slide,
+        'summary': _ig_render_summary_slide,
+        'stats': _ig_render_stats_slide,
+        'games': _ig_render_games_slide,
+    }
+    paths = []
+    for filename, kind in IG_SLIDE_FILES:
+        img = renderers[kind](data)
+        path = os.path.join(out_dir, filename)
+        _ig_save_jpeg(img, path)
+        paths.append(path)
+    return paths
+
+
+def ensure_instagram_slides(share_id, html_body, plain_text_body='', subject='',
+                            hero_image_url='', force=False):
+    """Build slides if missing (or force=True). Returns list of paths."""
+    if not force:
+        existing = list_instagram_slide_paths(share_id)
+        if existing:
+            return existing
+    try:
+        return build_instagram_slides(
+            share_id,
+            html_body,
+            plain_text_body=plain_text_body,
+            subject=subject,
+            hero_image_url=hero_image_url,
+        )
+    except Exception as exc:
+        try:
+            current_app.logger.exception(
+                'Failed to build Instagram slides for %s: %s', share_id, exc,
+            )
+        except Exception:
+            pass
+        return []
+
+
+def build_instagram_slides_zip_bytes(share_id):
+    """Return zip bytes of the 4 Instagram slides, or None if missing."""
+    import io
+    import zipfile
+
+    paths = list_instagram_slide_paths(share_id)
+    if not paths:
+        return None
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in paths:
+            zf.write(path, arcname=os.path.basename(path))
+    return buf.getvalue()
+
+
 _UPLOAD_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 _MAX_UPLOAD_IMAGE_BYTES = 8 * 1024 * 1024
 

@@ -491,6 +491,25 @@ def _build_ai_summary_payload(
     return build_doubles_email_payload(selected_game_ids, **kwargs)
 
 
+def _refresh_instagram_slides(share_id, html_body='', plain_text_body='', subject='',
+                              hero_image_url='', force=True):
+    """Build (or rebuild) the 4 Instagram carousel JPEGs for a published recap."""
+    from email_content import ensure_instagram_slides
+
+    try:
+        return ensure_instagram_slides(
+            share_id,
+            html_body or '',
+            plain_text_body=plain_text_body or '',
+            subject=subject or '',
+            hero_image_url=hero_image_url or '',
+            force=force,
+        )
+    except Exception:
+        app.logger.exception('Instagram slide generation failed for /recap/%s/', share_id)
+        return []
+
+
 def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=None):
     """Save a generated AI recap as a public shareable page."""
     illustration_meta = payload.get('illustration_meta') or {}
@@ -501,14 +520,18 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
     share_id = secrets.token_urlsafe(9)
     while adminfx.get_ai_recap_page(share_id):
         share_id = secrets.token_urlsafe(9)
+    html_body = payload.get('html_body') or ''
+    plain_text_body = payload.get('plain_text_body') or ''
+    subject = payload.get('subject') or ''
+    hero_image_url = payload.get('hero_image_url') or ''
     adminfx.insert_ai_recap_page(
         share_id=share_id,
         username=username or session.get('username') or 'unknown',
         game_type=payload.get('game_type') or 'doubles',
-        subject=payload.get('subject') or '',
-        html_body=payload.get('html_body') or '',
-        plain_text_body=payload.get('plain_text_body') or '',
-        hero_image_url=payload.get('hero_image_url') or '',
+        subject=subject,
+        html_body=html_body,
+        plain_text_body=plain_text_body,
+        hero_image_url=hero_image_url,
         hero_image_error=payload.get('hero_image_error') or '',
         game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
         prompt_style=prompt_style or '',
@@ -517,6 +540,14 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         solo_images_json=json.dumps(solo_images) if solo_images else '',
         image_details=payload.get('image_details') or '',
         image_mode=payload.get('image_mode') or 'none',
+    )
+    _refresh_instagram_slides(
+        share_id,
+        html_body=html_body,
+        plain_text_body=plain_text_body,
+        subject=subject,
+        hero_image_url=hero_image_url,
+        force=True,
     )
     return share_id
 
@@ -1928,6 +1959,40 @@ def view_ai_recap(share_id):
     else:
         og_description = 'Game recap'
 
+    # Instagram carousel slides (creator view): generate on demand if missing.
+    instagram_slides = []
+    if show_creator_view:
+        from email_content import IG_SLIDE_FILES, list_instagram_slide_paths
+
+        slide_paths = list_instagram_slide_paths(share_id)
+        if not slide_paths:
+            slide_paths = _refresh_instagram_slides(
+                share_id,
+                html_body=row.get('html_body') or '',
+                plain_text_body=row.get('plain_text_body') or '',
+                subject=row.get('subject') or '',
+                hero_image_url=hero_image_url or '',
+                force=True,
+            )
+        if slide_paths:
+            labels = {
+                'photo': 'Photo',
+                'summary': 'Summary',
+                'stats': 'Stats',
+                'games': 'Games',
+            }
+            for filename, kind in IG_SLIDE_FILES:
+                instagram_slides.append({
+                    'kind': kind,
+                    'label': labels.get(kind, kind.title()),
+                    'filename': filename,
+                    'url': url_for(
+                        'recap_instagram_slide',
+                        share_id=share_id,
+                        filename=filename,
+                    ),
+                })
+
     return render_template(
         'recap.html',
         subject=row.get('subject') or 'Game Recap',
@@ -1949,6 +2014,7 @@ def view_ai_recap(share_id):
         remake_summary_prompt=remake_summary_prompt,
         remake_image_details=remake_image_details,
         og_description=og_description,
+        instagram_slides=instagram_slides,
     )
 
 
@@ -1990,6 +2056,89 @@ def recap_og_image(share_id):
         mimetype='image/jpeg',
         max_age=86400,
         download_name=f'{share_id}-og.jpg',
+    )
+
+
+@app.route('/recap/<share_id>/instagram/<filename>')
+def recap_instagram_slide(share_id, filename):
+    """Serve one Instagram carousel slide JPEG (creator download / preview)."""
+    from flask import send_file
+    from email_content import IG_SLIDE_FILES, instagram_slides_dir
+
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        abort(404)
+
+    allowed = {name for name, _kind in IG_SLIDE_FILES}
+    if filename not in allowed:
+        abort(404)
+
+    path = os.path.join(instagram_slides_dir(share_id), filename)
+    if not os.path.isfile(path):
+        # Rebuild once if missing (older recaps, or first request after remake race).
+        site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+        hero_image_url = adminfx.absolutize_hero_image_url(
+            adminfx.ensure_recap_hero_image_url(share_id, row),
+            site_base,
+        )
+        _refresh_instagram_slides(
+            share_id,
+            html_body=row.get('html_body') or '',
+            plain_text_body=row.get('plain_text_body') or '',
+            subject=row.get('subject') or '',
+            hero_image_url=hero_image_url or '',
+            force=True,
+        )
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_file(
+        path,
+        mimetype='image/jpeg',
+        conditional=True,
+        max_age=3600,
+        download_name=f'{share_id}-{filename}',
+        as_attachment=bool(request.args.get('download')),
+    )
+
+
+@app.route('/recap/<share_id>/instagram.zip')
+@login_required
+def recap_instagram_zip(share_id):
+    """Download all 4 Instagram slides as a zip (creator only)."""
+    import io
+    from flask import send_file
+    from email_content import build_instagram_slides_zip_bytes, list_instagram_slide_paths
+
+    row, early = _require_recap_creator(share_id)
+    if early:
+        return early
+
+    if not list_instagram_slide_paths(share_id):
+        site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+        hero_image_url = adminfx.absolutize_hero_image_url(
+            adminfx.ensure_recap_hero_image_url(share_id, row),
+            site_base,
+        )
+        _refresh_instagram_slides(
+            share_id,
+            html_body=row.get('html_body') or '',
+            plain_text_body=row.get('plain_text_body') or '',
+            subject=row.get('subject') or '',
+            hero_image_url=hero_image_url or '',
+            force=True,
+        )
+
+    data = build_instagram_slides_zip_bytes(share_id)
+    if not data:
+        flash('Could not build Instagram slides for this recap.', 'error')
+        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+
+    return send_file(
+        io.BytesIO(data),
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f'{share_id}-instagram.zip',
     )
 
 
@@ -2090,6 +2239,14 @@ def remake_ai_recap_image(share_id):
         solo_images_json=json.dumps(solo_images) if solo_images else '[]',
     )
     ensure_recap_og_image(new_url)
+    _refresh_instagram_slides(
+        share_id,
+        html_body=updated_html,
+        plain_text_body=row.get('plain_text_body') or '',
+        subject=row.get('subject') or '',
+        hero_image_url=new_url,
+        force=True,
+    )
 
     if old_url and old_url != new_url:
         delete_recap_og_image_for_hero(old_url)
@@ -2171,6 +2328,14 @@ def upload_ai_recap_image(share_id):
         image_mode='image',
     )
     ensure_recap_og_image(new_url)
+    _refresh_instagram_slides(
+        share_id,
+        html_body=updated_html,
+        plain_text_body=row.get('plain_text_body') or '',
+        subject=row.get('subject') or '',
+        hero_image_url=new_url,
+        force=True,
+    )
     if old_url and old_url != new_url:
         delete_recap_og_image_for_hero(old_url)
         old_path = _hero_image_path_from_url(old_url)
@@ -2407,16 +2572,26 @@ def remake_ai_recap_summary(share_id):
     style_instructions = (payload.get('style_instructions') or '').strip()
     saved_custom = style_instructions or custom_prompt
 
+    new_subject = payload.get('subject') or row.get('subject') or ''
+    new_plain = payload.get('plain_text_body') or ''
     adminfx.update_ai_recap_page(
         share_id,
         html_body=html_body,
-        plain_text_body=payload.get('plain_text_body') or '',
-        subject=payload.get('subject') or row.get('subject') or '',
+        plain_text_body=new_plain,
+        subject=new_subject,
         prompt_style=prompt_style,
         custom_prompt=saved_custom,
         style_instructions=style_instructions,
         hero_image_url=old_hero,
         hero_image_error=row.get('hero_image_error') or '',
+    )
+    _refresh_instagram_slides(
+        share_id,
+        html_body=html_body,
+        plain_text_body=new_plain,
+        subject=new_subject,
+        hero_image_url=old_hero,
+        force=True,
     )
 
     log_activity(

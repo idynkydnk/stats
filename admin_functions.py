@@ -731,6 +731,8 @@ def delete_ai_recap_page(share_id):
     Returns True if anything was deleted, False if the recap was not found.
     Illustration files in static/email_images/ are left alone (clean up via AI Images).
     """
+    import shutil
+
     try:
         safe_id = _safe_recap_share_id(share_id)
     except ValueError:
@@ -747,6 +749,15 @@ def delete_ai_recap_page(share_id):
             removed = True
         except FileNotFoundError:
             pass
+        except OSError:
+            pass
+
+    # Instagram carousel slides live in static/recaps/<share_id>/
+    ig_dir = os.path.join(_recap_storage_dir(), safe_id)
+    if os.path.isdir(ig_dir):
+        try:
+            shutil.rmtree(ig_dir)
+            removed = True
         except OSError:
             pass
 
