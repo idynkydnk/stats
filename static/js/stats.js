@@ -453,9 +453,13 @@ function initPlayerPageSticky() {
         sections.forEach((section) => {
             const title = section.querySelector('.sr-section-title');
             if (!title) return;
+            // Force layout after compact class/padding changes before measuring.
+            void title.offsetHeight;
+            const h = title.getBoundingClientRect().height;
+            // Floor + thead's -2px overlap keeps the sticky seam sealed.
             section.style.setProperty(
                 '--sr-section-title-h',
-                Math.ceil(title.getBoundingClientRect().height) + 'px'
+                Math.max(1, Math.floor(h)) + 'px'
             );
         });
     }
@@ -465,6 +469,7 @@ function initPlayerPageSticky() {
     }
 
     function measureHeaderHeight() {
+        void header.offsetHeight;
         return Math.ceil(header.getBoundingClientRect().height);
     }
 
@@ -551,6 +556,11 @@ function initPlayerPageSticky() {
             publishStickyHeight(flowHeight);
         }
         measureSectionOffsets();
+        // Remeasure next frame after compact padding/font settles.
+        window.requestAnimationFrame(function() {
+            publishStickyHeight(measureHeaderHeight());
+            measureSectionOffsets();
+        });
 
         if ((window.scrollY || window.pageYOffset || 0) !== scrollY) {
             window.scrollTo(0, scrollY);

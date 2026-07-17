@@ -1363,40 +1363,39 @@ input[type=number] {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
 }
-/* Compact sticky chrome so more table rows stay visible while scrolling. */
+/* Compact sticky chrome: tighter padding, keep full face + year visible. */
 .sr-player-header.is-compact {
     gap: 10px;
     margin-bottom: 0;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    overflow: visible;
 }
 .sr-player-header.is-fixed.is-compact {
-    padding-top: calc(6px + env(safe-area-inset-top, 0px));
-    padding-bottom: 6px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
 }
 .sr-player-header.is-compact .sr-player-avatar-col,
 .sr-player-header.is-compact .sr-avatar-clickable,
 .sr-player-header.is-compact .sr-player-avatar-col > .sr-avatar-crop-frame,
 .sr-player-header.is-compact .sr-player-avatar {
-    width: 36px;
-    height: 36px;
-    max-width: 36px;
-    max-height: 36px;
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    max-height: 48px;
 }
 .sr-player-header.is-compact .sr-player-avatar {
-    font-size: 16px;
-}
-.sr-player-header.is-compact .sr-player-avatar.sr-player-photo,
-.sr-player-header.is-compact .sr-avatar-crop-frame {
-    border-width: 1px;
+    font-size: 20px;
 }
 .sr-player-header.is-compact .sr-player-info h1 {
-    font-size: 16px;
-    margin: 0;
+    font-size: 18px;
+    margin: 0 0 2px 0;
     line-height: 1.2;
 }
 .sr-player-header.is-compact .sr-player-subtitle {
-    display: none;
+    display: block;
+    font-size: 12px;
+    line-height: 1.2;
 }
 .sr-player-header.is-compact .sr-player-avatar-col > .sr-link-btn,
 .sr-player-header.is-compact .sr-player-avatar-col > button:not(.sr-avatar-clickable) {
@@ -1408,25 +1407,19 @@ input[type=number] {
         padding-right: 10px;
     }
     .sr-player-header.is-compact {
-        gap: 8px;
-        padding-top: 4px;
-        padding-bottom: 4px;
+        gap: 10px;
+        padding-top: 6px;
+        padding-bottom: 6px;
     }
     .sr-player-header.is-fixed.is-compact {
-        padding-top: calc(4px + env(safe-area-inset-top, 0px));
-        padding-bottom: 4px;
-    }
-    .sr-player-header.is-compact .sr-player-avatar-col,
-    .sr-player-header.is-compact .sr-avatar-clickable,
-    .sr-player-header.is-compact .sr-player-avatar-col > .sr-avatar-crop-frame,
-    .sr-player-header.is-compact .sr-player-avatar {
-        width: 32px;
-        height: 32px;
-        max-width: 32px;
-        max-height: 32px;
+        padding-top: calc(6px + env(safe-area-inset-top, 0px));
+        padding-bottom: 6px;
     }
     .sr-player-header.is-compact .sr-player-info h1 {
-        font-size: 15px;
+        font-size: 17px;
+    }
+    .sr-player-header.is-compact .sr-player-subtitle {
+        font-size: 11px;
     }
 }
 @media (max-width: 480px) {
@@ -1465,10 +1458,11 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 .sr-player-section .sr-mini-table thead th {
     position: -webkit-sticky;
     position: sticky;
-    top: calc(var(--sr-player-sticky-h) + var(--sr-section-title-h));
+    /* Overlap the section title slightly; upward shadow seals any remaining seam. */
+    top: calc(var(--sr-player-sticky-h) + var(--sr-section-title-h) - 2px);
     z-index: 35;
     background: var(--sr-panel);
-    box-shadow: 0 1px 0 var(--sr-line);
+    box-shadow: 0 -12px 0 0 var(--sr-panel), 0 1px 0 var(--sr-line);
 }
 /* Keep partner/opponent tables inside the card; GP was clipping the right edge. */
 @media (max-width: 768px) {
