@@ -1402,10 +1402,69 @@ input[type=number] {
     background: var(--sr-panel);
     box-shadow: 0 1px 0 var(--sr-line);
 }
+/* Keep partner/opponent tables inside the card; GP was clipping the right edge. */
+@media (max-width: 768px) {
+    .sr-player-section .sr-mini-table {
+        table-layout: fixed;
+        width: 100%;
+        max-width: 100%;
+    }
+    .sr-player-section .sr-mini-table th,
+    .sr-player-section .sr-mini-table td {
+        padding: 8px 6px;
+        box-sizing: border-box;
+    }
+    .sr-player-section .sr-mini-table th {
+        font-size: 10px;
+        letter-spacing: 0;
+    }
+    .sr-player-section .sr-mini-table .sr-sort-arrow {
+        margin-left: 1px;
+    }
+    .sr-player-section .sr-mini-table th:first-child,
+    .sr-player-section .sr-mini-table td:first-child {
+        width: 8%;
+        padding-left: 4px;
+    }
+    .sr-player-section .sr-mini-table th:nth-child(2),
+    .sr-player-section .sr-mini-table td:nth-child(2) {
+        width: 36%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .sr-player-section .sr-mini-table th:nth-child(3),
+    .sr-player-section .sr-mini-table td:nth-child(3),
+    .sr-player-section .sr-mini-table th:nth-child(4),
+    .sr-player-section .sr-mini-table td:nth-child(4),
+    .sr-player-section .sr-mini-table th:nth-child(5),
+    .sr-player-section .sr-mini-table td:nth-child(5) {
+        width: 14%;
+    }
+    .sr-player-section .sr-mini-table th:last-child,
+    .sr-player-section .sr-mini-table td:last-child {
+        width: 14%;
+        padding-right: 8px;
+    }
+}
 @media (max-width: 480px) {
     .sr-player-section .sr-section-title {
         margin: -10px -10px 0;
         padding: 12px 10px 8px;
+    }
+    .sr-player-section .sr-mini-table th,
+    .sr-player-section .sr-mini-table td {
+        padding: 8px 4px;
+    }
+    .sr-player-section .sr-mini-table td {
+        font-size: 13px;
+    }
+    .sr-player-section .sr-mini-table th:first-child,
+    .sr-player-section .sr-mini-table td:first-child {
+        padding-left: 2px;
+    }
+    .sr-player-section .sr-mini-table th:last-child,
+    .sr-player-section .sr-mini-table td:last-child {
+        padding-right: 6px;
     }
 }
 .sr-player-avatar-col,
