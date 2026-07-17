@@ -566,7 +566,7 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
         )
     return f"""Draw exactly ONE person.
 {likeness}{traits_block}
-Plain neutral background. One character only — no other people, no scene. No text or logos."""
+Plain neutral background."""
 
 
 def _sport_desc_for_image(game_type, game_name=None):
@@ -602,7 +602,8 @@ def _image_roster_block(players):
     return block, player_count, players
 
 
-def _build_scene_image_prompt(game_type, players, game_name=None, image_details=''):
+def build_scene_image_prompt(game_type, players, game_name=None, image_details=''):
+    """Build the default group-scene prompt (for preview/edit in the UI)."""
     sport_desc = _sport_desc_for_image(game_type, game_name)
     roster_block, player_count, players = _image_roster_block(players)
     details_block = _image_details_block(image_details)
@@ -611,6 +612,12 @@ def _build_scene_image_prompt(game_type, players, game_name=None, image_details=
 Use each attached character reference exactly — same face, hair, outfit per person.
 Draw all {player_count} people in the scene — one per Person number.
 Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
+
+
+def _build_scene_image_prompt(game_type, players, game_name=None, image_details=''):
+    return build_scene_image_prompt(
+        game_type, players, game_name=game_name, image_details=image_details,
+    )
 
 
 def _reference_parts_from_caricatures(players, caricatures):
@@ -1943,6 +1950,7 @@ def _illustration_status_note(illustrated_players, all_players, strategy):
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False,
+    custom_scene_prompt=None,
 ):
     """Solo caricature per player, then one group scene.
 
@@ -1952,6 +1960,9 @@ def _generate_email_hero_image_two_pass(
 
     When reuse_existing_solos is True, any matching on-disk solos in
     existing_solo_images are kept and only missing players are regenerated.
+
+    When custom_scene_prompt is set, that text is used as the group scene
+    prompt (caricature references still attached).
     """
     from player_functions import (
         collect_player_ai_image_traits,
@@ -2014,7 +2025,7 @@ def _generate_email_hero_image_two_pass(
     solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
 
     scene_refs = _reference_parts_from_caricatures(players, caricatures)
-    scene_prompt = _build_scene_image_prompt(
+    scene_prompt = (custom_scene_prompt or '').strip() or _build_scene_image_prompt(
         game_type, players, game_name=game_name, image_details=image_details,
     )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
@@ -2027,12 +2038,12 @@ def _generate_email_hero_image_two_pass(
             solo_images=solo_images,
         ) from e
     url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt, solo_images
+    return url, path, image_prompt, solo_images, scene_prompt
 
 
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
-    existing_solo_images=None, reuse_existing_solos=False,
+    existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
 ):
     """Generate hero image: one solo caricature per player, then one group scene."""
     players, _strategy, _all_players = _illustration_players(player_names, game_type, games)
@@ -2043,25 +2054,29 @@ def generate_email_hero_image(
         image_details=image_details,
         existing_solo_images=existing_solo_images,
         reuse_existing_solos=reuse_existing_solos,
+        custom_scene_prompt=custom_scene_prompt,
     )
 
 
 def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
     image_details='', existing_solo_images=None, reuse_existing_solos=False,
+    custom_scene_prompt=None,
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
         return None, None, None, '', None
     meta = _illustration_meta(player_names, game_type, games)
     try:
-        url, path, image_prompt, solo_images = generate_email_hero_image(
+        url, path, image_prompt, solo_images, scene_prompt = generate_email_hero_image(
             api_key, game_type, games, player_names,
             game_name=game_name,
             image_details=image_details,
             existing_solo_images=existing_solo_images,
             reuse_existing_solos=reuse_existing_solos,
+            custom_scene_prompt=custom_scene_prompt,
         )
+        meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
             meta = {**meta, 'solo_images': solo_images}
         return url, path, None, image_prompt, meta
@@ -2615,8 +2630,7 @@ def build_doubles_email_payload(
     else:
         date_str = f"{game_dates[0]} to {game_dates[-1]}"
     
-    context = f"Date: {date_str}\n"
-    context += f"Total Games: {len(games)}\n\n"
+    context = ''
     
     # Helper to parse height string like "5'10"" or "6'2"" to inches
     def parse_height_to_inches(height_str):
@@ -3207,7 +3221,7 @@ def build_vollis_email_payload(
     else:
         date_str = f"{game_dates[0]} to {game_dates[-1]}"
 
-    context = f"Game Type: Vollis (1v1)\nDate: {date_str}\nTotal Games: {len(games)}\n\n"
+    context = "Game Type: Vollis (1v1)\n\n"
     context += "Player Stats:\n"
     for stat in stats[:10]:
         win_pct = stat[3] * 100
@@ -3368,7 +3382,7 @@ def build_other_email_payload(
     game_names = set(game.get('game_name', '') for game in games if game.get('game_name'))
     game_name_label = ', '.join(sorted(game_names)) if game_names else 'Other'
 
-    context = f"Game Type: {game_name_label}\nDate: {date_str}\nTotal Games: {len(games)}\n\n"
+    context = f"Game Type: {game_name_label}\n\n"
     context += "Player Stats:\n"
     for stat in stats[:10]:
         win_pct = stat[3] * 100

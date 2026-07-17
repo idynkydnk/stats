@@ -376,6 +376,9 @@
             font-family: inherit;
             line-height: 1.45;
         }
+        .recap-remake-panel textarea#recap-scene-prompt {
+            min-height: 220px;
+        }
         .recap-remake-panel textarea:focus {
             outline: none;
             border-color: var(--recap-accent);
@@ -756,9 +759,9 @@
     <div class="recap-remake-panel" id="recap-remake-image-panel">
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
-                <label for="recap-image-details">Illustration details</label>
-                <p class="recap-remake-help">Optional scene notes (setting, vibe, props). Leave blank for a fresh take with no extra details. Existing individual caricatures you remade or uploaded are kept and used for the new group picture.</p>
-                <textarea id="recap-image-details" name="image_details" placeholder="Example: sunset beach background, everyone celebrating at the net…">{{ remake_image_details }}</textarea>
+                <label for="recap-scene-prompt">Group picture prompt</label>
+                <p class="recap-remake-help">Edit the full prompt used for the group scene, then remake. Existing individual caricatures you remade or uploaded stay attached as references.</p>
+                <textarea id="recap-scene-prompt" name="scene_prompt" placeholder="Group scene illustration prompt…">{{ remake_scene_prompt }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
                     <button type="submit" class="recap-btn recap-btn-primary" id="recap-remake-btn">

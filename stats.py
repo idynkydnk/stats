@@ -514,6 +514,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
     """Save a generated AI recap as a public shareable page."""
     illustration_meta = payload.get('illustration_meta') or {}
     solo_images = illustration_meta.get('solo_images') or []
+    scene_prompt = (illustration_meta.get('scene_prompt') or '').strip()
     style_instructions = (payload.get('style_instructions') or '').strip()
     # Prefer the resolved style for later remakes; fall back to the typed custom prompt.
     saved_custom = style_instructions or (custom_prompt or '').strip()
@@ -540,6 +541,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         solo_images_json=json.dumps(solo_images) if solo_images else '',
         image_details=payload.get('image_details') or '',
         image_mode=payload.get('image_mode') or 'none',
+        scene_prompt=scene_prompt,
     )
     _refresh_instagram_slides(
         share_id,
@@ -1878,42 +1880,55 @@ def view_ai_recap(share_id):
     )
 
     remake_summary_prompt = ''
-    remake_image_details = ''
+    remake_scene_prompt = ''
     game_type = row.get('game_type') or 'doubles'
     if can_remake:
         remake_summary_prompt = (
             (row.get('style_instructions') or '').strip()
             or (row.get('custom_prompt') or '').strip()
         )
-        remake_image_details = (row.get('image_details') or '').strip()
 
     # Ensure each solo card has an editable prompt (stored, or rebuilt as fallback).
-    if can_remake and solo_images:
-        from email_content import build_solo_caricature_prompt
+    # Also rebuild the group-scene prompt for the Remake picture panel.
+    if can_remake:
+        from email_content import build_scene_image_prompt, build_solo_caricature_prompt
 
         game_name = None
+        games = []
+        players = []
         try:
             game_ids = json.loads(row.get('game_ids_json') or '[]')
         except (json.JSONDecodeError, TypeError):
             game_ids = []
-        if game_ids and game_type == 'other':
+        if game_ids:
             try:
-                _games, _players, game_name = _load_games_and_players_for_recap(
+                games, players, game_name = _load_games_and_players_for_recap(
                     game_type, game_ids,
                 )
             except Exception:
-                game_name = None
-        enriched = []
-        for item in solo_images:
-            entry = dict(item)
-            if not (entry.get('prompt') or '').strip():
-                entry['prompt'] = build_solo_caricature_prompt(
-                    entry.get('name') or '',
-                    game_type=game_type,
-                    game_name=game_name,
-                )
-            enriched.append(entry)
-        solo_images = enriched
+                games, players, game_name = [], [], None
+
+        remake_scene_prompt = (row.get('scene_prompt') or '').strip()
+        if not remake_scene_prompt and players:
+            remake_scene_prompt = build_scene_image_prompt(
+                game_type,
+                players,
+                game_name=game_name,
+                image_details=(row.get('image_details') or '').strip(),
+            )
+
+        if solo_images:
+            enriched = []
+            for item in solo_images:
+                entry = dict(item)
+                if not (entry.get('prompt') or '').strip():
+                    entry['prompt'] = build_solo_caricature_prompt(
+                        entry.get('name') or '',
+                        game_type=game_type,
+                        game_name=game_name,
+                    )
+                enriched.append(entry)
+            solo_images = enriched
 
     from email_content import ensure_recap_og_image
 
@@ -2031,7 +2046,7 @@ def view_ai_recap(share_id):
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,
-        remake_image_details=remake_image_details,
+        remake_scene_prompt=remake_scene_prompt,
         og_description=og_description,
         instagram_slides=instagram_slides,
         ig_slide_data=ig_slide_data,
@@ -2224,11 +2239,9 @@ def remake_ai_recap_image(share_id):
     from email_content import delete_solo_image_files, filter_existing_solo_images
 
     game_type = row.get('game_type') or 'doubles'
-    # Prefer freshly edited details from the remake form; fall back to saved ones.
-    if 'image_details' in request.form:
-        image_details = (request.form.get('image_details') or '').strip()
-    else:
-        image_details = (row.get('image_details') or '').strip()
+    # Prefer the edited full scene prompt; fall back to the saved prompt/details.
+    scene_prompt = (request.form.get('scene_prompt') or '').strip()
+    image_details = (row.get('image_details') or '').strip()
     # Remake always generates an image, even if the original mode was "none".
     image_mode = 'image'
 
@@ -2245,6 +2258,12 @@ def remake_ai_recap_image(share_id):
         if not players:
             raise ValueError('No players found for the saved games.')
 
+        if not scene_prompt:
+            from email_content import build_scene_image_prompt
+            scene_prompt = build_scene_image_prompt(
+                game_type, players, game_name=game_name, image_details=image_details,
+            )
+
         new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
             _try_generate_email_hero_image(
                 api_key,
@@ -2256,6 +2275,7 @@ def remake_ai_recap_image(share_id):
                 image_details=image_details,
                 existing_solo_images=reuse_solos,
                 reuse_existing_solos=bool(reuse_solos),
+                custom_scene_prompt=scene_prompt,
             )
         )
     except Exception as e:
@@ -2268,7 +2288,7 @@ def remake_ai_recap_image(share_id):
         adminfx.update_ai_recap_page(
             share_id,
             hero_image_error=hero_err or 'Failed to remake picture.',
-            image_details=image_details,
+            scene_prompt=scene_prompt,
         )
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
@@ -2289,7 +2309,7 @@ def remake_ai_recap_image(share_id):
         hero_image_url=new_url,
         hero_image_error='',
         image_mode=image_mode,
-        image_details=image_details,
+        scene_prompt=scene_prompt,
         solo_images_json=json.dumps(solo_images) if solo_images else '[]',
     )
     ensure_recap_og_image(new_url)
@@ -4856,9 +4876,7 @@ def generate_ai_summary():
             }), 404
         
         # Build context for AI
-        context = f"Date: {target_date}\n"
-        context += f"Total Games: {len(games)}\n\n"
-        context += "Player Stats:\n"
+        context = "Player Stats:\n"
         for stat in stats[:10]:
             player_name = stat[0]
             wins = stat[1]
