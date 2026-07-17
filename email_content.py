@@ -110,8 +110,8 @@ def generate_ai_text(prompt):
 
 
 RECAP_PARAGRAPH_LIMIT = (
-    'Keep it to 2 paragraphs. Each paragraph: 3-4 sentences only. '
-    'Talk about any notable stats.'
+    'Keep it to 2 short paragraphs. Each paragraph: 2-3 sentences only. '
+    'No long blocks of text. talk about any notable stats'
 )
 
 AI_RANDOM_STYLE_META_PROMPT = f"""You are designing instructions for an AI that will write a game recap email.
