@@ -473,16 +473,9 @@ function initPlayerPageSticky() {
         return Math.ceil(header.getBoundingClientRect().height);
     }
 
-    function setCompact(compact) {
-        const isCompact = header.classList.contains('is-compact');
-        if (compact === isCompact) return;
-        if (compact) {
-            header.classList.add('is-compact');
-            root.classList.add('sr-player-pinned');
-        } else {
-            header.classList.remove('is-compact');
-            root.classList.remove('sr-player-pinned');
-        }
+    function setPinnedChrome(pinned) {
+        if (pinned) root.classList.add('sr-player-pinned');
+        else root.classList.remove('sr-player-pinned');
     }
 
     const homeParent = header.parentNode;
@@ -491,11 +484,11 @@ function initPlayerPageSticky() {
     sentinel.setAttribute('aria-hidden', 'true');
     homeParent.insertBefore(sentinel, header);
 
-    // Desktop keeps pure sticky; compact the chrome once the header sticks.
+    // Desktop keeps pure sticky; tighten section/table chrome once stuck.
     if (!needsFixedPin) {
-        function updateDesktopCompact() {
+        function updateDesktopPinned() {
             const stuck = sentinel.getBoundingClientRect().top < 0;
-            setCompact(stuck);
+            setPinnedChrome(stuck);
             publishStickyHeight(measureHeaderHeight());
             measureSectionOffsets();
         }
@@ -506,7 +499,7 @@ function initPlayerPageSticky() {
             ticking = true;
             window.requestAnimationFrame(function() {
                 ticking = false;
-                updateDesktopCompact();
+                updateDesktopPinned();
             });
         }
 
@@ -516,9 +509,9 @@ function initPlayerPageSticky() {
         window.addEventListener('resize', function() {
             publishStickyHeight(measureHeaderHeight());
             measureSectionOffsets();
-            updateDesktopCompact();
+            updateDesktopPinned();
         });
-        updateDesktopCompact();
+        updateDesktopPinned();
         return;
     }
 
@@ -542,21 +535,21 @@ function initPlayerPageSticky() {
         if (pinned) {
             flowHeight = measureHeaderHeight();
             header.classList.add('is-fixed');
-            setCompact(true);
+            setPinnedChrome(true);
             // Reparent to <body> so iOS can't treat fixed as scrolling with a container.
             document.body.appendChild(header);
             spacer.style.height = flowHeight + 'px';
             publishStickyHeight(measureHeaderHeight());
         } else {
             header.classList.remove('is-fixed');
-            setCompact(false);
+            setPinnedChrome(false);
             homeParent.insertBefore(header, spacer);
             spacer.style.height = '0px';
             flowHeight = measureHeaderHeight();
             publishStickyHeight(flowHeight);
         }
         measureSectionOffsets();
-        // Remeasure next frame after compact padding/font settles.
+        // Remeasure next frame after pin padding/safe-area settles.
         window.requestAnimationFrame(function() {
             publishStickyHeight(measureHeaderHeight());
             measureSectionOffsets();

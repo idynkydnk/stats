@@ -1357,69 +1357,23 @@ input[type=number] {
     width: auto !important;
     max-width: none !important;
     margin: 0 !important;
+    /* Keep full face + year subtitle; only section/table chrome gets tighter. */
     padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 12px;
     box-sizing: border-box;
+    overflow: visible;
     /* Own compositor layer — reduces iOS scroll jitter */
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
 }
-/* Compact sticky chrome: tighter padding, keep full face + year visible. */
-.sr-player-header.is-compact {
-    gap: 10px;
-    margin-bottom: 0;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    overflow: visible;
-}
-.sr-player-header.is-fixed.is-compact {
-    padding-top: calc(8px + env(safe-area-inset-top, 0px));
-    padding-bottom: 8px;
-}
-.sr-player-header.is-compact .sr-player-avatar-col,
-.sr-player-header.is-compact .sr-avatar-clickable,
-.sr-player-header.is-compact .sr-player-avatar-col > .sr-avatar-crop-frame,
-.sr-player-header.is-compact .sr-player-avatar {
-    width: 48px;
-    height: 48px;
-    max-width: 48px;
-    max-height: 48px;
-}
-.sr-player-header.is-compact .sr-player-avatar {
-    font-size: 20px;
-}
-.sr-player-header.is-compact .sr-player-info h1 {
-    font-size: 18px;
-    margin: 0 0 2px 0;
-    line-height: 1.2;
-}
-.sr-player-header.is-compact .sr-player-subtitle {
-    display: block;
-    font-size: 12px;
-    line-height: 1.2;
-}
-.sr-player-header.is-compact .sr-player-avatar-col > .sr-link-btn,
-.sr-player-header.is-compact .sr-player-avatar-col > button:not(.sr-avatar-clickable) {
+/* Hide edit-photo controls under the face while pinned; keep avatar + year. */
+html.sr-player-pinned .sr-player-header .sr-player-avatar-col > .sr-link-btn,
+html.sr-player-pinned .sr-player-header .sr-player-avatar-col > button:not(.sr-avatar-clickable) {
     display: none;
 }
 @media (max-width: 768px) {
     .sr-player-header.is-fixed {
         padding-left: 10px;
         padding-right: 10px;
-    }
-    .sr-player-header.is-compact {
-        gap: 10px;
-        padding-top: 6px;
-        padding-bottom: 6px;
-    }
-    .sr-player-header.is-fixed.is-compact {
-        padding-top: calc(6px + env(safe-area-inset-top, 0px));
-        padding-bottom: 6px;
-    }
-    .sr-player-header.is-compact .sr-player-info h1 {
-        font-size: 17px;
-    }
-    .sr-player-header.is-compact .sr-player-subtitle {
-        font-size: 11px;
     }
 }
 @media (max-width: 480px) {
