@@ -462,18 +462,20 @@ function initPlayerPageSticky() {
         });
     }
 
-    function measurePlayerOffset() {
-        const h = Math.ceil(header.getBoundingClientRect().height);
+    function publishStickyHeight(h) {
         document.documentElement.style.setProperty('--sr-player-sticky-h', h + 'px');
-        return h;
+    }
+
+    function measureHeaderHeight() {
+        return Math.ceil(header.getBoundingClientRect().height);
     }
 
     // Desktop keeps pure sticky; still publish heights for section heads.
     if (!needsFixedPin) {
-        measurePlayerOffset();
+        publishStickyHeight(measureHeaderHeight());
         measureSectionOffsets();
         window.addEventListener('resize', function() {
-            measurePlayerOffset();
+            publishStickyHeight(measureHeaderHeight());
             measureSectionOffsets();
         });
         return;
@@ -490,39 +492,52 @@ function initPlayerPageSticky() {
     spacer.setAttribute('aria-hidden', 'true');
     homeParent.insertBefore(spacer, header.nextSibling);
 
+    // Spacer must match the in-flow header height. Never resize it while pinned —
+    // remasuring on scroll (Safari URL bar) was yanking the page back to the top.
+    let flowHeight = measureHeaderHeight();
+    publishStickyHeight(flowHeight);
+
     function setPinned(pinned) {
-        if (pinned === header.classList.contains('is-fixed')) {
-            if (pinned) {
-                spacer.style.height = measurePlayerOffset() + 'px';
-            }
-            return;
-        }
+        const isPinned = header.classList.contains('is-fixed');
+        if (pinned === isPinned) return;
+
+        // Preserve scroll across DOM reparent — iOS can otherwise jump to top.
+        const scrollY = window.scrollY || window.pageYOffset || 0;
+
         if (pinned) {
-            // Reparent to <body> so iOS can't treat fixed as scrolling with a container.
+            flowHeight = measureHeaderHeight();
             header.classList.add('is-fixed');
+            // Reparent to <body> so iOS can't treat fixed as scrolling with a container.
             document.body.appendChild(header);
-            spacer.style.height = measurePlayerOffset() + 'px';
+            spacer.style.height = flowHeight + 'px';
+            publishStickyHeight(measureHeaderHeight());
         } else {
             header.classList.remove('is-fixed');
             homeParent.insertBefore(header, spacer);
             spacer.style.height = '0px';
-            measurePlayerOffset();
+            flowHeight = measureHeaderHeight();
+            publishStickyHeight(flowHeight);
         }
         measureSectionOffsets();
+
+        if ((window.scrollY || window.pageYOffset || 0) !== scrollY) {
+            window.scrollTo(0, scrollY);
+        }
     }
 
     function updatePinFromScroll() {
         const top = sentinel.getBoundingClientRect().top;
-        if (header.classList.contains('is-fixed')) {
-            // Hysteresis: only release once the natural position is clearly back.
-            setPinned(top < 1);
-        } else {
-            setPinned(top < 0);
+        const isPinned = header.classList.contains('is-fixed');
+        if (isPinned) {
+            // Wide hysteresis so slow scrolls / URL-bar resize don't unpin/repin.
+            if (top > 24) setPinned(false);
+        } else if (top < 0) {
+            setPinned(true);
         }
     }
 
     let ticking = false;
-    function onScrollOrResize() {
+    function onScroll() {
         if (ticking) return;
         ticking = true;
         window.requestAnimationFrame(function() {
@@ -532,19 +547,20 @@ function initPlayerPageSticky() {
     }
 
     // Capture scroll on documentElement too — iOS sometimes scrolls the root, not window.
-    window.addEventListener('scroll', onScrollOrResize, { passive: true });
-    document.addEventListener('scroll', onScrollOrResize, { passive: true, capture: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
     window.addEventListener('resize', function() {
         if (header.classList.contains('is-fixed')) {
-            spacer.style.height = measurePlayerOffset() + 'px';
+            // Keep spacer stable; only refresh sticky offsets for section heads.
+            publishStickyHeight(measureHeaderHeight());
         } else {
-            measurePlayerOffset();
+            flowHeight = measureHeaderHeight();
+            publishStickyHeight(flowHeight);
         }
         measureSectionOffsets();
         updatePinFromScroll();
     });
 
-    measurePlayerOffset();
     measureSectionOffsets();
     updatePinFromScroll();
 }
