@@ -516,6 +516,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
     illustration_meta = payload.get('illustration_meta') or {}
     solo_images = illustration_meta.get('solo_images') or []
     scene_prompt = (illustration_meta.get('scene_prompt') or '').strip()
+    illustrated_players = illustration_meta.get('illustrated_players') or []
     style_instructions = (payload.get('style_instructions') or '').strip()
     # Prefer the resolved style for later remakes; fall back to the typed custom prompt.
     saved_custom = style_instructions or (custom_prompt or '').strip()
@@ -543,6 +544,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         image_details=payload.get('image_details') or '',
         image_mode=payload.get('image_mode') or 'none',
         scene_prompt=scene_prompt,
+        illustrated_players_json=json.dumps(illustrated_players) if illustrated_players else '',
     )
     _refresh_instagram_slides(
         share_id,
@@ -1762,11 +1764,11 @@ def preview_ai_summary_with_prompt():
             picked = resolve_illustration_players(roster_players, illustration_players)
             if len(illustration_players) == 0 or len(picked) == 0:
                 return stay_on_prompt(
-                    'Select up to 4 players for the illustration.'
+                    'Select up to 4 players for the group picture.'
                 )
             if len(illustration_players) > 4:
                 return stay_on_prompt(
-                    'Illustrations support at most 4 players. Uncheck extras and try again.'
+                    'Group pictures support at most 4 players. Uncheck extras and try again.'
                 )
             illustration_players = picked
 
@@ -2304,13 +2306,22 @@ def remake_ai_recap_image(share_id):
             raise ValueError('No players found for the saved games.')
 
         from email_content import resolve_illustration_players
-        # Prefer the players from the previous solos (preserves the original pick).
+        # Prefer the saved group-scene roster; fall back to prior solo names (older recaps).
+        prior_scene = []
+        try:
+            prior_scene = json.loads(row.get('illustrated_players_json') or '[]')
+        except (json.JSONDecodeError, TypeError):
+            prior_scene = []
+        if not isinstance(prior_scene, list):
+            prior_scene = []
         prior_names = [
             (item.get('name') or '').strip()
             for item in reuse_solos
             if (item.get('name') or '').strip()
         ]
-        illustration_players = resolve_illustration_players(players, prior_names)
+        illustration_players = resolve_illustration_players(
+            players, prior_scene or prior_names,
+        )
 
         if not scene_prompt:
             from email_content import build_scene_image_prompt
@@ -2351,6 +2362,9 @@ def remake_ai_recap_image(share_id):
     old_url = row.get('hero_image_url') or ''
     updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
     solo_images = (illustration_meta or {}).get('solo_images') or reuse_solos
+    illustrated_players = (
+        (illustration_meta or {}).get('illustrated_players') or illustration_players
+    )
 
     # Drop any old solo files that were replaced (not reused).
     reused_paths = {item.get('path') for item in solo_images if item.get('path')}
@@ -2367,6 +2381,9 @@ def remake_ai_recap_image(share_id):
         image_mode=image_mode,
         scene_prompt=scene_prompt,
         solo_images_json=json.dumps(solo_images) if solo_images else '[]',
+        illustrated_players_json=(
+            json.dumps(illustrated_players) if illustrated_players else '[]'
+        ),
     )
     ensure_recap_og_image(new_url)
     _refresh_instagram_slides(

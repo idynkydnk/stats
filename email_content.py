@@ -1979,43 +1979,43 @@ def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_pro
 
 
 def _illustration_meta(player_names, game_type, games, selected_players=None):
-    players, strategy, all_players = _illustration_players(
-        player_names, game_type, games, selected_players=selected_players,
-    )
-    api_calls = (len(players) + 1) if players else 0
+    all_players = _ordered_email_image_players(player_names)
+    scene_players = resolve_illustration_players(all_players, selected_players)
+    api_calls = (len(all_players) + 1) if all_players else 0
     return {
-        'strategy': strategy,
-        'illustrated_players': players,
+        'strategy': 'two_pass',
+        'illustrated_players': scene_players,
+        'solo_players': all_players,
         'total_players': len(all_players),
         'api_calls': api_calls,
-        'note': _illustration_status_note(players, all_players, strategy),
+        'note': _illustration_status_note(scene_players, all_players),
     }
 
 
-def _illustration_status_note(illustrated_players, all_players, strategy):
-    if not illustrated_players:
+def _illustration_status_note(scene_players, all_players):
+    if not all_players:
         return ''
-    if len(all_players) > len(illustrated_players):
+    if len(all_players) > len(scene_players):
         return (
-            f'Illustration uses {len(illustrated_players)} of {len(all_players)} players '
-            f'(solo caricature each, then a group scene).'
+            f'Individual caricatures for all {len(all_players)} players; '
+            f'group scene uses {len(scene_players)} of them.'
         )
     return (
         f'Illustration uses one caricature per player, then a group scene '
-        f'({len(illustrated_players)} players).'
+        f'({len(scene_players)} players).'
     )
 
 
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None,
+    custom_scene_prompt=None, scene_players=None,
 ):
-    """Solo caricature per player, then one group scene.
+    """Solo caricature per roster player, then one group scene.
 
     Solo caricatures are saved temporarily (creator preview only; auto-expire)
-    and used as in-memory references for the group scene. Only the group
-    illustration is kept permanently.
+    for every player in `players`. Only `scene_players` (max 4) are attached as
+    references for the group scene. Only the group illustration is kept permanently.
 
     When reuse_existing_solos is True, any matching on-disk solos in
     existing_solo_images are kept and only missing players are regenerated.
@@ -2031,6 +2031,12 @@ def _generate_email_hero_image_two_pass(
     players = _dedupe_players_preserve_order(players)
     if not players:
         raise ValueError('No players in roster for illustration')
+
+    scene_roster = _dedupe_players_preserve_order(scene_players or players)
+    scene_keys = {name.strip().lower() for name in scene_roster}
+    scene_roster = [name for name in players if name.strip().lower() in scene_keys]
+    if not scene_roster:
+        scene_roster = list(players[:MAX_ILLUSTRATION_PLAYERS])
 
     caricatures = {}
     solo_images = []
@@ -2083,9 +2089,12 @@ def _generate_email_hero_image_two_pass(
     by_name = {(item.get('name') or '').strip().lower(): item for item in solo_images}
     solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
 
-    scene_refs = _reference_parts_from_caricatures(players, caricatures)
+    scene_for_refs = [name for name in scene_roster if name in caricatures]
+    if not scene_for_refs:
+        scene_for_refs = [name for name in players if name in caricatures][:MAX_ILLUSTRATION_PLAYERS]
+    scene_refs = _reference_parts_from_caricatures(scene_for_refs, caricatures)
     scene_prompt = (custom_scene_prompt or '').strip() or _build_scene_image_prompt(
-        game_type, players, game_name=game_name, image_details=image_details,
+        game_type, scene_for_refs, game_name=game_name, image_details=image_details,
     )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
     try:
@@ -2109,18 +2118,18 @@ def generate_email_hero_image(
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
     selected_players=None,
 ):
-    """Generate hero image: one solo caricature per player, then one group scene."""
-    players, _strategy, _all_players = _illustration_players(
-        player_names, game_type, games, selected_players=selected_players,
-    )
-    if not players:
+    """Generate hero image: solo caricature for every roster player, then group scene."""
+    all_players = _ordered_email_image_players(player_names)
+    if not all_players:
         raise ValueError('No players in roster for illustration')
+    scene_players = resolve_illustration_players(all_players, selected_players)
     return _generate_email_hero_image_two_pass(
-        api_key, game_type, players, game_name=game_name,
+        api_key, game_type, all_players, game_name=game_name,
         image_details=image_details,
         existing_solo_images=existing_solo_images,
         reuse_existing_solos=reuse_existing_solos,
         custom_scene_prompt=custom_scene_prompt,
+        scene_players=scene_players,
     )
 
 

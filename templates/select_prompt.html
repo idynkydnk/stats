@@ -353,13 +353,13 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or publish text only. Selected players each get a temporary individual caricature first (shown to you briefly, not on the shareable link), then those are combined into one group image with your optional scene details. Stay on this page until it finishes — leaving will cancel generation.</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or publish text only. Every player gets a temporary individual caricature first (shown to you briefly, not on the shareable link). Pick up to 4 for the group scene — those solos are combined into one group image with your optional scene details. Stay on this page until it finishes — leaving will cancel generation.</p>
                     {% set roster = roster_players|default([]) %}
                     {% set preselected = selected_illustration_players|default([]) %}
                     {% if roster|length > 4 %}
                     <div class="sr-player-pick" id="illustration-player-pick">
                         <div class="sr-player-pick-header">
-                            <strong>Who should be in the picture?</strong>
+                            <strong>Who should be in the group picture?</strong>
                             <span class="sr-player-pick-count" id="illustration-pick-count">0 / 4</span>
                         </div>
                         <div class="sr-player-pick-grid">
@@ -371,7 +371,7 @@
                             </label>
                             {% endfor %}
                         </div>
-                        <p class="sr-player-pick-hint">Pick up to 4 players. Groups larger than 4 tend to look messy.</p>
+                        <p class="sr-player-pick-hint">Everyone still gets an individual caricature. Pick up to 4 for the group scene — larger groups tend to look messy.</p>
                     </div>
                     {% else %}
                         {% for name in roster %}
@@ -542,7 +542,7 @@ let selectedPrompt = null;
                     event.preventDefault();
                     setGenerateButtonsEnabled(true);
                     document.getElementById('generate-loading').classList.remove('show');
-                    alert('Select up to 4 players for the illustration.');
+                    alert('Select up to 4 players for the group picture.');
                     var pick = document.getElementById('illustration-player-pick');
                     if (pick) pick.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     return;
@@ -551,7 +551,7 @@ let selectedPrompt = null;
                     event.preventDefault();
                     setGenerateButtonsEnabled(true);
                     document.getElementById('generate-loading').classList.remove('show');
-                    alert('Illustrations support at most 4 players.');
+                    alert('Group pictures support at most 4 players.');
                     return;
                 }
                 // Disabled unchecked boxes are omitted from form submit — re-enable first.
