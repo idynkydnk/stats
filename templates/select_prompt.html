@@ -96,70 +96,6 @@
             color: var(--sr-accent);
             filter: none;
         }
-        .sr-player-pick {
-            margin-top: 16px;
-            padding: 14px;
-            background: rgba(0, 0, 0, 0.18);
-            border: 1px solid var(--sr-line);
-            border-radius: 10px;
-        }
-        .sr-player-pick-header {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-        .sr-player-pick-header strong {
-            font-size: 13px;
-            color: var(--sr-text);
-        }
-        .sr-player-pick-count {
-            font-size: 12px;
-            color: var(--sr-muted);
-            white-space: nowrap;
-        }
-        .sr-player-pick-count.is-full {
-            color: var(--sr-accent);
-        }
-        .sr-player-pick-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 8px;
-        }
-        .sr-player-pick-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            border: 1px solid var(--sr-line);
-            border-radius: 8px;
-            background: var(--sr-panel);
-            cursor: pointer;
-            font-size: 13px;
-            color: var(--sr-text);
-            user-select: none;
-        }
-        .sr-player-pick-item:hover {
-            border-color: rgba(102, 217, 239, 0.35);
-        }
-        .sr-player-pick-item.is-checked {
-            border-color: var(--sr-accent);
-            background: var(--sr-accent-dim);
-        }
-        .sr-player-pick-item.is-disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-        }
-        .sr-player-pick-item input {
-            margin: 0;
-            accent-color: var(--sr-accent);
-        }
-        .sr-player-pick-hint {
-            margin: 8px 0 0;
-            font-size: 12px;
-            color: var(--sr-muted);
-        }
         .sr-illustration-details {
             margin-top: 16px;
         }
@@ -353,31 +289,7 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or publish text only. Every player gets a temporary individual caricature first (shown to you briefly, not on the shareable link). Pick up to 4 for the group scene — those solos are combined into one group image with your optional scene details. Stay on this page until it finishes — leaving will cancel generation.</p>
-                    {% set roster = roster_players|default([]) %}
-                    {% set preselected = selected_illustration_players|default([]) %}
-                    {% if roster|length > 4 %}
-                    <div class="sr-player-pick" id="illustration-player-pick">
-                        <div class="sr-player-pick-header">
-                            <strong>Who should be in the group picture?</strong>
-                            <span class="sr-player-pick-count" id="illustration-pick-count">0 / 4</span>
-                        </div>
-                        <div class="sr-player-pick-grid">
-                            {% for name in roster %}
-                            <label class="sr-player-pick-item{% if name in preselected %} is-checked{% endif %}">
-                                <input type="checkbox" name="illustration_players" value="{{ name }}"
-                                       {% if name in preselected %}checked{% endif %}>
-                                <span>{{ name }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                        <p class="sr-player-pick-hint">Everyone still gets an individual caricature. Pick up to 4 for the group scene — larger groups tend to look messy.</p>
-                    </div>
-                    {% else %}
-                        {% for name in roster %}
-                        <input type="hidden" name="illustration_players" value="{{ name }}">
-                        {% endfor %}
-                    {% endif %}
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include an AI-generated group illustration, or publish text only. Every player gets a temporary individual caricature first (shown to you briefly, not on the shareable link), then everyone is combined into one group image with your optional scene details. Stay on this page until it finishes — leaving will cancel generation.</p>
                     <div class="sr-illustration-details">
                         <label for="image-details-text">Extra illustration details (optional)</label>
                         <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
@@ -451,36 +363,6 @@ let selectedPrompt = null;
             }
         }
 
-        function illustrationCheckboxes() {
-            return Array.prototype.slice.call(
-                document.querySelectorAll('input[name="illustration_players"][type="checkbox"]')
-            );
-        }
-
-        function updateIllustrationPicker() {
-            var boxes = illustrationCheckboxes();
-            if (!boxes.length) return;
-            var checked = boxes.filter(function(box) { return box.checked; });
-            var countEl = document.getElementById('illustration-pick-count');
-            if (countEl) {
-                countEl.textContent = checked.length + ' / 4';
-                countEl.classList.toggle('is-full', checked.length >= 4);
-            }
-            boxes.forEach(function(box) {
-                var label = box.closest('.sr-player-pick-item');
-                if (!label) return;
-                label.classList.toggle('is-checked', box.checked);
-                var disable = !box.checked && checked.length >= 4;
-                box.disabled = disable;
-                label.classList.toggle('is-disabled', disable);
-            });
-        }
-
-        illustrationCheckboxes().forEach(function(box) {
-            box.addEventListener('change', updateIllustrationPicker);
-        });
-        updateIllustrationPicker();
-
         function selectPrompt(promptId) {
             document.querySelectorAll('.sr-prompt-card').forEach(card => {
                 card.classList.remove('selected');
@@ -528,28 +410,6 @@ let selectedPrompt = null;
             }
 
             var mode = document.getElementById('image-mode').value || 'none';
-            var pickBoxes = illustrationCheckboxes();
-            if (mode === 'image' && pickBoxes.length) {
-                var picked = pickBoxes.filter(function(box) { return box.checked; });
-                if (picked.length === 0) {
-                    event.preventDefault();
-                    setGenerateButtonsEnabled(true);
-                    document.getElementById('generate-loading').classList.remove('show');
-                    alert('Select up to 4 players for the group picture.');
-                    var pick = document.getElementById('illustration-player-pick');
-                    if (pick) pick.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    return;
-                }
-                if (picked.length > 4) {
-                    event.preventDefault();
-                    setGenerateButtonsEnabled(true);
-                    document.getElementById('generate-loading').classList.remove('show');
-                    alert('Group pictures support at most 4 players.');
-                    return;
-                }
-                // Disabled unchecked boxes are omitted from form submit — re-enable first.
-                pickBoxes.forEach(function(box) { box.disabled = false; });
-            }
 
             var copy = loadingCopy[mode] || loadingCopy.none;
             setGenerateButtonsEnabled(false);

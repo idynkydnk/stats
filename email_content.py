@@ -496,36 +496,12 @@ def _dedupe_players_preserve_order(player_names):
     return ordered
 
 
-MAX_ILLUSTRATION_PLAYERS = 4
-
-
 def resolve_illustration_players(player_names, selected_players=None):
-    """Pick who appears in the illustration (max 4).
+    """Return the full roster for illustrations (everyone gets solos + group scene).
 
-    selected_players, when provided, must be a subset of the game roster.
-    If empty/invalid, defaults to the first 4 alphabetically.
+    selected_players is ignored; kept for call-site compatibility.
     """
-    all_players = _ordered_email_image_players(player_names)
-    if not all_players:
-        return []
-    if len(all_players) <= MAX_ILLUSTRATION_PLAYERS and not selected_players:
-        return list(all_players)
-
-    roster_by_key = {name.lower(): name for name in all_players}
-    chosen = []
-    seen = set()
-    for name in selected_players or []:
-        clean = (name or '').strip()
-        key = clean.lower()
-        if not key or key not in roster_by_key or key in seen:
-            continue
-        chosen.append(roster_by_key[key])
-        seen.add(key)
-        if len(chosen) >= MAX_ILLUSTRATION_PLAYERS:
-            break
-    if chosen:
-        return chosen
-    return all_players[:MAX_ILLUSTRATION_PLAYERS]
+    return _ordered_email_image_players(player_names)
 
 
 def _illustration_players(player_names, game_type, games, selected_players=None):
@@ -533,8 +509,7 @@ def _illustration_players(player_names, game_type, games, selected_players=None)
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
         return [], 'two_pass', all_players
-    illustrated = resolve_illustration_players(all_players, selected_players)
-    return illustrated, 'two_pass', all_players
+    return list(all_players), 'two_pass', all_players
 
 
 def _solo_reference_parts_for_player(name, entry):
@@ -1956,29 +1931,23 @@ def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_pro
 
 def _illustration_meta(player_names, game_type, games, selected_players=None):
     all_players = _ordered_email_image_players(player_names)
-    scene_players = resolve_illustration_players(all_players, selected_players)
     api_calls = (len(all_players) + 1) if all_players else 0
     return {
         'strategy': 'two_pass',
-        'illustrated_players': scene_players,
+        'illustrated_players': all_players,
         'solo_players': all_players,
         'total_players': len(all_players),
         'api_calls': api_calls,
-        'note': _illustration_status_note(scene_players, all_players),
+        'note': _illustration_status_note(all_players),
     }
 
 
-def _illustration_status_note(scene_players, all_players):
+def _illustration_status_note(all_players):
     if not all_players:
         return ''
-    if len(all_players) > len(scene_players):
-        return (
-            f'Individual caricatures for all {len(all_players)} players; '
-            f'group scene uses {len(scene_players)} of them.'
-        )
     return (
         f'Illustration uses one caricature per player, then a group scene '
-        f'({len(scene_players)} players).'
+        f'({len(all_players)} players).'
     )
 
 
@@ -1990,8 +1959,8 @@ def _generate_email_hero_image_two_pass(
     """Solo caricature per roster player, then one group scene.
 
     Solo caricatures are saved temporarily (creator preview only; auto-expire)
-    for every player in `players`. Only `scene_players` (max 4) are attached as
-    references for the group scene. Only the group illustration is kept permanently.
+    for every player in `players`, then all of them are attached as references
+    for the group scene. Only the group illustration is kept permanently.
 
     When reuse_existing_solos is True, any matching on-disk solos in
     existing_solo_images are kept and only missing players are regenerated.
@@ -2008,11 +1977,8 @@ def _generate_email_hero_image_two_pass(
     if not players:
         raise ValueError('No players in roster for illustration')
 
-    scene_roster = _dedupe_players_preserve_order(scene_players or players)
-    scene_keys = {name.strip().lower() for name in scene_roster}
-    scene_roster = [name for name in players if name.strip().lower() in scene_keys]
-    if not scene_roster:
-        scene_roster = list(players[:MAX_ILLUSTRATION_PLAYERS])
+    # Always include everyone in the group scene (scene_players kept for compat).
+    scene_roster = list(players)
 
     caricatures = {}
     solo_images = []
@@ -2066,8 +2032,6 @@ def _generate_email_hero_image_two_pass(
     solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
 
     scene_for_refs = [name for name in scene_roster if name in caricatures]
-    if not scene_for_refs:
-        scene_for_refs = [name for name in players if name in caricatures][:MAX_ILLUSTRATION_PLAYERS]
     scene_refs = _reference_parts_from_caricatures(scene_for_refs, caricatures)
     scene_prompt = (custom_scene_prompt or '').strip() or _build_scene_image_prompt(
         game_type, scene_for_refs, game_name=game_name, image_details=image_details,
@@ -2098,14 +2062,13 @@ def generate_email_hero_image(
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
         raise ValueError('No players in roster for illustration')
-    scene_players = resolve_illustration_players(all_players, selected_players)
     return _generate_email_hero_image_two_pass(
         api_key, game_type, all_players, game_name=game_name,
         image_details=image_details,
         existing_solo_images=existing_solo_images,
         reuse_existing_solos=reuse_existing_solos,
         custom_scene_prompt=custom_scene_prompt,
-        scene_players=scene_players,
+        scene_players=all_players,
     )
 
 
