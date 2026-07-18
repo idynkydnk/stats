@@ -742,8 +742,8 @@
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form">
                 <label for="recap-summary-prompt">Writing style prompt</label>
-                <p class="recap-remake-help">Tweak the style used for this recap, then remake. Clear the box to invent a fresh random style instead.</p>
-                <textarea id="recap-summary-prompt" name="custom_prompt" placeholder="Example: You are a pirate captain writing a recap of the day's battles…">{{ remake_summary_prompt }}</textarea>
+                <p class="recap-remake-help">Optional custom style for the remake. Clear the box to use the standard factual recap.</p>
+                <textarea id="recap-summary-prompt" name="custom_prompt" placeholder="Leave blank for a standard recap, or write custom style instructions…">{{ remake_summary_prompt }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="summary">Cancel</button>
                     <button type="submit" class="recap-btn recap-btn-primary" id="recap-remake-summary-btn">

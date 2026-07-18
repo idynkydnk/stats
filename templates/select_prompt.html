@@ -300,7 +300,7 @@
 {% endblock %}
 {% block content %}
 <header class="sr-header sr-header-compact">
-            <h1 class="sr-title"><i class="fas fa-magic" style="margin-right: 10px; color: var(--sr-accent);"></i>Choose AI Style</h1>
+            <h1 class="sr-title"><i class="fas fa-magic" style="margin-right: 10px; color: var(--sr-accent);"></i>AI Recap</h1>
             <div class="sr-header-actions">
                 {% include 'partials/page_header_actions.html' %}
             </div>
@@ -313,19 +313,19 @@
             </div>
 
             <h2 class="sr-card-title">Select Writing Style</h2>
-            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Choose how you want the AI to write your recap</p>
+            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Use a straightforward recap, or write your own style instructions</p>
 
             <div id="prompt-options">
-                <div class="sr-prompt-card" data-prompt="random" onclick="selectPrompt('random')">
+                <div class="sr-prompt-card" data-prompt="default" onclick="selectPrompt('default')">
                     <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon generated-1"><i class="fas fa-shuffle"></i></div>
+                        <div class="sr-prompt-icon generated-1"><i class="fas fa-align-left"></i></div>
                         <div>
-                            <div class="sr-prompt-title">Random AI Prompt</div>
-                            <div class="sr-prompt-subtitle">AI invents a fresh voice each time</div>
+                            <div class="sr-prompt-title">Standard Recap</div>
+                            <div class="sr-prompt-subtitle">Clear summary from the game data</div>
                         </div>
                     </div>
-                    <div class="sr-prompt-description">The AI reads the session, invents its own style instructions, then writes the recap. New persona every time — playful, deadpan, roast-y, noir, or something stranger.</div>
-                    <div class="sr-prompt-example">Might become a nature documentary host, a pirate captain, or a hype poet — depends on the games.</div>
+                    <div class="sr-prompt-description">Writes a factual recap from the scores, stats, and comments — no invented persona or gimmick voice.</div>
+                    <div class="sr-prompt-example">Results, notable stats, and comments woven into a short readable summary.</div>
                 </div>
 
                 <div class="sr-prompt-card" data-prompt="custom" onclick="selectPrompt('custom')">
@@ -337,7 +337,7 @@
                         </div>
                     </div>
                     <div class="sr-prompt-description">Write your own custom instructions for the AI. Describe the tone, style, and personality you want.</div>
-                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Example: You are a pirate captain writing a recap of the day's battles on the high seas..." onclick="event.stopPropagation(); selectPrompt('custom');" style="width: 100%; margin-top: 12px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 13px; font-family: inherit; min-height: 100px; resize: vertical;">{{ custom_prompt_value|default('') }}</textarea>
+                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Example: Keep it short and punchy, focus on upsets and funny comments..." onclick="event.stopPropagation(); selectPrompt('custom');" style="width: 100%; margin-top: 12px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 13px; font-family: inherit; min-height: 100px; resize: vertical;">{{ custom_prompt_value|default('') }}</textarea>
                 </div>
             </div>
 
@@ -425,13 +425,6 @@ let selectedPrompt = null;
                 detail: 'About one to four minutes depending on player count. Stay on this page until it finishes — leaving will cancel generation.'
             }
         };
-
-        function loadingDetailForStyle() {
-            if (selectedPrompt === 'random') {
-                return 'AI is inventing a writing style, then drafting the recap. Stay on this page until it finishes.';
-            }
-            return null;
-        }
 
         function setImageMode(mode) {
             document.getElementById('image-mode').value = mode;
@@ -559,18 +552,12 @@ let selectedPrompt = null;
             }
 
             var copy = loadingCopy[mode] || loadingCopy.none;
-            var styleDetail = loadingDetailForStyle();
-            if (styleDetail) {
-                copy = { title: copy.title, detail: styleDetail };
-            }
             setGenerateButtonsEnabled(false);
             document.getElementById('loading-title').textContent = copy.title;
             document.getElementById('loading-detail').textContent = copy.detail;
             document.getElementById('generate-loading').classList.add('show');
         });
 
-        {% if selected_prompt_style %}
-        selectPrompt({{ selected_prompt_style|tojson }});
-        {% endif %}
+        selectPrompt({{ (selected_prompt_style or 'default')|tojson }});
 </script>
 {% endblock %}

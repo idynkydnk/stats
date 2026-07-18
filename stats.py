@@ -1677,8 +1677,8 @@ def _render_select_ai_prompt(
     if error:
         flash(str(error), 'error')
     style = _normalize_prompt_style(prompt_style) if prompt_style else ''
-    if style and style not in ('random', 'custom'):
-        style = 'random'
+    if style and style not in ('default', 'custom'):
+        style = 'default'
     roster_players = _roster_players_for_games(game_ids, game_type)
     selected = illustration_players if illustration_players is not None else roster_players[:4]
     return render_template(
@@ -1702,7 +1702,7 @@ def preview_ai_summary_with_prompt():
     other pages via the menu. Otherwise generate synchronously in this request.
     """
     selected_game_ids = request.form.getlist('game_ids')
-    prompt_style = request.form.get('prompt_style', 'random')
+    prompt_style = request.form.get('prompt_style', 'default')
     custom_prompt = request.form.get('custom_prompt', '')
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
@@ -1897,10 +1897,14 @@ def view_ai_recap(share_id):
     remake_scene_prompt = ''
     game_type = row.get('game_type') or 'doubles'
     if can_remake:
+        from email_content import DEFAULT_RECAP_STYLE_INSTRUCTIONS
         remake_summary_prompt = (
             (row.get('style_instructions') or '').strip()
             or (row.get('custom_prompt') or '').strip()
         )
+        # Blank the box when it matches the built-in standard recap (clear = default).
+        if remake_summary_prompt == DEFAULT_RECAP_STYLE_INSTRUCTIONS:
+            remake_summary_prompt = ''
 
     # Ensure each solo card has an editable prompt (stored, or rebuilt as fallback).
     # Also rebuild the group-scene prompt for the Remake picture panel.
@@ -2661,8 +2665,8 @@ def remake_ai_recap_summary(share_id):
     if custom_prompt:
         prompt_style = 'custom'
     else:
-        # Empty prompt → invent a fresh random style (same as original "random").
-        prompt_style = 'random'
+        # Empty prompt → standard factual recap from the game data.
+        prompt_style = 'default'
 
     try:
         payload = _build_ai_summary_payload(
@@ -2721,7 +2725,7 @@ def remake_ai_recap_summary(share_id):
 def api_generate_and_send_ai_summary():
     """Queue AI summary generation; an Always-on daemon publishes a share link in the background."""
     game_type = request.form.get('game_type', 'doubles')
-    prompt_style = request.form.get('prompt_style', 'random')
+    prompt_style = request.form.get('prompt_style', 'default')
     custom_prompt = request.form.get('custom_prompt', '')
     game_ids = request.form.getlist('game_ids')
     if not game_ids:
