@@ -542,39 +542,20 @@ def _illustration_players(player_names, game_type, games, selected_players=None)
     return illustrated, 'two_pass', all_players
 
 
-def _reference_photo_kind(label):
-    """Classify a reference label for clearer multi-photo grouping."""
-    lower = (label or '').lower()
-    if 'face reference' in lower:
-        return 'face'
-    if 'full-body reference' in lower:
-        return 'body'
-    return 'other'
-
-
-def _solo_photo_instruction(kind):
-    if kind == 'face':
-        return 'Face reference. Use for facial features and expression.'
-    if kind == 'body':
-        return 'Full-body reference. Use for outfit, pose, and body type.'
-    return 'Reference photo.'
-
-
 def _solo_reference_parts_for_player(name, entry):
-    """Build reference parts for a solo caricature call (name used only for DB lookup)."""
+    """Build face-reference parts for a solo caricature call."""
     parts = [{'text': '=== Character reference ==='}]
     if not entry or not entry.get('parts'):
         parts.append({
             'text': (
-                'No reference photos. Invent one unique stylized character '
+                'No face reference photo. Invent one unique stylized character '
                 'from the signature details in the prompt below.'
             ),
         })
         return parts
 
     for ref in entry['parts']:
-        kind = _reference_photo_kind(ref['label'])
-        parts.append({'text': _solo_photo_instruction(kind)})
+        parts.append({'text': 'Face reference. Use for facial features and expression.'})
         parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
     return parts
 
@@ -589,7 +570,7 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
         )
     if has_reference_photos:
         likeness = (
-            'Use the attached face and body reference photos to capture this person\'s look, '
+            'Use the attached face reference photo to capture this person\'s face, '
             'then exaggerate their signature details so they are instantly recognizable.\n'
         )
     else:

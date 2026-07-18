@@ -1,6 +1,5 @@
 {# Face circle opens photo manager when logged in; guests get a server-cropped thumb. #}
 {% set display_name = player_name if player_name is defined else player %}
-{% if player_full_body_photos is not defined %}{% set player_full_body_photos = [] %}{% endif %}
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = [] %}{% endif %}
 {% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50, 'z': 1} %}{% endif %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
@@ -41,7 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
         dateOfBirth: {{ (player_date_of_birth if player_date_of_birth is defined else '')|tojson }},
         height: {{ (player_height if player_height is defined else '')|tojson }},
         photoUrl: {{ (player_photo_url or '')|tojson }},
-        fullBodyPhotos: {{ player_full_body_photos|tojson }},
         aiImageTraits: {{ player_ai_image_traits|tojson }},
         faceFocus: {{ player_face_photo_focus|tojson }},
         triggerId: 'player-avatar-trigger',

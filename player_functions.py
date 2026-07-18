@@ -963,45 +963,33 @@ def remove_player_photo(player_id):
 
 
 def collect_solo_reference_images(name):
-    """One face + one body reference for two-pass solo caricatures."""
-    refs = collect_player_reference_images([name], max_players=1, max_body_per_player=1)
+    """Face reference for two-pass solo caricatures (signature looks come from traits)."""
+    refs = collect_player_reference_images([name], max_players=1)
     if refs:
         return refs[0]
     return {'name': name, 'parts': []}
 
 
-def collect_player_reference_images(player_names, max_players=4, max_body_per_player=0):
-    """Build Gemini reference image parts for AI email illustrations."""
+def collect_player_reference_images(player_names, max_players=4):
+    """Build Gemini face-reference image parts for AI email illustrations."""
     references = []
     for name in sorted(player_names):
         if len(references) >= max_players:
             break
-        face_path, body_paths = get_player_photo_paths(name)
-        if not face_path and not body_paths:
+        face_path, _body_paths = get_player_photo_paths(name)
+        if not face_path:
             continue
         entry = {'name': name, 'parts': []}
-        if face_path:
-            fx, fy, fz = get_player_face_photo_focus(name)
-            raw, mime = read_cropped_player_image(
-                face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
-            )
-            if raw:
-                entry['parts'].append({
-                    'label': f'Face reference photo for {name}.',
-                    'mime': mime,
-                    'data_b64': base64.b64encode(raw).decode('ascii'),
-                })
-        crops = get_player_full_body_photo_crops(name)
-        for idx, body_path in enumerate(body_paths[:max_body_per_player], start=1):
-            focus = crops.get(body_path, {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0})
-            raw, mime = read_cropped_player_image(body_path, focus)
-            if raw:
-                entry['parts'].append({
-                    'label': f'Full-body reference photo {idx} for {name}.',
-                    'mime': mime,
-                    'data_b64': base64.b64encode(raw).decode('ascii'),
-                })
-        if entry['parts']:
+        fx, fy, fz = get_player_face_photo_focus(name)
+        raw, mime = read_cropped_player_image(
+            face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
+        )
+        if raw:
+            entry['parts'].append({
+                'label': f'Face reference photo for {name}.',
+                'mime': mime,
+                'data_b64': base64.b64encode(raw).decode('ascii'),
+            })
             references.append(entry)
     return references
 

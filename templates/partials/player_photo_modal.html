@@ -3,7 +3,7 @@
     <div class="sr-photo-modal-backdrop" data-close-photo-modal></div>
     <div class="sr-photo-modal-dialog" role="dialog" aria-labelledby="player-photo-title">
         <h3 id="player-photo-title"><span id="player-photo-title-name">Player</span></h3>
-        <p class="sr-photo-modal-hint">Manage photos and details. Face and full-body photo are used for AI email illustrations.</p>
+        <p class="sr-photo-modal-hint">Manage photos and details. Face photo and signature look are used for AI email illustrations.</p>
 
         <section class="sr-photo-section">
             <h4>Player details</h4>
@@ -54,38 +54,8 @@
         </section>
 
         <section class="sr-photo-section">
-            <h4>Full-body photo</h4>
-            <p class="sr-body-crop-hint">Tap the photo to crop it and pick one person in group shots.</p>
-            <div class="sr-body-photo-grid" id="body-photo-grid"></div>
-            <div class="sr-body-crop-editor" id="body-crop-editor" hidden>
-                <p class="sr-body-crop-editor-label">Cropping full-body photo</p>
-                <div class="sr-body-crop-workspace" id="body-crop-workspace">
-                    <img src="" alt="Crop preview" class="sr-body-crop-source" id="body-crop-preview">
-                    <div class="sr-body-crop-box" id="body-crop-box" hidden>
-                        <span class="sr-body-crop-handle" data-handle="nw"></span>
-                        <span class="sr-body-crop-handle" data-handle="ne"></span>
-                        <span class="sr-body-crop-handle" data-handle="sw"></span>
-                        <span class="sr-body-crop-handle" data-handle="se"></span>
-                    </div>
-                </div>
-                <p class="sr-face-drag-hint">Drag the box to move · drag any corner to resize · scroll or +/− to zoom</p>
-                <div class="sr-face-zoom-controls">
-                    <button type="button" class="sr-face-zoom-btn" id="body-zoom-out" title="Zoom out">−</button>
-                    <span class="sr-face-zoom-label" id="body-zoom-label">100%</span>
-                    <button type="button" class="sr-face-zoom-btn" id="body-zoom-in" title="Zoom in">+</button>
-                </div>
-                <button type="button" class="sr-photo-action-btn" id="body-crop-done">Done cropping</button>
-            </div>
-            <p class="sr-body-photo-empty-msg" id="body-photo-empty-msg">No full-body photo yet</p>
-            <label class="sr-photo-action-btn" id="body-photo-upload-label">
-                <i class="fas fa-plus"></i> <span id="body-photo-upload-text">Add full-body photo</span>
-                <input type="file" id="body-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
-            </label>
-        </section>
-
-        <section class="sr-photo-section">
             <h4>Signature look</h4>
-            <p class="sr-traits-hint">Add separate details for the AI to exaggerate in email illustrations.</p>
+            <p class="sr-traits-hint">Add separate details for the AI to exaggerate in email illustrations (outfit, accessories, posture, etc.).</p>
             <div class="sr-traits-list" id="ai-image-traits-list"></div>
             <p class="sr-traits-empty" id="ai-image-traits-empty">No signature-look phrases yet</p>
             <div class="sr-traits-add-row">
@@ -1078,9 +1048,7 @@ window.PlayerPhotoManager = (function() {
             ? { x: cfg.faceFocus.x, y: cfg.faceFocus.y, z: cfg.faceFocus.z != null ? cfg.faceFocus.z : 1 }
             : { x: 50, y: 50, z: 1 };
         setFacePreview(cfg.photoUrl || null, faceFocus);
-        renderBodyPhotos(cfg.fullBodyPhotos || []);
         renderTraits();
-        closeBodyCropEditor();
     }
 
     function savePlayerDetails() {

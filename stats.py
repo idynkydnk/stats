@@ -1015,27 +1015,6 @@ def player_face_thumb(name):
     )
 
 
-def player_full_body_photos_for(name):
-    """Full-body photos with static paths, URLs, and crop focus."""
-    from player_functions import get_player_full_body_photo_paths, get_full_body_photo_crop
-    photos = []
-    for path in get_player_full_body_photo_paths(name):
-        focus = get_full_body_photo_crop(name, path)
-        photos.append({
-            'path': path,
-            'url': url_for('static', filename=path),
-            'focus': {
-                'x': focus['x'],
-                'y': focus['y'],
-                'z': focus.get('z'),
-                'aspect': focus.get('aspect'),
-                'w': focus.get('w'),
-                'h': focus.get('h'),
-            },
-        })
-    return photos
-
-
 def player_ai_image_traits_for(name):
     from player_functions import get_player_ai_image_traits
     return get_player_ai_image_traits(name)
@@ -1062,7 +1041,6 @@ def player_avatar_context(name):
     fields = player_profile_fields_for(name)
     return {
         'player_photo_url': player_photo_url_for(name),
-        'player_full_body_photos': player_full_body_photos_for(name),
         'player_ai_image_traits': player_ai_image_traits_for(name),
         'player_face_photo_focus': player_face_photo_focus_for(name),
         'player_email': fields['email'],
@@ -1086,15 +1064,12 @@ def build_player_list_cards(players):
     names = [player_row[1] for player_row in players]
     extras = get_players_list_extras(names)
     default_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
-    default_body_focus = {'x': 50.0, 'y': 50.0, 'w': 75.0, 'h': 90.0}
     cards = []
 
     for player_row in players:
         name = player_row[1]
         meta = extras.get(name, {})
         photo_path = player_row[8] if len(player_row) > 8 and player_row[8] else None
-        body_paths = meta.get('body_paths', [])
-        body_crops = meta.get('body_crops', {})
         face_focus = meta.get('face_focus', default_focus)
 
         cards.append({
@@ -1105,14 +1080,6 @@ def build_player_list_cards(players):
             'games': int(player_row[11]) if len(player_row) > 11 and player_row[11] is not None else 0,
             'firstGame': player_row[10] if len(player_row) > 10 and player_row[10] else '',
             'photoUrl': url_for('static', filename=photo_path) if photo_path else None,
-            'fullBodyPhotos': [
-                {
-                    'path': path,
-                    'url': url_for('static', filename=path),
-                    'focus': body_crops.get(path, default_body_focus),
-                }
-                for path in body_paths
-            ],
             'aiImageTraits': meta.get('traits', []),
             'faceFocus': face_focus,
         })
@@ -4487,7 +4454,6 @@ def edit_player(player_id):
     from player_functions import (
         get_player_by_id, update_player_info,
         save_player_photo_upload, remove_player_photo,
-        save_player_full_body_photo_upload, remove_player_full_body_photo,
     )
 
     player = get_player_by_id(player_id)
@@ -4517,23 +4483,12 @@ def edit_player(player_id):
                 elif request.files.get('photo') and request.files['photo'].filename:
                     save_player_photo_upload(player_id, request.files['photo'])
                     photo_msg = ' Photo updated.'
-                if request.form.get('remove_full_body_photo') == '1':
-                    remove_player_full_body_photo(player_id)
-                    photo_msg += ' Full-body photos removed.'
-                elif request.files.getlist('full_body_photo'):
-                    for f in request.files.getlist('full_body_photo'):
-                        if f and f.filename:
-                            save_player_full_body_photo_upload(player_id, f)
-                    photo_msg += ' Full-body photo(s) updated.'
             except ValueError as e:
                 flash(str(e), 'error')
                 return render_template(
                     'edit_player.html',
                     player=get_player_by_id(player_id),
                     player_photo_url=player_photo_url_for(player[1]),
-                    player_full_body_photos=player_full_body_photos_for(player[1]),
-                    player_ai_image_traits=player_ai_image_traits_for(player[1]),
-                    player_face_photo_focus=player_face_photo_focus_for(player[1]),
                 )
 
             user = session.get('username', 'unknown')
@@ -4551,8 +4506,6 @@ def edit_player(player_id):
         'edit_player.html',
         player=player,
         player_photo_url=player_photo_url_for(player[1]),
-        player_full_body_photos=player_full_body_photos_for(player[1]),
-        player_ai_image_traits=player_ai_image_traits_for(player[1]),
     )
 
 
@@ -4616,116 +4569,6 @@ def api_upload_player_photo(name):
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         app.logger.exception('Player photo upload failed')
-        return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
-
-
-@app.route('/api/player_full_body_photo/<path:name>/', methods=['POST'])
-@login_required
-def api_upload_player_full_body_photo(name):
-    """Upload or remove a player's full-body photo(s) from a player stats page."""
-    from player_functions import (
-        save_player_full_body_photo_upload,
-        remove_player_full_body_photo,
-        get_player_full_body_photo_paths,
-        get_full_body_photo_crop,
-        set_player_full_body_photo_crop,
-    )
-
-    name = name.strip()
-    if not name:
-        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
-
-    player = _ensure_player_record(name)
-    if not player or not player[0]:
-        return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
-
-    player_id = player[0]
-
-    def _photo_payload():
-        paths = get_player_full_body_photo_paths(name)
-        urls = [url_for('static', filename=p) for p in paths]
-        focuses = [
-            {
-                'x': get_full_body_photo_crop(name, p)['x'],
-                'y': get_full_body_photo_crop(name, p)['y'],
-                'z': get_full_body_photo_crop(name, p).get('z'),
-                'aspect': get_full_body_photo_crop(name, p).get('aspect'),
-                'w': get_full_body_photo_crop(name, p).get('w'),
-                'h': get_full_body_photo_crop(name, p).get('h'),
-            }
-            for p in paths
-        ]
-        return {'photo_urls': urls, 'photo_paths': paths, 'photo_focuses': focuses}
-
-    try:
-        crop_path = (request.form.get('crop_path') or '').strip()
-        if crop_path and request.form.get('focus_x') is not None and request.form.get('focus_y') is not None:
-            w = request.form.get('focus_w')
-            h = request.form.get('focus_h')
-            if w is not None and h is not None:
-                x, y, w, h = set_player_full_body_photo_crop(
-                    player_id,
-                    crop_path,
-                    request.form.get('focus_x', 50),
-                    request.form.get('focus_y', 50),
-                    w=w,
-                    h=h,
-                )
-                log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
-                clear_stats_cache()
-                payload = _photo_payload()
-                payload.update({'success': True, 'focus': {'x': x, 'y': y, 'w': w, 'h': h}})
-                return jsonify(payload)
-            z = request.form.get('focus_z')
-            aspect = request.form.get('focus_aspect')
-            x, y, z, aspect = set_player_full_body_photo_crop(
-                player_id,
-                crop_path,
-                request.form.get('focus_x', 50),
-                request.form.get('focus_y', 50),
-                z if z is not None else None,
-                aspect if aspect is not None else None,
-            )
-            log_activity('Updated player photo', summary=f'Adjusted full-body crop for {name}')
-            clear_stats_cache()
-            payload = _photo_payload()
-            payload.update({'success': True, 'focus': {'x': x, 'y': y, 'z': z, 'aspect': aspect}})
-            return jsonify(payload)
-
-        if request.form.get('remove') == '1':
-            remove_player_full_body_photo(player_id)
-            log_activity('Updated player photo', summary=f'Removed all full-body photos for {name}')
-            clear_stats_cache()
-            payload = _photo_payload()
-            payload.update({'success': True, 'added_url': None})
-            return jsonify(payload)
-
-        remove_path = (request.form.get('remove_path') or '').strip()
-        if remove_path:
-            remove_player_full_body_photo(player_id, remove_path)
-            log_activity('Updated player photo', summary=f'Removed a full-body photo for {name}')
-            clear_stats_cache()
-            payload = _photo_payload()
-            payload.update({'success': True, 'added_url': None})
-            return jsonify(payload)
-
-        file_storage = request.files.get('photo')
-        if not file_storage or not file_storage.filename:
-            return jsonify({'success': False, 'error': 'No photo file provided.'}), 400
-
-        rel_path = save_player_full_body_photo_upload(player_id, file_storage)
-        photo_url = url_for('static', filename=rel_path)
-        user = session.get('username', 'unknown')
-        log_user_action(user, 'Uploaded player full-body photo', name)
-        log_activity('Updated player photo', summary=f'Uploaded full-body photo for {name}')
-        clear_stats_cache()
-        payload = _photo_payload()
-        payload.update({'success': True, 'added_url': photo_url})
-        return jsonify(payload)
-    except ValueError as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-    except Exception as e:
-        app.logger.exception('Player full-body photo upload failed')
         return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
 
 
