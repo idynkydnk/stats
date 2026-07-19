@@ -791,6 +791,19 @@ def _parse_flyer_form():
     game_type = (request.form.get('game_type') or 'doubles').strip().lower()
     if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
+    custom_solo_prompts = {}
+    for name in ordered:
+        key = f'solo_prompt__{name}'
+        # Form keys can't reliably use names with spaces — also accept indexed fields.
+        prompt = (request.form.get(key) or '').strip()
+        if prompt:
+            custom_solo_prompts[name] = prompt
+    # Indexed solo prompts: solo_prompt_0 + players[0]
+    for index, name in enumerate(ordered):
+        prompt = (request.form.get(f'solo_prompt_{index}') or '').strip()
+        if prompt:
+            custom_solo_prompts[name] = prompt
+
     return {
         'players': ordered,
         'game_type': game_type,
@@ -799,6 +812,8 @@ def _parse_flyer_form():
         'event_time': (request.form.get('event_time') or '').strip(),
         'location': (request.form.get('location') or '').strip(),
         'image_details': (request.form.get('image_details') or '').strip(),
+        'scene_prompt': (request.form.get('scene_prompt') or '').strip(),
+        'custom_solo_prompts': custom_solo_prompts,
     }
 
 
@@ -826,6 +841,8 @@ def _generate_and_publish_flyer(username, payload):
             location=payload.get('location') or '',
             game_name=payload.get('game_name') or None,
             image_details=payload.get('image_details') or '',
+            custom_scene_prompt=payload.get('scene_prompt') or None,
+            custom_solo_prompts=payload.get('custom_solo_prompts') or None,
         )
         return _publish_flyer_page(
             username,
@@ -841,7 +858,7 @@ def _generate_and_publish_flyer(username, payload):
             payload,
             flyer_error=str(e),
             solo_images=getattr(e, 'solo_images', None) or [],
-            scene_prompt='',
+            scene_prompt=payload.get('scene_prompt') or '',
         )
 
 
@@ -1954,6 +1971,45 @@ def api_ai_summary_job_status(job_id):
     })
 
 
+@app.route('/api/flyer_prompts/', methods=['POST'])
+@login_required
+def api_flyer_prompts():
+    """Return default solo + flyer prompts for the current selection."""
+    from email_content import build_flyer_scene_prompt, build_flyer_solo_prompt
+
+    data = request.get_json(silent=True) or {}
+    players = data.get('players') or []
+    if isinstance(players, str):
+        players = [players]
+    cleaned = []
+    seen = set()
+    for name in players:
+        name = (name or '').strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(name)
+
+    game_type = (data.get('game_type') or 'doubles').strip().lower()
+    if game_type not in ('doubles', 'vollis', 'other'):
+        game_type = 'doubles'
+
+    solos = [{'name': name, 'prompt': build_flyer_solo_prompt(name)} for name in cleaned]
+    scene_prompt = build_flyer_scene_prompt(
+        cleaned,
+        game_type,
+        event_date=(data.get('event_date') or '').strip(),
+        event_time=(data.get('event_time') or '').strip(),
+        location=(data.get('location') or '').strip(),
+        game_name=(data.get('game_name') or '').strip() or None,
+        image_details=(data.get('image_details') or '').strip(),
+    )
+    return jsonify({'solos': solos, 'scene_prompt': scene_prompt})
+
+
 @app.route('/create_flyer/', methods=['GET', 'POST'])
 @login_required
 def create_flyer():
@@ -1970,6 +2026,9 @@ def create_flyer():
             players=all_players,
             selected_players=[],
             game_type='doubles',
+            event_date=date.today().isoformat(),
+            solo_prompts={},
+            scene_prompt='',
         )
 
     payload = _parse_flyer_form()
@@ -1982,6 +2041,8 @@ def create_flyer():
         'event_time': payload['event_time'],
         'location': payload['location'],
         'image_details': payload['image_details'],
+        'solo_prompts': payload.get('custom_solo_prompts') or {},
+        'scene_prompt': payload.get('scene_prompt') or '',
     }
     if not payload['players']:
         flash('Select at least one player.', 'error')
