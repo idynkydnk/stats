@@ -203,7 +203,7 @@
 }
 .sr-prompt-block textarea {
     width: 100%;
-    min-height: 110px;
+    min-height: 140px;
     padding: 10px 12px;
     border-radius: 8px;
     border: 1px solid var(--sr-line);
@@ -486,14 +486,20 @@
     }
 
     function renderSoloPromptFields() {
+        // Only keep in-DOM edits when the user has dirtied that solo; otherwise
+        // empty freshly-mounted textareas would clobber fetched defaults.
         var preserved = {};
         Array.prototype.slice.call(soloPromptsEl.querySelectorAll('textarea[data-player]')).forEach(function (ta) {
-            preserved[ta.getAttribute('data-player')] = ta.value;
+            var pname = ta.getAttribute('data-player');
+            if (pname && dirtySolos[(pname || '').toLowerCase()]) {
+                preserved[pname] = ta.value;
+            }
         });
         soloPromptsEl.innerHTML = '';
         selected.forEach(function (name, index) {
-            var value = preserved[name];
-            if (value == null) value = soloPromptValues[name] || '';
+            var value = Object.prototype.hasOwnProperty.call(preserved, name)
+                ? preserved[name]
+                : (soloPromptValues[name] || '');
             soloPromptValues[name] = value;
             var block = document.createElement('div');
             block.className = 'sr-prompt-block';

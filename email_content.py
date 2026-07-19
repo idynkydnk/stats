@@ -552,50 +552,9 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
 Plain neutral background."""
 
 
-def _build_flyer_solo_prompt(name, trait_phrases, has_reference_photos):
-    """Solo caricature prompt for promotional flyers — push signature looks hard."""
-    traits_block = ''
-    if trait_phrases:
-        traits_block = (
-            '\nSignature looks to HIGHLY exaggerate (make these the star of the design):\n'
-            + '\n'.join(f'- {phrase}' for phrase in trait_phrases)
-            + '\n'
-        )
-    else:
-        traits_block = (
-            '\nNo signature phrases on file — invent bold, memorable stylistic traits '
-            'that still feel like a unique character.\n'
-        )
-    if has_reference_photos:
-        likeness = (
-            'Use the attached face reference photo for facial likeness, '
-            'then HIGHLY exaggerate signature looks, outfit, accessories, and posture '
-            'so the character is instantly recognizable and poster-ready.\n'
-        )
-    else:
-        likeness = (
-            'Invent one unique stylized character from the signature details below. '
-            'Push the exaggeration hard — bold, fun, flyer-worthy.\n'
-        )
-    return f"""Draw exactly ONE person for a promotional sports flyer.
-{likeness}{traits_block}
-Plain neutral background. Full body or 3/4 view preferred so outfit details show."""
-
-
 def build_flyer_solo_prompt(player_name):
-    """Build the default flyer solo prompt (for preview/edit in the UI)."""
-    from player_functions import (
-        collect_player_ai_image_traits,
-        collect_solo_reference_images,
-    )
-
-    name = (player_name or '').strip()
-    trait_entries = collect_player_ai_image_traits([name]) if name else []
-    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
-    entry = collect_solo_reference_images(name) if name else None
-    reference_parts = _solo_reference_parts_for_player(name, entry)
-    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-    return _build_flyer_solo_prompt(name, trait_phrases, has_reference_photos)
+    """Build the default flyer solo prompt (same as doubles AI recap individuals)."""
+    return build_solo_caricature_prompt(player_name)
 
 
 def build_flyer_scene_prompt(
@@ -2159,7 +2118,7 @@ def generate_flyer_image(
         override = overrides.get((name or '').strip().lower())
         if override:
             return override
-        return _build_flyer_solo_prompt(name, trait_phrases, has_refs)
+        return _build_solo_player_prompt(name, trait_phrases, has_refs)
 
     def scene_builder(scene_players):
         return build_flyer_scene_prompt(

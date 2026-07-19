@@ -1975,7 +1975,7 @@ def api_ai_summary_job_status(job_id):
 @login_required
 def api_flyer_prompts():
     """Return default solo + flyer prompts for the current selection."""
-    from email_content import build_flyer_scene_prompt, build_flyer_solo_prompt
+    from email_content import build_flyer_scene_prompt, build_solo_caricature_prompt
 
     data = request.get_json(silent=True) or {}
     players = data.get('players') or []
@@ -1997,7 +1997,11 @@ def api_flyer_prompts():
     if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
 
-    solos = [{'name': name, 'prompt': build_flyer_solo_prompt(name)} for name in cleaned]
+    # Same individual prompts as doubles AI recap.
+    solos = [{
+        'name': name,
+        'prompt': build_solo_caricature_prompt(name, game_type=game_type),
+    } for name in cleaned]
     scene_prompt = build_flyer_scene_prompt(
         cleaned,
         game_type,
@@ -2017,8 +2021,8 @@ def create_flyer():
     from player_functions import get_all_players
     import flyer_functions as flyerfx
 
+    # Keep get_all_players() order (games played desc) for search suggestions.
     all_players = [row[1] for row in get_all_players() if row and row[1]]
-    all_players = sorted(all_players, key=lambda n: n.lower())
 
     if request.method == 'GET':
         return render_template(
@@ -2111,7 +2115,7 @@ def view_flyer(share_id):
     import flyer_functions as flyerfx
     from email_content import (
         build_flyer_scene_prompt,
-        build_flyer_solo_prompt,
+        build_solo_caricature_prompt,
         cleanup_expired_solo_images,
         filter_existing_solo_images,
     )
@@ -2153,7 +2157,11 @@ def view_flyer(share_id):
             entry = dict(item)
             if not (entry.get('prompt') or '').strip():
                 try:
-                    entry['prompt'] = build_flyer_solo_prompt(entry.get('name') or '')
+                    entry['prompt'] = build_solo_caricature_prompt(
+                        entry.get('name') or '',
+                        game_type=game_type,
+                        game_name=game_name or None,
+                    )
                 except Exception:
                     entry['prompt'] = ''
             enriched.append(entry)
