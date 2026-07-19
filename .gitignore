@@ -39,6 +39,10 @@ run_with_email.sh
 static/player_photos/*
 !static/player_photos/.gitkeep
 
+# Game-day AI face overrides (temporary)
+static/game_ref_photos/*
+!static/game_ref_photos/.gitkeep
+
 # AI auto-send daemon runtime files
 ai_auto_send_daemon.heartbeat
 

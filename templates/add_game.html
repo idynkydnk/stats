@@ -5,6 +5,93 @@
 <style>
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
 .autocomplete { position: relative; margin-bottom: 12px; }
+.sr-player-row { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+.sr-player-row .autocomplete { flex: 1; margin-bottom: 0; min-width: 0; }
+.sr-game-ref-photo-btn {
+    width: 48px;
+    flex-shrink: 0;
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    background: var(--sr-panel);
+    color: var(--sr-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    padding: 0;
+}
+.sr-game-ref-photo-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-game-ref-photo-btn.has-photo {
+    border-color: var(--sr-accent);
+    color: var(--sr-accent);
+    background: var(--sr-accent-dim);
+}
+.sr-game-ref-photos {
+    margin: 4px 0 12px;
+    padding: 12px;
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.12);
+}
+.sr-game-ref-photos-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin: 0 0 4px;
+}
+.sr-game-ref-photos-hint {
+    font-size: 12px;
+    color: var(--sr-muted);
+    margin: 0 0 10px;
+    line-height: 1.4;
+}
+.sr-game-ref-photos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sr-game-ref-photos-empty {
+    font-size: 12px;
+    color: var(--sr-muted);
+}
+.sr-game-ref-card {
+    width: 72px;
+    text-align: center;
+}
+.sr-game-ref-card img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    display: block;
+    background: var(--sr-panel);
+}
+.sr-game-ref-card-name {
+    font-size: 10px;
+    color: var(--sr-text);
+    margin-top: 4px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sr-game-ref-card-remove {
+    margin-top: 4px;
+    width: 100%;
+    border: 1px solid var(--sr-line);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sr-muted);
+    font-size: 11px;
+    padding: 3px 0;
+    cursor: pointer;
+}
+.sr-game-ref-card-remove:hover {
+    border-color: var(--sr-loss, #f87171);
+    color: var(--sr-loss, #f87171);
+}
 .autocomplete input, .autocomplete textarea { width: 100%; padding: 14px 16px; background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; color: var(--sr-text); font-size: 16px; box-sizing: border-box; text-align: center; }
 .autocomplete input:focus, .autocomplete textarea:focus { outline: none; border-color: var(--sr-accent); }
 .autocomplete input::placeholder { color: var(--sr-muted); }
@@ -132,25 +219,38 @@ textarea { resize: vertical; min-height: 60px; }
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
-                <div class="autocomplete has-clear empty">
-                    <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off">
-                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                    <div class="autocomplete-list" id="winner1List"></div>
+                <input type="file" id="game-ref-photo-input" accept="image/*" capture="environment" hidden>
+                <div class="sr-player-row">
+                    <div class="autocomplete has-clear empty">
+                        <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off">
+                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="winner1List"></div>
+                    </div>
+                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="winner1" title="Photo for AI" aria-label="Upload photo for Winner 1"><i class="fas fa-camera"></i></button>
                 </div>
-                <div class="autocomplete has-clear empty">
-                    <input type="text" name="winner2" id="winner2" placeholder="Winner 2" autocomplete="off">
-                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                    <div class="autocomplete-list" id="winner2List"></div>
+                <div class="sr-player-row">
+                    <div class="autocomplete has-clear empty">
+                        <input type="text" name="winner2" id="winner2" placeholder="Winner 2" autocomplete="off">
+                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="winner2List"></div>
+                    </div>
+                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="winner2" title="Photo for AI" aria-label="Upload photo for Winner 2"><i class="fas fa-camera"></i></button>
                 </div>
-                <div class="autocomplete has-clear empty">
-                    <input type="text" name="loser1" id="loser1" placeholder="Loser 1" autocomplete="off">
-                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                    <div class="autocomplete-list" id="loser1List"></div>
+                <div class="sr-player-row">
+                    <div class="autocomplete has-clear empty">
+                        <input type="text" name="loser1" id="loser1" placeholder="Loser 1" autocomplete="off">
+                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="loser1List"></div>
+                    </div>
+                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="loser1" title="Photo for AI" aria-label="Upload photo for Loser 1"><i class="fas fa-camera"></i></button>
                 </div>
-                <div class="autocomplete has-clear empty">
-                    <input type="text" name="loser2" id="loser2" placeholder="Loser 2" autocomplete="off">
-                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                    <div class="autocomplete-list" id="loser2List"></div>
+                <div class="sr-player-row">
+                    <div class="autocomplete has-clear empty">
+                        <input type="text" name="loser2" id="loser2" placeholder="Loser 2" autocomplete="off">
+                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                        <div class="autocomplete-list" id="loser2List"></div>
+                    </div>
+                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="loser2" title="Photo for AI" aria-label="Upload photo for Loser 2"><i class="fas fa-camera"></i></button>
                 </div>
                 <div class="autocomplete has-clear empty">
                     <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winners' Score" autocomplete="off">
@@ -165,6 +265,13 @@ textarea { resize: vertical; min-height: 60px; }
                 <div class="autocomplete has-clear empty">
                     <textarea name="comments" id="comments" placeholder="Comments (optional)" rows="2"></textarea>
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="sr-game-ref-photos" id="game-ref-photos">
+                    <p class="sr-game-ref-photos-title"><i class="fas fa-camera" style="margin-right:6px;color:var(--sr-accent);"></i>Photos for AI</p>
+                    <p class="sr-game-ref-photos-hint">Optional. Tap the camera next to a player to use today’s photo instead of their saved face pic. Signature looks still apply. Cleared automatically after a couple days.</p>
+                    <div class="sr-game-ref-photos-grid" id="game-ref-photos-grid">
+                        <span class="sr-game-ref-photos-empty" id="game-ref-photos-empty">No game-day photos yet.</span>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn" id="add-game-submit-btn">Submit</button>
@@ -808,6 +915,152 @@ function generateAndEmailSummary() {
                 setStatus('Microphone access denied or unavailable.', true, false);
             });
     });
+})();
+
+(function setupGameRefPhotos() {
+    var fileInput = document.getElementById('game-ref-photo-input');
+    var grid = document.getElementById('game-ref-photos-grid');
+    var emptyEl = document.getElementById('game-ref-photos-empty');
+    if (!fileInput || !grid) return;
+
+    var photosByKey = {};
+    var pendingFieldId = null;
+
+    function normKey(name) {
+        return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderGallery() {
+        var items = Object.keys(photosByKey).map(function (k) { return photosByKey[k]; });
+        items.sort(function (a, b) {
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+        grid.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('span');
+            empty.className = 'sr-game-ref-photos-empty';
+            empty.id = 'game-ref-photos-empty';
+            empty.textContent = 'No game-day photos yet.';
+            grid.appendChild(empty);
+        } else {
+            items.forEach(function (photo) {
+                var card = document.createElement('div');
+                card.className = 'sr-game-ref-card';
+                card.innerHTML =
+                    '<img src="' + escapeHtml(photo.url) + '?t=' + encodeURIComponent(photo.uploaded_at || '') + '" alt="' + escapeHtml(photo.name) + '">' +
+                    '<div class="sr-game-ref-card-name" title="' + escapeHtml(photo.name) + '">' + escapeHtml(photo.name) + '</div>' +
+                    '<button type="button" class="sr-game-ref-card-remove" data-player-name="' + escapeHtml(photo.name) + '">Remove</button>';
+                grid.appendChild(card);
+            });
+        }
+        document.querySelectorAll('.sr-game-ref-photo-btn[data-name-field]').forEach(function (btn) {
+            var field = document.getElementById(btn.getAttribute('data-name-field'));
+            var key = field ? normKey(field.value) : '';
+            btn.classList.toggle('has-photo', !!(key && photosByKey[key]));
+        });
+    }
+
+    function loadPhotos() {
+        return fetch('/api/game_ref_photos/', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                photosByKey = {};
+                (data.photos || []).forEach(function (photo) {
+                    var key = normKey(photo.name);
+                    if (key) photosByKey[key] = photo;
+                });
+                renderGallery();
+            })
+            .catch(function () { /* keep local state */ });
+    }
+
+    function uploadForPlayer(playerName, file) {
+        var name = String(playerName || '').trim();
+        if (!name || !file) return;
+        var body = new FormData();
+        body.append('player_name', name);
+        body.append('photo', file);
+        fetch('/api/game_ref_photos/', {
+            method: 'POST',
+            body: body,
+            credentials: 'same-origin',
+        })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (result) {
+                if (!result.ok) {
+                    alert((result.data && result.data.error) || 'Photo upload failed.');
+                    return;
+                }
+                var photo = result.data.photo;
+                if (photo && photo.name) {
+                    photosByKey[normKey(photo.name)] = photo;
+                    renderGallery();
+                } else {
+                    loadPhotos();
+                }
+            })
+            .catch(function () { alert('Photo upload failed.'); });
+    }
+
+    document.querySelectorAll('.sr-game-ref-photo-btn[data-name-field]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var fieldId = btn.getAttribute('data-name-field');
+            var field = document.getElementById(fieldId);
+            var name = field ? String(field.value || '').trim() : '';
+            if (!name) {
+                alert('Enter the player name first, then add their photo.');
+                if (field) field.focus();
+                return;
+            }
+            pendingFieldId = fieldId;
+            fileInput.value = '';
+            fileInput.click();
+        });
+    });
+
+    fileInput.addEventListener('change', function () {
+        var file = fileInput.files && fileInput.files[0];
+        var field = pendingFieldId ? document.getElementById(pendingFieldId) : null;
+        var name = field ? String(field.value || '').trim() : '';
+        pendingFieldId = null;
+        if (!file || !name) return;
+        uploadForPlayer(name, file);
+    });
+
+    grid.addEventListener('click', function (e) {
+        var btn = e.target.closest('.sr-game-ref-card-remove');
+        if (!btn) return;
+        var name = btn.getAttribute('data-player-name') || '';
+        if (!name) return;
+        fetch('/api/game_ref_photos/?player_name=' + encodeURIComponent(name), {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function () {
+                delete photosByKey[normKey(name)];
+                renderGallery();
+            })
+            .catch(function () { alert('Could not remove photo.'); });
+    });
+
+    nameFields.forEach(function (id) {
+        var field = document.getElementById(id);
+        if (!field) return;
+        field.addEventListener('input', renderGallery);
+        field.addEventListener('change', renderGallery);
+    });
+
+    loadPhotos();
 })();
 </script>
 {% endblock %}

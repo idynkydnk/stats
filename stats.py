@@ -4770,6 +4770,55 @@ def api_doubles_players():
     return jsonify(players)
 
 
+@app.route('/api/game_ref_photos/', methods=['GET'])
+@login_required
+def api_list_game_ref_photos():
+    """List game-day AI face overrides (used instead of saved face pics when present)."""
+    from player_functions import list_game_ref_photos
+
+    return jsonify({'photos': list_game_ref_photos()})
+
+
+@app.route('/api/game_ref_photos/', methods=['POST'])
+@login_required
+def api_upload_game_ref_photo():
+    """Upload a game-day face photo for AI reference (does not change profile photos)."""
+    from player_functions import save_game_ref_photo_upload
+
+    player_name = (request.form.get('player_name') or '').strip()
+    file_storage = request.files.get('photo') or request.files.get('image')
+    if not player_name:
+        return jsonify({'error': 'Player name is required.'}), 400
+    if not file_storage:
+        return jsonify({'error': 'Photo file is required.'}), 400
+    try:
+        entry = save_game_ref_photo_upload(
+            player_name,
+            file_storage,
+            uploaded_by=session.get('username'),
+        )
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        app.logger.exception('Game ref photo upload failed')
+        return jsonify({'error': f'Upload failed: {e}'}), 500
+    return jsonify({'ok': True, 'photo': entry})
+
+
+@app.route('/api/game_ref_photos/', methods=['DELETE'])
+@login_required
+def api_delete_game_ref_photo():
+    """Remove a game-day AI face override for one player."""
+    from player_functions import remove_game_ref_photo
+
+    data = request.get_json(silent=True) or {}
+    player_name = (data.get('player_name') or request.args.get('player_name') or '').strip()
+    if not player_name:
+        return jsonify({'error': 'Player name is required.'}), 400
+    removed = remove_game_ref_photo(player_name)
+    return jsonify({'ok': True, 'removed': removed})
+
+
 @app.route('/api/todays_doubles_dashboard')
 @login_required
 def api_todays_doubles_dashboard():

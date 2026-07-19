@@ -962,6 +962,163 @@ def remove_player_photo(player_id):
     set_player_face_photo_focus(player_id, 50, 50, 1.0)
 
 
+GAME_REF_PHOTO_MAX_AGE_HOURS = 48
+GAME_REF_INDEX_FILENAME = 'index.json'
+
+
+def game_ref_photos_dir():
+    """Absolute path to static/game_ref_photos (game-day AI overrides)."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'static', 'game_ref_photos')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _game_ref_index_path():
+    return os.path.join(game_ref_photos_dir(), GAME_REF_INDEX_FILENAME)
+
+
+def _normalize_player_key(name):
+    return ' '.join((name or '').strip().lower().split())
+
+
+def _load_game_ref_index():
+    path = _game_ref_index_path()
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}
+
+
+def _save_game_ref_index(index):
+    path = _game_ref_index_path()
+    tmp = f'{path}.tmp'
+    with open(tmp, 'w', encoding='utf-8') as handle:
+        json.dump(index, handle, indent=2, sort_keys=True)
+    os.replace(tmp, path)
+
+
+def _game_ref_entry_age_hours(entry):
+    uploaded_at = (entry or {}).get('uploaded_at') or ''
+    try:
+        uploaded = datetime.fromisoformat(uploaded_at)
+    except (TypeError, ValueError):
+        return None
+    return (datetime.now() - uploaded).total_seconds() / 3600.0
+
+
+def cleanup_expired_game_ref_photos(max_age_hours=None):
+    """Delete game-day AI override photos older than max_age_hours."""
+    max_age = GAME_REF_PHOTO_MAX_AGE_HOURS if max_age_hours is None else max_age_hours
+    index = _load_game_ref_index()
+    changed = False
+    for key in list(index.keys()):
+        entry = index.get(key) or {}
+        age = _game_ref_entry_age_hours(entry)
+        if age is None or age > max_age:
+            _remove_stored_photo(entry.get('path'))
+            index.pop(key, None)
+            changed = True
+            continue
+        rel = entry.get('path')
+        if rel:
+            abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', rel)
+            if not os.path.isfile(abs_path):
+                index.pop(key, None)
+                changed = True
+    if changed:
+        _save_game_ref_index(index)
+    return changed
+
+
+def list_game_ref_photos():
+    """Return [{name, url, path, uploaded_at}, ...] for current game-day overrides."""
+    cleanup_expired_game_ref_photos()
+    index = _load_game_ref_index()
+    items = []
+    for key, entry in sorted(index.items(), key=lambda item: (item[1].get('name') or key).lower()):
+        rel = (entry or {}).get('path')
+        if not rel:
+            continue
+        abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', rel)
+        if not os.path.isfile(abs_path):
+            continue
+        items.append({
+            'name': entry.get('name') or key,
+            'path': rel,
+            'url': f'/static/{rel}',
+            'uploaded_at': entry.get('uploaded_at') or '',
+        })
+    return items
+
+
+def get_game_ref_photo_path(player_name):
+    """Relative static path for a game-day override, or None."""
+    cleanup_expired_game_ref_photos()
+    key = _normalize_player_key(player_name)
+    if not key:
+        return None
+    entry = _load_game_ref_index().get(key) or {}
+    rel = entry.get('path')
+    if not rel:
+        return None
+    abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', rel)
+    if not os.path.isfile(abs_path):
+        return None
+    return rel
+
+
+def save_game_ref_photo_upload(player_name, file_storage, uploaded_by=None):
+    """Save a game-day face override for AI. Does not change profile photos."""
+    name = (player_name or '').strip()
+    key = _normalize_player_key(name)
+    if not key:
+        raise ValueError('Player name is required.')
+    ext = _validate_photo_upload(file_storage)
+    cleanup_expired_game_ref_photos()
+
+    index = _load_game_ref_index()
+    old = index.get(key) or {}
+    if old.get('path'):
+        _remove_stored_photo(old['path'])
+
+    dest_dir = game_ref_photos_dir()
+    stem = f'{uuid.uuid4().hex}'
+    _abs_path, filename = _save_upload_compressed(file_storage, dest_dir, stem, ext)
+    rel_path = f'game_ref_photos/{filename}'
+    index[key] = {
+        'name': name,
+        'path': rel_path,
+        'uploaded_at': datetime.now().isoformat(timespec='seconds'),
+        'uploaded_by': (uploaded_by or '').strip() or None,
+    }
+    _save_game_ref_index(index)
+    return {
+        'name': name,
+        'path': rel_path,
+        'url': f'/static/{rel_path}',
+        'uploaded_at': index[key]['uploaded_at'],
+    }
+
+
+def remove_game_ref_photo(player_name):
+    """Remove a game-day AI override photo for one player."""
+    key = _normalize_player_key(player_name)
+    if not key:
+        return False
+    index = _load_game_ref_index()
+    entry = index.pop(key, None)
+    if not entry:
+        return False
+    _remove_stored_photo(entry.get('path'))
+    _save_game_ref_index(index)
+    return True
+
+
 def collect_solo_reference_images(name):
     """Face reference for two-pass solo caricatures (signature looks come from traits)."""
     refs = collect_player_reference_images([name], max_players=1)
@@ -971,22 +1128,45 @@ def collect_solo_reference_images(name):
 
 
 def collect_player_reference_images(player_names, max_players=4):
-    """Build Gemini face-reference image parts for AI email illustrations."""
+    """Build Gemini face-reference image parts for AI email illustrations.
+
+    Prefers a game-day upload when present; otherwise uses the saved face photo.
+    Signature looks are attached separately via traits.
+    """
     references = []
     for name in sorted(player_names):
         if len(references) >= max_players:
             break
-        face_path, _body_paths = get_player_photo_paths(name)
+        display_name = (name or '').strip()
+        if not display_name:
+            continue
+        entry = {'name': display_name, 'parts': []}
+
+        game_ref_path = get_game_ref_photo_path(display_name)
+        if game_ref_path:
+            raw, mime = read_player_image_file(game_ref_path)
+            if raw:
+                entry['parts'].append({
+                    'label': (
+                        f'Face reference photo for {display_name} '
+                        f'(taken at the games today).'
+                    ),
+                    'mime': mime,
+                    'data_b64': base64.b64encode(raw).decode('ascii'),
+                })
+                references.append(entry)
+                continue
+
+        face_path, _body_paths = get_player_photo_paths(display_name)
         if not face_path:
             continue
-        entry = {'name': name, 'parts': []}
-        fx, fy, fz = get_player_face_photo_focus(name)
+        fx, fy, fz = get_player_face_photo_focus(display_name)
         raw, mime = read_cropped_player_image(
             face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
         )
         if raw:
             entry['parts'].append({
-                'label': f'Face reference photo for {name}.',
+                'label': f'Face reference photo for {display_name}.',
                 'mime': mime,
                 'data_b64': base64.b64encode(raw).decode('ascii'),
             })
