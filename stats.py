@@ -716,6 +716,135 @@ def run_ai_auto_send_job(
             return {'success': False, 'error': str(e)[:300]}
 
 
+def _flyer_sport_label(game_type, game_name=''):
+    if game_type == 'vollis':
+        return 'Vollis'
+    if game_type == 'other':
+        return (game_name or '').strip() or 'Other'
+    return 'Doubles'
+
+
+def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_images=None,
+                        scene_prompt=''):
+    """Create a shareable flyer page from form payload + generation results."""
+    import flyer_functions as flyerfx
+
+    share_id = secrets.token_urlsafe(9)
+    while flyerfx.get_flyer_page(share_id):
+        share_id = secrets.token_urlsafe(9)
+    flyerfx.insert_flyer_page(
+        share_id=share_id,
+        username=username or 'unknown',
+        players=payload.get('players') or [],
+        game_type=payload.get('game_type') or 'doubles',
+        game_name=payload.get('game_name') or '',
+        event_date=payload.get('event_date') or '',
+        event_time=payload.get('event_time') or '',
+        location=payload.get('location') or '',
+        image_details=payload.get('image_details') or '',
+        flyer_image_url=flyer_url or '',
+        flyer_image_error=flyer_error or '',
+        solo_images=solo_images or [],
+        scene_prompt=scene_prompt or '',
+    )
+    return share_id
+
+
+def run_flyer_job(username, payload):
+    """Background worker: generate flyer image and publish the share page."""
+    with app.app_context():
+        try:
+            share_id = _generate_and_publish_flyer(username, payload or {})
+            share_url = url_for('view_flyer', share_id=share_id, _external=True)
+            log_activity(
+                'Published flyer',
+                summary=(
+                    f'{_flyer_sport_label(payload.get("game_type"), payload.get("game_name"))} '
+                    f'flyer for {len(payload.get("players") or [])} player(s)'
+                ),
+                username=username,
+            )
+            return {'success': True, 'share_id': share_id, 'share_url': share_url}
+        except Exception as e:
+            app.logger.exception('Flyer generation failed')
+            log_activity(
+                'Flyer failed',
+                summary=str(e)[:200],
+                username=username,
+            )
+            return {'success': False, 'error': str(e)[:300]}
+
+
+def _parse_flyer_form():
+    """Parse Create Flyer form fields into a normalized payload dict."""
+    players = [(name or '').strip() for name in request.form.getlist('players')]
+    players = [name for name in players if name]
+    # Preserve order, drop dupes case-insensitively
+    seen = set()
+    ordered = []
+    for name in players:
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(name)
+    game_type = (request.form.get('game_type') or 'doubles').strip().lower()
+    if game_type not in ('doubles', 'vollis', 'other'):
+        game_type = 'doubles'
+    return {
+        'players': ordered,
+        'game_type': game_type,
+        'game_name': (request.form.get('game_name') or '').strip(),
+        'event_date': (request.form.get('event_date') or '').strip(),
+        'event_time': (request.form.get('event_time') or '').strip(),
+        'location': (request.form.get('location') or '').strip(),
+        'image_details': (request.form.get('image_details') or '').strip(),
+    }
+
+
+def _generate_and_publish_flyer(username, payload):
+    """Generate solos + flyer, then save the flyer page. Returns share_id."""
+    from email_content import ImageGenerationError, generate_flyer_image
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError('Gemini API key not configured.')
+
+    players = payload.get('players') or []
+    if not players:
+        raise ValueError('Select at least one player.')
+    if not payload.get('event_date') or not payload.get('event_time') or not payload.get('location'):
+        raise ValueError('Date, time, and location are required.')
+
+    try:
+        url, _path, _prompt, solo_images, scene_prompt = generate_flyer_image(
+            api_key,
+            players,
+            payload.get('game_type') or 'doubles',
+            event_date=payload.get('event_date') or '',
+            event_time=payload.get('event_time') or '',
+            location=payload.get('location') or '',
+            game_name=payload.get('game_name') or None,
+            image_details=payload.get('image_details') or '',
+        )
+        return _publish_flyer_page(
+            username,
+            payload,
+            flyer_url=url,
+            solo_images=solo_images,
+            scene_prompt=scene_prompt,
+        )
+    except ImageGenerationError as e:
+        # Publish anyway so the creator can see partial solos and remake.
+        return _publish_flyer_page(
+            username,
+            payload,
+            flyer_error=str(e),
+            solo_images=getattr(e, 'solo_images', None) or [],
+            scene_prompt='',
+        )
+
+
 def _supabase_flash_suffix(supabase_ok):
     """Return flash message suffix for Supabase sync status (True/False/None)."""
     if supabase_ok is True:
@@ -1823,6 +1952,411 @@ def api_ai_summary_job_status(job_id):
             if share_id else ''
         ),
     })
+
+
+@app.route('/create_flyer/', methods=['GET', 'POST'])
+@login_required
+def create_flyer():
+    """Form + generate Instagram flyer for an upcoming game."""
+    from player_functions import get_all_players
+    import flyer_functions as flyerfx
+
+    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    all_players = sorted(all_players, key=lambda n: n.lower())
+
+    if request.method == 'GET':
+        return render_template(
+            'create_flyer.html',
+            players=all_players,
+            selected_players=[],
+            game_type='doubles',
+        )
+
+    payload = _parse_flyer_form()
+    form_kwargs = {
+        'players': all_players,
+        'selected_players': payload['players'],
+        'game_type': payload['game_type'],
+        'game_name': payload['game_name'],
+        'event_date': payload['event_date'],
+        'event_time': payload['event_time'],
+        'location': payload['location'],
+        'image_details': payload['image_details'],
+    }
+    if not payload['players']:
+        flash('Select at least one player.', 'error')
+        return render_template('create_flyer.html', **form_kwargs)
+    if payload['game_type'] == 'other' and not payload['game_name']:
+        flash('Enter a game name for Other.', 'error')
+        return render_template('create_flyer.html', **form_kwargs)
+    if not payload['event_date'] or not payload['event_time'] or not payload['location']:
+        flash('Date, time, and location are required.', 'error')
+        return render_template('create_flyer.html', **form_kwargs)
+
+    username = session.get('username') or 'unknown'
+
+    if ai_jobs.daemon_is_alive():
+        job_id = ai_jobs.enqueue_flyer_job(username, payload)
+        log_activity(
+            'Queued flyer',
+            summary=(
+                f'job #{job_id}: {_flyer_sport_label(payload["game_type"], payload["game_name"])} '
+                f'for {len(payload["players"])} player(s)'
+            ),
+            username=username,
+        )
+        return redirect(url_for('flyer_job_status', job_id=job_id))
+
+    try:
+        share_id = _generate_and_publish_flyer(username, payload)
+    except Exception as e:
+        app.logger.exception('Flyer generation failed')
+        flash(f'Failed to create flyer: {e}', 'error')
+        return render_template('create_flyer.html', **form_kwargs)
+
+    row = flyerfx.get_flyer_page(share_id) or {}
+    if row.get('flyer_image_error') and not row.get('flyer_image_url'):
+        flash(row.get('flyer_image_error'), 'error')
+    else:
+        log_activity(
+            'Published flyer',
+            summary=(
+                f'{_flyer_sport_label(payload["game_type"], payload["game_name"])} '
+                f'flyer for {len(payload["players"])} player(s)'
+            ),
+            username=username,
+        )
+        flash('Flyer created.', 'success')
+    return redirect(url_for('view_flyer', share_id=share_id))
+
+
+@app.route('/create_flyer/job/<int:job_id>/')
+@login_required
+def flyer_job_status(job_id):
+    """Waiting page while a background flyer job runs."""
+    job = ai_jobs.get_job(job_id)
+    if not job:
+        abort(404)
+    if job.get('username') != session.get('username'):
+        abort(403)
+    if job.get('status') == 'completed' and job.get('share_id'):
+        return redirect(url_for('view_flyer', share_id=job['share_id']))
+    return render_template('flyer_job.html', job=job, job_id=job_id)
+
+
+@app.route('/flyer/<share_id>/')
+def view_flyer(share_id):
+    """Public shareable flyer page (creator gets remake controls)."""
+    import flyer_functions as flyerfx
+    from email_content import (
+        build_flyer_scene_prompt,
+        build_flyer_solo_prompt,
+        cleanup_expired_solo_images,
+        filter_existing_solo_images,
+    )
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        abort(404)
+
+    cleanup_expired_solo_images()
+    solo_images = filter_existing_solo_images(row.get('solo_images') or [])
+    if len(solo_images) != len(row.get('solo_images') or []):
+        flyerfx.update_flyer_page(share_id, solo_images=solo_images)
+
+    show_creator_view = bool(
+        session.get('logged_in')
+        and row.get('username')
+        and row.get('username') == session.get('username')
+    )
+    can_remake = show_creator_view
+
+    players = row.get('players') or []
+    game_type = row.get('game_type') or 'doubles'
+    game_name = row.get('game_name') or ''
+    scene_prompt = (row.get('scene_prompt') or '').strip()
+    if can_remake and not scene_prompt and players:
+        scene_prompt = build_flyer_scene_prompt(
+            players,
+            game_type,
+            event_date=row.get('event_date') or '',
+            event_time=row.get('event_time') or '',
+            location=row.get('location') or '',
+            game_name=game_name or None,
+            image_details=row.get('image_details') or '',
+        )
+
+    if can_remake and solo_images:
+        enriched = []
+        for item in solo_images:
+            entry = dict(item)
+            if not (entry.get('prompt') or '').strip():
+                try:
+                    entry['prompt'] = build_flyer_solo_prompt(entry.get('name') or '')
+                except Exception:
+                    entry['prompt'] = ''
+            enriched.append(entry)
+        solo_images = enriched
+
+    share_url = url_for('view_flyer', share_id=share_id, _external=True)
+    flyer_title = _flyer_sport_label(game_type, game_name) + ' Flyer'
+
+    return render_template(
+        'flyer.html',
+        share_id=share_id,
+        share_url=share_url,
+        flyer_title=flyer_title,
+        sport_label=_flyer_sport_label(game_type, game_name),
+        players=players,
+        game_type=game_type,
+        event_date=row.get('event_date') or '',
+        event_time=row.get('event_time') or '',
+        location=row.get('location') or '',
+        flyer_image_url=row.get('flyer_image_url') or '',
+        flyer_image_error=row.get('flyer_image_error') or '' if show_creator_view else '',
+        solo_images=solo_images if show_creator_view else [],
+        scene_prompt=scene_prompt if can_remake else '',
+        show_creator_view=show_creator_view,
+        can_remake=can_remake,
+    )
+
+
+@app.route('/flyer/<share_id>/download.jpg')
+def download_flyer(share_id):
+    """Force-download the 4:5 flyer JPEG."""
+    import flyer_functions as flyerfx
+    from flask import send_file
+    from email_content import _email_image_path_from_url
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        abort(404)
+    url = row.get('flyer_image_url') or ''
+    path = _email_image_path_from_url(url)
+    if not path or not os.path.isfile(path):
+        abort(404)
+    return send_file(
+        path,
+        mimetype='image/jpeg',
+        as_attachment=True,
+        download_name=f'{share_id}-flyer.jpg',
+        max_age=0,
+    )
+
+
+@app.route('/flyer/<share_id>/remake-image/', methods=['POST'])
+@login_required
+def remake_flyer_image(share_id):
+    """Regenerate the group flyer using existing solos as references."""
+    import flyer_functions as flyerfx
+    from email_content import (
+        ImageGenerationError,
+        delete_solo_image_files,
+        filter_existing_solo_images,
+        generate_flyer_image,
+    )
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        abort(404)
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can remake this flyer.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        flash('Gemini API key not configured.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    players = row.get('players') or []
+    if not players:
+        flash('This flyer has no players to remake.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    scene_prompt = (request.form.get('scene_prompt') or '').strip()
+    reuse_solos = filter_existing_solo_images(row.get('solo_images') or [])
+    old_url = row.get('flyer_image_url') or ''
+
+    try:
+        new_url, _path, _prompt, solo_images, used_scene = generate_flyer_image(
+            api_key,
+            players,
+            row.get('game_type') or 'doubles',
+            event_date=row.get('event_date') or '',
+            event_time=row.get('event_time') or '',
+            location=row.get('location') or '',
+            game_name=row.get('game_name') or None,
+            image_details=row.get('image_details') or '',
+            existing_solo_images=reuse_solos,
+            reuse_existing_solos=bool(reuse_solos),
+            custom_scene_prompt=scene_prompt or None,
+        )
+    except ImageGenerationError as e:
+        flash(f'Failed to remake flyer: {e}', 'error')
+        flyerfx.update_flyer_page(
+            share_id,
+            flyer_image_error=str(e),
+            scene_prompt=scene_prompt,
+            solo_images=getattr(e, 'solo_images', None) or reuse_solos,
+        )
+        return redirect(url_for('view_flyer', share_id=share_id))
+    except Exception as e:
+        app.logger.exception('Flyer remake failed')
+        flash(f'Failed to remake flyer: {e}', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    reused_paths = {item.get('path') for item in solo_images if item.get('path')}
+    stale = [item for item in (row.get('solo_images') or []) if _solo_path_for_item(item) not in reused_paths]
+    delete_solo_image_files(stale)
+
+    flyerfx.update_flyer_page(
+        share_id,
+        flyer_image_url=new_url,
+        flyer_image_error='',
+        scene_prompt=used_scene or scene_prompt,
+        solo_images=solo_images,
+    )
+
+    if old_url and old_url != new_url:
+        old_path = _hero_image_path_from_url(old_url)
+        if old_path:
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    log_activity('Remade flyer', summary=f'Regenerated flyer /flyer/{share_id}')
+    flash('Flyer remade.', 'success')
+    return redirect(url_for('view_flyer', share_id=share_id))
+
+
+@app.route('/flyer/<share_id>/remake-solo/', methods=['POST'])
+@login_required
+def remake_flyer_solo(share_id):
+    """Regenerate one flyer solo caricature."""
+    import flyer_functions as flyerfx
+    from email_content import (
+        ImageGenerationError,
+        delete_solo_image_files,
+        filter_existing_solo_images,
+        generate_flyer_solo_caricature,
+    )
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        abort(404)
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can remake this caricature.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    player_name = (request.form.get('player_name') or '').strip()
+    if not player_name:
+        flash('Which player caricature should be remade?', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    custom_prompt = (request.form.get('solo_prompt') or '').strip()
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        flash('Gemini API key not configured.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    solo_images = filter_existing_solo_images(row.get('solo_images') or [])
+    match_idx = None
+    for index, item in enumerate(solo_images):
+        if (item.get('name') or '').strip().lower() == player_name.lower():
+            match_idx = index
+            player_name = item.get('name') or player_name
+            break
+    if match_idx is None:
+        flash(f'No caricature found for {player_name}.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    old_item = solo_images[match_idx]
+    try:
+        new_item = generate_flyer_solo_caricature(
+            api_key, player_name, custom_prompt=custom_prompt or None,
+        )
+    except ImageGenerationError as e:
+        flash(f'Failed to remake caricature for {player_name}: {e}', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+    except Exception as e:
+        app.logger.exception('Flyer remake solo failed')
+        flash(f'Failed to remake caricature for {player_name}: {e}', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    solo_images[match_idx] = new_item
+    delete_solo_image_files([old_item])
+    flyerfx.update_flyer_page(share_id, solo_images=solo_images)
+    log_activity(
+        'Remade flyer solo',
+        summary=f'Regenerated {player_name} portrait for /flyer/{share_id}',
+    )
+    flash(
+        f'Remade caricature for {player_name}. Remake the flyer to use it in the final image.',
+        'success',
+    )
+    return redirect(url_for('view_flyer', share_id=share_id))
+
+
+@app.route('/flyer/<share_id>/upload-solo/', methods=['POST'])
+@login_required
+def upload_flyer_solo(share_id):
+    """Replace one flyer solo with an uploaded image."""
+    import flyer_functions as flyerfx
+    from email_content import filter_existing_solo_images, save_uploaded_email_image
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        abort(404)
+    if row.get('username') != session.get('username'):
+        flash('Only the creator can change this flyer.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    player_name = (request.form.get('player_name') or '').strip()
+    if not player_name:
+        flash('Which player picture should be replaced?', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    solo_images = filter_existing_solo_images(row.get('solo_images') or [])
+    match_idx = None
+    for index, item in enumerate(solo_images):
+        if (item.get('name') or '').strip().lower() == player_name.lower():
+            match_idx = index
+            player_name = item.get('name') or player_name
+            break
+    if match_idx is None:
+        flash(f'No caricature found for {player_name}.', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    try:
+        from email_content import SOLO_IMAGE_PREFIX
+        new_url, new_path = save_uploaded_email_image(
+            request.files.get('image'), prefix=SOLO_IMAGE_PREFIX,
+        )
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+    except Exception as e:
+        app.logger.exception('Flyer solo upload failed')
+        flash(f'Failed to upload picture: {e}', 'error')
+        return redirect(url_for('view_flyer', share_id=share_id))
+
+    from email_content import delete_solo_image_files
+
+    old_item = solo_images[match_idx]
+    solo_images[match_idx] = {
+        'name': player_name,
+        'url': new_url,
+        'path': new_path,
+        'prompt': old_item.get('prompt') or '',
+    }
+    delete_solo_image_files([old_item])
+    flyerfx.update_flyer_page(share_id, solo_images=solo_images)
+    flash(
+        f'Uploaded picture for {player_name}. Remake the flyer to use it in the final image.',
+        'success',
+    )
+    return redirect(url_for('view_flyer', share_id=share_id))
 
 
 @app.route('/recap/<share_id>/')

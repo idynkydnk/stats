@@ -38,6 +38,37 @@ def _log(msg):
 
 
 def _process_job(job):
+    job_type = (job.get('job_type') or 'recap').strip() or 'recap'
+
+    if job_type == 'flyer':
+        from stats import run_flyer_job
+
+        payload = job.get('payload') or {}
+        players = payload.get('players') or []
+        _log(
+            f'processing flyer job #{job["id"]} user={job["username"]} '
+            f'{job.get("game_type")} players={len(players)}'
+        )
+        result = run_flyer_job(username=job['username'], payload=payload)
+        if result.get('success'):
+            share_url = result.get('share_url') or ''
+            share_id = result.get('share_id') or ''
+            summary = 'Published flyer'
+            if share_url:
+                summary += f' — {share_url}'
+            jobs.complete_job(
+                job['id'], True,
+                emails_sent=0,
+                result_summary=summary,
+                share_id=share_id,
+            )
+            _log(f'job #{job["id"]} completed: {summary}')
+        else:
+            err = (result.get('error') or 'Unknown error')[:500]
+            jobs.complete_job(job['id'], False, error=err)
+            _log(f'job #{job["id"]} failed: {err}')
+        return
+
     from stats import run_ai_auto_send_job
 
     _log(

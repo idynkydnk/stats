@@ -1,0 +1,104 @@
+{% extends base_template %}
+{% block title %}Creating Flyer - Stats{% endblock %}
+{% block extra_css %}
+<style>
+.sr-job-card {
+    max-width: 520px;
+    margin: 24px auto;
+    text-align: center;
+    padding: 28px 24px;
+}
+.sr-job-card i.sr-job-spin {
+    font-size: 32px;
+    color: var(--sr-accent);
+    margin-bottom: 16px;
+}
+.sr-job-card h1 {
+    font-size: 20px;
+    margin: 0 0 10px;
+    color: var(--sr-text);
+}
+.sr-job-card p {
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--sr-muted);
+}
+.sr-job-status {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--sr-accent);
+}
+.sr-job-error {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    color: #f87171;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title"><i class="fas fa-bullhorn" style="margin-right: 10px; color: var(--sr-accent);"></i>Create Flyer</h1>
+    <div class="sr-header-actions">
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<div class="sr-card sr-job-card">
+    <i class="fas fa-spinner fa-spin sr-job-spin" id="job-spin"></i>
+    <h1 id="job-title">Creating your flyer…</h1>
+    <p>This keeps running in the background. Use <strong>Menu</strong> anytime — come back here when it’s done.</p>
+    <p class="sr-job-status" id="job-status">Status: {{ job.status }}</p>
+    <div class="sr-job-error" id="job-error" style="display:none;"></div>
+    <p style="margin-top: 20px;">
+        <a href="{{ url_for('create_flyer') }}" class="sr-link-btn">Back to Create Flyer</a>
+    </p>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var jobId = {{ job_id|tojson }};
+    var statusEl = document.getElementById('job-status');
+    var titleEl = document.getElementById('job-title');
+    var errorEl = document.getElementById('job-error');
+    var spinEl = document.getElementById('job-spin');
+    var stopped = false;
+
+    function poll() {
+        if (stopped) return;
+        fetch('/api/ai_summary_job/' + jobId + '/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    statusEl.textContent = 'Status: error';
+                    return;
+                }
+                statusEl.textContent = 'Status: ' + (data.status || 'unknown');
+                if (data.status === 'completed' && data.share_id) {
+                    stopped = true;
+                    titleEl.textContent = 'Flyer ready';
+                    if (spinEl) spinEl.className = 'fas fa-check sr-job-spin';
+                    window.location.href = '/flyer/' + encodeURIComponent(data.share_id) + '/';
+                    return;
+                }
+                if (data.status === 'failed') {
+                    stopped = true;
+                    titleEl.textContent = 'Flyer failed';
+                    if (spinEl) spinEl.style.display = 'none';
+                    errorEl.style.display = 'block';
+                    errorEl.textContent = data.error || 'Unknown error';
+                    return;
+                }
+                setTimeout(poll, 2500);
+            })
+            .catch(function () { setTimeout(poll, 3500); });
+    }
+    setTimeout(poll, 1500);
+})();
+</script>
+{% endblock %}

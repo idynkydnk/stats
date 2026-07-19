@@ -1,0 +1,312 @@
+{% extends base_template %}
+{% block title %}Create Flyer - Stats{% endblock %}
+{% block extra_css %}
+<style>
+.sr-flyer-form-grid {
+    display: grid;
+    gap: 16px;
+}
+.sr-flyer-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin-bottom: 6px;
+}
+.sr-flyer-field input[type="text"],
+.sr-flyer-field input[type="date"],
+.sr-flyer-field input[type="time"],
+.sr-flyer-field select,
+.sr-flyer-field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--sr-text);
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.sr-flyer-field textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+.sr-flyer-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+@media (max-width: 640px) {
+    .sr-flyer-row { grid-template-columns: 1fr; }
+}
+.sr-player-pick {
+    margin-top: 4px;
+    padding: 14px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+}
+.sr-player-pick-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.sr-player-pick-header strong {
+    font-size: 13px;
+    color: var(--sr-text);
+}
+.sr-player-pick-count {
+    font-size: 12px;
+    color: var(--sr-muted);
+}
+.sr-player-pick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    max-height: 320px;
+    overflow: auto;
+}
+.sr-player-pick-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    background: var(--sr-panel);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--sr-text);
+    user-select: none;
+}
+.sr-player-pick-item:hover {
+    border-color: rgba(102, 217, 239, 0.35);
+}
+.sr-player-pick-item.is-checked {
+    border-color: var(--sr-accent);
+    background: var(--sr-accent-dim);
+}
+.sr-player-pick-item input {
+    margin: 0;
+    accent-color: var(--sr-accent);
+}
+.sr-player-pick-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.sr-select-btn {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    color: var(--sr-muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.sr-select-btn:hover {
+    border-color: var(--sr-accent);
+    color: var(--sr-accent);
+}
+.sr-generate-btn {
+    background: var(--sr-accent);
+    border: none;
+    color: #0b0f14;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.sr-generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.sr-generate-loading {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(11, 15, 20, 0.72);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.sr-generate-loading.show { display: flex; }
+.sr-generate-loading-card {
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 12px;
+    padding: 28px 24px;
+    max-width: 420px;
+    text-align: center;
+    color: var(--sr-text);
+}
+.sr-generate-loading-card i {
+    font-size: 28px;
+    color: var(--sr-accent);
+    margin-bottom: 12px;
+}
+.sr-other-name-wrap[hidden] { display: none !important; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title"><i class="fas fa-bullhorn" style="margin-right: 10px; color: var(--sr-accent);"></i>Create Flyer</h1>
+    <div class="sr-header-actions">
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<div class="sr-card">
+    <p style="color: var(--sr-muted); font-size: 13px; margin: 0 0 18px; line-height: 1.5;">
+        Pick who’s playing, the sport, and when/where. AI makes an exaggerated caricature of each player (face + signature looks), then a 4:5 Instagram flyer with everyone in it.
+        That means <strong>one image per player + one flyer</strong> — stay on this page until it finishes.
+    </p>
+
+    <form id="flyer-form" method="POST" action="{{ url_for('create_flyer') }}">
+        <div class="sr-flyer-form-grid">
+            <div class="sr-flyer-field">
+                <div class="sr-player-pick">
+                    <div class="sr-player-pick-header">
+                        <strong>Who’s playing?</strong>
+                        <span class="sr-player-pick-count" id="flyer-pick-count">0 selected</span>
+                    </div>
+                    <div class="sr-player-pick-actions">
+                        <button type="button" class="sr-select-btn" id="flyer-select-all">Select all</button>
+                        <button type="button" class="sr-select-btn" id="flyer-clear-all">Clear</button>
+                    </div>
+                    <div class="sr-player-pick-grid">
+                        {% for name in players %}
+                        <label class="sr-player-pick-item{% if name in selected_players %} is-checked{% endif %}">
+                            <input type="checkbox" name="players" value="{{ name }}"
+                                   {% if name in selected_players %}checked{% endif %}>
+                            <span>{{ name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="sr-flyer-field">
+                <label for="game_type">Game</label>
+                <select name="game_type" id="game_type">
+                    <option value="doubles" {% if game_type == 'doubles' %}selected{% endif %}>Doubles</option>
+                    <option value="vollis" {% if game_type == 'vollis' %}selected{% endif %}>Vollis</option>
+                    <option value="other" {% if game_type == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+
+            <div class="sr-flyer-field sr-other-name-wrap" id="other-name-wrap" {% if game_type != 'other' %}hidden{% endif %}>
+                <label for="game_name">Game name</label>
+                <input type="text" name="game_name" id="game_name" value="{{ game_name|default('') }}"
+                       placeholder="e.g. Spikeball night">
+            </div>
+
+            <div class="sr-flyer-row">
+                <div class="sr-flyer-field">
+                    <label for="event_date">Date</label>
+                    <input type="date" name="event_date" id="event_date" value="{{ event_date|default('') }}" required>
+                </div>
+                <div class="sr-flyer-field">
+                    <label for="event_time">Time</label>
+                    <input type="time" name="event_time" id="event_time" value="{{ event_time|default('') }}" required>
+                </div>
+            </div>
+
+            <div class="sr-flyer-field">
+                <label for="location">Location</label>
+                <input type="text" name="location" id="location" value="{{ location|default('') }}"
+                       placeholder="e.g. Tyler’s House" required>
+            </div>
+
+            <div class="sr-flyer-field">
+                <label for="image_details">Extra flyer details (optional)</label>
+                <textarea name="image_details" id="image_details"
+                          placeholder="e.g. sunset beach vibe, bring a friend, potluck after…">{{ image_details|default('') }}</textarea>
+            </div>
+
+            <div>
+                <button type="submit" class="sr-generate-btn" id="flyer-submit">
+                    <i class="fas fa-magic"></i> Create flyer
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div id="flyer-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
+    <div class="sr-generate-loading-card">
+        <i class="fas fa-spinner fa-spin"></i>
+        <strong id="loading-title">Creating your flyer…</strong>
+        <p id="loading-detail">Building player caricatures, then the group flyer. Stay on this page until it finishes.</p>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('flyer-form');
+    var gameType = document.getElementById('game_type');
+    var otherWrap = document.getElementById('other-name-wrap');
+    var countEl = document.getElementById('flyer-pick-count');
+    var loading = document.getElementById('flyer-loading');
+    var submitBtn = document.getElementById('flyer-submit');
+
+    function boxes() {
+        return Array.prototype.slice.call(document.querySelectorAll('input[name="players"]'));
+    }
+
+    function updatePicker() {
+        var checked = boxes().filter(function (b) { return b.checked; });
+        if (countEl) countEl.textContent = checked.length + ' selected';
+        boxes().forEach(function (box) {
+            var label = box.closest('.sr-player-pick-item');
+            if (label) label.classList.toggle('is-checked', box.checked);
+        });
+    }
+
+    boxes().forEach(function (box) {
+        box.addEventListener('change', updatePicker);
+    });
+    updatePicker();
+
+    var selectAll = document.getElementById('flyer-select-all');
+    var clearAll = document.getElementById('flyer-clear-all');
+    if (selectAll) selectAll.addEventListener('click', function () {
+        boxes().forEach(function (b) { b.checked = true; });
+        updatePicker();
+    });
+    if (clearAll) clearAll.addEventListener('click', function () {
+        boxes().forEach(function (b) { b.checked = false; });
+        updatePicker();
+    });
+
+    function syncOther() {
+        if (!otherWrap || !gameType) return;
+        otherWrap.hidden = gameType.value !== 'other';
+    }
+    if (gameType) gameType.addEventListener('change', syncOther);
+    syncOther();
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            var checked = boxes().filter(function (b) { return b.checked; });
+            if (!checked.length) {
+                e.preventDefault();
+                alert('Select at least one player.');
+                return;
+            }
+            if (submitBtn) submitBtn.disabled = true;
+            if (loading) loading.classList.add('show');
+        });
+    }
+})();
+</script>
+{% endblock %}

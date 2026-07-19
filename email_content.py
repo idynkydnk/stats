@@ -552,6 +552,77 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
 Plain neutral background."""
 
 
+def _build_flyer_solo_prompt(name, trait_phrases, has_reference_photos):
+    """Solo caricature prompt for promotional flyers — push signature looks hard."""
+    traits_block = ''
+    if trait_phrases:
+        traits_block = (
+            '\nSignature looks to HIGHLY exaggerate (make these the star of the design):\n'
+            + '\n'.join(f'- {phrase}' for phrase in trait_phrases)
+            + '\n'
+        )
+    else:
+        traits_block = (
+            '\nNo signature phrases on file — invent bold, memorable stylistic traits '
+            'that still feel like a unique character.\n'
+        )
+    if has_reference_photos:
+        likeness = (
+            'Use the attached face reference photo for facial likeness, '
+            'then HIGHLY exaggerate signature looks, outfit, accessories, and posture '
+            'so the character is instantly recognizable and poster-ready.\n'
+        )
+    else:
+        likeness = (
+            'Invent one unique stylized character from the signature details below. '
+            'Push the exaggeration hard — bold, fun, flyer-worthy.\n'
+        )
+    return f"""Draw exactly ONE person for a promotional sports flyer.
+{likeness}{traits_block}
+Plain neutral background. Full body or 3/4 view preferred so outfit details show."""
+
+
+def build_flyer_solo_prompt(player_name):
+    """Build the default flyer solo prompt (for preview/edit in the UI)."""
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+    )
+
+    name = (player_name or '').strip()
+    trait_entries = collect_player_ai_image_traits([name]) if name else []
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    entry = collect_solo_reference_images(name) if name else None
+    reference_parts = _solo_reference_parts_for_player(name, entry)
+    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+    return _build_flyer_solo_prompt(name, trait_phrases, has_reference_photos)
+
+
+def build_flyer_scene_prompt(
+    players, game_type, event_date='', event_time='', location='',
+    game_name=None, image_details='',
+):
+    """Build the default Instagram flyer group prompt."""
+    sport_desc = _sport_desc_for_image(game_type, game_name)
+    roster_block, player_count, players = _image_roster_block(players)
+    details_block = _image_details_block(image_details)
+    when_bits = [bit for bit in [(event_date or '').strip(), (event_time or '').strip()] if bit]
+    when_line = ' '.join(when_bits) if when_bits else 'TBD'
+    where_line = (location or '').strip() or 'TBD'
+    title = sport_desc.title() if sport_desc else 'Game Night'
+    return f"""Create a bold promotional Instagram flyer for an upcoming game.
+Event: {title}
+When: {when_line}
+Where: {where_line}
+{details_block}{roster_block}
+Use each attached character reference exactly — same face, hair, outfit per person.
+Draw all {player_count} people in the scene — one per Person number.
+Include clear, readable flyer text for the event title, date/time, and location.
+Compose as a vertical 4:5 Instagram portrait (taller than wide). Keep every person
+fully inside the frame with comfortable margin — no one cut off at the edges.
+Energetic, fun, poster-quality illustration — not a plain photo collage."""
+
+
 def _sport_desc_for_image(game_type, game_name=None):
     if game_type == 'doubles':
         return 'beach volleyball doubles'
@@ -1954,7 +2025,8 @@ def _illustration_status_note(all_players):
 def _generate_email_hero_image_two_pass(
     api_key, game_type, players, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None, scene_players=None,
+    custom_scene_prompt=None, scene_players=None, solo_prompt_builder=None,
+    scene_prompt_builder=None,
 ):
     """Solo caricature per roster player, then one group scene.
 
@@ -1967,6 +2039,10 @@ def _generate_email_hero_image_two_pass(
 
     When custom_scene_prompt is set, that text is used as the group scene
     prompt (caricature references still attached).
+
+    solo_prompt_builder(name, trait_phrases, has_refs) overrides the default
+    solo prompt. scene_prompt_builder(players, ...) overrides the default scene
+    prompt when custom_scene_prompt is empty.
     """
     from player_functions import (
         collect_player_ai_image_traits,
@@ -1979,6 +2055,7 @@ def _generate_email_hero_image_two_pass(
 
     # Always include everyone in the group scene (scene_players kept for compat).
     scene_roster = list(players)
+    build_solo = solo_prompt_builder or _build_solo_player_prompt
 
     caricatures = {}
     solo_images = []
@@ -2001,9 +2078,7 @@ def _generate_email_hero_image_two_pass(
         trait_entry = traits_by_name.get(name)
         trait_phrases = trait_entry.get('phrases', []) if trait_entry else []
         has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-        solo_prompt = _build_solo_player_prompt(
-            name, trait_phrases, has_reference_photos,
-        )
+        solo_prompt = build_solo(name, trait_phrases, has_reference_photos)
         solo_passes.append((name, reference_parts, solo_prompt))
         try:
             raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
@@ -2033,9 +2108,14 @@ def _generate_email_hero_image_two_pass(
 
     scene_for_refs = [name for name in scene_roster if name in caricatures]
     scene_refs = _reference_parts_from_caricatures(scene_for_refs, caricatures)
-    scene_prompt = (custom_scene_prompt or '').strip() or _build_scene_image_prompt(
-        game_type, scene_for_refs, game_name=game_name, image_details=image_details,
-    )
+    if (custom_scene_prompt or '').strip():
+        scene_prompt = custom_scene_prompt.strip()
+    elif scene_prompt_builder:
+        scene_prompt = scene_prompt_builder(scene_for_refs)
+    else:
+        scene_prompt = _build_scene_image_prompt(
+            game_type, scene_for_refs, game_name=game_name, image_details=image_details,
+        )
     image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
     try:
         raw, mime = _generate_image_bytes(
@@ -2051,6 +2131,86 @@ def _generate_email_hero_image_two_pass(
     raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt, solo_images, scene_prompt
+
+
+def generate_flyer_image(
+    api_key, players, game_type, event_date='', event_time='', location='',
+    game_name=None, image_details='', existing_solo_images=None,
+    reuse_existing_solos=False, custom_scene_prompt=None,
+    custom_solo_prompts=None,
+):
+    """Generate flyer: exaggerated solo caricatures, then Instagram 4:5 group flyer.
+
+    custom_solo_prompts may be {player_name: prompt} to override specific solos.
+    Returns (url, path, image_prompt, solo_images, scene_prompt).
+    """
+    players = _dedupe_players_preserve_order(players)
+    if not players:
+        raise ValueError('Select at least one player for the flyer')
+
+    overrides = {}
+    for key, value in (custom_solo_prompts or {}).items():
+        clean_key = (key or '').strip().lower()
+        clean_val = (value or '').strip()
+        if clean_key and clean_val:
+            overrides[clean_key] = clean_val
+
+    def solo_builder(name, trait_phrases, has_refs):
+        override = overrides.get((name or '').strip().lower())
+        if override:
+            return override
+        return _build_flyer_solo_prompt(name, trait_phrases, has_refs)
+
+    def scene_builder(scene_players):
+        return build_flyer_scene_prompt(
+            scene_players,
+            game_type,
+            event_date=event_date,
+            event_time=event_time,
+            location=location,
+            game_name=game_name,
+            image_details=image_details,
+        )
+
+    return _generate_email_hero_image_two_pass(
+        api_key,
+        game_type,
+        players,
+        game_name=game_name,
+        image_details=image_details,
+        existing_solo_images=existing_solo_images,
+        reuse_existing_solos=reuse_existing_solos,
+        custom_scene_prompt=custom_scene_prompt,
+        scene_players=players,
+        solo_prompt_builder=solo_builder,
+        scene_prompt_builder=scene_builder,
+    )
+
+
+def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
+    """Generate one flyer-style solo caricature (high exaggeration)."""
+    from player_functions import collect_solo_reference_images
+
+    name = (player_name or '').strip()
+    if not name:
+        raise ValueError('Player name is required.')
+
+    entry = collect_solo_reference_images(name)
+    reference_parts = _solo_reference_parts_for_player(name, entry)
+    solo_prompt = (custom_prompt or '').strip() or build_flyer_solo_prompt(name)
+    try:
+        raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=1),
+            image_prompt=_image_prompt_bundle(reference_parts, solo_prompt),
+            solo_images=[],
+        ) from e
+
+    solo_url, solo_path = _save_email_image(
+        raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
+    )
+    return {'name': name, 'url': solo_url, 'path': solo_path, 'prompt': solo_prompt}
 
 
 def generate_email_hero_image(

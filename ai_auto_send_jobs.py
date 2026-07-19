@@ -47,6 +47,8 @@ def init_ai_auto_send_jobs_db():
     _ensure_column(conn, 'ai_auto_send_jobs', 'image_details', 'TEXT')
     _ensure_column(conn, 'ai_auto_send_jobs', 'illustration_players_json', 'TEXT')
     _ensure_column(conn, 'ai_auto_send_jobs', 'share_id', 'TEXT')
+    _ensure_column(conn, 'ai_auto_send_jobs', 'job_type', "TEXT DEFAULT 'recap'")
+    _ensure_column(conn, 'ai_auto_send_jobs', 'payload_json', 'TEXT')
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_ai_auto_send_jobs_status '
         'ON ai_auto_send_jobs(status, id)'
@@ -65,8 +67,8 @@ def enqueue_job(
     cur = conn.execute('''
         INSERT INTO ai_auto_send_jobs
             (username, game_type, game_ids_json, prompt_style, custom_prompt,
-             image_mode, image_details, illustration_players_json, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+             image_mode, image_details, illustration_players_json, job_type, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'recap', 'pending')
     ''', (
         username,
         game_type,
@@ -83,6 +85,27 @@ def enqueue_job(
     return job_id
 
 
+def enqueue_flyer_job(username, payload):
+    """Queue a Create Flyer generation job. payload is a dict of flyer form fields."""
+    init_ai_auto_send_jobs_db()
+    conn = _connect()
+    cur = conn.execute('''
+        INSERT INTO ai_auto_send_jobs
+            (username, game_type, game_ids_json, prompt_style, custom_prompt,
+             image_mode, image_details, illustration_players_json, job_type,
+             payload_json, status)
+        VALUES (?, ?, '[]', 'flyer', '', 'image', '', '[]', 'flyer', ?, 'pending')
+    ''', (
+        username,
+        (payload or {}).get('game_type') or 'doubles',
+        json.dumps(payload or {}, default=str),
+    ))
+    job_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return job_id
+
+
 def claim_next_pending_job():
     """Atomically take the oldest pending job for processing."""
     init_ai_auto_send_jobs_db()
@@ -91,7 +114,8 @@ def claim_next_pending_job():
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute('''
             SELECT id, username, game_type, game_ids_json, prompt_style, custom_prompt,
-                   image_mode, image_details, illustration_players_json
+                   image_mode, image_details, illustration_players_json,
+                   job_type, payload_json
             FROM ai_auto_send_jobs
             WHERE status = 'pending'
             ORDER BY id ASC
@@ -110,9 +134,21 @@ def claim_next_pending_job():
             return None
         conn.commit()
         job = dict(row)
-        job['game_ids'] = json.loads(job.pop('game_ids_json'))
+        try:
+            job['game_ids'] = json.loads(job.pop('game_ids_json') or '[]')
+        except (json.JSONDecodeError, TypeError):
+            job.pop('game_ids_json', None)
+            job['game_ids'] = []
         job['image_mode'] = job.get('image_mode') or 'none'
         job['image_details'] = job.get('image_details') or ''
+        job['job_type'] = (job.get('job_type') or 'recap').strip() or 'recap'
+        try:
+            job['payload'] = json.loads(job.pop('payload_json') or '{}')
+        except (json.JSONDecodeError, TypeError):
+            job.pop('payload_json', None)
+            job['payload'] = {}
+        if not isinstance(job['payload'], dict):
+            job['payload'] = {}
         try:
             job['illustration_players'] = json.loads(
                 job.pop('illustration_players_json') or '[]'

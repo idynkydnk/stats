@@ -1,0 +1,336 @@
+{% extends base_template %}
+{% block title %}{{ flyer_title }} - Stats{% endblock %}
+{% block extra_css %}
+<style>
+.flyer-share-bar {
+    max-width: 720px;
+    margin: 0 auto 16px;
+    padding: 14px 16px;
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 12px;
+}
+.flyer-share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.flyer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: var(--sr-panel);
+    color: var(--sr-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.flyer-btn-primary {
+    background: var(--sr-accent);
+    border-color: var(--sr-accent);
+    color: #0b0f14;
+}
+.flyer-url-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: rgba(0,0,0,0.2);
+    color: var(--sr-muted);
+    font-size: 12px;
+}
+.flyer-hero {
+    max-width: 420px;
+    margin: 0 auto 20px;
+}
+.flyer-hero img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+    border: 1px solid var(--sr-line);
+}
+.flyer-meta {
+    text-align: center;
+    color: var(--sr-muted);
+    font-size: 13px;
+    margin: 0 0 18px;
+    line-height: 1.5;
+}
+.flyer-warning {
+    max-width: 720px;
+    margin: 0 auto 14px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    color: #f87171;
+    font-size: 14px;
+}
+.flyer-panel {
+    max-width: 720px;
+    margin: 0 auto 16px;
+    padding: 16px;
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 12px;
+}
+.flyer-panel h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+}
+.flyer-help {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.45;
+}
+.flyer-panel textarea {
+    width: 100%;
+    min-height: 120px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--sr-line);
+    background: rgba(0,0,0,0.2);
+    color: var(--sr-text);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+.flyer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: flex-end;
+}
+.flyer-solo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+.flyer-solo-card {
+    background: rgba(0,0,0,0.18);
+    border: 1px solid var(--sr-line);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+}
+.flyer-solo-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    margin-bottom: 8px;
+}
+.flyer-solo-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin-bottom: 8px;
+}
+.flyer-retake-panel[hidden] { display: none !important; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title"><i class="fas fa-bullhorn" style="margin-right: 10px; color: var(--sr-accent);"></i>{{ flyer_title }}</h1>
+    <div class="sr-header-actions">
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+{% if show_creator_view %}
+<div class="flyer-share-bar">
+    <div class="flyer-share-actions">
+        <button type="button" class="flyer-btn flyer-btn-primary" id="flyer-copy-btn">
+            <i class="fas fa-copy"></i> Copy link
+        </button>
+        {% if flyer_image_url %}
+        <a class="flyer-btn" href="{{ url_for('download_flyer', share_id=share_id) }}">
+            <i class="fas fa-download"></i> Download Instagram
+        </a>
+        {% endif %}
+        {% if can_remake %}
+        <button type="button" class="flyer-btn" id="flyer-remake-toggle">
+            <i class="fas fa-sync-alt"></i> Remake flyer
+        </button>
+        {% endif %}
+        <a class="flyer-btn" href="{{ url_for('create_flyer') }}">
+            <i class="fas fa-plus"></i> New flyer
+        </a>
+    </div>
+    <input type="text" class="flyer-url-input" id="flyer-share-url" value="{{ share_url }}" readonly>
+</div>
+{% endif %}
+
+{% if flyer_image_error %}
+<div class="flyer-warning"><i class="fas fa-exclamation-triangle"></i> {{ flyer_image_error }}</div>
+{% endif %}
+
+{% if flyer_image_url %}
+<div class="flyer-hero">
+    <img src="{{ flyer_image_url }}" alt="{{ flyer_title }}">
+</div>
+{% endif %}
+
+<p class="flyer-meta">
+    {{ sport_label }}
+    {% if event_date or event_time %} · {{ event_date }}{% if event_time %} {{ event_time }}{% endif %}{% endif %}
+    {% if location %} · {{ location }}{% endif %}
+    {% if players %}<br>{{ players|length }} player{{ 's' if players|length != 1 else '' }}: {{ players|join(', ') }}{% endif %}
+</p>
+
+{% if show_creator_view and can_remake %}
+<div class="flyer-panel" id="flyer-remake-panel" {% if not request.args.get('remake') %}hidden{% endif %}>
+    <h3>Remake flyer</h3>
+    <p class="flyer-help">Edit the group flyer prompt, then remake. Existing individual caricatures stay attached as references.</p>
+    <form method="post" action="{{ url_for('remake_flyer_image', share_id=share_id) }}" id="flyer-remake-form">
+        <textarea name="scene_prompt" id="flyer-scene-prompt" placeholder="Flyer illustration prompt…">{{ scene_prompt }}</textarea>
+        <div class="flyer-actions">
+            <button type="button" class="flyer-btn" id="flyer-remake-cancel">Cancel</button>
+            <button type="submit" class="flyer-btn flyer-btn-primary" id="flyer-remake-btn">
+                <i class="fas fa-sync-alt"></i> Remake flyer
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if show_creator_view and solo_images %}
+<div class="flyer-panel">
+    <h3><i class="fas fa-user-friends"></i> Individual caricatures</h3>
+    <p class="flyer-help">Temporary portraits used to build the flyer — only you see these. Retake any you dislike, then remake the flyer to use them.</p>
+    <div class="flyer-solo-grid">
+        {% for img in solo_images %}
+        <div class="flyer-solo-card" data-solo-card data-player-name="{{ img.name }}">
+            <img src="{{ img.url }}" alt="Caricature of {{ img.name }}">
+            <div class="flyer-solo-name">{{ img.name }}</div>
+            {% if can_remake %}
+            <script type="application/json" data-solo-prompt-json>{{ img.prompt | tojson }}</script>
+            <button type="button" class="flyer-btn" data-solo-retake style="width:100%;justify-content:center;">
+                <i class="fas fa-sync-alt"></i> Retake
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if can_remake %}
+    <div class="flyer-retake-panel" id="flyer-solo-retake-panel" hidden style="margin-top:14px;">
+        <form method="post" action="{{ url_for('remake_flyer_solo', share_id=share_id) }}" id="flyer-solo-remake-form">
+            <input type="hidden" name="player_name" id="flyer-solo-player-name" value="">
+            <label for="flyer-solo-prompt" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">
+                Caricature prompt for <span id="flyer-solo-player-label">player</span>
+            </label>
+            <p class="flyer-help">Edit the prompt, then remake. Face reference photos stay attached automatically.</p>
+            <textarea id="flyer-solo-prompt" name="solo_prompt" placeholder="Single-character caricature…"></textarea>
+            <div class="flyer-actions">
+                <button type="button" class="flyer-btn" data-solo-retake-cancel>Cancel</button>
+                <button type="submit" class="flyer-btn flyer-btn-primary" id="flyer-solo-remake-btn">
+                    <i class="fas fa-sync-alt"></i> Remake caricature
+                </button>
+            </div>
+        </form>
+        <hr style="border:none;border-top:1px solid var(--sr-line);margin:14px 0;">
+        <form method="post" action="{{ url_for('upload_flyer_solo', share_id=share_id) }}" enctype="multipart/form-data">
+            <input type="hidden" name="player_name" id="flyer-solo-upload-player-name" value="">
+            <label for="flyer-solo-upload-image" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Or upload your own picture</label>
+            <p class="flyer-help">JPG, PNG, WebP, or GIF up to 8 MB. Remake the flyer afterward to use it.</p>
+            <input type="file" id="flyer-solo-upload-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
+            <div class="flyer-actions">
+                <button type="submit" class="flyer-btn">
+                    <i class="fas fa-upload"></i> Upload picture
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var copyBtn = document.getElementById('flyer-copy-btn');
+    var urlInput = document.getElementById('flyer-share-url');
+    if (copyBtn && urlInput) {
+        copyBtn.addEventListener('click', function () {
+            urlInput.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(urlInput.value).then(function () {
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                    setTimeout(function () {
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link';
+                    }, 1500);
+                });
+            } else {
+                document.execCommand('copy');
+            }
+        });
+    }
+
+    var remakePanel = document.getElementById('flyer-remake-panel');
+    var remakeToggle = document.getElementById('flyer-remake-toggle');
+    var remakeCancel = document.getElementById('flyer-remake-cancel');
+    var remakeBtn = document.getElementById('flyer-remake-btn');
+    if (remakeToggle && remakePanel) {
+        remakeToggle.addEventListener('click', function () {
+            remakePanel.hidden = !remakePanel.hidden;
+        });
+    }
+    if (remakeCancel && remakePanel) {
+        remakeCancel.addEventListener('click', function () { remakePanel.hidden = true; });
+    }
+    if (remakeBtn) {
+        remakeBtn.closest('form').addEventListener('submit', function () {
+            remakeBtn.disabled = true;
+            remakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+        });
+    }
+
+    var retakePanel = document.getElementById('flyer-solo-retake-panel');
+    var soloPrompt = document.getElementById('flyer-solo-prompt');
+    var soloName = document.getElementById('flyer-solo-player-name');
+    var soloUploadName = document.getElementById('flyer-solo-upload-player-name');
+    var soloLabel = document.getElementById('flyer-solo-player-label');
+    var soloRemakeBtn = document.getElementById('flyer-solo-remake-btn');
+
+    document.querySelectorAll('[data-solo-retake]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var card = btn.closest('[data-solo-card]');
+            if (!card || !retakePanel) return;
+            var name = card.getAttribute('data-player-name') || '';
+            var promptNode = card.querySelector('[data-solo-prompt-json]');
+            var prompt = '';
+            try { prompt = JSON.parse(promptNode.textContent || '""'); } catch (e) { prompt = ''; }
+            if (soloName) soloName.value = name;
+            if (soloUploadName) soloUploadName.value = name;
+            if (soloLabel) soloLabel.textContent = name;
+            if (soloPrompt) soloPrompt.value = prompt || '';
+            retakePanel.hidden = false;
+            retakePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    });
+    document.querySelectorAll('[data-solo-retake-cancel]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (retakePanel) retakePanel.hidden = true;
+        });
+    });
+    if (soloRemakeBtn) {
+        soloRemakeBtn.closest('form').addEventListener('submit', function () {
+            soloRemakeBtn.disabled = true;
+            soloRemakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+        });
+    }
+})();
+</script>
+{% endblock %}

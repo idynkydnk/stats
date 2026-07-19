@@ -20,6 +20,7 @@
     {% endif %}
     <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
     <li><a href="{{ url_for('ai_summary') }}"><i class="fas fa-robot"></i> AI Summary</a></li>
+    <li><a href="{{ url_for('create_flyer') }}"><i class="fas fa-bullhorn"></i> Create Flyer</a></li>
     <li><a href="{{ url_for('tournaments') }}"><i class="fas fa-trophy"></i> Tournaments</a></li>
 
     {% if is_admin_user %}
