@@ -5,93 +5,62 @@
 <style>
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
 .autocomplete { position: relative; margin-bottom: 12px; }
-.sr-player-row { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
-.sr-player-row .autocomplete { flex: 1; margin-bottom: 0; min-width: 0; }
-.sr-game-ref-photo-btn {
-    width: 48px;
+.sr-stats-player-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+.sr-stats-player-cell > a {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sr-stats-photo-btn {
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
     border: 1px solid var(--sr-line);
-    border-radius: 10px;
-    background: var(--sr-panel);
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
     color: var(--sr-muted);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 10px;
+    padding: 0;
+    overflow: hidden;
+}
+.sr-stats-photo-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-stats-photo-btn.has-photo {
+    border-color: var(--sr-accent);
     padding: 0;
 }
-.sr-game-ref-photo-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
-.sr-game-ref-photo-btn.has-photo {
-    border-color: var(--sr-accent);
-    color: var(--sr-accent);
-    background: var(--sr-accent-dim);
-}
-.sr-game-ref-photos {
-    margin: 4px 0 12px;
-    padding: 12px;
-    border: 1px solid var(--sr-line);
-    border-radius: 10px;
-    background: rgba(0,0,0,0.12);
-}
-.sr-game-ref-photos-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--sr-text);
-    margin: 0 0 4px;
-}
-.sr-game-ref-photos-hint {
-    font-size: 12px;
-    color: var(--sr-muted);
-    margin: 0 0 10px;
-    line-height: 1.4;
-}
-.sr-game-ref-photos-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.sr-game-ref-photos-empty {
-    font-size: 12px;
-    color: var(--sr-muted);
-}
-.sr-game-ref-card {
-    width: 72px;
-    text-align: center;
-}
-.sr-game-ref-card img {
-    width: 72px;
-    height: 72px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid var(--sr-line);
-    display: block;
-    background: var(--sr-panel);
-}
-.sr-game-ref-card-name {
-    font-size: 10px;
-    color: var(--sr-text);
-    margin-top: 4px;
-    line-height: 1.25;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.sr-game-ref-card-remove {
-    margin-top: 4px;
+.sr-stats-photo-btn img {
     width: 100%;
-    border: 1px solid var(--sr-line);
-    border-radius: 6px;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.sr-stats-photo-clear {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
     background: transparent;
     color: var(--sr-muted);
-    font-size: 11px;
-    padding: 3px 0;
     cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    padding: 0;
+    line-height: 1;
 }
-.sr-game-ref-card-remove:hover {
-    border-color: var(--sr-loss, #f87171);
-    color: var(--sr-loss, #f87171);
-}
+.sr-stats-photo-clear.is-visible { display: inline-flex; }
+.sr-stats-photo-clear:hover { color: var(--sr-loss, #f87171); }
 .autocomplete input, .autocomplete textarea { width: 100%; padding: 14px 16px; background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; color: var(--sr-text); font-size: 16px; box-sizing: border-box; text-align: center; }
 .autocomplete input:focus, .autocomplete textarea:focus { outline: none; border-color: var(--sr-accent); }
 .autocomplete input::placeholder { color: var(--sr-muted); }
@@ -219,38 +188,25 @@ textarea { resize: vertical; min-height: 60px; }
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
-                <input type="file" id="game-ref-photo-input" accept="image/*" capture="environment" hidden>
-                <div class="sr-player-row">
-                    <div class="autocomplete has-clear empty">
-                        <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off">
-                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                        <div class="autocomplete-list" id="winner1List"></div>
-                    </div>
-                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="winner1" title="Photo for AI" aria-label="Upload photo for Winner 1"><i class="fas fa-camera"></i></button>
+                <div class="autocomplete has-clear empty">
+                    <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="winner1List"></div>
                 </div>
-                <div class="sr-player-row">
-                    <div class="autocomplete has-clear empty">
-                        <input type="text" name="winner2" id="winner2" placeholder="Winner 2" autocomplete="off">
-                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                        <div class="autocomplete-list" id="winner2List"></div>
-                    </div>
-                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="winner2" title="Photo for AI" aria-label="Upload photo for Winner 2"><i class="fas fa-camera"></i></button>
+                <div class="autocomplete has-clear empty">
+                    <input type="text" name="winner2" id="winner2" placeholder="Winner 2" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="winner2List"></div>
                 </div>
-                <div class="sr-player-row">
-                    <div class="autocomplete has-clear empty">
-                        <input type="text" name="loser1" id="loser1" placeholder="Loser 1" autocomplete="off">
-                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                        <div class="autocomplete-list" id="loser1List"></div>
-                    </div>
-                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="loser1" title="Photo for AI" aria-label="Upload photo for Loser 1"><i class="fas fa-camera"></i></button>
+                <div class="autocomplete has-clear empty">
+                    <input type="text" name="loser1" id="loser1" placeholder="Loser 1" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="loser1List"></div>
                 </div>
-                <div class="sr-player-row">
-                    <div class="autocomplete has-clear empty">
-                        <input type="text" name="loser2" id="loser2" placeholder="Loser 2" autocomplete="off">
-                        <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
-                        <div class="autocomplete-list" id="loser2List"></div>
-                    </div>
-                    <button type="button" class="sr-game-ref-photo-btn" data-name-field="loser2" title="Photo for AI" aria-label="Upload photo for Loser 2"><i class="fas fa-camera"></i></button>
+                <div class="autocomplete has-clear empty">
+                    <input type="text" name="loser2" id="loser2" placeholder="Loser 2" autocomplete="off">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
+                    <div class="autocomplete-list" id="loser2List"></div>
                 </div>
                 <div class="autocomplete has-clear empty">
                     <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winners' Score" autocomplete="off">
@@ -266,13 +222,6 @@ textarea { resize: vertical; min-height: 60px; }
                     <textarea name="comments" id="comments" placeholder="Comments (optional)" rows="2"></textarea>
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="sr-game-ref-photos" id="game-ref-photos">
-                    <p class="sr-game-ref-photos-title"><i class="fas fa-camera" style="margin-right:6px;color:var(--sr-accent);"></i>Photos for AI</p>
-                    <p class="sr-game-ref-photos-hint">Optional. Tap the camera next to a player to use today’s photo instead of their saved face pic. Signature looks still apply. Cleared automatically after a couple days.</p>
-                    <div class="sr-game-ref-photos-grid" id="game-ref-photos-grid">
-                        <span class="sr-game-ref-photos-empty" id="game-ref-photos-empty">No game-day photos yet.</span>
-                    </div>
-                </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn" id="add-game-submit-btn">Submit</button>
                     <div style="display: flex; gap: 8px;">
@@ -283,6 +232,7 @@ textarea { resize: vertical; min-height: 60px; }
                 </div>
             </form>
         </div>
+        <input type="file" id="game-ref-photo-input" accept="image/*" capture="environment" hidden>
         <div class="sr-card" id="add-game-todays-stats-card" style="margin-top: 30px;">
             <h2 style="font-size: 16px; margin-bottom: 12px;">Today's Stats</h2>
             <div id="add-game-todays-stats-body">
@@ -300,7 +250,13 @@ textarea { resize: vertical; min-height: 60px; }
                 {% for player in todays_stats %}
                 <tr>
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                    <td><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td>
+                        <span class="sr-stats-player-cell" data-player-name="{{ player[0] }}">
+                            <a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a>
+                            <button type="button" class="sr-stats-photo-btn" data-player-name="{{ player[0] }}" title="Photo for AI" aria-label="Upload photo for {{ player[0] }}"><i class="fas fa-camera"></i></button>
+                            <button type="button" class="sr-stats-photo-clear" data-player-name="{{ player[0] }}" title="Remove photo" aria-label="Remove photo for {{ player[0] }}"><i class="fas fa-times"></i></button>
+                        </span>
+                    </td>
                     <td data-value="{{ player[1] }}">{{ player[1] }}</td>
                     <td data-value="{{ player[2] }}">{{ player[2] }}</td>
                     <td data-value="{{ player[3] }}">{{ "%.0f"|format(player[3]*100) }}</td>
@@ -451,11 +407,18 @@ function refreshTodaysDoublesDashboard() {
                     var p = stats[i];
                     var pct = Math.round((p[3] || 0) * 100);
                     var pm = p[4];
-                    stHtml += '<tr><td class="sr-rank" data-value="' + (i + 1) + '">' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + escapeHtmlDoubles(p[0]) + '</a></td><td data-value="' + p[1] + '">' + p[1] + '</td><td data-value="' + p[2] + '">' + p[2] + '</td><td data-value="' + (p[3] || 0) + '">' + pct + '</td><td data-value="' + pm + '">' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
+                    var pname = escapeHtmlDoubles(p[0]);
+                    stHtml += '<tr><td class="sr-rank" data-value="' + (i + 1) + '">' + (i + 1) + '</td><td>' +
+                        '<span class="sr-stats-player-cell" data-player-name="' + pname + '">' +
+                        '<a href="' + doublesPlayerUrl(yr, p[0]) + '">' + pname + '</a>' +
+                        '<button type="button" class="sr-stats-photo-btn" data-player-name="' + pname + '" title="Photo for AI" aria-label="Upload photo for ' + pname + '"><i class="fas fa-camera"></i></button>' +
+                        '<button type="button" class="sr-stats-photo-clear" data-player-name="' + pname + '" title="Remove photo" aria-label="Remove photo for ' + pname + '"><i class="fas fa-times"></i></button>' +
+                        '</span></td><td data-value="' + p[1] + '">' + p[1] + '</td><td data-value="' + p[2] + '">' + p[2] + '</td><td data-value="' + (p[3] || 0) + '">' + pct + '</td><td data-value="' + pm + '">' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
                 }
                 stHtml += '</tbody></table>';
                 statsBody.innerHTML = stHtml;
                 if (window.initStatsSorting) window.initStatsSorting();
+                if (window.paintGameRefPhotos) window.paintGameRefPhotos();
             } else {
                 statsBody.innerHTML = '<p id="add-game-no-stats-msg" style="margin:0;font-size:14px;color:var(--sr-muted);">No doubles played today yet.</p>';
             }
@@ -919,54 +882,38 @@ function generateAndEmailSummary() {
 
 (function setupGameRefPhotos() {
     var fileInput = document.getElementById('game-ref-photo-input');
-    var grid = document.getElementById('game-ref-photos-grid');
-    var emptyEl = document.getElementById('game-ref-photos-empty');
-    if (!fileInput || !grid) return;
+    var statsBody = document.getElementById('add-game-todays-stats-body');
+    if (!fileInput || !statsBody) return;
 
     var photosByKey = {};
-    var pendingFieldId = null;
+    var pendingPlayerName = null;
 
     function normKey(name) {
         return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
-    function escapeHtml(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    function renderGallery() {
-        var items = Object.keys(photosByKey).map(function (k) { return photosByKey[k]; });
-        items.sort(function (a, b) {
-            return String(a.name || '').localeCompare(String(b.name || ''));
-        });
-        grid.innerHTML = '';
-        if (!items.length) {
-            var empty = document.createElement('span');
-            empty.className = 'sr-game-ref-photos-empty';
-            empty.id = 'game-ref-photos-empty';
-            empty.textContent = 'No game-day photos yet.';
-            grid.appendChild(empty);
-        } else {
-            items.forEach(function (photo) {
-                var card = document.createElement('div');
-                card.className = 'sr-game-ref-card';
-                card.innerHTML =
-                    '<img src="' + escapeHtml(photo.url) + '?t=' + encodeURIComponent(photo.uploaded_at || '') + '" alt="' + escapeHtml(photo.name) + '">' +
-                    '<div class="sr-game-ref-card-name" title="' + escapeHtml(photo.name) + '">' + escapeHtml(photo.name) + '</div>' +
-                    '<button type="button" class="sr-game-ref-card-remove" data-player-name="' + escapeHtml(photo.name) + '">Remove</button>';
-                grid.appendChild(card);
-            });
-        }
-        document.querySelectorAll('.sr-game-ref-photo-btn[data-name-field]').forEach(function (btn) {
-            var field = document.getElementById(btn.getAttribute('data-name-field'));
-            var key = field ? normKey(field.value) : '';
-            btn.classList.toggle('has-photo', !!(key && photosByKey[key]));
+    function paintGameRefPhotos() {
+        statsBody.querySelectorAll('.sr-stats-player-cell').forEach(function (cell) {
+            var name = cell.getAttribute('data-player-name') || '';
+            var key = normKey(name);
+            var photo = key ? photosByKey[key] : null;
+            var btn = cell.querySelector('.sr-stats-photo-btn');
+            var clearBtn = cell.querySelector('.sr-stats-photo-clear');
+            if (!btn) return;
+            if (photo && photo.url) {
+                btn.classList.add('has-photo');
+                btn.title = 'Replace photo for AI';
+                btn.innerHTML = '<img src="' + escapeHtmlDoubles(photo.url) + '?t=' + encodeURIComponent(photo.uploaded_at || '') + '" alt="">';
+                if (clearBtn) clearBtn.classList.add('is-visible');
+            } else {
+                btn.classList.remove('has-photo');
+                btn.title = 'Photo for AI';
+                btn.innerHTML = '<i class="fas fa-camera"></i>';
+                if (clearBtn) clearBtn.classList.remove('is-visible');
+            }
         });
     }
+    window.paintGameRefPhotos = paintGameRefPhotos;
 
     function loadPhotos() {
         return fetch('/api/game_ref_photos/', { credentials: 'same-origin' })
@@ -977,7 +924,7 @@ function generateAndEmailSummary() {
                     var key = normKey(photo.name);
                     if (key) photosByKey[key] = photo;
                 });
-                renderGallery();
+                paintGameRefPhotos();
             })
             .catch(function () { /* keep local state */ });
     }
@@ -1002,7 +949,7 @@ function generateAndEmailSummary() {
                 var photo = result.data.photo;
                 if (photo && photo.name) {
                     photosByKey[normKey(photo.name)] = photo;
-                    renderGallery();
+                    paintGameRefPhotos();
                 } else {
                     loadPhotos();
                 }
@@ -1010,35 +957,8 @@ function generateAndEmailSummary() {
             .catch(function () { alert('Photo upload failed.'); });
     }
 
-    document.querySelectorAll('.sr-game-ref-photo-btn[data-name-field]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var fieldId = btn.getAttribute('data-name-field');
-            var field = document.getElementById(fieldId);
-            var name = field ? String(field.value || '').trim() : '';
-            if (!name) {
-                alert('Enter the player name first, then add their photo.');
-                if (field) field.focus();
-                return;
-            }
-            pendingFieldId = fieldId;
-            fileInput.value = '';
-            fileInput.click();
-        });
-    });
-
-    fileInput.addEventListener('change', function () {
-        var file = fileInput.files && fileInput.files[0];
-        var field = pendingFieldId ? document.getElementById(pendingFieldId) : null;
-        var name = field ? String(field.value || '').trim() : '';
-        pendingFieldId = null;
-        if (!file || !name) return;
-        uploadForPlayer(name, file);
-    });
-
-    grid.addEventListener('click', function (e) {
-        var btn = e.target.closest('.sr-game-ref-card-remove');
-        if (!btn) return;
-        var name = btn.getAttribute('data-player-name') || '';
+    function removePhoto(playerName) {
+        var name = String(playerName || '').trim();
         if (!name) return;
         fetch('/api/game_ref_photos/?player_name=' + encodeURIComponent(name), {
             method: 'DELETE',
@@ -1048,16 +968,35 @@ function generateAndEmailSummary() {
             .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
             .then(function () {
                 delete photosByKey[normKey(name)];
-                renderGallery();
+                paintGameRefPhotos();
             })
             .catch(function () { alert('Could not remove photo.'); });
+    }
+
+    statsBody.addEventListener('click', function (e) {
+        var clearBtn = e.target.closest('.sr-stats-photo-clear');
+        if (clearBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            removePhoto(clearBtn.getAttribute('data-player-name') || '');
+            return;
+        }
+        var btn = e.target.closest('.sr-stats-photo-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pendingPlayerName = btn.getAttribute('data-player-name') || '';
+        if (!pendingPlayerName) return;
+        fileInput.value = '';
+        fileInput.click();
     });
 
-    nameFields.forEach(function (id) {
-        var field = document.getElementById(id);
-        if (!field) return;
-        field.addEventListener('input', renderGallery);
-        field.addEventListener('change', renderGallery);
+    fileInput.addEventListener('change', function () {
+        var file = fileInput.files && fileInput.files[0];
+        var name = pendingPlayerName;
+        pendingPlayerName = null;
+        if (!file || !name) return;
+        uploadForPlayer(name, file);
     });
 
     loadPhotos();
