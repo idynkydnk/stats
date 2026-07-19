@@ -8,8 +8,8 @@ import uuid
 from stat_functions import cached
 
 ALLOWED_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
-MAX_PHOTO_BYTES = 5 * 1024 * 1024  # max upload size before compression
-MAX_STORED_PHOTO_BYTES = 1 * 1024 * 1024  # on-disk target after compression
+MAX_PHOTO_BYTES = 10 * 1024 * 1024  # max upload size before compression
+MAX_STORED_PHOTO_BYTES = 2 * 1024 * 1024  # on-disk target after compression
 MAX_FULL_BODY_PHOTOS = 1
 MAX_AI_IMAGE_TRAITS = 12
 MAX_AI_IMAGE_TRAITS_CHARS = 500
@@ -654,7 +654,7 @@ def _validate_photo_upload(file_storage):
     size = file_storage.stream.tell()
     file_storage.stream.seek(0)
     if size > MAX_PHOTO_BYTES:
-        raise ValueError('Photo must be 5 MB or smaller.')
+        raise ValueError('Photo must be 10 MB or smaller.')
     return ext
 
 
@@ -732,7 +732,7 @@ def _compress_image_bytes_under_limit(raw_bytes, source_ext='.jpg'):
     img = ImageOps.exif_transpose(img)
     compressed = _jpeg_bytes_under_limit(img)
     if not compressed:
-        raise ValueError('Unable to compress photo under 1 MB.')
+        raise ValueError('Unable to compress photo under 2 MB.')
     return compressed, '.jpg'
 
 
@@ -744,7 +744,7 @@ def _write_photo_bytes(abs_path, data):
 
 
 def _save_upload_compressed(file_storage, dest_dir, filename_stem, source_ext):
-    """Save an upload under 1 MB. Returns (abs_path, filename with ext)."""
+    """Save an upload under 2 MB. Returns (abs_path, filename with ext)."""
     file_storage.stream.seek(0)
     raw = file_storage.read()
     file_storage.stream.seek(0)
@@ -758,7 +758,7 @@ def _save_upload_compressed(file_storage, dest_dir, filename_stem, source_ext):
 
 
 def _compress_existing_photo_file(rel_path):
-    """Recompress one stored photo if over 1 MB. Returns new rel_path or None if unchanged."""
+    """Recompress one stored photo if over 2 MB. Returns new rel_path or None if unchanged."""
     if not rel_path:
         return None
     base = os.path.dirname(os.path.abspath(__file__))
@@ -794,7 +794,7 @@ def _compress_existing_photo_file(rel_path):
 
 
 def compress_all_oversized_player_photos():
-    """Recompress any face/body photos over 1 MB and update DB paths if needed."""
+    """Recompress any face/body photos over 2 MB and update DB paths if needed."""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
