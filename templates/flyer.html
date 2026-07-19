@@ -46,12 +46,16 @@
     font-size: 12px;
 }
 .flyer-hero {
-    max-width: 420px;
+    /* As wide as the content column allows, capped so 4:5 still fits the viewport. */
+    width: min(100%, calc((100dvh - 10rem) * 4 / 5));
+    max-width: 100%;
     margin: 0 auto 20px;
 }
 .flyer-hero img {
     width: 100%;
     height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
     display: block;
     border-radius: 12px;
     border: 1px solid var(--sr-line);
