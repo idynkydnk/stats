@@ -497,9 +497,10 @@ def _dedupe_players_preserve_order(player_names):
 
 
 def resolve_illustration_players(player_names, selected_players=None):
-    """Return the full roster for illustrations (everyone gets solos + group scene).
+    """Return the full roster for illustrations.
 
-    selected_players is ignored; kept for call-site compatibility.
+    Players without a face photo or signature looks are skipped later during
+    generation. selected_players is ignored; kept for call-site compatibility.
     """
     return _ordered_email_image_players(player_names)
 
@@ -528,6 +529,11 @@ def _solo_reference_parts_for_player(name, entry):
         parts.append({'text': 'Face reference. Use for facial features and expression.'})
         parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
     return parts
+
+
+def _player_can_illustrate(has_reference_photos, trait_phrases):
+    """Only illustrate players who have a face photo and/or signature looks."""
+    return bool(has_reference_photos) or bool(trait_phrases)
 
 
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
@@ -1894,8 +1900,12 @@ def generate_solo_caricature(
 
     Returns {name, url, path, prompt}. When custom_prompt is set, that text is
     used as the main illustration prompt (reference photos still attached).
+    Requires a face photo and/or signature looks.
     """
-    from player_functions import collect_solo_reference_images
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+    )
 
     name = (player_name or '').strip()
     if not name:
@@ -1903,6 +1913,13 @@ def generate_solo_caricature(
 
     entry = collect_solo_reference_images(name)
     reference_parts = _solo_reference_parts_for_player(name, entry)
+    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+    trait_entries = collect_player_ai_image_traits([name])
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    if not _player_can_illustrate(has_reference_photos, trait_phrases):
+        raise ValueError(
+            f'{name} has no face photo or signature looks — cannot create an image.'
+        )
     solo_prompt = (custom_prompt or '').strip()
     if not solo_prompt:
         solo_prompt = build_solo_caricature_prompt(
@@ -1987,11 +2004,12 @@ def _generate_email_hero_image_two_pass(
     custom_scene_prompt=None, scene_players=None, solo_prompt_builder=None,
     scene_prompt_builder=None,
 ):
-    """Solo caricature per roster player, then one group scene.
+    """Solo caricature per illustratable player, then one group scene.
 
-    Solo caricatures are saved temporarily (creator preview only; auto-expire)
-    for every player in `players`, then all of them are attached as references
-    for the group scene. Only the group illustration is kept permanently.
+    Only players with a face photo and/or signature looks get a solo
+    caricature. Those solos are saved temporarily (creator preview only;
+    auto-expire), then attached as references for the group scene. Only the
+    group illustration is kept permanently.
 
     When reuse_existing_solos is True, any matching on-disk solos in
     existing_solo_images are kept and only missing players are regenerated.
@@ -2012,7 +2030,7 @@ def _generate_email_hero_image_two_pass(
     if not players:
         raise ValueError('No players in roster for illustration')
 
-    # Always include everyone in the group scene (scene_players kept for compat).
+    # Group scene includes only players who got (or reused) a solo caricature.
     scene_roster = list(players)
     build_solo = solo_prompt_builder or _build_solo_player_prompt
 
@@ -2037,6 +2055,9 @@ def _generate_email_hero_image_two_pass(
         trait_entry = traits_by_name.get(name)
         trait_phrases = trait_entry.get('phrases', []) if trait_entry else []
         has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+        if not _player_can_illustrate(has_reference_photos, trait_phrases):
+            # No face photo and no signature looks — skip this player entirely.
+            continue
         solo_prompt = build_solo(name, trait_phrases, has_reference_photos)
         solo_passes.append((name, reference_parts, solo_prompt))
         try:
@@ -2066,6 +2087,10 @@ def _generate_email_hero_image_two_pass(
     solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
 
     scene_for_refs = [name for name in scene_roster if name in caricatures]
+    if not scene_for_refs:
+        raise ValueError(
+            'No players have a face photo or signature looks to illustrate.'
+        )
     scene_refs = _reference_parts_from_caricatures(scene_for_refs, caricatures)
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
@@ -2147,8 +2172,14 @@ def generate_flyer_image(
 
 
 def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
-    """Generate one flyer-style solo caricature (high exaggeration)."""
-    from player_functions import collect_solo_reference_images
+    """Generate one flyer-style solo caricature (high exaggeration).
+
+    Requires a face photo and/or signature looks.
+    """
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+    )
 
     name = (player_name or '').strip()
     if not name:
@@ -2156,6 +2187,13 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 
     entry = collect_solo_reference_images(name)
     reference_parts = _solo_reference_parts_for_player(name, entry)
+    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+    trait_entries = collect_player_ai_image_traits([name])
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    if not _player_can_illustrate(has_reference_photos, trait_phrases):
+        raise ValueError(
+            f'{name} has no face photo or signature looks — cannot create an image.'
+        )
     solo_prompt = (custom_prompt or '').strip() or build_flyer_solo_prompt(name)
     try:
         raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
