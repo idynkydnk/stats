@@ -6147,6 +6147,70 @@ def admin_ai_recaps_delete():
     return redirect(url_for('admin_ai_recaps', page=page))
 
 
+@app.route('/admin/ai-flyers/')
+@admin_required
+def admin_ai_flyers():
+    """Browse all published shareable AI flyer pages with images and prompts."""
+    import flyer_functions as flyerfx
+    from email_content import filter_existing_solo_images
+
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 25
+    entries, total_entries = flyerfx.list_flyer_pages(page=page, per_page=per_page)
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    for entry in entries:
+        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+        entry['flyer_image_url'] = adminfx.absolutize_hero_image_url(
+            entry.get('flyer_image_url') or '', site_base,
+        )
+        # Keep expired solo entries so their prompts stay visible; just flag them.
+        solo_images = list(entry.get('solo_images') or [])
+        existing = {
+            (img.get('url') or '')
+            for img in filter_existing_solo_images(solo_images)
+        }
+        for img in solo_images:
+            img['missing'] = (img.get('url') or '') not in existing
+            img['url'] = adminfx.absolutize_hero_image_url(img.get('url') or '', site_base)
+        entry['solo_images'] = solo_images
+        entry['share_url'] = url_for('view_flyer', share_id=entry['share_id'], _external=True)
+    return render_template(
+        'admin_ai_flyers.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+    )
+
+
+@app.route('/admin/ai-flyers/delete', methods=['POST'])
+@admin_required
+def admin_ai_flyers_delete():
+    """Delete a published AI flyer page."""
+    import flyer_functions as flyerfx
+
+    share_id = (request.form.get('share_id') or '').strip()
+    page = max(int(request.form.get('page', 1) or 1), 1)
+    if not share_id:
+        flash('No flyer selected.', 'error')
+        return redirect(url_for('admin_ai_flyers', page=page))
+
+    row = flyerfx.get_flyer_page(share_id)
+    if flyerfx.delete_flyer_page(share_id):
+        game_name = ((row or {}).get('game_name') or 'Game Night').strip()
+        username = ((row or {}).get('username') or 'unknown').strip()
+        log_activity(
+            'Deleted AI flyer',
+            target=share_id,
+            summary=f'{game_name} by {username}',
+        )
+        flash(f'Deleted flyer "{game_name}".', 'success')
+    else:
+        flash('Flyer not found.', 'error')
+    return redirect(url_for('admin_ai_flyers', page=page))
+
+
 @app.route('/admin/ai-images/')
 @admin_required
 def admin_ai_images():
