@@ -27,6 +27,7 @@ from email_content import (
     plain_text_fallback_from_html,
     image_mode_label,
     _normalize_image_mode,
+    _normalize_prompt_style,
     _try_generate_email_hero_image,
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,

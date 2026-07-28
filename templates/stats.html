@@ -111,7 +111,7 @@
                     <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
                 </div>
                 <div class="sr-table-wrap">
-                    <table class="sr-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5">
+                    <table class="sr-table" data-default-sort="winpct" data-default-dir="desc">
                         <thead>
                             <tr>
                                 <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
@@ -124,7 +124,7 @@
                         </thead>
                         <tbody id="today-stats-tbody">
                             {% for player in today_stats %}
-                            <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                            <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
@@ -138,11 +138,6 @@
                         </tbody>
                     </table>
                 </div>
-                {% if today_stats|length > 5 %}
-                <button type="button" class="sr-show-more" onclick="toggleCardRows('today-stats-tbody', this)">
-                    Show all {{ today_stats|length }} players
-                </button>
-                {% endif %}
             </div>
         </section>
         {% endif %}
