@@ -2442,7 +2442,11 @@ def create_vollis_email_plain_text(summary, stats, games, date_obj):
         player_name = stat[0]
         wins, losses = stat[1], stat[2]
         win_pct = stat[3] * 100
-        lines.append(f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%)')
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+        lines.append(
+            f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%), {diff_sign}{differential}'
+        )
     lines.append('')
 
     lines.append(f'GAMES ({len(games)})')
@@ -2473,7 +2477,11 @@ def create_other_email_plain_text(summary, stats, games, date_obj, game_name_lab
         player_name = stat[0]
         wins, losses = stat[1], stat[2]
         win_pct = stat[3] * 100
-        lines.append(f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%)')
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+        lines.append(
+            f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%), {diff_sign}{differential}'
+        )
     lines.append('')
 
     lines.append(f'GAMES ({len(games)})')
@@ -3059,6 +3067,8 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
                     .stats-player a, .stats-table a {{ color: inherit; text-decoration: none; }}
+                    .diff-positive {{ color: #4ade80; font-weight: 600; }}
+                    .diff-negative {{ color: #f87171; font-weight: 600; }}
                     {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
@@ -3090,6 +3100,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                                     <th>W</th>
                                     <th>L</th>
                                     <th>Win %</th>
+                                    <th>+/-</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3102,6 +3113,15 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
         wins = stat[1]
         losses = stat[2]
         win_pct = stat[3] * 100
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+
+        if differential > 0:
+            diff_class = "diff-positive"
+        elif differential < 0:
+            diff_class = "diff-negative"
+        else:
+            diff_class = ""
 
         html_body += f"""
                                 <tr>
@@ -3110,6 +3130,7 @@ def create_vollis_email_html(summary, stats, games, date_obj, hero_image_url=Non
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.0f}%</td>
+                                    <td class="{diff_class}">{diff_sign}{differential}</td>
                                 </tr>
                 """
 
@@ -3212,6 +3233,8 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                     .stats-rank {{ width: 30px; font-weight: 600; color: #66d9ef; }}
                     .stats-player {{ text-align: left !important; font-weight: 500; }}
                     .stats-player a, .stats-table a {{ color: inherit; text-decoration: none; }}
+                    .diff-positive {{ color: #4ade80; font-weight: 600; }}
+                    .diff-negative {{ color: #f87171; font-weight: 600; }}
                     {_email_games_table_styles()}
                     .footer {{ text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }}
                     .link-button {{ display: inline-block; background-color: #66d9ef; color: #0b0f14; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; }}
@@ -3243,6 +3266,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                                     <th>W</th>
                                     <th>L</th>
                                     <th>Win %</th>
+                                    <th>+/-</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3255,6 +3279,15 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
         wins = stat[1]
         losses = stat[2]
         win_pct = stat[3] * 100
+        differential = stat[4]
+        diff_sign = '+' if differential >= 0 else ''
+
+        if differential > 0:
+            diff_class = "diff-positive"
+        elif differential < 0:
+            diff_class = "diff-negative"
+        else:
+            diff_class = ""
 
         html_body += f"""
                                 <tr>
@@ -3263,6 +3296,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                                     <td>{wins}</td>
                                     <td>{losses}</td>
                                     <td>{win_pct:.0f}%</td>
+                                    <td class="{diff_class}">{diff_sign}{differential}</td>
                                 </tr>
                 """
 
@@ -3377,17 +3411,23 @@ def build_vollis_email_payload(
         for name in [winner, loser]:
             if name and name.strip():
                 if name not in player_stats:
-                    player_stats[name] = {'wins': 0, 'losses': 0}
+                    player_stats[name] = {'wins': 0, 'losses': 0, 'diff': 0}
+        try:
+            margin = int(game[3]) - int(game[5])
+        except (TypeError, ValueError):
+            margin = 0
         if winner and winner.strip():
             player_stats[winner]['wins'] += 1
+            player_stats[winner]['diff'] += margin
         if loser and loser.strip():
             player_stats[loser]['losses'] += 1
+            player_stats[loser]['diff'] -= margin
 
     stats = []
     for name, s in player_stats.items():
         total = s['wins'] + s['losses']
         if total > 0:
-            stats.append([name, s['wins'], s['losses'], s['wins'] / total])
+            stats.append([name, s['wins'], s['losses'], s['wins'] / total, s['diff']])
     stats.sort(key=lambda x: x[3], reverse=True)
 
     game_dates = sorted(set(str(game[1]).split(' ')[0] for game in games))
@@ -3400,7 +3440,7 @@ def build_vollis_email_payload(
     context += "Player Stats:\n"
     for stat in stats[:10]:
         win_pct = stat[3] * 100
-        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%)\n"
+        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%), Point Diff: {stat[4]:+d}\n"
 
     context += "\nGames Played (in chronological order):\n"
     for game in reversed(games[:10]):
@@ -3498,7 +3538,7 @@ def build_other_email_payload(
     selected_game_ids, prompt_style='default', custom_prompt='', image_mode='none',
     image_details='', illustration_players=None,
 ):
-    from other_functions import readable_games_data, _is_valid_player_name
+    from other_functions import readable_games_data, _is_valid_player_name, _other_game_point_margin
     from player_functions import get_player_by_name
 
     api_key = os.environ.get('GEMINI_API_KEY')
@@ -3529,24 +3569,27 @@ def build_other_email_payload(
     # Calculate stats from the selected games
     player_stats = {}
     for game in games:
+        margin = _other_game_point_margin(game)
         for w in game.get('winners', []):
             name = w.get('name', '')
             if name and _is_valid_player_name(name):
                 if name not in player_stats:
-                    player_stats[name] = {'wins': 0, 'losses': 0}
+                    player_stats[name] = {'wins': 0, 'losses': 0, 'diff': 0}
                 player_stats[name]['wins'] += 1
+                player_stats[name]['diff'] += margin
         for l in game.get('losers', []):
             name = l.get('name', '')
             if name and _is_valid_player_name(name):
                 if name not in player_stats:
-                    player_stats[name] = {'wins': 0, 'losses': 0}
+                    player_stats[name] = {'wins': 0, 'losses': 0, 'diff': 0}
                 player_stats[name]['losses'] += 1
+                player_stats[name]['diff'] -= margin
 
     stats = []
     for name, s in player_stats.items():
         total = s['wins'] + s['losses']
         if total > 0:
-            stats.append([name, s['wins'], s['losses'], s['wins'] / total])
+            stats.append([name, s['wins'], s['losses'], s['wins'] / total, s['diff']])
     stats.sort(key=lambda x: x[3], reverse=True)
 
     game_dates = sorted(set(str(game.get('game_date', '')).split(' ')[0] for game in games if game.get('game_date')))
@@ -3562,7 +3605,7 @@ def build_other_email_payload(
     context += "Player Stats:\n"
     for stat in stats[:10]:
         win_pct = stat[3] * 100
-        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%)\n"
+        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%), Point Diff: {stat[4]:+d}\n"
 
     context += "\nGames Played (in chronological order):\n"
     for game in reversed(games[:10]):
