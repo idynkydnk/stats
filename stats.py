@@ -38,6 +38,7 @@ import os
 import subprocess
 import sqlite3
 import secrets
+import urllib.parse
 import hashlib
 import json
 import re
@@ -1143,6 +1144,20 @@ def player_photo_url_for(name):
     return None
 
 
+# Square face crop size for link previews (og:image); iMessage/WhatsApp
+# want at least ~200px, and this stays well under WhatsApp's 600KB cap.
+OG_FACE_IMAGE_SIZE = 600
+
+
+def player_og_image_url_for(name):
+    """Absolute https URL of the player's face photo for link previews, or None."""
+    from player_functions import get_player_photo_path
+    if not get_player_photo_path(name):
+        return None
+    path = url_for('player_face_thumb', name=name, size=OG_FACE_IMAGE_SIZE)
+    return EMAIL_SITE_BASE_URL.rstrip('/') + path
+
+
 @app.route('/player_face_thumb/<path:name>')
 def player_face_thumb(name):
     """Serve a small server-cropped face avatar for public player pages."""
@@ -1152,7 +1167,12 @@ def player_face_thumb(name):
     name = name.strip()
     if not name:
         abort(404)
-    data, mime = read_face_avatar_image(name)
+    try:
+        size = int(request.args.get('size', 128))
+    except (TypeError, ValueError):
+        size = 128
+    size = max(64, min(size, OG_FACE_IMAGE_SIZE))
+    data, mime = read_face_avatar_image(name, max_pixels=size)
     if not data:
         abort(404)
     return Response(
@@ -1193,6 +1213,9 @@ def player_avatar_context(name):
         'player_email': fields['email'],
         'player_date_of_birth': fields['date_of_birth'],
         'player_height': fields['height'],
+        'og_image_url': player_og_image_url_for(name),
+        'og_image_alt': name,
+        'og_page_url': EMAIL_SITE_BASE_URL.rstrip('/') + urllib.parse.quote(request.path),
     }
 
 
