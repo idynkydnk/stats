@@ -37,6 +37,10 @@ from stats import app as application
 #      os.environ['AI_EMAIL_REPLY_TO'] = 'idynkydnk@gmail.com'
 #      os.environ['SITE_BASE_URL'] = 'https://idynkydnk.pythonanywhere.com'
 #
+#      # AI: OpenAI preferred for higher-quality images; Gemini is the free fallback
+#      os.environ['OPENAI_API_KEY'] = 'sk-...'
+#      # os.environ['GEMINI_API_KEY'] = 'your_gemini_api_key_here'
+#
 #      os.environ['SUPABASE_URL'] = 'https://your-project.supabase.co'
 #      os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'your_service_role_key_here'
 #

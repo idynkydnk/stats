@@ -1,8 +1,11 @@
 """HTML email bodies and AI summary payload builders for doubles, vollis, and other games.
 
 Extracted from stats.py. These are pure content builders: they read games from the
-database, call Gemini for the summary text, and return HTML/payload dicts. Sending
-the email (Flask-Mail) stays in stats.py.
+database, call the configured AI provider for the summary text, and return
+HTML/payload dicts. Sending the email (Flask-Mail) stays in stats.py.
+
+Provider preference: OPENAI_API_KEY (higher-quality images via gpt-image-2) when
+set; otherwise GEMINI_API_KEY (free-tier fallback).
 """
 import os
 import html
@@ -19,8 +22,13 @@ SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://idynkydnk.pythonanywher
 EMAIL_PLACEHOLDER = '{{EMAIL_PLACEHOLDER}}'
 HERO_IMAGE_CID = 'hero-image'
 
-# Free-tier image model for AI email illustrations.
+# Free-tier image model for AI email illustrations (Gemini fallback).
 GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
+
+# OpenAI models (override via env). gpt-image-2 supports reference-image edits.
+OPENAI_TEXT_MODEL = os.environ.get('OPENAI_TEXT_MODEL', 'gpt-4.1')
+OPENAI_IMAGE_MODEL = os.environ.get('OPENAI_IMAGE_MODEL', 'gpt-image-2')
+OPENAI_IMAGE_QUALITY = os.environ.get('OPENAI_IMAGE_QUALITY', 'high')
 
 SOLO_BODY_PHOTOS_PER_PLAYER = 1
 
@@ -76,21 +84,67 @@ GEMINI_MODELS = [
 ]
 
 
-def generate_ai_text(prompt):
-    """Generate text with Gemini, falling back to alternate models when the
-    primary is rate-limited (429) or unavailable. Quotas are tracked per model,
-    so a fallback usually succeeds even when the primary's daily cap is hit.
+def active_ai_provider():
+    """Return 'openai', 'gemini', or None based on configured API keys."""
+    if (os.environ.get('OPENAI_API_KEY') or '').strip():
+        return 'openai'
+    if (os.environ.get('GEMINI_API_KEY') or '').strip():
+        return 'gemini'
+    return None
 
-    Returns the generated text (stripped). Raises ValueError with all
-    per-model errors if every model fails.
-    """
+
+def require_ai_api_key():
+    """Return the active provider's API key, or raise a clear ValueError."""
+    provider = active_ai_provider()
+    if provider == 'openai':
+        return os.environ.get('OPENAI_API_KEY').strip()
+    if provider == 'gemini':
+        return os.environ.get('GEMINI_API_KEY').strip()
+    raise ValueError(
+        'AI API key not configured. Set OPENAI_API_KEY (preferred for higher-quality '
+        'images) or GEMINI_API_KEY.'
+    )
+
+
+def ai_api_key_error_message():
+    """User-facing message when no AI provider key is configured."""
+    return (
+        'AI API key not configured. Set OPENAI_API_KEY (preferred) or GEMINI_API_KEY.'
+    )
+
+
+def _generate_ai_text_openai(prompt, api_key):
+    import requests
+
+    resp = requests.post(
+        'https://api.openai.com/v1/chat/completions',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'model': OPENAI_TEXT_MODEL,
+            'messages': [{'role': 'user', 'content': prompt}],
+        },
+        timeout=120,
+    )
+    if resp.status_code >= 400:
+        raise ValueError(_rest_error_detail(resp))
+    data = resp.json()
+    try:
+        text = data['choices'][0]['message']['content'] or ''
+    except (KeyError, IndexError, TypeError):
+        text = ''
+    text = text.strip()
+    if not text:
+        raise ValueError(f'{OPENAI_TEXT_MODEL}: empty response')
+    return text
+
+
+def _generate_ai_text_gemini(prompt, api_key):
     import google.generativeai as genai
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
     genai.configure(api_key=api_key)
-
     errors = []
     for model_name in GEMINI_MODELS:
         try:
@@ -106,7 +160,21 @@ def generate_ai_text(prompt):
             errors.append(f'{model_name}: empty response')
         except Exception as e:
             errors.append(f'{model_name}: {e}')
-    raise ValueError(f'AI summary generation failed on all models: {" | ".join(errors)}')
+    raise ValueError(f'AI summary generation failed on all Gemini models: {" | ".join(errors)}')
+
+
+def generate_ai_text(prompt):
+    """Generate text with the active AI provider (OpenAI preferred, else Gemini).
+
+    Returns the generated text (stripped). Raises ValueError if no key is
+    configured or every model fails.
+    """
+    provider = active_ai_provider()
+    if provider == 'openai':
+        return _generate_ai_text_openai(prompt, require_ai_api_key())
+    if provider == 'gemini':
+        return _generate_ai_text_gemini(prompt, require_ai_api_key())
+    raise ValueError(ai_api_key_error_message())
 
 
 RECAP_PARAGRAPH_LIMIT = (
@@ -670,11 +738,17 @@ def _friendly_image_error(err, api_calls=1):
         call_note = (
             f'each illustrated email uses {api_calls} image{"s" if api_calls != 1 else ""}'
         )
+        if active_ai_provider() == 'openai':
+            return (
+                'OpenAI image rate limit or quota hit '
+                f'({call_note}). The text summary still works. Check billing/limits '
+                'in the OpenAI dashboard, or wait and try again.'
+            )
         return (
             'Daily free image quota is used up on the shared Gemini API key '
             f'(~500 images/day on gemini-2.5-flash-image; {call_note}). '
-            'The text summary still works. Try again tomorrow, or enable billing in Google AI '
-            'Studio for more image generation.'
+            'The text summary still works. Try again tomorrow, enable billing in Google AI '
+            'Studio, or set OPENAI_API_KEY for higher-quality paid image generation.'
         )
     return str(err)[:400]
 
@@ -687,7 +761,108 @@ def _rest_error_detail(resp):
         return resp.text[:300] if resp.text else f'HTTP {resp.status_code}'
 
 
-def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None):
+def _openai_size_for_aspect(aspect_ratio):
+    """Map Gemini-style aspect hints to OpenAI size strings."""
+    ratio = (aspect_ratio or '').strip()
+    if ratio == '4:5':
+        # Exact Instagram portrait; gpt-image-2 accepts custom resolutions.
+        return '1024x1280'
+    if ratio == '16:9':
+        return '1536x1024'
+    if ratio == '1:1':
+        return '1024x1024'
+    return '1024x1024'
+
+
+def _openai_prompt_and_images(prompt, reference_parts):
+    """Flatten Gemini-style parts into an OpenAI prompt + image byte list."""
+    text_bits = []
+    images = []
+    for part in reference_parts or []:
+        text = part.get('text')
+        if text:
+            text_bits.append(text)
+            continue
+        inline = part.get('inline_data') or part.get('inlineData')
+        if not inline or not inline.get('data'):
+            continue
+        raw = base64.b64decode(inline['data'])
+        mime = inline.get('mime_type') or inline.get('mimeType') or 'image/png'
+        images.append((raw, mime))
+        text_bits.append('[Reference image attached — use the next image in order]')
+    if text_bits:
+        full_prompt = '\n\n'.join(text_bits + ['--- Main illustration prompt ---', prompt])
+    else:
+        full_prompt = prompt
+    return full_prompt, images
+
+
+def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None):
+    """One OpenAI Images API call (generate or edit-with-references)."""
+    import io
+    import requests
+
+    full_prompt, images = _openai_prompt_and_images(prompt, reference_parts)
+    size = _openai_size_for_aspect(aspect_ratio)
+    headers = {'Authorization': f'Bearer {api_key}'}
+    timeout = 180
+
+    if images:
+        # Edits endpoint: up to 16 reference images for likeness / group scenes.
+        files = []
+        for index, (raw, mime) in enumerate(images[:16]):
+            ext = 'png' if 'png' in (mime or '') else 'jpg'
+            content_type = mime or ('image/png' if ext == 'png' else 'image/jpeg')
+            files.append((
+                'image[]',
+                (f'reference_{index}.{ext}', io.BytesIO(raw), content_type),
+            ))
+        data = {
+            'model': OPENAI_IMAGE_MODEL,
+            'prompt': full_prompt,
+            'size': size,
+            'quality': OPENAI_IMAGE_QUALITY,
+        }
+        resp = requests.post(
+            'https://api.openai.com/v1/images/edits',
+            headers=headers,
+            data=data,
+            files=files,
+            timeout=timeout,
+        )
+    else:
+        resp = requests.post(
+            'https://api.openai.com/v1/images/generations',
+            headers={**headers, 'Content-Type': 'application/json'},
+            json={
+                'model': OPENAI_IMAGE_MODEL,
+                'prompt': full_prompt,
+                'size': size,
+                'quality': OPENAI_IMAGE_QUALITY,
+            },
+            timeout=timeout,
+        )
+
+    if resp.status_code >= 400:
+        raise ValueError(_rest_error_detail(resp))
+    data = resp.json()
+    items = data.get('data') or []
+    if not items:
+        raise ValueError('no image in OpenAI response')
+    item = items[0]
+    if item.get('b64_json'):
+        return base64.b64decode(item['b64_json']), 'image/png'
+    url = item.get('url')
+    if url:
+        img_resp = requests.get(url, timeout=60)
+        if img_resp.status_code >= 400:
+            raise ValueError(f'failed to download OpenAI image URL: HTTP {img_resp.status_code}')
+        ctype = (img_resp.headers.get('Content-Type') or 'image/png').split(';')[0].strip()
+        return img_resp.content, ctype or 'image/png'
+    raise ValueError('no image data in OpenAI response')
+
+
+def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_ratio=None):
     """One API call to the free-tier Gemini image model."""
     import requests
 
@@ -725,6 +900,23 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=No
     if data.get('candidates'):
         fr = data['candidates'][0].get('finishReason') or data['candidates'][0].get('finish_reason') or ''
     raise ValueError(f'no image in response (finish={fr})')
+
+
+def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None):
+    """One image API call via the active provider (OpenAI preferred, else Gemini)."""
+    provider = active_ai_provider()
+    if provider == 'openai':
+        # Prefer the live OpenAI key even if a Gemini key was passed by callers.
+        key = (os.environ.get('OPENAI_API_KEY') or api_key or '').strip()
+        return _generate_image_bytes_openai(
+            prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
+        )
+    if provider == 'gemini':
+        key = (api_key or os.environ.get('GEMINI_API_KEY') or '').strip()
+        return _generate_image_bytes_gemini(
+            prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
+        )
+    raise ValueError(ai_api_key_error_message())
 
 
 def _save_email_image(image_bytes, ext, prefix=''):
@@ -2782,9 +2974,7 @@ def build_doubles_email_payload(
     from stat_functions import calculate_stats_from_games, get_current_streaks_last_365_days, convert_ampm
     from player_functions import get_player_by_name
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
+    api_key = require_ai_api_key()
 
     if not selected_game_ids:
         raise ValueError('No games selected.')
@@ -3381,9 +3571,7 @@ def build_vollis_email_payload(
     from vollis_functions import convert_vollis_ampm
     from player_functions import get_player_by_name
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
+    api_key = require_ai_api_key()
 
     if not selected_game_ids:
         raise ValueError('No games selected.')
@@ -3541,9 +3729,7 @@ def build_other_email_payload(
     from other_functions import readable_games_data, _is_valid_player_name, _other_game_point_margin
     from player_functions import get_player_by_name
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
+    api_key = require_ai_api_key()
 
     if not selected_game_ids:
         raise ValueError('No games selected.')

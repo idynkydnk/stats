@@ -16,6 +16,8 @@ from vollis_functions import *
 from other_functions import *
 from kob_functions import update_kobs
 from email_content import (
+    active_ai_provider,
+    ai_api_key_error_message,
     build_doubles_email_payload,
     build_vollis_email_payload,
     build_other_email_payload,
@@ -821,11 +823,9 @@ def _parse_flyer_form():
 
 def _generate_and_publish_flyer(username, payload):
     """Generate solos + flyer, then save the flyer page. Returns share_id."""
-    from email_content import ImageGenerationError, generate_flyer_image
+    from email_content import ImageGenerationError, generate_flyer_image, require_ai_api_key
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError('Gemini API key not configured.')
+    api_key = require_ai_api_key()
 
     players = payload.get('players') or []
     if not players:
@@ -2244,9 +2244,11 @@ def remake_flyer_image(share_id):
     import flyer_functions as flyerfx
     from email_content import (
         ImageGenerationError,
+        ai_api_key_error_message,
         delete_solo_image_files,
         filter_existing_solo_images,
         generate_flyer_image,
+        require_ai_api_key,
     )
 
     row = flyerfx.get_flyer_page(share_id)
@@ -2256,9 +2258,10 @@ def remake_flyer_image(share_id):
         flash('Only the creator can remake this flyer.', 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        flash('Gemini API key not configured.', 'error')
+    try:
+        api_key = require_ai_api_key()
+    except ValueError:
+        flash(ai_api_key_error_message(), 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
     players = row.get('players') or []
@@ -2330,9 +2333,11 @@ def remake_flyer_solo(share_id):
     import flyer_functions as flyerfx
     from email_content import (
         ImageGenerationError,
+        ai_api_key_error_message,
         delete_solo_image_files,
         filter_existing_solo_images,
         generate_flyer_solo_caricature,
+        require_ai_api_key,
     )
 
     row = flyerfx.get_flyer_page(share_id)
@@ -2348,9 +2353,10 @@ def remake_flyer_solo(share_id):
         return redirect(url_for('view_flyer', share_id=share_id))
 
     custom_prompt = (request.form.get('solo_prompt') or '').strip()
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        flash('Gemini API key not configured.', 'error')
+    try:
+        api_key = require_ai_api_key()
+    except ValueError:
+        flash(ai_api_key_error_message(), 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
     solo_images = filter_existing_solo_images(row.get('solo_images') or [])
@@ -2845,9 +2851,17 @@ def remake_ai_recap_image(share_id):
         flash('Only the creator can remake this picture.', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        flash('Gemini API key not configured.', 'error')
+    from email_content import (
+        ai_api_key_error_message,
+        delete_solo_image_files,
+        filter_existing_solo_images,
+        require_ai_api_key,
+    )
+
+    try:
+        api_key = require_ai_api_key()
+    except ValueError:
+        flash(ai_api_key_error_message(), 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
     try:
@@ -2857,8 +2871,6 @@ def remake_ai_recap_image(share_id):
     if not game_ids:
         flash('This recap has no saved games to remake the picture from.', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
-
-    from email_content import delete_solo_image_files, filter_existing_solo_images
 
     game_type = row.get('game_type') or 'doubles'
     # Prefer the edited full scene prompt; fall back to the saved prompt/details.
@@ -3135,9 +3147,11 @@ def remake_ai_recap_solo(share_id):
     """Regenerate one temporary solo caricature for the creator preview gallery."""
     from email_content import (
         ImageGenerationError,
+        ai_api_key_error_message,
         delete_solo_image_files,
         filter_existing_solo_images,
         generate_solo_caricature,
+        require_ai_api_key,
     )
 
     row = adminfx.get_ai_recap_page(share_id)
@@ -3155,9 +3169,10 @@ def remake_ai_recap_solo(share_id):
 
     custom_prompt = (request.form.get('solo_prompt') or '').strip()
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        flash('Gemini API key not configured.', 'error')
+    try:
+        api_key = require_ai_api_key()
+    except ValueError:
+        flash(ai_api_key_error_message(), 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
     try:
@@ -3434,7 +3449,7 @@ def add_game_voice():
 @app.route('/api/parse_voice_doubles', methods=['POST'])
 @login_required
 def api_parse_voice_doubles():
-    """Parse a spoken doubles game transcript into structured fields using Gemini."""
+    """Parse a spoken doubles game transcript into structured fields using AI."""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
 
@@ -3443,11 +3458,10 @@ def api_parse_voice_doubles():
     if not transcript:
         return jsonify({'success': False, 'error': 'No transcript provided.'}), 400
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
+    if not active_ai_provider():
         return jsonify({
             'success': False,
-            'error': 'Gemini API key not configured. Please set GEMINI_API_KEY environment variable.'
+            'error': ai_api_key_error_message(),
         }), 400
 
     all_games = year_games('All years')
@@ -5341,19 +5355,23 @@ def testing_lab():
         flash('Please login to access the testing lab', 'error')
         return redirect(url_for('login'))
     
-    # Try to list available models for debugging
-    available_models = None
+    # Show active AI provider + optional Gemini model list for debugging
+    provider = active_ai_provider() or 'none'
+    available_models = f'Active provider: {provider}'
     try:
         import google.generativeai as genai
-        import os
         api_key = os.environ.get('GEMINI_API_KEY')
         if api_key:
             genai.configure(api_key=api_key)
             models = genai.list_models()
-            available_models = [model.name for model in models if 'generateContent' in model.supported_generation_methods]
+            gemini_models = [
+                model.name for model in models
+                if 'generateContent' in model.supported_generation_methods
+            ]
+            available_models = f'{available_models}; Gemini models: {gemini_models}'
     except Exception as e:
-        available_models = f"Error listing models: {str(e)}"
-    
+        available_models = f'{available_models}; Gemini list error: {e}'
+
     return render_template('testing_lab.html', available_models=available_models)
 
 @app.route('/generate_ai_summary', methods=['POST'])
@@ -5361,16 +5379,11 @@ def generate_ai_summary():
     """Generate AI summary for a specific date"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
-    import google.generativeai as genai
-    import os
-    
-    # Check if Gemini API key is configured
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
+
+    if not active_ai_provider():
         return jsonify({
             'success': False,
-            'error': 'Gemini API key not configured. Please set GEMINI_API_KEY environment variable.'
+            'error': ai_api_key_error_message(),
         }), 400
     
     # Get the date from the request

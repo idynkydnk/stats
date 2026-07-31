@@ -4,7 +4,7 @@
 Run this as an Always-on task on PythonAnywhere:
   python3 /home/idynkydnk/stats/ai_auto_send_daemon.py
 
-The task must have the same env vars as the web app (MAIL_*, GEMINI_API_KEY, etc.).
+The task must have the same env vars as the web app (MAIL_*, OPENAI_API_KEY or GEMINI_API_KEY, etc.).
 """
 import os
 import sys
@@ -110,8 +110,8 @@ def main():
     jobs.reset_stale_running_jobs()
     _log('AI auto-send daemon started')
 
-    if not os.environ.get('GEMINI_API_KEY'):
-        _log('WARNING: GEMINI_API_KEY is not set — jobs will fail')
+    if not (os.environ.get('OPENAI_API_KEY') or os.environ.get('GEMINI_API_KEY')):
+        _log('WARNING: OPENAI_API_KEY / GEMINI_API_KEY not set — jobs will fail')
 
     while True:
         jobs.touch_daemon_heartbeat()

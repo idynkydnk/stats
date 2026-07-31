@@ -9,7 +9,7 @@ Live at `idynkydnk.pythonanywhere.com`.
 - **Backend:** Python 3 / Flask, Jinja2 templates
 - **Database:** SQLite (`stats.db`), with optional dual-write to Supabase
 - **Email:** Flask-Mail via Gmail SMTP
-- **AI summaries:** Google Gemini (`google-generativeai`)
+- **AI summaries / illustrations:** OpenAI (preferred, `OPENAI_API_KEY`) or Google Gemini fallback (`GEMINI_API_KEY`)
 - **Hosting:** PythonAnywhere, auto-deployed from GitHub Actions on push to `main`
 
 ## Running locally
@@ -18,7 +18,7 @@ Live at `idynkydnk.pythonanywhere.com`.
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in email/Gemini/Supabase values as needed
+cp .env.example .env   # fill in email/OpenAI or Gemini/Supabase values as needed
 python local.py        # serves on http://127.0.0.1:5000
 ```
 
@@ -47,6 +47,6 @@ Pushing to `main` triggers `.github/workflows/deploy-to-pythonanywhere.yml`, whi
 
 - `API_DOUBLES.md` — iPhone app REST API
 - `EMAIL_SETUP.md` / `PYTHONANYWHERE_EMAIL_SETUP.md` — email configuration
-- `GEMINI_SETUP.md` — AI summary setup
+- `GEMINI_SETUP.md` — AI summary setup (OpenAI preferred; Gemini fallback)
 - `SUPABASE_SETUP.md` — Supabase sync
 - `GITHUB_ACTIONS_SETUP.md` — deploy pipeline

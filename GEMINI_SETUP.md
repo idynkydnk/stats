@@ -1,6 +1,41 @@
-# Google Gemini AI Setup Guide
+# AI Setup Guide (OpenAI + Gemini)
 
-## Quick Setup (5 minutes)
+Summaries and illustrations use **OpenAI when `OPENAI_API_KEY` is set** (preferred for higher-quality images via `gpt-image-2`). If that key is unset, the app falls back to **Google Gemini** (`GEMINI_API_KEY`).
+
+## Option A — OpenAI (recommended for image quality)
+
+### 1. Get an API key
+
+1. Go to https://platform.openai.com/api-keys
+2. Create a secret key
+3. Ensure the org can use GPT Image models (organization verification may be required)
+
+### 2. Set environment variables
+
+**macOS/Linux:**
+```bash
+export OPENAI_API_KEY="sk-..."
+# Optional overrides:
+# export OPENAI_TEXT_MODEL="gpt-4.1"
+# export OPENAI_IMAGE_MODEL="gpt-image-2"
+# export OPENAI_IMAGE_QUALITY="high"
+```
+
+**PythonAnywhere (WSGI):**
+```python
+import os
+os.environ['OPENAI_API_KEY'] = 'sk-...'
+```
+
+Or put the same values in your local `.env` (see `.env.example`).
+
+### 3. Cost note
+
+OpenAI is paid (per token / per image). Image generation with reference photos (solo caricatures + group scenes) uses the Images **edits** endpoint and can cost more than text alone.
+
+---
+
+## Option B — Gemini (free-tier fallback)
 
 ### 1. Get Your Free Gemini API Key
 
@@ -69,26 +104,31 @@ The AI will generate fun, engaging summaries like:
 
 ## Cost
 
-**Completely FREE!**
+**OpenAI:** paid — see platform pricing for chat + GPT Image.
+
+**Gemini:** free tier
 - No credit card needed
 - 1,500 requests per day
 - That's 1,500 daily summaries for free
 
 ## Troubleshooting
 
-**"Gemini API key not configured" error:**
-- Make sure you exported the environment variable
+**"AI API key not configured" error:**
+- Set `OPENAI_API_KEY` and/or `GEMINI_API_KEY`
 - Restart your Flask app after setting the variable
 
 **"API key invalid" error:**
 - Check that you copied the entire key
 - Make sure there are no extra spaces
 
-**"Quota exceeded" error:**
-- You've hit the 1,500/day limit (unlikely)
-- Wait until tomorrow or create another API key
+**OpenAI image / moderation errors:**
+- Complete organization verification for GPT Image models
+- Soften prompt language if moderation blocks a request
+
+**Gemini "Quota exceeded" error:**
+- You've hit the free daily limit
+- Wait until tomorrow, create another API key, or switch to `OPENAI_API_KEY`
 
 ## Security Note
 
 Keep your API key private! Don't commit it to GitHub.
-
