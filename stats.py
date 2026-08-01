@@ -668,6 +668,20 @@ def _send_ai_summary_payload(payload, username='unknown'):
     return emails_sent, errors
 
 
+def _absolute_site_url(path, **query):
+    """Build an absolute site URL without needing a Flask request context.
+
+    Background daemons only have an app context, so url_for(..., _external=True)
+    fails unless SERVER_NAME is configured. Prefer SITE_BASE_URL instead.
+    """
+    base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    if not path.startswith('/'):
+        path = '/' + path
+    if query:
+        return f'{base}{path}?{urllib.parse.urlencode(query)}'
+    return f'{base}{path}'
+
+
 def run_ai_auto_send_job(
     username, game_ids, game_type, prompt_style, custom_prompt,
     image_mode='none', image_details='', illustration_players=None,
@@ -690,10 +704,8 @@ def run_ai_auto_send_job(
                 payload.get('hero_image_url') or '',
                 app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL,
             )
-            share_url = url_for(
-                'view_ai_recap',
-                share_id=share_id,
-                _external=True,
+            share_url = _absolute_site_url(
+                f'/recap/{share_id}/',
                 **adminfx.recap_share_query_args(hero_for_share),
             )
             log_activity(
@@ -759,7 +771,7 @@ def run_flyer_job(username, payload):
     with app.app_context():
         try:
             share_id = _generate_and_publish_flyer(username, payload or {})
-            share_url = url_for('view_flyer', share_id=share_id, _external=True)
+            share_url = _absolute_site_url(f'/flyer/{share_id}/')
             log_activity(
                 'Published flyer',
                 summary=(

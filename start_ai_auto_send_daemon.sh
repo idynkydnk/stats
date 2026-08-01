@@ -1,22 +1,24 @@
 #!/bin/bash
 # Start the AI auto-send queue worker (for PythonAnywhere Always-on task).
 #
-# In the PythonAnywhere Always-on tasks tab, use a command like:
+# Always-on tasks do NOT inherit WSGI env vars. Put exports in the same Command
+# box, then run this script. Example (one line):
 #
-#   export GEMINI_API_KEY='your_key'
-#   export MAIL_SERVER='smtp.gmail.com'
-#   export MAIL_PORT='587'
-#   export MAIL_USE_TLS='True'
-#   export MAIL_USERNAME='kt.vball.summary@gmail.com'
-#   export MAIL_PASSWORD='your_gmail_app_password'
-#   export MAIL_DEFAULT_SENDER='kt.vball.summary@gmail.com'
-#   export AI_EMAIL_COPY_TO='idynkydnk@gmail.com'
-#   export AI_EMAIL_REPLY_TO='idynkydnk@gmail.com'
-#   export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com'
-#   export SECRET_KEY='your_secret_key'
-#   bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
+#   export OPENAI_API_KEY='sk-...' && export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com' && bash "$HOME/stats/start_ai_auto_send_daemon.sh"
 #
-# Copy the export lines from your WSGI file (/var/www/idynkydnk_pythonanywhere_com_wsgi.py).
+# Prefer $HOME/stats (username case varies). Copy key values from your WSGI file:
+#   /var/www/idynkydnk_pythonanywhere_com_wsgi.py
 
-cd /home/idynkydnk/stats || exit 1
+set -euo pipefail
+
+# Resolve project dir from this script's location (not a hardcoded home path).
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+# Fallback if someone copied only the .py next to a broken wrapper.
+if [[ ! -f ai_auto_send_daemon.py ]]; then
+  echo "ai_auto_send_daemon.py not found in $ROOT" >&2
+  exit 1
+fi
+
 exec python3 ai_auto_send_daemon.py

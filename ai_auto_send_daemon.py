@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Always-on worker for AI summary auto-send jobs (PythonAnywhere).
 
-Run this as an Always-on task on PythonAnywhere:
-  python3 /home/idynkydnk/stats/ai_auto_send_daemon.py
+Run this as an Always-on task on PythonAnywhere (prefer the wrapper script):
+
+  export OPENAI_API_KEY='...' && export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com' && bash "$HOME/stats/start_ai_auto_send_daemon.sh"
+
+Or directly:
+
+  cd "$HOME/stats" && python3 ai_auto_send_daemon.py
 
 The task must have the same env vars as the web app (MAIL_*, OPENAI_API_KEY or GEMINI_API_KEY, etc.).
 """
