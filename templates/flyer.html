@@ -196,7 +196,7 @@
 {% if show_creator_view and can_remake %}
 <div class="flyer-panel" id="flyer-remake-panel" {% if not request.args.get('remake') %}hidden{% endif %}>
     <h3>Remake flyer</h3>
-    <p class="flyer-help">Edit the group flyer prompt, then remake. Existing individual caricatures stay attached as references.</p>
+    <p class="flyer-help">Edit the flyer prompt, then remake. Uses each player’s uploaded face photo from the site.</p>
     <form method="post" action="{{ url_for('remake_flyer_image', share_id=share_id) }}" id="flyer-remake-form">
         <textarea name="scene_prompt" id="flyer-scene-prompt" placeholder="Flyer illustration prompt…">{{ scene_prompt }}</textarea>
         <div class="flyer-actions">

@@ -345,20 +345,20 @@
 
             <div class="sr-prompts-section" id="prompts-section" hidden>
                 <div class="sr-prompts-header">
-                    <strong>Review prompts</strong>
+                    <strong>Review flyer prompt</strong>
                     <button type="button" class="sr-date-step-btn" id="refresh-prompts" title="Reload defaults" aria-label="Reload default prompts" style="width: auto; padding: 0 12px; font-size: 12px;">
                         <i class="fas fa-sync-alt" style="margin-right: 6px;"></i> Reload defaults
                     </button>
                 </div>
                 <p class="sr-prompts-hint">
-                    Edit these before creating. Solo prompts shape each player’s caricature; the flyer prompt shapes the group Instagram image.
+                    Uses each player’s uploaded face photo from the site. Edit the flyer prompt before creating.
                 </p>
                 <div class="sr-prompts-loading" id="prompts-loading" hidden>
                     <i class="fas fa-spinner fa-spin"></i> Loading prompts…
                 </div>
-                <div id="solo-prompts"></div>
+                <div id="solo-prompts" hidden></div>
                 <div class="sr-prompt-block">
-                    <label for="scene_prompt">Flyer / group scene prompt</label>
+                    <label for="scene_prompt">Flyer prompt</label>
                     <textarea name="scene_prompt" id="scene_prompt">{{ scene_prompt|default('') }}</textarea>
                 </div>
             </div>
@@ -376,7 +376,7 @@
     <div class="sr-generate-loading-card">
         <i class="fas fa-spinner fa-spin"></i>
         <strong id="loading-title">Creating your flyer…</strong>
-        <p id="loading-detail">Building player caricatures, then the group flyer. Stay on this page until it finishes.</p>
+        <p id="loading-detail">Building the group flyer from uploaded player photos. Stay on this page until it finishes.</p>
     </div>
 </div>
 {% endblock %}

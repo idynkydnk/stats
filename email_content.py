@@ -11,6 +11,7 @@ import os
 import html
 import base64
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from urllib.parse import quote
 
@@ -36,6 +37,13 @@ SOLO_BODY_PHOTOS_PER_PLAYER = 1
 # find and expire; group hero images keep the bare uuid filename.
 SOLO_IMAGE_PREFIX = 'solo_'
 SOLO_IMAGE_MAX_AGE_HOURS = 48
+
+# Independent solo caricature API calls run in parallel (same quality). Cap
+# concurrency to avoid provider rate limits; override via env if needed.
+try:
+    SOLO_IMAGE_MAX_WORKERS = max(1, int(os.environ.get('SOLO_IMAGE_MAX_WORKERS', '4')))
+except ValueError:
+    SOLO_IMAGE_MAX_WORKERS = 4
 
 # WhatsApp requires og:image under 600KB; AI hero PNGs are often multi-MB.
 OG_IMAGE_PREFIX = 'og_'
@@ -648,12 +656,81 @@ Event: {title}
 When: {when_line}
 Where: {where_line}
 {details_block}{roster_block}
-Use each attached character reference exactly — same face, hair, outfit per person.
+Use each attached uploaded face photo for likeness — same face per Person number.
+Highly exaggerate each person's signature looks so they read instantly at a glance.
 Draw all {player_count} people in the scene — one per Person number.
 Include clear, readable flyer text for the event title, date/time, and location.
 Compose as a vertical 4:5 Instagram portrait (taller than wide). Keep every person
 fully inside the frame with comfortable margin — no one cut off at the edges.
 Energetic, fun, poster-quality illustration — not a plain photo collage."""
+
+
+def _reference_parts_from_uploaded_photos(players):
+    """Attach each player's uploaded face photo as a numbered flyer reference.
+
+    Returns (reference_parts, players_with_photos). Players without a face photo
+    are skipped. Raises ValueError if nobody has an uploaded face photo.
+    """
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+    )
+
+    players = _dedupe_players_preserve_order(players)
+    trait_entries = collect_player_ai_image_traits(players)
+    traits_by_name = {
+        (entry.get('name') or '').strip().lower(): entry for entry in trait_entries
+    }
+
+    with_photos = []
+    photos_by_name = {}
+    for name in players:
+        entry = collect_solo_reference_images(name)
+        refs = (entry or {}).get('parts') or []
+        if not refs:
+            continue
+        with_photos.append(name)
+        photos_by_name[name] = refs
+
+    if not with_photos:
+        raise ValueError(
+            'No selected players have a face photo uploaded. '
+            'Add face photos on the Players page, then try again.'
+        )
+
+    # OpenAI edits accepts up to 16 reference images.
+    with_photos = with_photos[:16]
+    roster_block, player_count, with_photos = _image_roster_block(with_photos)
+    parts = [{
+        'text': (
+            f'{player_count} players, each with an uploaded face photo attached below.'
+            f'{roster_block}'
+        ),
+    }]
+    for index, name in enumerate(with_photos, start=1):
+        parts.append({
+            'text': (
+                f'Person {index} ({name}) — use this uploaded face photo for likeness:'
+            ),
+        })
+        for ref in photos_by_name[name]:
+            parts.append({
+                'inline_data': {
+                    'mime_type': ref['mime'],
+                    'data': ref['data_b64'],
+                },
+            })
+        trait = traits_by_name.get((name or '').strip().lower())
+        phrases = (trait or {}).get('phrases') or []
+        if phrases:
+            phrase_lines = '\n'.join(f'- {phrase}' for phrase in phrases)
+            parts.append({
+                'text': (
+                    f'Person {index} signature looks — exaggerate these heavily so they '
+                    f'read instantly:\n{phrase_lines}'
+                ),
+            })
+    return parts, with_photos
 
 
 def _sport_desc_for_image(game_type, game_name=None):
@@ -2237,6 +2314,7 @@ def _generate_email_hero_image_two_pass(
     traits_by_name = {entry['name']: entry for entry in trait_entries}
 
     solo_passes = []
+    pending_solos = []
     for name in players:
         if name in caricatures:
             solo_passes.append((name, [], f'[Reused existing solo caricature for {name}]'))
@@ -2252,27 +2330,48 @@ def _generate_email_hero_image_two_pass(
             continue
         solo_prompt = build_solo(name, trait_phrases, has_reference_photos)
         solo_passes.append((name, reference_parts, solo_prompt))
-        try:
-            raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
-        except Exception as e:
+        pending_solos.append((name, reference_parts, solo_prompt))
+
+    def _run_one_solo(job):
+        name, reference_parts, solo_prompt = job
+        raw, mime = _generate_image_bytes(
+            solo_prompt, api_key, reference_parts=reference_parts,
+        )
+        solo_url, solo_path = _save_email_image(
+            raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
+        )
+        return name, raw, mime, solo_url, solo_path, solo_prompt
+
+    # Parallelize independent solo API calls (same model/quality). Group scene
+    # still waits until all solos finish.
+    if pending_solos:
+        workers = min(SOLO_IMAGE_MAX_WORKERS, len(pending_solos))
+        first_error = None
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run_one_solo, job) for job in pending_solos]
+            for future in as_completed(futures):
+                try:
+                    name, raw, mime, solo_url, solo_path, solo_prompt = future.result()
+                except Exception as e:
+                    if first_error is None:
+                        first_error = e
+                    continue
+                caricatures[name] = (raw, mime)
+                solo_images.append({
+                    'name': name,
+                    'url': solo_url,
+                    'path': solo_path,
+                    'prompt': solo_prompt,
+                })
+        if first_error is not None:
             partial_prompt = _image_prompt_bundle_multipass(
                 solo_passes, [], 'Group scene not reached — solo caricature failed.',
             )
             raise ImageGenerationError(
-                _friendly_image_error(e, api_calls=len(solo_passes)),
+                _friendly_image_error(first_error, api_calls=len(solo_passes)),
                 image_prompt=partial_prompt,
                 solo_images=solo_images,
-            ) from e
-        caricatures[name] = (raw, mime)
-        solo_url, solo_path = _save_email_image(
-            raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
-        )
-        solo_images.append({
-            'name': name,
-            'url': solo_url,
-            'path': solo_path,
-            'prompt': solo_prompt,
-        })
+            ) from first_error
 
     # Keep solo_images in roster order for stable UI.
     by_name = {(item.get('name') or '').strip().lower(): item for item in solo_images}
@@ -2315,30 +2414,28 @@ def generate_flyer_image(
     reuse_existing_solos=False, custom_scene_prompt=None,
     custom_solo_prompts=None,
 ):
-    """Generate flyer: exaggerated solo caricatures, then Instagram 4:5 group flyer.
+    """Generate Instagram 4:5 flyer from uploaded player face photos (one API call).
 
-    custom_solo_prompts may be {player_name: prompt} to override specific solos.
+    Does not create per-player caricatures. Uses each player's existing face photo
+    on the site as a likeness reference. Signature looks are exaggerated in-prompt.
+
+    existing_solo_images / reuse_existing_solos / custom_solo_prompts are ignored
+    (kept for call-site compatibility).
+
     Returns (url, path, image_prompt, solo_images, scene_prompt).
+    solo_images is always [] — flyers no longer store intermediate portraits.
     """
+    _ = (existing_solo_images, reuse_existing_solos, custom_solo_prompts)
+
     players = _dedupe_players_preserve_order(players)
     if not players:
         raise ValueError('Select at least one player for the flyer')
 
-    overrides = {}
-    for key, value in (custom_solo_prompts or {}).items():
-        clean_key = (key or '').strip().lower()
-        clean_val = (value or '').strip()
-        if clean_key and clean_val:
-            overrides[clean_key] = clean_val
-
-    def solo_builder(name, trait_phrases, has_refs):
-        override = overrides.get((name or '').strip().lower())
-        if override:
-            return override
-        return _build_solo_player_prompt(name, trait_phrases, has_refs)
-
-    def scene_builder(scene_players):
-        return build_flyer_scene_prompt(
+    scene_refs, scene_players = _reference_parts_from_uploaded_photos(players)
+    if (custom_scene_prompt or '').strip():
+        scene_prompt = custom_scene_prompt.strip()
+    else:
+        scene_prompt = build_flyer_scene_prompt(
             scene_players,
             game_type,
             event_date=event_date,
@@ -2347,20 +2444,20 @@ def generate_flyer_image(
             game_name=game_name,
             image_details=image_details,
         )
-
-    return _generate_email_hero_image_two_pass(
-        api_key,
-        game_type,
-        players,
-        game_name=game_name,
-        image_details=image_details,
-        existing_solo_images=existing_solo_images,
-        reuse_existing_solos=reuse_existing_solos,
-        custom_scene_prompt=custom_scene_prompt,
-        scene_players=players,
-        solo_prompt_builder=solo_builder,
-        scene_prompt_builder=scene_builder,
-    )
+    image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
+    try:
+        raw, mime = _generate_image_bytes(
+            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+        )
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=1),
+            image_prompt=image_prompt,
+            solo_images=[],
+        ) from e
+    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
+    url, path = _save_email_image(raw, _mime_to_ext(mime))
+    return url, path, image_prompt, [], scene_prompt
 
 
 def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
