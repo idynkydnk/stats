@@ -1831,10 +1831,40 @@ def _roster_players_for_games(game_ids, game_type):
     return _ordered_email_image_players(players)
 
 
+def build_ai_recap_roster_cards(player_names):
+    """Player photo/traits cards for the AI recap roster review step."""
+    if not player_names:
+        return []
+    rows = []
+    for name in player_names:
+        row = _ensure_player_record(name)
+        if row:
+            rows.append(row)
+    return build_player_list_cards(rows)
+
+
 @app.route('/select_ai_prompt/', methods=['POST'])
 @login_required
 def select_ai_prompt():
-    """Show prompt selection page after selecting games."""
+    """Review each player's face photo and signature look before style selection."""
+    selected_game_ids = request.form.getlist('game_ids')
+    game_type = request.form.get('game_type', 'doubles')
+    if not selected_game_ids:
+        flash('Please select at least one game.', 'error')
+        return redirect(url_for('ai_summary'))
+    roster_names = _roster_players_for_games(selected_game_ids, game_type)
+    return render_template(
+        'ai_summary_roster.html',
+        game_ids=selected_game_ids,
+        game_type=game_type,
+        player_cards=build_ai_recap_roster_cards(roster_names),
+    )
+
+
+@app.route('/select_ai_style/', methods=['POST'])
+@login_required
+def select_ai_style():
+    """Show writing style + illustration options after roster review."""
     selected_game_ids = request.form.getlist('game_ids')
     game_type = request.form.get('game_type', 'doubles')
     if not selected_game_ids:
@@ -2045,12 +2075,38 @@ def api_flyer_prompts():
     return jsonify({'solos': [], 'scene_prompt': scene_prompt})
 
 
+def _flyer_form_template_kwargs(all_players, payload):
+    """Template kwargs to re-show the create-flyer form with prior values."""
+    return {
+        'players': all_players,
+        'selected_players': payload.get('players') or [],
+        'game_type': payload.get('game_type') or 'doubles',
+        'game_name': payload.get('game_name') or '',
+        'event_date': payload.get('event_date') or '',
+        'event_time': payload.get('event_time') or '',
+        'location': payload.get('location') or '',
+        'image_details': payload.get('image_details') or '',
+        'solo_prompts': payload.get('custom_solo_prompts') or {},
+        'scene_prompt': payload.get('scene_prompt') or '',
+    }
+
+
+def _validate_flyer_payload(payload):
+    """Return an error message if the flyer form payload is incomplete."""
+    if not payload.get('players'):
+        return 'Select at least one player.'
+    if payload.get('game_type') == 'other' and not payload.get('game_name'):
+        return 'Enter a game name for Other.'
+    if not payload.get('event_date') or not payload.get('event_time') or not payload.get('location'):
+        return 'Date, time, and location are required.'
+    return None
+
+
 @app.route('/create_flyer/', methods=['GET', 'POST'])
 @login_required
 def create_flyer():
-    """Form + generate Instagram flyer for an upcoming game."""
+    """Form to pick players and event details for an Instagram flyer."""
     from player_functions import get_all_players
-    import flyer_functions as flyerfx
 
     # Keep get_all_players() order (games played desc) for search suggestions.
     all_players = [row[1] for row in get_all_players() if row and row[1]]
@@ -2066,27 +2122,48 @@ def create_flyer():
             scene_prompt='',
         )
 
+    # POST re-shows the form (e.g. Back from roster review).
     payload = _parse_flyer_form()
-    form_kwargs = {
-        'players': all_players,
-        'selected_players': payload['players'],
-        'game_type': payload['game_type'],
-        'game_name': payload['game_name'],
-        'event_date': payload['event_date'],
-        'event_time': payload['event_time'],
-        'location': payload['location'],
-        'image_details': payload['image_details'],
-        'solo_prompts': payload.get('custom_solo_prompts') or {},
-        'scene_prompt': payload.get('scene_prompt') or '',
-    }
-    if not payload['players']:
-        flash('Select at least one player.', 'error')
+    return render_template(
+        'create_flyer.html',
+        **_flyer_form_template_kwargs(all_players, payload),
+    )
+
+
+@app.route('/create_flyer/roster/', methods=['POST'])
+@login_required
+def create_flyer_roster():
+    """Review each player's face photo and signature look before generating."""
+    from player_functions import get_all_players
+
+    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    payload = _parse_flyer_form()
+    form_kwargs = _flyer_form_template_kwargs(all_players, payload)
+    error = _validate_flyer_payload(payload)
+    if error:
+        flash(error, 'error')
         return render_template('create_flyer.html', **form_kwargs)
-    if payload['game_type'] == 'other' and not payload['game_name']:
-        flash('Enter a game name for Other.', 'error')
-        return render_template('create_flyer.html', **form_kwargs)
-    if not payload['event_date'] or not payload['event_time'] or not payload['location']:
-        flash('Date, time, and location are required.', 'error')
+
+    return render_template(
+        'create_flyer_roster.html',
+        player_cards=build_ai_recap_roster_cards(payload['players']),
+        flyer=payload,
+    )
+
+
+@app.route('/create_flyer/generate/', methods=['POST'])
+@login_required
+def create_flyer_generate():
+    """Generate Instagram flyer after roster review."""
+    from player_functions import get_all_players
+    import flyer_functions as flyerfx
+
+    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    payload = _parse_flyer_form()
+    form_kwargs = _flyer_form_template_kwargs(all_players, payload)
+    error = _validate_flyer_payload(payload)
+    if error:
+        flash(error, 'error')
         return render_template('create_flyer.html', **form_kwargs)
 
     username = session.get('username') or 'unknown'

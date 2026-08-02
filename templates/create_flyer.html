@@ -276,11 +276,10 @@
 
 <div class="sr-card">
     <p style="color: var(--sr-muted); font-size: 13px; margin: 0 0 18px; line-height: 1.5;">
-        Search for who’s playing, set the sport and when/where, then review and edit the AI prompts before creating.
-        That means <strong>one image per player + one flyer</strong> — stay on this page until it finishes.
+        Search for who’s playing, set the sport and when/where, then review player photos and signature looks before creating.
     </p>
 
-    <form id="flyer-form" method="POST" action="{{ url_for('create_flyer') }}">
+    <form id="flyer-form" method="POST" action="{{ url_for('create_flyer_roster') }}">
         <div class="sr-flyer-form-grid">
             <div class="sr-flyer-field">
                 <div class="sr-player-search-wrap">
@@ -365,19 +364,11 @@
 
             <div>
                 <button type="submit" class="sr-generate-btn" id="flyer-submit">
-                    <i class="fas fa-magic"></i> Create flyer
+                    Continue <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </div>
     </form>
-</div>
-
-<div id="flyer-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
-    <div class="sr-generate-loading-card">
-        <i class="fas fa-spinner fa-spin"></i>
-        <strong id="loading-title">Creating your flyer…</strong>
-        <p id="loading-detail">Building the group flyer from uploaded player photos. Stay on this page until it finishes.</p>
-    </div>
 </div>
 {% endblock %}
 {% block extra_js %}
@@ -390,8 +381,6 @@
     var gameType = document.getElementById('game_type');
     var otherWrap = document.getElementById('other-name-wrap');
     var countEl = document.getElementById('flyer-pick-count');
-    var loading = document.getElementById('flyer-loading');
-    var submitBtn = document.getElementById('flyer-submit');
     var searchInput = document.getElementById('player-search');
     var searchList = document.getElementById('player-searchList');
     var chipsEl = document.getElementById('player-chips');
@@ -670,8 +659,6 @@
                 alert('Add at least one player.');
                 return;
             }
-            if (submitBtn) submitBtn.disabled = true;
-            if (loading) loading.classList.add('show');
         });
     }
 })();

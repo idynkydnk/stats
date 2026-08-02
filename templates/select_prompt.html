@@ -307,11 +307,16 @@
                     </div>
                 </div>
 
-                <div class="sr-action-bar">
-                    <a href="{{ url_for('ai_summary') }}" class="sr-back-btn">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
+            </form>
+
+            <form method="POST" action="{{ url_for('select_ai_prompt') }}" class="sr-action-bar">
+                {% for gid in game_ids %}
+                <input type="hidden" name="game_ids" value="{{ gid }}">
+                {% endfor %}
+                <input type="hidden" name="game_type" value="{{ game_type }}">
+                <button type="submit" class="sr-back-btn">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
             </form>
         </div>
 

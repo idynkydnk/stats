@@ -541,6 +541,7 @@ window.PlayerPhotoManager = (function() {
     var facePinchStartZoom = 1;
     var faceSaveTimer = null;
     var listMetaEls = null;
+    var activeListCard = null;
 
     function clampFocus(v) { return Math.max(0, Math.min(100, v)); }
     function clampFaceZoom(v) { return Math.max(MIN_FACE_ZOOM, Math.min(MAX_FACE_ZOOM, v)); }
@@ -959,6 +960,9 @@ window.PlayerPhotoManager = (function() {
         // Sync page/list avatars to the same crop that was just previewed.
         if (headerAvatarImg) applyFaceStyles(headerAvatarImg);
         updateListAvatarPreview();
+        syncActiveCardProfile({
+            faceFocus: { x: faceFocus.x, y: faceFocus.y, z: faceFocus.z },
+        });
         var fd = new FormData();
         fd.append('focus_x', faceFocus.x);
         fd.append('focus_y', faceFocus.y);
@@ -1025,6 +1029,71 @@ window.PlayerPhotoManager = (function() {
         }
     }
 
+    function refreshCardLookSummary(card, profile) {
+        if (!card || !profile) return;
+        var traitsEl = card.querySelector('[data-pl-traits]');
+        if (traitsEl) {
+            traitsEl.textContent = '';
+            var traits = Array.isArray(profile.aiImageTraits) ? profile.aiImageTraits : [];
+            if (!traits.length) {
+                var empty = document.createElement('span');
+                empty.className = 'sr-roster-trait-empty';
+                empty.textContent = 'No signature look yet';
+                traitsEl.appendChild(empty);
+            } else {
+                traits.forEach(function(phrase) {
+                    var chip = document.createElement('span');
+                    chip.className = 'sr-roster-trait';
+                    chip.textContent = phrase;
+                    traitsEl.appendChild(chip);
+                });
+            }
+        }
+        var statusEl = card.querySelector('[data-pl-ready]');
+        if (statusEl) {
+            var rule = card.getAttribute('data-ready-rule') || 'photo-or-traits';
+            var hasPhoto = !!profile.photoUrl;
+            var hasTraits = Array.isArray(profile.aiImageTraits) && profile.aiImageTraits.length > 0;
+            var ready = rule === 'photo' ? hasPhoto : (hasPhoto || hasTraits);
+            var readyLabel = statusEl.getAttribute('data-ready-label') || 'Ready for illustration';
+            var missingLabel = statusEl.getAttribute('data-missing-label')
+                || (rule === 'photo'
+                    ? 'Needs face photo'
+                    : 'Needs photo or signature look');
+            statusEl.className = 'sr-roster-status ' + (ready ? 'ready' : 'missing');
+            statusEl.innerHTML = ready
+                ? '<i class="fas fa-check-circle"></i> ' + readyLabel
+                : '<i class="fas fa-exclamation-circle"></i> ' + missingLabel;
+        }
+    }
+
+    function syncActiveCardProfile(updates) {
+        if (!activeListCard || !playerName) return;
+        var raw = activeListCard.getAttribute('data-player-profile');
+        if (!raw) return;
+        try {
+            var profile = JSON.parse(raw);
+            Object.keys(updates || {}).forEach(function(key) {
+                profile[key] = updates[key];
+            });
+            activeListCard.setAttribute('data-player-profile', JSON.stringify(profile));
+            refreshCardLookSummary(activeListCard, profile);
+            document.dispatchEvent(new CustomEvent('player-profile-updated', {
+                detail: { name: playerName, profile: profile, card: activeListCard },
+            }));
+        } catch (e) {}
+    }
+
+    function clearListAvatar() {
+        if (!listAvatarWrap) return;
+        var existing = listAvatarWrap.querySelector('.sr-avatar-crop-frame, .pl-avatar-frame, .pl-avatar-fallback');
+        if (!existing) return;
+        var fb = document.createElement('div');
+        fb.className = 'pl-avatar-fallback';
+        fb.textContent = playerName ? playerName.charAt(0) : '?';
+        existing.replaceWith(fb);
+    }
+
     function formatBirthdayDisplay(isoDate) {
         var parts = isoDate.split('-');
         if (parts.length !== 3) return isoDate;
@@ -1071,6 +1140,11 @@ window.PlayerPhotoManager = (function() {
                 return;
             }
             updateListMeta();
+            syncActiveCardProfile({
+                email: detailEmail ? detailEmail.value.trim() : '',
+                dateOfBirth: detailBirthday ? detailBirthday.value : '',
+                height: detailHeight ? detailHeight.value.trim() : '',
+            });
             if (detailSaved) {
                 detailSaved.hidden = false;
                 setTimeout(function() { detailSaved.hidden = true; }, 2000);
@@ -1090,6 +1164,7 @@ window.PlayerPhotoManager = (function() {
         var raw = card.getAttribute('data-player-profile');
         if (!raw) return;
         var profile = JSON.parse(raw);
+        activeListCard = card;
         profile.listAvatarWrap = card.querySelector('.pl-avatar');
         profile.listMetaEls = {
             email: card.querySelector('[data-pl-email]'),
@@ -1280,7 +1355,12 @@ window.PlayerPhotoManager = (function() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.success) { alert(data.error || 'Upload failed'); return; }
-            setFacePreview(data.photo_url || null, data.focus || { x: 50, y: 50, z: 1 });
+            var focus = data.focus || { x: 50, y: 50, z: 1 };
+            setFacePreview(data.photo_url || null, focus);
+            syncActiveCardProfile({
+                photoUrl: data.photo_url || null,
+                faceFocus: focus,
+            });
         })
         .catch(function() { alert('Upload failed.'); });
     }
@@ -1295,6 +1375,11 @@ window.PlayerPhotoManager = (function() {
         .then(function(data) {
             if (!data.success) { alert(data.error || 'Remove failed'); return; }
             setFacePreview(null);
+            clearListAvatar();
+            syncActiveCardProfile({
+                photoUrl: null,
+                faceFocus: { x: 50, y: 50, z: 1 },
+            });
         })
         .catch(function() { alert('Remove failed.'); });
     }
@@ -1376,6 +1461,7 @@ window.PlayerPhotoManager = (function() {
             }
             signaturePhrases = res.data.phrases || nextPhrases;
             renderTraits();
+            syncActiveCardProfile({ aiImageTraits: signaturePhrases.slice() });
             if (afterSave) afterSave();
             if (traitsSaved) {
                 traitsSaved.hidden = false;
