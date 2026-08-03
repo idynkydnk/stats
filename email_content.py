@@ -10,6 +10,7 @@ set; otherwise GEMINI_API_KEY (free-tier fallback).
 import os
 import html
 import base64
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -832,6 +833,14 @@ def _is_quota_error(msg):
     return '429' in s or 'quota' in s or 'rate limit' in s or 'exceeded your current quota' in s
 
 
+def _is_transient_image_error(err):
+    s = str(err).lower()
+    return any(token in s for token in (
+        'timed out', 'timeout', 'temporarily unavailable', 'connection reset',
+        'connection aborted', 'remote disconnected', '502', '503', '504',
+    ))
+
+
 def _friendly_image_error(err, api_calls=1):
     if _is_quota_error(err):
         call_note = (
@@ -848,6 +857,11 @@ def _friendly_image_error(err, api_calls=1):
             f'(~500 images/day on gemini-2.5-flash-image; {call_note}). '
             'The text summary still works. Try again tomorrow, enable billing in Google AI '
             'Studio, or set OPENAI_API_KEY for higher-quality paid image generation.'
+        )
+    if _is_transient_image_error(err):
+        return (
+            'OpenAI image generation timed out or dropped the connection. '
+            'The text summary still works — use Remake picture on the recap to retry.'
         )
     return str(err)[:400]
 
@@ -904,61 +918,87 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     full_prompt, images = _openai_prompt_and_images(prompt, reference_parts)
     size = _openai_size_for_aspect(aspect_ratio)
     headers = {'Authorization': f'Bearer {api_key}'}
-    timeout = 180
+    # Group edits with several face refs + high quality often exceed 3 minutes.
+    timeout = int(os.environ.get('OPENAI_IMAGE_TIMEOUT', '300') or '300')
+    max_attempts = int(os.environ.get('OPENAI_IMAGE_RETRIES', '3') or '3')
+    max_attempts = max(1, min(max_attempts, 5))
 
-    if images:
-        # Edits endpoint: up to 16 reference images for likeness / group scenes.
-        files = []
-        for index, (raw, mime) in enumerate(images[:16]):
-            ext = 'png' if 'png' in (mime or '') else 'jpg'
-            content_type = mime or ('image/png' if ext == 'png' else 'image/jpeg')
-            files.append((
-                'image[]',
-                (f'reference_{index}.{ext}', io.BytesIO(raw), content_type),
-            ))
-        data = {
-            'model': OPENAI_IMAGE_MODEL,
-            'prompt': full_prompt,
-            'size': size,
-            'quality': OPENAI_IMAGE_QUALITY,
-        }
-        resp = requests.post(
-            'https://api.openai.com/v1/images/edits',
-            headers=headers,
-            data=data,
-            files=files,
-            timeout=timeout,
-        )
-    else:
-        resp = requests.post(
-            'https://api.openai.com/v1/images/generations',
-            headers={**headers, 'Content-Type': 'application/json'},
-            json={
-                'model': OPENAI_IMAGE_MODEL,
-                'prompt': full_prompt,
-                'size': size,
-                'quality': OPENAI_IMAGE_QUALITY,
-            },
-            timeout=timeout,
-        )
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            if images:
+                # Rebuild file buffers each attempt — BytesIO is consumed on read.
+                files = []
+                for index, (raw, mime) in enumerate(images[:16]):
+                    ext = 'png' if 'png' in (mime or '') else 'jpg'
+                    content_type = mime or ('image/png' if ext == 'png' else 'image/jpeg')
+                    files.append((
+                        'image[]',
+                        (f'reference_{index}.{ext}', io.BytesIO(raw), content_type),
+                    ))
+                data = {
+                    'model': OPENAI_IMAGE_MODEL,
+                    'prompt': full_prompt,
+                    'size': size,
+                    'quality': OPENAI_IMAGE_QUALITY,
+                }
+                resp = requests.post(
+                    'https://api.openai.com/v1/images/edits',
+                    headers=headers,
+                    data=data,
+                    files=files,
+                    timeout=timeout,
+                )
+            else:
+                resp = requests.post(
+                    'https://api.openai.com/v1/images/generations',
+                    headers={**headers, 'Content-Type': 'application/json'},
+                    json={
+                        'model': OPENAI_IMAGE_MODEL,
+                        'prompt': full_prompt,
+                        'size': size,
+                        'quality': OPENAI_IMAGE_QUALITY,
+                    },
+                    timeout=timeout,
+                )
 
-    if resp.status_code >= 400:
-        raise ValueError(_rest_error_detail(resp))
-    data = resp.json()
-    items = data.get('data') or []
-    if not items:
-        raise ValueError('no image in OpenAI response')
-    item = items[0]
-    if item.get('b64_json'):
-        return base64.b64decode(item['b64_json']), 'image/png'
-    url = item.get('url')
-    if url:
-        img_resp = requests.get(url, timeout=60)
-        if img_resp.status_code >= 400:
-            raise ValueError(f'failed to download OpenAI image URL: HTTP {img_resp.status_code}')
-        ctype = (img_resp.headers.get('Content-Type') or 'image/png').split(';')[0].strip()
-        return img_resp.content, ctype or 'image/png'
-    raise ValueError('no image data in OpenAI response')
+            if resp.status_code >= 400:
+                detail = _rest_error_detail(resp)
+                if resp.status_code in (429, 502, 503, 504) and attempt < max_attempts:
+                    last_error = ValueError(detail)
+                    time.sleep(min(8, 2 * attempt))
+                    continue
+                raise ValueError(detail)
+            data = resp.json()
+            items = data.get('data') or []
+            if not items:
+                raise ValueError('no image in OpenAI response')
+            item = items[0]
+            if item.get('b64_json'):
+                return base64.b64decode(item['b64_json']), 'image/png'
+            url = item.get('url')
+            if url:
+                img_resp = requests.get(url, timeout=60)
+                if img_resp.status_code >= 400:
+                    raise ValueError(
+                        f'failed to download OpenAI image URL: HTTP {img_resp.status_code}'
+                    )
+                ctype = (img_resp.headers.get('Content-Type') or 'image/png').split(';')[0].strip()
+                return img_resp.content, ctype or 'image/png'
+            raise ValueError('no image data in OpenAI response')
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last_error = e
+            if attempt >= max_attempts:
+                break
+            time.sleep(min(8, 2 * attempt))
+        except ValueError as e:
+            if _is_transient_image_error(e) and attempt < max_attempts:
+                last_error = e
+                time.sleep(min(8, 2 * attempt))
+                continue
+            raise
+
+    raise last_error or ValueError('OpenAI image generation failed')
 
 
 def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_ratio=None):
