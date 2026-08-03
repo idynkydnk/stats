@@ -656,7 +656,8 @@ Event: {title}
 When: {when_line}
 Where: {where_line}
 {details_block}{roster_block}
-Use each attached uploaded face photo for likeness — same face per Person number.
+Use each attached uploaded face photo for likeness when provided — same face per Person number.
+For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
 Draw all {player_count} people in the scene — one per Person number.
 Include clear, readable flyer text for the event title, date/time, and location.
@@ -666,10 +667,12 @@ Energetic, fun, poster-quality illustration — not a plain photo collage."""
 
 
 def _reference_parts_from_uploaded_photos(players):
-    """Attach each player's uploaded face photo as a numbered flyer reference.
+    """Build numbered likeness refs for a single group image call.
 
-    Returns (reference_parts, players_with_photos). Players without a face photo
-    are skipped. Raises ValueError if nobody has an uploaded face photo.
+    Includes a player when they have a face photo and/or signature looks.
+    Skips players with neither. Raises ValueError if nobody can be illustrated.
+
+    Returns (reference_parts, included_players).
     """
     from player_functions import (
         collect_player_ai_image_traits,
@@ -682,46 +685,63 @@ def _reference_parts_from_uploaded_photos(players):
         (entry.get('name') or '').strip().lower(): entry for entry in trait_entries
     }
 
-    with_photos = []
+    included = []
     photos_by_name = {}
+    phrases_by_name = {}
     for name in players:
         entry = collect_solo_reference_images(name)
         refs = (entry or {}).get('parts') or []
-        if not refs:
+        trait = traits_by_name.get((name or '').strip().lower())
+        phrases = (trait or {}).get('phrases') or []
+        if not _player_can_illustrate(bool(refs), phrases):
             continue
-        with_photos.append(name)
-        photos_by_name[name] = refs
+        included.append(name)
+        if refs:
+            photos_by_name[name] = refs
+        if phrases:
+            phrases_by_name[name] = phrases
 
-    if not with_photos:
+    if not included:
         raise ValueError(
-            'No selected players have a face photo uploaded. '
-            'Add face photos on the Players page, then try again.'
+            'No selected players have a face photo or signature looks. '
+            'Add face photos or signature looks on the Players page, then try again.'
         )
 
-    # OpenAI edits accepts up to 16 reference images.
-    with_photos = with_photos[:16]
-    roster_block, player_count, with_photos = _image_roster_block(with_photos)
+    # OpenAI edits accepts up to 16 reference images; also cap roster size.
+    included = included[:16]
+    roster_block, player_count, included = _image_roster_block(included)
+    with_photos = sum(1 for name in included if name in photos_by_name)
     parts = [{
         'text': (
-            f'{player_count} players, each with an uploaded face photo attached below.'
+            f'{player_count} players below.'
+            f' {with_photos} have an uploaded face photo;'
+            f' others use signature looks only.'
             f'{roster_block}'
         ),
     }]
-    for index, name in enumerate(with_photos, start=1):
-        parts.append({
-            'text': (
-                f'Person {index} ({name}) — use this uploaded face photo for likeness:'
-            ),
-        })
-        for ref in photos_by_name[name]:
+    for index, name in enumerate(included, start=1):
+        refs = photos_by_name.get(name) or []
+        phrases = phrases_by_name.get(name) or []
+        if refs:
             parts.append({
-                'inline_data': {
-                    'mime_type': ref['mime'],
-                    'data': ref['data_b64'],
-                },
+                'text': (
+                    f'Person {index} ({name}) — use this uploaded face photo for likeness:'
+                ),
             })
-        trait = traits_by_name.get((name or '').strip().lower())
-        phrases = (trait or {}).get('phrases') or []
+            for ref in refs:
+                parts.append({
+                    'inline_data': {
+                        'mime_type': ref['mime'],
+                        'data': ref['data_b64'],
+                    },
+                })
+        else:
+            parts.append({
+                'text': (
+                    f'Person {index} ({name}) — no face photo. Invent one unique '
+                    f'stylized character from the signature looks below.'
+                ),
+            })
         if phrases:
             phrase_lines = '\n'.join(f'- {phrase}' for phrase in phrases)
             parts.append({
@@ -730,7 +750,7 @@ def _reference_parts_from_uploaded_photos(players):
                     f'read instantly:\n{phrase_lines}'
                 ),
             })
-    return parts, with_photos
+    return parts, included
 
 
 def _sport_desc_for_image(game_type, game_name=None):
@@ -773,7 +793,8 @@ def build_scene_image_prompt(game_type, players, game_name=None, image_details='
     details_block = _image_details_block(image_details)
     return f"""Game: {sport_desc}.
 {details_block}{roster_block}
-Use each attached uploaded face photo for likeness — same face per Person number.
+Use each attached uploaded face photo for likeness when provided — same face per Person number.
+For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
 Draw all {player_count} people in the scene — one per Person number.
 Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
