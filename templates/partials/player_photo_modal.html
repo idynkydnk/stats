@@ -9,6 +9,10 @@
             <h4>Player details</h4>
             <div class="sr-player-details-form">
                 <label class="sr-player-detail-field">
+                    <span>Nickname</span>
+                    <input type="text" id="player-detail-nickname" placeholder="Shown on AI pictures (defaults to first name)" autocomplete="off">
+                </label>
+                <label class="sr-player-detail-field">
                     <span>Email</span>
                     <input type="email" id="player-detail-email" placeholder="player@example.com" autocomplete="off">
                 </label>
@@ -522,6 +526,7 @@ window.PlayerPhotoManager = (function() {
     var traitsInput = document.getElementById('ai-image-traits-input');
     var traitsAddBtn = document.getElementById('ai-image-traits-add');
     var traitsSaved = document.getElementById('ai-image-traits-saved');
+    var detailNickname = document.getElementById('player-detail-nickname');
     var detailEmail = document.getElementById('player-detail-email');
     var detailBirthday = document.getElementById('player-detail-birthday');
     var detailHeight = document.getElementById('player-detail-height');
@@ -1109,6 +1114,7 @@ window.PlayerPhotoManager = (function() {
         headerAvatarFallback = cfg.headerAvatarFallback || document.getElementById('player-avatar-fallback');
         if (titleName) titleName.textContent = playerName || 'Player';
         if (modalFaceEmpty) modalFaceEmpty.textContent = playerName ? playerName.charAt(0) : '?';
+        if (detailNickname) detailNickname.value = cfg.nickname || '';
         if (detailEmail) detailEmail.value = cfg.email || '';
         if (detailBirthday) detailBirthday.value = cfg.dateOfBirth || '';
         if (detailHeight) detailHeight.value = cfg.height || '';
@@ -1128,6 +1134,7 @@ window.PlayerPhotoManager = (function() {
             credentials: 'same-origin',
             body: JSON.stringify({
                 player_name: playerName,
+                nickname: detailNickname ? detailNickname.value.trim() : '',
                 email: detailEmail ? detailEmail.value.trim() : '',
                 birthday: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',
@@ -1141,6 +1148,7 @@ window.PlayerPhotoManager = (function() {
             }
             updateListMeta();
             syncActiveCardProfile({
+                nickname: detailNickname ? detailNickname.value.trim() : '',
                 email: detailEmail ? detailEmail.value.trim() : '',
                 dateOfBirth: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',

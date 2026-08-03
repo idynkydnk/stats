@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!window.PlayerPhotoManager) return;
     PlayerPhotoManager.initPage({
         name: {{ display_name|tojson }},
+        nickname: {{ (player_nickname if player_nickname is defined else '')|tojson }},
         email: {{ (player_email if player_email is defined else '')|tojson }},
         dateOfBirth: {{ (player_date_of_birth if player_date_of_birth is defined else '')|tojson }},
         height: {{ (player_height if player_height is defined else '')|tojson }},

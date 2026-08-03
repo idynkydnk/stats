@@ -1233,8 +1233,11 @@ def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes
             conn.commit()
         return player_id
 
-def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=None):
-    """Update a player's information and update their name across all game tables"""
+def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=...):
+    """Update a player's information and update their name across all game tables.
+
+    Pass nickname explicitly to set/clear it. Omitting nickname leaves it unchanged.
+    """
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -1273,11 +1276,12 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
     with conn:
         player = (full_name, email, date_of_birth, height, notes, now, player_id)
         update_player(conn, player)
-        conn.execute(
-            'UPDATE players SET nickname = ? WHERE id = ?',
-            ((nickname or '').strip() or None, player_id),
-        )
-        conn.commit()
+        if nickname is not ...:
+            conn.execute(
+                'UPDATE players SET nickname = ? WHERE id = ?',
+                ((nickname or '').strip() or None, player_id),
+            )
+            conn.commit()
 
 def remove_player(player_id):
     """Delete a player from the database"""

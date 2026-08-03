@@ -1205,12 +1205,13 @@ def player_face_photo_focus_for(name):
 
 
 def player_profile_fields_for(name):
-    """Email, birthday, and height for player profile editing."""
+    """Email, birthday, height, and nickname for player profile editing."""
     row = _ensure_player_record(name)
     return {
         'email': (row[2] or '') if row else '',
         'date_of_birth': (row[3] or '') if row else '',
         'height': (row[4] or '') if row else '',
+        'nickname': (row[10] or '') if row and len(row) > 10 else '',
     }
 
 
@@ -1224,6 +1225,7 @@ def player_avatar_context(name):
         'player_email': fields['email'],
         'player_date_of_birth': fields['date_of_birth'],
         'player_height': fields['height'],
+        'player_nickname': fields['nickname'],
         'og_image_url': player_og_image_url_for(name),
         'og_image_alt': name,
         'og_page_url': EMAIL_SITE_BASE_URL.rstrip('/') + urllib.parse.quote(request.path),
@@ -1255,11 +1257,12 @@ def build_player_list_cards(players):
 
         cards.append({
             'name': name,
+            'nickname': player_row[10] if len(player_row) > 10 and player_row[10] else '',
             'email': player_row[2] or '',
             'dateOfBirth': player_row[3] or '',
             'height': player_row[4] or '',
-            'games': int(player_row[11]) if len(player_row) > 11 and player_row[11] is not None else 0,
-            'firstGame': player_row[10] if len(player_row) > 10 and player_row[10] else '',
+            'games': int(player_row[12]) if len(player_row) > 12 and player_row[12] is not None else 0,
+            'firstGame': player_row[11] if len(player_row) > 11 and player_row[11] else '',
             'photoUrl': url_for('static', filename=photo_path) if photo_path else None,
             'aiImageTraits': meta.get('traits', []),
             'faceFocus': face_focus,
@@ -5624,9 +5627,10 @@ def add_player_email():
 @app.route('/api/update_player_info', methods=['POST'])
 @login_required
 def api_update_player_info():
-    """Update player info (email, birthday, height) from AI summary preview."""
+    """Update player info (nickname, email, birthday, height) from profile modal."""
     data = request.get_json() or {}
     player_name = (data.get('player_name') or '').strip()
+    nickname = (data.get('nickname') or '').strip() or None
     email = (data.get('email') or '').strip() or None
     birthday = (data.get('birthday') or '').strip() or None
     height = (data.get('height') or '').strip() or None
@@ -5648,27 +5652,35 @@ def api_update_player_info():
         new_birthday = birthday if birthday else player_record[3]
         new_height = height if height else player_record[4]
         notes = player_record[5]
-        update_player_info(player_id, existing_full_name, email=new_email,
-                           date_of_birth=new_birthday, height=new_height, notes=notes)
+        # Nickname is always taken from the form so clearing it works.
+        update_player_info(
+            player_id, existing_full_name, email=new_email,
+            date_of_birth=new_birthday, height=new_height, notes=notes,
+            nickname=nickname,
+        )
     else:
-        add_new_player(player_name, email=email)
+        add_new_player(player_name, email=email, nickname=nickname)
         # If we just created the player, update with birthday/height if provided
         if birthday or height:
             player_record = get_player_by_name(player_name)
             if player_record:
-                update_player_info(player_record[0], player_record[1], 
-                                   email=email, date_of_birth=birthday, height=height, notes=None)
+                update_player_info(
+                    player_record[0], player_record[1],
+                    email=email, date_of_birth=birthday, height=height, notes=None,
+                    nickname=nickname,
+                )
 
     user = session.get('username', 'unknown')
     updates = []
+    if nickname: updates.append(f'nickname={nickname}')
     if email: updates.append(f'email={email}')
     if birthday: updates.append(f'birthday={birthday}')
     if height: updates.append(f'height={height}')
-    log_user_action(user, 'Updated player info', f'{player_name}: {", ".join(updates)}')
-    log_activity('Updated player info', summary=f'{player_name}: {", ".join(updates)}')
+    log_user_action(user, 'Updated player info', f'{player_name}: {", ".join(updates) or "cleared fields"}')
+    log_activity('Updated player info', summary=f'{player_name}: {", ".join(updates) or "cleared fields"}')
     clear_stats_cache()
 
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'nickname': nickname or ''})
 
 
 @app.route('/opt_in_ai_emails')
