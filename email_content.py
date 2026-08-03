@@ -582,11 +582,11 @@ def resolve_illustration_players(player_names, selected_players=None):
 
 
 def _illustration_players(player_names, game_type, games, selected_players=None):
-    """Choose roster for illustration. Always two-pass: solo caricatures, then group."""
+    """Choose roster for illustration. One group image from uploaded face photos."""
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
-        return [], 'two_pass', all_players
-    return list(all_players), 'two_pass', all_players
+        return [], 'single', all_players
+    return list(all_players), 'single', all_players
 
 
 def _solo_reference_parts_for_player(name, entry):
@@ -773,7 +773,8 @@ def build_scene_image_prompt(game_type, players, game_name=None, image_details='
     details_block = _image_details_block(image_details)
     return f"""Game: {sport_desc}.
 {details_block}{roster_block}
-Use each attached character reference exactly — same face, hair, outfit per person.
+Use each attached uploaded face photo for likeness — same face per Person number.
+Highly exaggerate each person's signature looks so they read instantly at a glance.
 Draw all {player_count} people in the scene — one per Person number.
 Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
 
@@ -2247,11 +2248,11 @@ def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_pro
 
 def _illustration_meta(player_names, game_type, games, selected_players=None):
     all_players = _ordered_email_image_players(player_names)
-    api_calls = (len(all_players) + 1) if all_players else 0
+    api_calls = 1 if all_players else 0
     return {
-        'strategy': 'two_pass',
+        'strategy': 'single',
         'illustrated_players': all_players,
-        'solo_players': all_players,
+        'solo_players': [],
         'total_players': len(all_players),
         'api_calls': api_calls,
         'note': _illustration_status_note(all_players),
@@ -2262,7 +2263,7 @@ def _illustration_status_note(all_players):
     if not all_players:
         return ''
     return (
-        f'Illustration uses one caricature per player, then a group scene '
+        f'Illustration is one group image from uploaded face photos '
         f'({len(all_players)} players).'
     )
 
@@ -2504,18 +2505,44 @@ def generate_email_hero_image(
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
     selected_players=None,
 ):
-    """Generate hero image: solo caricature for every roster player, then group scene."""
+    """Generate one group hero image from uploaded face photos (single API call).
+
+    Does not create per-player caricatures. Uses each player's existing face photo
+    on the site as a likeness reference. Signature looks are exaggerated in-prompt.
+
+    existing_solo_images / reuse_existing_solos are ignored (kept for call-site
+    compatibility).
+
+    Returns (url, path, image_prompt, solo_images, scene_prompt).
+    solo_images is always [].
+    """
+    _ = (games, existing_solo_images, reuse_existing_solos, selected_players)
+
     all_players = _ordered_email_image_players(player_names)
     if not all_players:
         raise ValueError('No players in roster for illustration')
-    return _generate_email_hero_image_two_pass(
-        api_key, game_type, all_players, game_name=game_name,
-        image_details=image_details,
-        existing_solo_images=existing_solo_images,
-        reuse_existing_solos=reuse_existing_solos,
-        custom_scene_prompt=custom_scene_prompt,
-        scene_players=all_players,
-    )
+
+    scene_refs, scene_players = _reference_parts_from_uploaded_photos(all_players)
+    if (custom_scene_prompt or '').strip():
+        scene_prompt = custom_scene_prompt.strip()
+    else:
+        scene_prompt = _build_scene_image_prompt(
+            game_type, scene_players, game_name=game_name, image_details=image_details,
+        )
+    image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
+    try:
+        raw, mime = _generate_image_bytes(
+            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+        )
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=1),
+            image_prompt=image_prompt,
+            solo_images=[],
+        ) from e
+    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
+    url, path = _save_email_image(raw, _mime_to_ext(mime))
+    return url, path, image_prompt, [], scene_prompt
 
 
 def _try_generate_email_hero_image(

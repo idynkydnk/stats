@@ -757,7 +757,7 @@
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
                 <label for="recap-scene-prompt">Group picture prompt</label>
-                <p class="recap-remake-help">Edit the full prompt used for the group scene, then remake. Existing individual caricatures you remade or uploaded stay attached as references.</p>
+                <p class="recap-remake-help">Edit the full prompt used for the group picture, then remake. Uses uploaded face photos as likeness references in a single image.</p>
                 <textarea id="recap-scene-prompt" name="scene_prompt" placeholder="Group scene illustration prompt…">{{ remake_scene_prompt }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
