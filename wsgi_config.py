@@ -70,8 +70,9 @@ from stats import app as application
 # and leave the task stuck on "Starting").
 #
 #   1. PythonAnywhere dashboard → Tasks tab → Always-on tasks
-#   2. Command (exactly this one line):
-#        bash "$HOME/stats/start_ai_auto_send_daemon.sh"
+#   2. Command (exactly this one line — no $HOME, no quotes, no API keys):
+#        bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
+#      Or: python3 -u /home/idynkydnk/stats/ai_auto_send_daemon.py
 #   3. Description: AI auto-send worker
 #   4. Save → Restart → State should become Running
 #   5. Logs: ~/stats/ai_auto_send_daemon.log (or the task log icon)
