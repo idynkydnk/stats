@@ -24,8 +24,6 @@
                     <span>Height</span>
                     <input type="text" id="player-detail-height" placeholder="e.g. 6'1&quot;" autocomplete="off">
                 </label>
-                <button type="button" class="sr-photo-action-btn" id="player-detail-save">Save details</button>
-                <span class="sr-traits-saved" id="player-detail-saved" hidden>Saved!</span>
             </div>
         </section>
 
@@ -73,7 +71,7 @@
         </section>
 
         <div class="sr-photo-modal-footer">
-            <button type="button" class="sr-photo-action-btn" data-close-photo-modal>Close</button>
+            <button type="button" class="sr-photo-action-btn" id="player-detail-save-close">Save and close</button>
         </div>
     </div>
 </div>
@@ -526,12 +524,11 @@ window.PlayerPhotoManager = (function() {
     var traitsInput = document.getElementById('ai-image-traits-input');
     var traitsAddBtn = document.getElementById('ai-image-traits-add');
     var traitsSaved = document.getElementById('ai-image-traits-saved');
+    var detailSaveCloseBtn = document.getElementById('player-detail-save-close');
     var detailNickname = document.getElementById('player-detail-nickname');
     var detailEmail = document.getElementById('player-detail-email');
     var detailBirthday = document.getElementById('player-detail-birthday');
     var detailHeight = document.getElementById('player-detail-height');
-    var detailSaveBtn = document.getElementById('player-detail-save');
-    var detailSaved = document.getElementById('player-detail-saved');
     var titleName = document.getElementById('player-photo-title-name');
     var signaturePhrases = [];
     var traitsSaving = false;
@@ -1126,10 +1123,14 @@ window.PlayerPhotoManager = (function() {
         renderTraits();
     }
 
-    function savePlayerDetails() {
-        if (!playerName) return;
+    function savePlayerDetails(opts) {
+        opts = opts || {};
+        if (!playerName) {
+            if (opts.closeAfter) closeModal();
+            return;
+        }
         var nicknameVal = detailNickname ? detailNickname.value.trim() : '';
-        if (detailSaveBtn) detailSaveBtn.disabled = true;
+        if (detailSaveCloseBtn) detailSaveCloseBtn.disabled = true;
         fetch('/api/update_player_info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1164,14 +1165,11 @@ window.PlayerPhotoManager = (function() {
                 dateOfBirth: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',
             });
-            if (detailSaved) {
-                detailSaved.hidden = false;
-                setTimeout(function() { detailSaved.hidden = true; }, 2000);
-            }
+            if (opts.closeAfter) closeModal();
         })
         .catch(function() { alert('Save failed.'); })
         .finally(function() {
-            if (detailSaveBtn) detailSaveBtn.disabled = false;
+            if (detailSaveCloseBtn) detailSaveCloseBtn.disabled = false;
         });
     }
 
@@ -1779,7 +1777,11 @@ window.PlayerPhotoManager = (function() {
     if (bodyZoomOut) bodyZoomOut.addEventListener('click', function() { adjustBodyZoom(-FACE_ZOOM_STEP); });
     if (bodyCropDone) bodyCropDone.addEventListener('click', closeBodyCropEditor);
     renderTraits();
-    if (detailSaveBtn) detailSaveBtn.addEventListener('click', savePlayerDetails);
+    if (detailSaveCloseBtn) {
+        detailSaveCloseBtn.addEventListener('click', function() {
+            savePlayerDetails({ closeAfter: true });
+        });
+    }
     if (traitsAddBtn) traitsAddBtn.addEventListener('click', addTrait);
     if (traitsInput) traitsInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
