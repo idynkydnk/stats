@@ -33,6 +33,7 @@ Thumbs.db
 # Environment files and scripts with credentials
 .env
 .env.local
+always_on_env.sh
 run_with_email.sh
 
 # Uploaded player photos (stored on server)

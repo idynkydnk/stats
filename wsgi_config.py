@@ -61,18 +61,21 @@ from stats import app as application
 #
 # --- AI auto-send "tap and walk away" (Always-on task) ---
 #
-# The web app queues jobs in stats.db; a separate long-running worker sends them.
+# The web app queues jobs in stats.db; a separate long-running worker processes them.
 # Without this task, Generate & Send (walk away) will queue jobs but never process them.
 #
-# Always-on tasks do NOT inherit these WSGI env vars — export them in the task
-# Command. Use $HOME (PythonAnywhere home path is case-sensitive).
+# Always-on tasks do NOT inherit WSGI env vars automatically. The daemon now reads
+# missing keys from this WSGI file, so the Always-on Command should be SHORT — do
+# not paste OPENAI_API_KEY into the task Command (long keys get truncated/mangled
+# and leave the task stuck on "Starting").
 #
-#   1. PythonAnywhere dashboard → Tasks tab → Always-on tasks → Add a new always-on task
-#   2. Command (one line; copy OPENAI_API_KEY from the exports above):
-#        export OPENAI_API_KEY='...' && export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com' && bash "$HOME/stats/start_ai_auto_send_daemon.sh"
-#   3. Save and enable the task — State should become Running (not stuck on Starting)
-#   4. Logs: ~/stats/ai_auto_send_daemon.log (or the task log icon)
-#   5. Heartbeat file (worker alive): ~/stats/ai_auto_send_daemon.heartbeat
+#   1. PythonAnywhere dashboard → Tasks tab → Always-on tasks
+#   2. Command (exactly this one line):
+#        bash "$HOME/stats/start_ai_auto_send_daemon.sh"
+#   3. Description: AI auto-send worker
+#   4. Save → Restart → State should become Running
+#   5. Logs: ~/stats/ai_auto_send_daemon.log (or the task log icon)
+#   6. Heartbeat file (worker alive): ~/stats/ai_auto_send_daemon.heartbeat
 
 
 if __name__ == "__main__":

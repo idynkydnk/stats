@@ -1,0 +1,10 @@
+# Optional server-only env for the Always-on AI worker.
+# Copy to always_on_env.sh on PythonAnywhere and fill in real values:
+#   cp always_on_env.sh.example always_on_env.sh
+#
+# Usually unnecessary: the daemon also reads keys from your WSGI file.
+# Prefer WSGI / .env so you only maintain secrets in one place.
+
+export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com'
+# export OPENAI_API_KEY='sk-...'
+# export GEMINI_API_KEY='...'

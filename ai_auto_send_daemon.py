@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Always-on worker for AI summary auto-send jobs (PythonAnywhere).
+"""Always-on worker for AI summary / flyer jobs (PythonAnywhere).
 
-Run this as an Always-on task on PythonAnywhere (prefer the wrapper script):
+Always-on Command (short — do not put API keys in the task Command box):
 
-  export OPENAI_API_KEY='...' && export SITE_BASE_URL='https://idynkydnk.pythonanywhere.com' && bash "$HOME/stats/start_ai_auto_send_daemon.sh"
+  bash "$HOME/stats/start_ai_auto_send_daemon.sh"
 
-Or directly:
-
-  cd "$HOME/stats" && python3 ai_auto_send_daemon.py
-
-The task must have the same env vars as the web app (MAIL_*, OPENAI_API_KEY or GEMINI_API_KEY, etc.).
+Env loading order:
+  1. Process env / always_on_env.sh / .env (via start script + dotenv)
+  2. PythonAnywhere WSGI file (same secrets as the web app)
 """
 import os
+import re
 import sys
 import time
 import traceback
@@ -22,7 +21,7 @@ if ROOT not in sys.path:
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(os.path.join(ROOT, '.env'))
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -30,6 +29,9 @@ import ai_auto_send_jobs as jobs
 
 POLL_SECONDS = 5
 LOG_PATH = os.path.join(ROOT, 'ai_auto_send_daemon.log')
+_WSGI_ENV_RE = re.compile(
+    r"""os\.environ\[\s*['\"]([A-Z0-9_]+)['\"]\s*\]\s*=\s*['\"]([^'\"]*)['\"]"""
+)
 
 
 def _log(msg):
@@ -40,6 +42,52 @@ def _log(msg):
     except OSError:
         pass
     print(line, end='', flush=True)
+
+
+def _wsgi_candidate_paths():
+    explicit = (os.environ.get('WSGI_ENV_FILE') or '').strip()
+    paths = []
+    if explicit:
+        paths.append(explicit)
+    paths.append('/var/www/idynkydnk_pythonanywhere_com_wsgi.py')
+    home = os.path.expanduser('~')
+    if home and home != '~':
+        user = os.path.basename(home.rstrip('/'))
+        if user:
+            paths.append(f'/var/www/{user.lower()}_pythonanywhere_com_wsgi.py')
+            paths.append(f'/var/www/{user}_pythonanywhere_com_wsgi.py')
+    # Dedupe while preserving order
+    seen = set()
+    out = []
+    for path in paths:
+        if path and path not in seen:
+            seen.add(path)
+            out.append(path)
+    return out
+
+
+def _load_missing_env_from_wsgi():
+    """Copy unset keys from the PA WSGI file so Always-on matches the web app."""
+    loaded_from = None
+    loaded_keys = []
+    for path in _wsgi_candidate_paths():
+        try:
+            with open(path, encoding='utf-8') as f:
+                text = f.read()
+        except OSError:
+            continue
+        for key, value in _WSGI_ENV_RE.findall(text):
+            if key in os.environ and str(os.environ.get(key, '')).strip():
+                continue
+            os.environ[key] = value
+            loaded_keys.append(key)
+        loaded_from = path
+        break
+    if loaded_from and loaded_keys:
+        _log(f'Loaded {len(loaded_keys)} env vars from {loaded_from}')
+    elif loaded_from:
+        _log(f'Checked WSGI env at {loaded_from} (no missing keys to load)')
+    return loaded_from
 
 
 def _process_job(job):
@@ -111,12 +159,18 @@ def _process_job(job):
 
 
 def main():
+    os.environ.setdefault('SITE_BASE_URL', 'https://idynkydnk.pythonanywhere.com')
+    _load_missing_env_from_wsgi()
+
     jobs.init_ai_auto_send_jobs_db()
     jobs.reset_stale_running_jobs()
-    _log('AI auto-send daemon started')
+    _log(f'AI auto-send daemon started (cwd={os.getcwd()})')
 
     if not (os.environ.get('OPENAI_API_KEY') or os.environ.get('GEMINI_API_KEY')):
         _log('WARNING: OPENAI_API_KEY / GEMINI_API_KEY not set — jobs will fail')
+    else:
+        provider = 'OPENAI_API_KEY' if os.environ.get('OPENAI_API_KEY') else 'GEMINI_API_KEY'
+        _log(f'AI provider key present: {provider}')
 
     while True:
         jobs.touch_daemon_heartbeat()
