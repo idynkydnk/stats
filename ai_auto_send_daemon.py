@@ -3,11 +3,11 @@
 
 Always-on Command (plain absolute path — no $HOME, no quotes, no API keys):
 
-  bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
+  bash /home/Idynkydnk/stats/start_ai_auto_send_daemon.sh
 
 Or:
 
-  python3 -u /home/idynkydnk/stats/ai_auto_send_daemon.py
+  python3 -u /home/Idynkydnk/stats/ai_auto_send_daemon.py
 
 Env loading order:
   1. Process env / always_on_env.sh / .env (via start script + dotenv)

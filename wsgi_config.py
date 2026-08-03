@@ -8,7 +8,7 @@ import sys
 import os
 
 # Add your project directory to the Python path
-path = '/home/idynkydnk/stats'
+path = '/home/Idynkydnk/stats'
 if path not in sys.path:
     sys.path.append(path)
 
@@ -71,8 +71,8 @@ from stats import app as application
 #
 #   1. PythonAnywhere dashboard → Tasks tab → Always-on tasks
 #   2. Command (exactly this one line — no $HOME, no quotes, no API keys):
-#        bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
-#      Or: python3 -u /home/idynkydnk/stats/ai_auto_send_daemon.py
+#        bash /home/Idynkydnk/stats/start_ai_auto_send_daemon.sh
+#      Or: python3 -u /home/Idynkydnk/stats/ai_auto_send_daemon.py
 #   3. Description: AI auto-send worker
 #   4. Save → Restart → State should become Running
 #   5. Logs: ~/stats/ai_auto_send_daemon.log (or the task log icon)

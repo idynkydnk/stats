@@ -3,11 +3,11 @@
 #
 # Always-on Command — use a plain absolute path (no $HOME, no quotes):
 #
-#   bash /home/idynkydnk/stats/start_ai_auto_send_daemon.sh
+#   bash /home/Idynkydnk/stats/start_ai_auto_send_daemon.sh
 #
 # Or skip this wrapper:
 #
-#   python3 -u /home/idynkydnk/stats/ai_auto_send_daemon.py
+#   python3 -u /home/Idynkydnk/stats/ai_auto_send_daemon.py
 #
 # Secrets are loaded from, in order:
 #   1. always_on_env.sh  (optional; server-only, gitignored)
