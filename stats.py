@@ -2960,11 +2960,20 @@ def remake_ai_recap_image(share_id):
 
         illustration_players = list(players)
 
+        from email_content import (
+            build_scene_image_prompt,
+            _image_labels_for_players,
+            session_stats_for_illustration,
+        )
+        player_stats = session_stats_for_illustration(game_type, games)
+
         if not scene_prompt:
-            from email_content import build_scene_image_prompt
+            labels = _image_labels_for_players(
+                illustration_players, player_stats=player_stats,
+            )
             scene_prompt = build_scene_image_prompt(
                 game_type, illustration_players, game_name=game_name,
-                image_details=image_details,
+                image_details=image_details, labels_by_name=labels,
             )
 
         new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
@@ -2980,6 +2989,7 @@ def remake_ai_recap_image(share_id):
                 reuse_existing_solos=bool(reuse_solos),
                 custom_scene_prompt=scene_prompt,
                 selected_players=illustration_players,
+                player_stats=player_stats,
             )
         )
     except Exception as e:
@@ -5135,6 +5145,7 @@ def edit_player(player_id):
 
     if request.method == 'POST':
         full_name = request.form['full_name']
+        nickname = (request.form.get('nickname') or '').strip() or None
         email = request.form['email'] if request.form['email'] else None
         date_of_birth = request.form['date_of_birth'] if request.form['date_of_birth'] else None
         height = request.form['height'] if request.form['height'] else None
@@ -5144,7 +5155,10 @@ def edit_player(player_id):
             flash('Full name is required!')
         else:
             old_name = player[1]
-            update_player_info(player_id, full_name, email, date_of_birth, height, notes)
+            update_player_info(
+                player_id, full_name, email, date_of_birth, height, notes,
+                nickname=nickname,
+            )
 
             photo_msg = ''
             try:

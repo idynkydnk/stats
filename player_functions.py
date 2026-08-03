@@ -18,11 +18,11 @@ MAX_STORED_PHOTO_DIMENSION = 2400
 # Canonical SELECT for players — avoids breakage when legacy columns (e.g. phone) exist.
 PLAYERS_SELECT = """
     SELECT id, full_name, email, date_of_birth, height, notes,
-           created_at, updated_at, photo_path, full_body_photo_path
+           created_at, updated_at, photo_path, full_body_photo_path, nickname
     FROM players
 """
 
-PLAYERS_SELECT_COLUMNS = 10
+PLAYERS_SELECT_COLUMNS = 11
 
 
 def init_players_photo_column():
@@ -49,6 +49,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN face_photo_focus TEXT')
     if 'full_body_photo_crops' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_crops TEXT')
+    if 'nickname' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN nickname TEXT')
     conn.commit()
     conn.close()
     trim_all_players_full_body_photos()
@@ -57,6 +59,47 @@ def init_players_photo_column():
     except Exception:
         # Don't block app startup if an odd photo fails to recompress.
         pass
+
+
+def player_first_name(full_name):
+    """First token of a full name."""
+    parts = (full_name or '').strip().split()
+    return parts[0] if parts else ''
+
+
+def get_player_nickname(full_name):
+    """Return stored nickname for a player, or ''."""
+    row = get_player_by_name(full_name)
+    if not row or len(row) <= 10:
+        return ''
+    return (row[10] or '').strip()
+
+
+def player_display_name(full_name, nickname=None):
+    """Nickname if set, otherwise first name (fallback: full name)."""
+    nick = (nickname if nickname is not None else get_player_nickname(full_name) or '').strip()
+    if nick:
+        return nick
+    first = player_first_name(full_name)
+    return first or (full_name or '').strip()
+
+
+def player_display_names_map(full_names):
+    """Map full_name -> display label (nickname or first name) for a roster."""
+    names = [n for n in (full_names or []) if (n or '').strip()]
+    if not names:
+        return {}
+    out = {}
+    cur = set_cur()
+    placeholders = ','.join('?' for _ in names)
+    cur.execute(
+        f'SELECT full_name, nickname FROM players WHERE full_name IN ({placeholders})',
+        names,
+    )
+    found = {row[0]: (row[1] or '').strip() for row in cur.fetchall()}
+    for name in names:
+        out[name] = player_display_name(name, nickname=found.get(name, ''))
+    return out
 
 
 def trim_player_full_body_photos(player_id):
@@ -1137,18 +1180,18 @@ def get_all_players():
         if player_record:
             player_list = list(player_record)
         else:
-            player_list = [None, player_name, None, None, None, None, now, now, None, None]
+            player_list = [None, player_name, None, None, None, None, now, now, None, None, None]
 
         while len(player_list) < PLAYERS_SELECT_COLUMNS:
             player_list.append(None)
         player_list = player_list[:PLAYERS_SELECT_COLUMNS]
-        player_list.append(first_game_date)  # index 10
-        player_list.append(int(total_games))  # index 11
+        player_list.append(first_game_date)  # index 11
+        player_list.append(int(total_games))  # index 12
         players_with_stats.append(tuple(player_list))
 
     def safe_game_count(player):
         try:
-            return int(player[11]) if len(player) > 11 and player[11] is not None else 0
+            return int(player[12]) if len(player) > 12 and player[12] is not None else 0
         except (ValueError, TypeError):
             return 0
 
@@ -1170,7 +1213,7 @@ def get_player_by_name(full_name):
     player = cur.fetchone()
     return player
 
-def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes=None):
+def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=None):
     """Add a new player to the database"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -1182,9 +1225,15 @@ def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes
     with conn:
         player = (full_name, email, date_of_birth, height, notes, now, now)
         player_id = create_player(conn, player)
+        if nickname is not None:
+            conn.execute(
+                'UPDATE players SET nickname = ? WHERE id = ?',
+                ((nickname or '').strip() or None, player_id),
+            )
+            conn.commit()
         return player_id
 
-def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, notes=None):
+def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=None):
     """Update a player's information and update their name across all game tables"""
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
@@ -1213,7 +1262,7 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
         try:
             cur.execute("UPDATE vollis_games SET winner = ? WHERE winner = ?", (full_name, old_name))
             cur.execute("UPDATE vollis_games SET loser = ? WHERE loser = ?", (full_name, old_name))
-        except:
+        except Exception:
             pass  # Table might not exist
         
         # Other games (winner1, winner2, etc.) updated via database_functions.update_player_name_in_all_tables
@@ -1224,6 +1273,11 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
     with conn:
         player = (full_name, email, date_of_birth, height, notes, now, player_id)
         update_player(conn, player)
+        conn.execute(
+            'UPDATE players SET nickname = ? WHERE id = ?',
+            ((nickname or '').strip() or None, player_id),
+        )
+        conn.commit()
 
 def remove_player(player_id):
     """Delete a player from the database"""

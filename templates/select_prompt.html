@@ -384,6 +384,10 @@ let selectedPrompt = null;
         }
 
         document.getElementById('generate-form').addEventListener('submit', function(event) {
+            if (document.getElementById('generate-form').dataset.submitting === '1') {
+                event.preventDefault();
+                return;
+            }
             syncCustomPrompt();
             syncImageDetails();
 
@@ -417,6 +421,7 @@ let selectedPrompt = null;
             var mode = document.getElementById('image-mode').value || 'none';
 
             var copy = loadingCopy[mode] || loadingCopy.none;
+            document.getElementById('generate-form').dataset.submitting = '1';
             setGenerateButtonsEnabled(false);
             document.getElementById('loading-title').textContent = copy.title;
             document.getElementById('loading-detail').textContent = copy.detail;

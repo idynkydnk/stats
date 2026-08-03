@@ -642,11 +642,13 @@ def build_flyer_solo_prompt(player_name):
 
 def build_flyer_scene_prompt(
     players, game_type, event_date='', event_time='', location='',
-    game_name=None, image_details='',
+    game_name=None, image_details='', labels_by_name=None,
 ):
     """Build the default Instagram flyer group prompt."""
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    roster_block, player_count, players = _image_roster_block(players)
+    roster_block, player_count, players = _image_roster_block(
+        players, labels_by_name=labels_by_name,
+    )
     details_block = _image_details_block(image_details)
     when_bits = [bit for bit in [(event_date or '').strip(), (event_time or '').strip()] if bit]
     when_line = ' '.join(when_bits) if when_bits else 'TBD'
@@ -657,17 +659,156 @@ Event: {title}
 When: {when_line}
 Where: {where_line}
 {details_block}{roster_block}
-Use each attached uploaded face photo for likeness when provided — same face per Person number.
+Use each attached uploaded face photo for likeness when provided — same face per roster person.
 For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
-Draw all {player_count} people in the scene — one per Person number.
+Draw all {player_count} people in the scene — one per roster entry.
+Next to each person, draw a clear readable text label with their roster name (nickname/first name). Do not put Person numbers on the image.
 Include clear, readable flyer text for the event title, date/time, and location.
 Compose as a vertical 4:5 Instagram portrait (taller than wide). Keep every person
 fully inside the frame with comfortable margin — no one cut off at the edges.
 Energetic, fun, poster-quality illustration — not a plain photo collage."""
 
 
-def _reference_parts_from_uploaded_photos(players):
+def session_stats_for_illustration(game_type, games):
+    """Build [name, wins, losses, win_pct, differential] rows for image labels."""
+    if not games:
+        return []
+    if game_type == 'doubles':
+        from stat_functions import calculate_stats_from_games
+        return calculate_stats_from_games(games)
+
+    player_stats = {}
+    if game_type == 'vollis':
+        for game in games:
+            winner, loser = game[2], game[4]
+            for name in (winner, loser):
+                if name and str(name).strip():
+                    player_stats.setdefault(
+                        name, {'wins': 0, 'losses': 0, 'diff': 0},
+                    )
+            try:
+                margin = int(game[3]) - int(game[5])
+            except (TypeError, ValueError):
+                margin = 0
+            if winner and str(winner).strip():
+                player_stats[winner]['wins'] += 1
+                player_stats[winner]['diff'] += margin
+            if loser and str(loser).strip():
+                player_stats[loser]['losses'] += 1
+                player_stats[loser]['diff'] -= margin
+    elif game_type == 'other':
+        for game in games:
+            if isinstance(game, dict):
+                try:
+                    margin = int(game.get('winner_score') or 0) - int(game.get('loser_score') or 0)
+                except (TypeError, ValueError):
+                    margin = 0
+                for person in game.get('winners') or []:
+                    name = (person.get('name') or '').strip()
+                    if not name:
+                        continue
+                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
+                    entry['wins'] += 1
+                    entry['diff'] += margin
+                for person in game.get('losers') or []:
+                    name = (person.get('name') or '').strip()
+                    if not name:
+                        continue
+                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
+                    entry['losses'] += 1
+                    entry['diff'] -= margin
+            else:
+                try:
+                    margin = int(game[4] or 0) - int(game[7] or 0)
+                except (TypeError, ValueError, IndexError):
+                    margin = 0
+                for name in (game[2], game[3]):
+                    if not name:
+                        continue
+                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
+                    entry['wins'] += 1
+                    entry['diff'] += margin
+                for name in (game[5], game[6]):
+                    if not name:
+                        continue
+                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
+                    entry['losses'] += 1
+                    entry['diff'] -= margin
+    else:
+        return []
+
+    stats = []
+    for name, entry in player_stats.items():
+        total = entry['wins'] + entry['losses']
+        if total <= 0:
+            continue
+        stats.append([name, entry['wins'], entry['losses'], entry['wins'] / total, entry['diff']])
+    stats.sort(key=lambda x: x[3], reverse=True)
+    return stats
+
+
+def _session_stats_by_name(player_stats):
+    """Map full_name -> stats row [name, wins, losses, win_pct, differential]."""
+    by_name = {}
+    for row in player_stats or []:
+        if not row:
+            continue
+        name = (row[0] or '').strip()
+        if name:
+            by_name[name] = row
+    return by_name
+
+
+def _format_session_stat_bits(stat_row):
+    """Short session record like '3-0 (+12)'."""
+    if not stat_row or len(stat_row) < 3:
+        return ''
+    try:
+        wins = int(stat_row[1] or 0)
+        losses = int(stat_row[2] or 0)
+    except (TypeError, ValueError):
+        return ''
+    label = f'{wins}-{losses}'
+    if len(stat_row) > 4:
+        try:
+            diff = int(stat_row[4] or 0)
+        except (TypeError, ValueError):
+            diff = 0
+        if diff:
+            label = f'{label} ({diff:+d})'
+    return label
+
+
+def _player_image_label(full_name, display_name=None, stat_row=None):
+    """Nickname/first name plus optional session stats for image labels."""
+    from player_functions import player_display_name
+
+    name = (display_name or player_display_name(full_name) or full_name or '').strip()
+    stats = _format_session_stat_bits(stat_row)
+    if name and stats:
+        return f'{name} {stats}'
+    return name or (full_name or '').strip()
+
+
+def _image_labels_for_players(players, player_stats=None):
+    """Build full_name -> 'Nickname 3-0 (+5)' map for illustration prompts."""
+    from player_functions import player_display_names_map
+
+    players = _dedupe_players_preserve_order(players)
+    display = player_display_names_map(players)
+    stats_by_name = _session_stats_by_name(player_stats)
+    return {
+        name: _player_image_label(
+            name,
+            display_name=display.get(name),
+            stat_row=stats_by_name.get(name),
+        )
+        for name in players
+    }
+
+
+def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     """Build numbered likeness refs for a single group image call.
 
     Includes a player when they have a face photo and/or signature looks.
@@ -681,6 +822,7 @@ def _reference_parts_from_uploaded_photos(players):
     )
 
     players = _dedupe_players_preserve_order(players)
+    labels_by_name = labels_by_name or {}
     trait_entries = collect_player_ai_image_traits(players)
     traits_by_name = {
         (entry.get('name') or '').strip().lower(): entry for entry in trait_entries
@@ -710,7 +852,9 @@ def _reference_parts_from_uploaded_photos(players):
 
     # OpenAI edits accepts up to 16 reference images; also cap roster size.
     included = included[:16]
-    roster_block, player_count, included = _image_roster_block(included)
+    roster_block, player_count, included = _image_roster_block(
+        included, labels_by_name=labels_by_name,
+    )
     with_photos = sum(1 for name in included if name in photos_by_name)
     parts = [{
         'text': (
@@ -721,12 +865,13 @@ def _reference_parts_from_uploaded_photos(players):
         ),
     }]
     for index, name in enumerate(included, start=1):
+        label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
         phrases = phrases_by_name.get(name) or []
         if refs:
             parts.append({
                 'text': (
-                    f'Person {index} ({name}) — use this uploaded face photo for likeness:'
+                    f'{label} — use this uploaded face photo for likeness:'
                 ),
             })
             for ref in refs:
@@ -739,7 +884,7 @@ def _reference_parts_from_uploaded_photos(players):
         else:
             parts.append({
                 'text': (
-                    f'Person {index} ({name}) — no face photo. Invent one unique '
+                    f'{label} — no face photo. Invent one unique '
                     f'stylized character from the signature looks below.'
                 ),
             })
@@ -747,7 +892,7 @@ def _reference_parts_from_uploaded_photos(players):
             phrase_lines = '\n'.join(f'- {phrase}' for phrase in phrases)
             parts.append({
                 'text': (
-                    f'Person {index} signature looks — exaggerate these heavily so they '
+                    f'{label} signature looks — exaggerate these heavily so they '
                     f'read instantly:\n{phrase_lines}'
                 ),
             })
@@ -771,39 +916,50 @@ def _image_details_block(image_details):
     return f'\n{clean}\n'
 
 
-def _image_roster_block(players):
-    """Simple numbered roster for the group scene."""
+def _image_roster_block(players, labels_by_name=None):
+    """Roster lines with nickname/stats labels (not anonymous Person numbers)."""
     players = _dedupe_players_preserve_order(players)
     player_count = len(players)
     if player_count == 0:
         return '', 0, players
+    labels_by_name = labels_by_name or {}
     roster_lines = '\n'.join(
-        f'{index}. Person {index}' for index in range(1, player_count + 1)
+        f'{index}. {(labels_by_name.get(name) or name).strip()}'
+        for index, name in enumerate(players, start=1)
     )
     block = (
-        f'\n{player_count} players (Person 1 through Person {player_count}):\n'
+        f'\n{player_count} players:\n'
         f'{roster_lines}\n'
     )
     return block, player_count, players
 
 
-def build_scene_image_prompt(game_type, players, game_name=None, image_details=''):
+def build_scene_image_prompt(
+    game_type, players, game_name=None, image_details='', labels_by_name=None,
+):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    roster_block, player_count, players = _image_roster_block(players)
+    roster_block, player_count, players = _image_roster_block(
+        players, labels_by_name=labels_by_name,
+    )
     details_block = _image_details_block(image_details)
     return f"""Game: {sport_desc}.
 {details_block}{roster_block}
-Use each attached uploaded face photo for likeness when provided — same face per Person number.
+Use each attached uploaded face photo for likeness when provided — same face per roster person.
 For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
-Draw all {player_count} people in the scene — one per Person number.
+Draw all {player_count} people in the scene — one per roster entry.
+Next to each person, draw a clear readable text label matching the roster
+(nickname/first name and session stats). Do not put Person numbers on the image.
 Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
 
 
-def _build_scene_image_prompt(game_type, players, game_name=None, image_details=''):
+def _build_scene_image_prompt(
+    game_type, players, game_name=None, image_details='', labels_by_name=None,
+):
     return build_scene_image_prompt(
         game_type, players, game_name=game_name, image_details=image_details,
+        labels_by_name=labels_by_name,
     )
 
 
@@ -2493,7 +2649,10 @@ def generate_flyer_image(
     if not players:
         raise ValueError('Select at least one player for the flyer')
 
-    scene_refs, scene_players = _reference_parts_from_uploaded_photos(players)
+    labels_by_name = _image_labels_for_players(players)
+    scene_refs, scene_players = _reference_parts_from_uploaded_photos(
+        players, labels_by_name=labels_by_name,
+    )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
     else:
@@ -2505,6 +2664,7 @@ def generate_flyer_image(
             location=location,
             game_name=game_name,
             image_details=image_details,
+            labels_by_name=labels_by_name,
         )
     image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
     try:
@@ -2564,12 +2724,13 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
-    selected_players=None,
+    selected_players=None, player_stats=None,
 ):
     """Generate one group hero image from uploaded face photos (single API call).
 
     Does not create per-player caricatures. Uses each player's existing face photo
     on the site as a likeness reference. Signature looks are exaggerated in-prompt.
+    Image labels use nickname (or first name) plus session stats when available.
 
     existing_solo_images / reuse_existing_solos are ignored (kept for call-site
     compatibility).
@@ -2583,12 +2744,16 @@ def generate_email_hero_image(
     if not all_players:
         raise ValueError('No players in roster for illustration')
 
-    scene_refs, scene_players = _reference_parts_from_uploaded_photos(all_players)
+    labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
+    scene_refs, scene_players = _reference_parts_from_uploaded_photos(
+        all_players, labels_by_name=labels_by_name,
+    )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
     else:
         scene_prompt = _build_scene_image_prompt(
             game_type, scene_players, game_name=game_name, image_details=image_details,
+            labels_by_name=labels_by_name,
         )
     image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
     try:
@@ -2609,7 +2774,7 @@ def generate_email_hero_image(
 def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
     image_details='', existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None, selected_players=None,
+    custom_scene_prompt=None, selected_players=None, player_stats=None,
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -2626,6 +2791,7 @@ def _try_generate_email_hero_image(
             reuse_existing_solos=reuse_existing_solos,
             custom_scene_prompt=custom_scene_prompt,
             selected_players=selected_players,
+            player_stats=player_stats,
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
@@ -3371,6 +3537,7 @@ def build_doubles_email_payload(
             api_key, 'doubles', games, players_set, image_mode=image_mode,
             image_details=image_details,
             selected_players=illustration_players,
+            player_stats=stats,
         )
     )
     html_body = create_doubles_email_html(
@@ -3868,6 +4035,7 @@ def build_vollis_email_payload(
             api_key, 'vollis', games, players_set, image_mode=image_mode,
             image_details=image_details,
             selected_players=illustration_players,
+            player_stats=stats,
         )
     )
     html_body = create_vollis_email_html(
@@ -4045,6 +4213,7 @@ def build_other_email_payload(
             image_mode=image_mode,
             image_details=image_details,
             selected_players=illustration_players,
+            player_stats=stats,
         )
     )
     html_body = create_other_email_html(

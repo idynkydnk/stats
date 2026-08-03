@@ -40,6 +40,13 @@
                    value="{{ player[1] }}"
                    required>
         </div>
+
+        <div class="form-group">
+            <label for="nickname">Nickname</label>
+            <input type="text" name="nickname" id="nickname"
+                   placeholder="Shown on AI pictures (defaults to first name)"
+                   value="{{ player[10] if player|length > 10 and player[10] else '' }}">
+        </div>
         
         <div class="form-group">
             <label for="email">Email</label>

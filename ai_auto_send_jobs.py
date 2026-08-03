@@ -63,6 +63,35 @@ def enqueue_job(
 ):
     init_ai_auto_send_jobs_db()
     conn = _connect()
+    game_ids_json = json.dumps([str(g) for g in game_ids])
+    # Reuse an in-flight identical job so double-clicks don't publish twice.
+    existing = conn.execute('''
+        SELECT id FROM ai_auto_send_jobs
+        WHERE username = ?
+          AND game_type = ?
+          AND game_ids_json = ?
+          AND prompt_style = ?
+          AND COALESCE(custom_prompt, '') = ?
+          AND COALESCE(image_mode, 'none') = ?
+          AND COALESCE(image_details, '') = ?
+          AND COALESCE(job_type, 'recap') = 'recap'
+          AND status IN ('pending', 'running')
+        ORDER BY id DESC
+        LIMIT 1
+    ''', (
+        username,
+        game_type,
+        game_ids_json,
+        prompt_style,
+        custom_prompt or '',
+        image_mode or 'none',
+        image_details or '',
+    )).fetchone()
+    if existing:
+        job_id = existing['id']
+        conn.close()
+        return job_id
+
     players_json = json.dumps(list(illustration_players or []), default=str)
     cur = conn.execute('''
         INSERT INTO ai_auto_send_jobs
@@ -72,7 +101,7 @@ def enqueue_job(
     ''', (
         username,
         game_type,
-        json.dumps([str(g) for g in game_ids]),
+        game_ids_json,
         prompt_style,
         custom_prompt or '',
         image_mode or 'none',
