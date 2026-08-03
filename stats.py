@@ -5643,32 +5643,42 @@ def api_update_player_info():
 
     from player_functions import get_player_by_name, add_new_player, update_player_info
 
-    player_record = get_player_by_name(player_name)
-    if player_record:
-        player_id = player_record[0]
-        existing_full_name = player_record[1]
-        # Use new values if provided, otherwise keep existing
-        new_email = email if email else player_record[2]
-        new_birthday = birthday if birthday else player_record[3]
-        new_height = height if height else player_record[4]
-        notes = player_record[5]
-        # Nickname is always taken from the form so clearing it works.
-        update_player_info(
-            player_id, existing_full_name, email=new_email,
-            date_of_birth=new_birthday, height=new_height, notes=notes,
-            nickname=nickname,
-        )
-    else:
-        add_new_player(player_name, email=email, nickname=nickname)
-        # If we just created the player, update with birthday/height if provided
-        if birthday or height:
-            player_record = get_player_by_name(player_name)
-            if player_record:
-                update_player_info(
-                    player_record[0], player_record[1],
-                    email=email, date_of_birth=birthday, height=height, notes=None,
-                    nickname=nickname,
-                )
+    try:
+        player_record = get_player_by_name(player_name)
+        if player_record:
+            player_id = player_record[0]
+            existing_full_name = player_record[1]
+            # Use new values if provided, otherwise keep existing
+            new_email = email if email else player_record[2]
+            new_birthday = birthday if birthday else player_record[3]
+            new_height = height if height else player_record[4]
+            notes = player_record[5]
+            # Nickname is always taken from the form so clearing it works.
+            update_player_info(
+                player_id, existing_full_name, email=new_email,
+                date_of_birth=new_birthday, height=new_height, notes=notes,
+                nickname=nickname,
+            )
+        else:
+            add_new_player(player_name, email=email, nickname=nickname)
+            # If we just created the player, update with birthday/height if provided
+            if birthday or height:
+                player_record = get_player_by_name(player_name)
+                if player_record:
+                    update_player_info(
+                        player_record[0], player_record[1],
+                        email=email, date_of_birth=birthday, height=height, notes=None,
+                        nickname=nickname,
+                    )
+    except Exception as e:
+        app.logger.exception('Failed to update player info for %s', player_name)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    # Confirm what is actually stored.
+    saved = get_player_by_name(player_name)
+    saved_nickname = ''
+    if saved and len(saved) > 10 and saved[10]:
+        saved_nickname = str(saved[10]).strip()
 
     user = session.get('username', 'unknown')
     updates = []
@@ -5680,7 +5690,7 @@ def api_update_player_info():
     log_activity('Updated player info', summary=f'{player_name}: {", ".join(updates) or "cleared fields"}')
     clear_stats_cache()
 
-    return jsonify({'success': True, 'nickname': nickname or ''})
+    return jsonify({'success': True, 'nickname': saved_nickname})
 
 
 @app.route('/opt_in_ai_emails')

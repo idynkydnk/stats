@@ -42,15 +42,33 @@ def create_player(conn, player):
     return cur.lastrowid
 
 def update_player(conn, player):
-    sql = ''' UPDATE players
-              SET full_name = ?,
-                  email = ?,
-                  date_of_birth = ?,
-                  height = ?,
-                  notes = ?,
-                  updated_at = ?
-              WHERE id = ?'''
+    """Update core player fields.
+
+    player tuple may be either:
+      (full_name, email, date_of_birth, height, notes, updated_at, id)
+    or:
+      (full_name, email, date_of_birth, height, notes, nickname, updated_at, id)
+    """
     cur = conn.cursor()
+    if len(player) == 8:
+        sql = ''' UPDATE players
+                  SET full_name = ?,
+                      email = ?,
+                      date_of_birth = ?,
+                      height = ?,
+                      notes = ?,
+                      nickname = ?,
+                      updated_at = ?
+                  WHERE id = ?'''
+    else:
+        sql = ''' UPDATE players
+                  SET full_name = ?,
+                      email = ?,
+                      date_of_birth = ?,
+                      height = ?,
+                      notes = ?,
+                      updated_at = ?
+                  WHERE id = ?'''
     cur.execute(sql, player)
     conn.commit()
 

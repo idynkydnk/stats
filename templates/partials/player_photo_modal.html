@@ -1128,27 +1128,38 @@ window.PlayerPhotoManager = (function() {
 
     function savePlayerDetails() {
         if (!playerName) return;
+        var nicknameVal = detailNickname ? detailNickname.value.trim() : '';
+        if (detailSaveBtn) detailSaveBtn.disabled = true;
         fetch('/api/update_player_info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({
                 player_name: playerName,
-                nickname: detailNickname ? detailNickname.value.trim() : '',
+                nickname: nicknameVal,
                 email: detailEmail ? detailEmail.value.trim() : '',
                 birthday: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',
             }),
         })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.success) {
-                alert(data.error || 'Save failed');
+        .then(function(r) {
+            return r.json().then(function(data) {
+                return { ok: r.ok, status: r.status, data: data || {} };
+            }).catch(function() {
+                return { ok: false, status: r.status, data: {} };
+            });
+        })
+        .then(function(res) {
+            if (!res.ok || !res.data.success) {
+                alert((res.data && res.data.error) || ('Save failed (HTTP ' + res.status + ')'));
                 return;
+            }
+            if (detailNickname && typeof res.data.nickname === 'string') {
+                detailNickname.value = res.data.nickname;
             }
             updateListMeta();
             syncActiveCardProfile({
-                nickname: detailNickname ? detailNickname.value.trim() : '',
+                nickname: detailNickname ? detailNickname.value.trim() : nicknameVal,
                 email: detailEmail ? detailEmail.value.trim() : '',
                 dateOfBirth: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',
@@ -1158,7 +1169,10 @@ window.PlayerPhotoManager = (function() {
                 setTimeout(function() { detailSaved.hidden = true; }, 2000);
             }
         })
-        .catch(function() { alert('Save failed.'); });
+        .catch(function() { alert('Save failed.'); })
+        .finally(function() {
+            if (detailSaveBtn) detailSaveBtn.disabled = false;
+        });
     }
 
     function initPage(cfg) {

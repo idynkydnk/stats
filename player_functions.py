@@ -1220,7 +1220,8 @@ def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
-    
+
+    _ensure_nickname_column(conn)
     now = datetime.now()
     with conn:
         player = (full_name, email, date_of_birth, height, notes, now, now)
@@ -1233,7 +1234,21 @@ def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes
             conn.commit()
         return player_id
 
-def update_player_info(player_id, full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=...):
+_NICKNAME_UNSET = object()
+
+
+def _ensure_nickname_column(conn):
+    """Add players.nickname if missing (safe to call repeatedly)."""
+    cols = [row[1] for row in conn.execute('PRAGMA table_info(players)').fetchall()]
+    if 'nickname' not in cols:
+        conn.execute('ALTER TABLE players ADD COLUMN nickname TEXT')
+        conn.commit()
+
+
+def update_player_info(
+    player_id, full_name, email=None, date_of_birth=None, height=None, notes=None,
+    nickname=_NICKNAME_UNSET,
+):
     """Update a player's information and update their name across all game tables.
 
     Pass nickname explicitly to set/clear it. Omitting nickname leaves it unchanged.
@@ -1243,16 +1258,17 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
-    
+
+    _ensure_nickname_column(conn)
     cur = conn.cursor()
-    
+
     # Get the old name first
     cur.execute("SELECT full_name FROM players WHERE id=?", (player_id,))
     result = cur.fetchone()
     old_name = result[0] if result else None
-    
+
     now = datetime.now()
-    
+
     # If name has changed, update it across all game tables
     if old_name and old_name != full_name:
         # Update doubles games
@@ -1260,28 +1276,28 @@ def update_player_info(player_id, full_name, email=None, date_of_birth=None, hei
         cur.execute("UPDATE games SET winner2 = ? WHERE winner2 = ?", (full_name, old_name))
         cur.execute("UPDATE games SET loser1 = ? WHERE loser1 = ?", (full_name, old_name))
         cur.execute("UPDATE games SET loser2 = ? WHERE loser2 = ?", (full_name, old_name))
-        
+
         # Update vollis games
         try:
             cur.execute("UPDATE vollis_games SET winner = ? WHERE winner = ?", (full_name, old_name))
             cur.execute("UPDATE vollis_games SET loser = ? WHERE loser = ?", (full_name, old_name))
         except Exception:
             pass  # Table might not exist
-        
+
         # Other games (winner1, winner2, etc.) updated via database_functions.update_player_name_in_all_tables
-        
+
         conn.commit()
-    
+
     # Update the player record
-    with conn:
+    if nickname is _NICKNAME_UNSET:
         player = (full_name, email, date_of_birth, height, notes, now, player_id)
+    else:
+        player = (
+            full_name, email, date_of_birth, height, notes,
+            ((nickname or '').strip() or None), now, player_id,
+        )
+    with conn:
         update_player(conn, player)
-        if nickname is not ...:
-            conn.execute(
-                'UPDATE players SET nickname = ? WHERE id = ?',
-                ((nickname or '').strip() or None, player_id),
-            )
-            conn.commit()
 
 def remove_player(player_id):
     """Delete a player from the database"""
