@@ -19,9 +19,14 @@ import sys
 import time
 import traceback
 
+# Print before any project imports so Always-on logs show life even if imports fail.
+print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} daemon boot python={sys.version.split()[0]} argv={sys.argv!r}', flush=True)
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
+os.chdir(ROOT)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} daemon cwd={os.getcwd()}', flush=True)
 
 try:
     from dotenv import load_dotenv
@@ -29,7 +34,11 @@ try:
 except (ImportError, ModuleNotFoundError):
     pass
 
-import ai_auto_send_jobs as jobs
+try:
+    import ai_auto_send_jobs as jobs
+except Exception:
+    print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} FATAL import ai_auto_send_jobs:\n{traceback.format_exc()}', flush=True)
+    raise
 
 POLL_SECONDS = 5
 LOG_PATH = os.path.join(ROOT, 'ai_auto_send_daemon.log')
