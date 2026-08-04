@@ -684,7 +684,9 @@ def _phrases_by_player_name(players):
     }
 
 
-def _clean_player_lines_block(players, labels_by_name=None, phrases_by_name=None):
+def _clean_player_lines_block(
+    players, labels_by_name=None, phrases_by_name=None, player_stats=None,
+):
     """Newline-separated person lines for prompts."""
     from player_functions import player_display_names_map
 
@@ -697,6 +699,9 @@ def _clean_player_lines_block(players, labels_by_name=None, phrases_by_name=None
         }
     if phrases_by_name is None:
         phrases_by_name = _phrases_by_player_name(players)
+    phrases_by_name = _merge_beach_royalty_phrases(
+        players, player_stats, phrases_by_name,
+    )
     lines = []
     for name in players:
         label = (labels_by_name.get(name) or name).strip()
@@ -786,10 +791,11 @@ def build_flyer_scene_prompt(
 
 def build_scene_image_prompt(
     game_type, players, game_name=None, image_details='', labels_by_name=None,
+    player_stats=None,
 ):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
     roster_block, player_count, players = _clean_player_lines_block(
-        players, labels_by_name=labels_by_name,
+        players, labels_by_name=labels_by_name, player_stats=player_stats,
     )
     details = (image_details or '').strip()
     setting = _scene_setting_line(game_type, game_name)
@@ -800,6 +806,109 @@ def build_scene_image_prompt(
     sections.append(setting)
     sections.append(_clean_prompt_format_rules(player_count))
     return '\n\n'.join(section for section in sections if section)
+
+
+# First names treated as female for queen-of-the-beach titles (no gender column).
+_FEMALE_FIRST_NAMES = frozenset({
+    'abby', 'abigail', 'alexa', 'alexandra', 'alice', 'alicia', 'allison', 'alyssa',
+    'amanda', 'amber', 'amy', 'andrea', 'angela', 'anita', 'anna', 'anne', 'annie',
+    'ashley', 'ashleigh', 'audrey', 'autumn', 'ava', 'barbara', 'becky', 'beth',
+    'betty', 'beverly', 'brandi', 'brandy', 'brianna', 'bridget', 'britney',
+    'brittany', 'brooke', 'caitlin', 'cameron', 'cara', 'carly', 'carol', 'caroline',
+    'carolyn', 'carrie', 'casey', 'cassandra', 'catherine', 'cathy', 'charlotte',
+    'chelsea', 'cheryl', 'christina', 'christine', 'cindy', 'claire', 'clara',
+    'colleen', 'courtney', 'crystal', 'cynthia', 'daisy', 'dana', 'danielle',
+    'debbie', 'deborah', 'debra', 'denise', 'diana', 'diane', 'donna', 'dorothy',
+    'elaine', 'eleanor', 'elena', 'elizabeth', 'ella', 'ellen', 'emily', 'emma',
+    'erica', 'erika', 'erin', 'esther', 'eva', 'evelyn', 'faith', 'fiona', 'gabriela',
+    'gabrielle', 'georgia', 'gina', 'grace', 'hailey', 'hannah', 'heather', 'heidi',
+    'helen', 'holly', 'irene', 'iris', 'jackie', 'jacqueline', 'jade', 'jamie',
+    'jane', 'janet', 'janice', 'jasmine', 'jean', 'jen', 'jennifer', 'jenny',
+    'jessica', 'jill', 'joan', 'joanna', 'jodi', 'jody', 'jordan', 'josephine',
+    'joy', 'joyce', 'judith', 'judy', 'julia', 'julie', 'june', 'karen', 'karla',
+    'kate', 'katherine', 'kathleen', 'kathryn', 'kathy', 'katie', 'kayla', 'kelly',
+    'kelsey', 'kendall', 'kennedy', 'kim', 'kimberly', 'kristen', 'kristin',
+    'kristina', 'krystal', 'kylee', 'kylie', 'lacey', 'laura', 'lauren', 'laurie',
+    'leah', 'leslie', 'lillian', 'lily', 'linda', 'lindsay', 'lindsey', 'lisa',
+    'liz', 'liza', 'lori', 'lynn', 'madison', 'maggie', 'mandy', 'marcia', 'margaret',
+    'maria', 'mariah', 'marie', 'marilyn', 'marina', 'marissa', 'martha', 'mary',
+    'megan', 'meghan', 'melanie', 'melissa', 'melody', 'mia', 'michelle', 'mindy',
+    'miranda', 'molly', 'monica', 'morgan', 'nancy', 'natalie', 'natasha', 'nicole',
+    'nina', 'olivia', 'paige', 'pam', 'pamela', 'patricia', 'patty', 'paula',
+    'peggy', 'penelope', 'penny', 'phyllis', 'rachel', 'rebecca', 'renee', 'rhonda',
+    'rita', 'robin', 'rosa', 'rose', 'ruby', 'ruth', 'sabrina', 'sally', 'samantha',
+    'sandra', 'sandy', 'sara', 'sarah', 'savannah', 'sharon', 'sheila', 'shelby',
+    'shelley', 'shelly', 'sherry', 'shirley', 'sierra', 'sofia', 'sophia', 'stacey',
+    'stacy', 'stephanie', 'sue', 'susan', 'suzanne', 'sydney', 'sylvia', 'tamara',
+    'tammy', 'tanya', 'tara', 'taylor', 'teresa', 'terri', 'terry', 'tiffany',
+    'tina', 'toni', 'tracy', 'tricia', 'valerie', 'vanessa', 'veronica', 'vicki',
+    'vickie', 'victoria', 'virginia', 'vivian', 'wendy', 'whitney', 'yvonne', 'zoe',
+})
+
+
+def _player_is_female_for_beach_title(full_name):
+    """Best-effort female check from first name / nickname (no gender column)."""
+    from player_functions import get_player_nickname, player_first_name
+
+    candidates = [
+        player_first_name(full_name),
+        get_player_nickname(full_name),
+        (full_name or '').strip().split()[0] if (full_name or '').strip() else '',
+    ]
+    for candidate in candidates:
+        token = ''.join(ch for ch in (candidate or '').strip().lower() if ch.isalpha())
+        if token in _FEMALE_FIRST_NAMES:
+            return True
+    return False
+
+
+def _beach_royalty_phrase(full_name):
+    if _player_is_female_for_beach_title(full_name):
+        return 'queen of the beach'
+    return 'king of the beach'
+
+
+def _session_beach_royalty_names(player_stats):
+    """Names tied for best win% and differential in this session."""
+    rows = []
+    for row in player_stats or []:
+        if not row or len(row) < 5:
+            continue
+        name = (row[0] or '').strip()
+        if not name:
+            continue
+        try:
+            win_pct = float(row[3] or 0)
+            differential = int(row[4] or 0)
+        except (TypeError, ValueError):
+            continue
+        rows.append((name, win_pct, differential))
+    if not rows:
+        return []
+    best_pct = max(row[1] for row in rows)
+    at_pct = [row for row in rows if row[1] == best_pct]
+    best_diff = max(row[2] for row in at_pct)
+    return [row[0] for row in at_pct if row[2] == best_diff]
+
+
+def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
+    """Append king/queen of the beach to session leaders' signature-look lists."""
+    merged = {
+        name: list(phrases or [])
+        for name, phrases in (phrases_by_name or {}).items()
+    }
+    leaders = set(_session_beach_royalty_names(player_stats))
+    if not leaders:
+        return merged
+    for name in _dedupe_players_preserve_order(players):
+        if name not in leaders:
+            continue
+        title = _beach_royalty_phrase(name)
+        phrases = list(merged.get(name) or [])
+        if not any((p or '').strip().casefold() == title for p in phrases):
+            phrases.append(title)
+        merged[name] = phrases
+    return merged
 
 
 def session_stats_for_illustration(game_type, games):
@@ -940,7 +1049,9 @@ def _image_labels_for_players(players, player_stats=None):
     }
 
 
-def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
+def _reference_parts_from_uploaded_photos(
+    players, labels_by_name=None, player_stats=None,
+):
     """Build likeness refs for a single group image call.
 
     Includes a player when they have a face photo and/or signature looks.
@@ -973,7 +1084,7 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
         entry = collect_solo_reference_images(name)
         refs = (entry or {}).get('parts') or []
         trait = traits_by_name.get((name or '').strip().lower())
-        phrases = (trait or {}).get('phrases') or []
+        phrases = list((trait or {}).get('phrases') or [])
         if not _player_can_illustrate(bool(refs), phrases):
             continue
         included.append(name)
@@ -990,6 +1101,9 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
 
     # OpenAI edits accepts up to 16 reference images; also cap roster size.
     included = included[:16]
+    phrases_by_name = _merge_beach_royalty_phrases(
+        included, player_stats, phrases_by_name,
+    )
     parts = [{
         'text': (
             'Players below. Each face photo is followed by that person\'s line: '
@@ -1043,10 +1157,11 @@ def _image_roster_block(players, labels_by_name=None):
 
 def _build_scene_image_prompt(
     game_type, players, game_name=None, image_details='', labels_by_name=None,
+    player_stats=None,
 ):
     return build_scene_image_prompt(
         game_type, players, game_name=game_name, image_details=image_details,
-        labels_by_name=labels_by_name,
+        labels_by_name=labels_by_name, player_stats=player_stats,
     )
 
 
@@ -2575,16 +2690,19 @@ def generate_email_hero_image(
     if not all_players:
         raise ValueError('No players in roster for illustration')
 
+    if player_stats is None and games:
+        player_stats = session_stats_for_illustration(game_type, games)
+
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
-        all_players, labels_by_name=labels_by_name,
+        all_players, labels_by_name=labels_by_name, player_stats=player_stats,
     )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
     else:
         scene_prompt = _build_scene_image_prompt(
             game_type, scene_players, game_name=game_name, image_details=image_details,
-            labels_by_name=labels_by_name,
+            labels_by_name=labels_by_name, player_stats=player_stats,
         )
     image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
     try:

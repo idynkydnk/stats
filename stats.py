@@ -2591,25 +2591,30 @@ def view_ai_recap(share_id):
 
         game_name = None
         players = []
+        games_for_prompt = []
         try:
             game_ids = json.loads(row.get('game_ids_json') or '[]')
         except (json.JSONDecodeError, TypeError):
             game_ids = []
         if game_ids:
             try:
-                _games, players, game_name = _load_games_and_players_for_recap(
+                games_for_prompt, players, game_name = _load_games_and_players_for_recap(
                     game_type, game_ids,
                 )
             except Exception:
-                players, game_name = [], None
+                games_for_prompt, players, game_name = [], [], None
 
         remake_scene_prompt = (row.get('scene_prompt') or '').strip()
         if not remake_scene_prompt and players:
+            from email_content import session_stats_for_illustration
             remake_scene_prompt = build_scene_image_prompt(
                 game_type,
                 players,
                 game_name=game_name,
                 image_details=(row.get('image_details') or '').strip(),
+                player_stats=session_stats_for_illustration(
+                    game_type, games_for_prompt,
+                ),
             )
 
     from email_content import ensure_recap_og_image
@@ -2961,6 +2966,7 @@ def remake_ai_recap_image(share_id):
             scene_prompt = build_scene_image_prompt(
                 game_type, illustration_players, game_name=game_name,
                 image_details=image_details, labels_by_name=labels,
+                player_stats=player_stats,
             )
 
         new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
