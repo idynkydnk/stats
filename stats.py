@@ -3650,7 +3650,8 @@ def add_vollis_game():
         return redirect(url_for('add_vollis_game'))
     
     all_games = vollis_year_games('All years')
-    players = all_vollis_players(all_games)
+    from player_functions import merge_roster_into_player_names
+    players = merge_roster_into_player_names(all_vollis_players(all_games))
     games = todays_vollis_games()
     todays_stats_data = todays_vollis_stats()
     winning_scores = list(range(11, 27))

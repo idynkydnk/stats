@@ -439,8 +439,9 @@ def all_combined_players():
     # Sort players by their most recent game date (most recent first)
     sorted_players = sorted(player_last_game.items(), key=lambda x: x[1], reverse=True)
     
-    # Return just the player names in order
-    return [player[0] for player in sorted_players]
+    # Return game-history names, then roster-only players (never played yet)
+    from player_functions import merge_roster_into_player_names
+    return merge_roster_into_player_names([player[0] for player in sorted_players])
 
 def other_game_types(games):
     game_types = []

@@ -1151,6 +1151,36 @@ def get_players_list_extras(names):
     return extras
 
 
+def get_roster_player_names():
+    """Return all full names from the players table, sorted alphabetically."""
+    conn = _players_db_connection()
+    if conn is None:
+        return []
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT full_name FROM players "
+            "WHERE full_name IS NOT NULL AND TRIM(full_name) != '' "
+            "ORDER BY full_name COLLATE NOCASE ASC"
+        )
+        return [(row[0] or '').strip() for row in cur.fetchall() if (row[0] or '').strip()]
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
+def merge_roster_into_player_names(ordered_names):
+    """Append roster players missing from a game-history list (alphabetically at the end)."""
+    ordered = list(ordered_names or [])
+    seen = {((name or '').strip()) for name in ordered if (name or '').strip()}
+    for name in get_roster_player_names():
+        if name not in seen:
+            ordered.append(name)
+            seen.add(name)
+    return ordered
+
+
 @cached(ttl=1800)
 def get_all_players():
     """Get all players from the database with their first game date and game count."""
@@ -1160,10 +1190,12 @@ def get_all_players():
 
     cur = conn.cursor()
     doubles, vollis, other = _game_stats_by_player(cur)
-    all_player_names = set(doubles) | set(vollis) | set(other)
 
     cur.execute(PLAYERS_SELECT)
     players_by_name = {row[1]: row for row in cur.fetchall()}
+
+    # Include roster-only players (added on Players page before they've played).
+    all_player_names = set(doubles) | set(vollis) | set(other) | set(players_by_name.keys())
 
     players_with_stats = []
     now = datetime.now()
