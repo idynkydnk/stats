@@ -232,6 +232,24 @@
             line-height: 1.6;
             color: var(--sr-muted);
         }
+        /* Mobile: illustration wait is a true blocking popup above the menu. */
+        @media (max-width: 768px) {
+            .sr-generate-loading.show.sr-generate-loading-illustration {
+                z-index: 10050;
+                padding-top: 24px;
+                background: rgba(11, 15, 20, 0.96);
+            }
+            .sr-generate-loading-illustration .sr-generate-loading-card {
+                border-color: rgba(102, 217, 239, 0.55);
+            }
+            .sr-generate-loading-illustration .sr-generate-loading-card strong {
+                font-size: 20px;
+            }
+            .sr-generate-loading-illustration .sr-generate-loading-card p {
+                font-size: 15px;
+                color: var(--sr-text);
+            }
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -289,7 +307,7 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses face photos and/or signature looks in a single image — players with neither are skipped. Stay on this page until it finishes — leaving will cancel generation.</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses face photos and/or signature looks in a single image — players with neither are skipped. Illustration can take about 5 minutes — stay on this page until it finishes.</p>
                     <div class="sr-illustration-details">
                         <label for="image-details-text">Extra illustration details (optional)</label>
                         <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
@@ -302,7 +320,7 @@
                         </button>
                         <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" disabled onclick="setImageMode('image')">
                             <strong><i class="fas fa-image"></i> With illustration</strong>
-                            <span>About one minute</span>
+                            <span>About 5 minutes — stay on page</span>
                         </button>
                     </div>
                 </div>
@@ -338,10 +356,14 @@ let selectedPrompt = null;
                 detail: 'Stay on this page until it finishes — leaving will cancel generation.'
             },
             image: {
-                title: 'Writing recap and illustration...',
-                detail: 'About one to four minutes depending on player count. Stay on this page until it finishes — leaving will cancel generation.'
+                title: 'Generating your illustration...',
+                detail: 'Something is happening — please stay on this page for about 5 minutes until it finishes. Leaving will cancel generation.'
             }
         };
+
+        function isMobileViewport() {
+            return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        }
 
         function setImageMode(mode) {
             document.getElementById('image-mode').value = mode;
@@ -366,6 +388,15 @@ let selectedPrompt = null;
             if (detailsText) {
                 document.getElementById('image-details-hidden').value = detailsText.value;
             }
+        }
+
+        function showGenerateLoading(mode) {
+            var copy = loadingCopy[mode] || loadingCopy.none;
+            var loading = document.getElementById('generate-loading');
+            document.getElementById('loading-title').textContent = copy.title;
+            document.getElementById('loading-detail').textContent = copy.detail;
+            loading.classList.toggle('sr-generate-loading-illustration', mode === 'image');
+            loading.classList.add('show');
         }
 
         function selectPrompt(promptId) {
@@ -420,12 +451,29 @@ let selectedPrompt = null;
 
             var mode = document.getElementById('image-mode').value || 'none';
 
-            var copy = loadingCopy[mode] || loadingCopy.none;
+            // Mobile + illustration: acknowledge wait before the request starts.
+            if (mode === 'image' && isMobileViewport() && !this.dataset.illustrationAck) {
+                event.preventDefault();
+                var ok = window.confirm(
+                    'Generating the illustration now.\n\n' +
+                    'Please stay on this page for about 5 minutes until it finishes.\n\n' +
+                    'Leaving or closing this page will cancel generation.'
+                );
+                if (!ok) {
+                    setGenerateButtonsEnabled(true);
+                    return;
+                }
+                this.dataset.illustrationAck = '1';
+                this.dataset.submitting = '1';
+                setGenerateButtonsEnabled(false);
+                showGenerateLoading(mode);
+                this.submit();
+                return;
+            }
+
             document.getElementById('generate-form').dataset.submitting = '1';
             setGenerateButtonsEnabled(false);
-            document.getElementById('loading-title').textContent = copy.title;
-            document.getElementById('loading-detail').textContent = copy.detail;
-            document.getElementById('generate-loading').classList.add('show');
+            showGenerateLoading(mode);
         });
 
         selectPrompt({{ (selected_prompt_style or 'default')|tojson }});

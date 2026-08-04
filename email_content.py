@@ -607,15 +607,16 @@ def _signature_look_visual_instructions(plural=False):
     """Require signature looks to be embodied visually — never painted as phrase text."""
     if plural:
         return (
-            'After the name/stats quote, any unquoted words are signature looks '
-            'for that same person only. Embody each look visually (costume, body, props, '
-            'posture) — e.g. broken elbow = a visibly broken/bandaged elbow. Never paint '
-            'look phrases as text on the image.'
+            'Each "illustrate …(no text)." clause is a signature look for that same person '
+            'only. Embody each look visually (costume, body, props, posture) — e.g. '
+            '"illustrate broken elbow(no text)." means a visibly broken/bandaged elbow. '
+            'Never paint look phrases as text on the image.'
         )
     return (
-        'After the name/stats quote, any unquoted words are signature looks. '
-        'Embody each look visually (costume, body, props, posture) — e.g. broken elbow '
-        '= a visibly broken/bandaged elbow. Never paint look phrases as text on the image.'
+        'Each "illustrate …(no text)." clause is a signature look. '
+        'Embody each look visually (costume, body, props, posture) — e.g. '
+        '"illustrate broken elbow(no text)." means a visibly broken/bandaged elbow. '
+        'Never paint look phrases as text on the image.'
     )
 
 
@@ -635,21 +636,29 @@ def _player_display_from_label(label, full_name=''):
     return (full_name or '').strip().split()[0] if (full_name or '').strip() else 'player'
 
 
+def _format_signature_look_clause(phrase):
+    """Format one signature look: illustrate broken elbow(no text)."""
+    clean = ' '.join((phrase or '').strip().split())
+    if not clean:
+        return ''
+    return f"illustrate {clean.replace(chr(39), '')}(no text)."
+
+
 def _player_quoted_bits(label, trait_phrases):
-    """Name/stats quoted; signature looks plain: 'dan 4-5' broken leg bucket hat."""
+    """Name/stats quoted; looks as illustrate clauses: 'dan 4-5' illustrate broken leg(no text)."""
     bits = []
     clean_label = ' '.join((label or '').strip().lower().split())
     if clean_label:
         bits.append(_quote_prompt_phrase(clean_label))
     for phrase in trait_phrases or []:
-        clean = ' '.join((phrase or '').strip().split())
-        if clean:
-            bits.append(clean.replace("'", ''))
+        clause = _format_signature_look_clause(phrase)
+        if clause:
+            bits.append(clause)
     return ' '.join(bits)
 
 
 def _player_clean_prompt_line(label, trait_phrases, full_name='', has_picture=True):
-    """One person line: 'dan 4-5' broken leg."""
+    """One person line: 'dan 4-5' illustrate broken leg(no text)."""
     display = _player_display_from_label(label, full_name=full_name)
     quoted = _player_quoted_bits(label or display, trait_phrases)
     if has_picture:
@@ -703,11 +712,6 @@ def _clean_prompt_format_rules(player_count, flyer=False):
     """Aspect ratio note for scene prompts."""
     _ = (player_count, flyer)
     return 'Vertical 4:5.'
-
-
-def _quoted_text_only_rule():
-    """Only quoted name/stats may appear as on-image text."""
-    return 'only show text in quotes. nothing else should be in text'
 
 
 def _scene_setting_line(game_type, game_name=None):
@@ -787,7 +791,6 @@ def build_scene_image_prompt(
     sections = [roster_block]
     if details:
         sections.append(details)
-    sections.append(_quoted_text_only_rule())
     sections.append(setting)
     sections.append(_clean_prompt_format_rules(player_count))
     return '\n\n'.join(section for section in sections if section)
@@ -938,7 +941,7 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     Skips players with neither. Raises ValueError if nobody can be illustrated.
 
     Each person uses the compact format:
-    'dan 4-5' broken leg
+    'dan 4-5' illustrate broken leg(no text).
 
     Face photos (when present) are attached immediately before that person's
     text line so the model can match likeness to stats/looks by order.
@@ -984,7 +987,7 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     parts = [{
         'text': (
             'Players below. Each face photo is followed by that person\'s line: '
-            "'name stats' signature look ..."
+            "'name stats' illustrate signature look(no text). ..."
         ),
     }]
     for name in included:

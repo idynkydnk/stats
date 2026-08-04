@@ -50,8 +50,12 @@
 
 <div class="sr-card sr-job-card">
     <i class="fas fa-spinner fa-spin sr-job-spin" id="job-spin"></i>
-    <h1 id="job-title">Generating your recap…</h1>
+    <h1 id="job-title">{% if (job.image_mode or 'none') == 'image' %}Generating your illustration…{% else %}Generating your recap…{% endif %}</h1>
+    {% if (job.image_mode or 'none') == 'image' %}
+    <p>Something is happening — please stay on this page for about <strong>5 minutes</strong> until it finishes. Leaving or closing this page can interrupt progress.</p>
+    {% else %}
     <p>This keeps running in the background. Use <strong>Menu</strong> anytime to visit other pages — come back here or check Admin activity for the share link.</p>
+    {% endif %}
     <p class="sr-job-status" id="job-status">Status: {{ job.status }}</p>
     <div class="sr-job-error" id="job-error" style="display:none;"></div>
     <p style="margin-top: 20px;">
