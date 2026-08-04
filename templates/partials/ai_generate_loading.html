@@ -1,0 +1,118 @@
+{# Full-screen overlay shown while Gemini (or similar) is generating. #}
+<style>
+.sr-generate-loading {
+    display: none;
+    position: fixed;
+    /* Stay below the site header/menu so navigation remains available. */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    background: rgba(11, 15, 20, 0.92);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    padding-top: 88px;
+}
+.sr-generate-loading.show {
+    display: flex;
+}
+.sr-generate-loading-card {
+    max-width: 420px;
+    width: 100%;
+    background: var(--sr-panel, #131a24);
+    border: 1px solid rgba(102, 217, 239, 0.35);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+.sr-generate-loading-card i {
+    font-size: 32px;
+    color: var(--sr-accent, #66d9ef);
+    margin-bottom: 16px;
+}
+.sr-generate-loading-card strong {
+    display: block;
+    font-size: 18px;
+    color: var(--sr-text, #e4e8eb);
+    margin-bottom: 10px;
+}
+.sr-generate-loading-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--sr-muted, #8b949e);
+}
+/* Mobile: illustration wait is a true blocking popup above the menu. */
+@media (max-width: 768px) {
+    .sr-generate-loading.show.sr-generate-loading-illustration {
+        z-index: 10050;
+        padding-top: 24px;
+        background: rgba(11, 15, 20, 0.96);
+    }
+    .sr-generate-loading-illustration .sr-generate-loading-card {
+        border-color: rgba(102, 217, 239, 0.55);
+    }
+    .sr-generate-loading-illustration .sr-generate-loading-card strong {
+        font-size: 20px;
+    }
+    .sr-generate-loading-illustration .sr-generate-loading-card p {
+        font-size: 15px;
+        color: var(--sr-text, #e4e8eb);
+    }
+}
+</style>
+<div id="ai-generate-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
+    <div class="sr-generate-loading-card">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <strong id="ai-loading-title">Generating…</strong>
+        <p id="ai-loading-detail">Stay on this page until it finishes.</p>
+    </div>
+</div>
+<script>
+(function () {
+    if (window.showAiGenerateLoading) return;
+
+    window.showAiGenerateLoading = function (opts) {
+        opts = opts || {};
+        var loading = document.getElementById('ai-generate-loading');
+        if (!loading) return;
+        var title = document.getElementById('ai-loading-title');
+        var detail = document.getElementById('ai-loading-detail');
+        if (title) title.textContent = opts.title || 'Generating…';
+        if (detail) {
+            detail.textContent = opts.detail || 'Stay on this page until it finishes. Leaving will cancel generation.';
+        }
+        loading.classList.toggle('sr-generate-loading-illustration', !!opts.illustration);
+        loading.classList.add('show');
+    };
+
+    /**
+     * Show the overlay on submit, then submit after paint (mobile Safari needs this).
+     * opts: { title, detail, illustration, submitButton }
+     */
+    window.bindAiGenerateFormLoading = function (form, opts) {
+        if (!form || form.dataset.aiLoadingBound === '1') return;
+        form.dataset.aiLoadingBound = '1';
+        opts = opts || {};
+        form.addEventListener('submit', function (event) {
+            if (form.dataset.submitting === '1') return;
+            event.preventDefault();
+            var btn = opts.submitButton || form.querySelector('[type="submit"]');
+            if (btn) btn.disabled = true;
+            window.showAiGenerateLoading(opts);
+            form.dataset.submitting = '1';
+            var submitForm = function () { form.submit(); };
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(submitForm);
+                });
+            } else {
+                window.setTimeout(submitForm, 50);
+            }
+        });
+    };
+})();
+</script>

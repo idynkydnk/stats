@@ -194,6 +194,7 @@
 </p>
 
 {% if show_creator_view and can_remake %}
+{% include 'partials/ai_generate_loading.html' %}
 <div class="flyer-panel" id="flyer-remake-panel" {% if not request.args.get('remake') %}hidden{% endif %}>
     <h3>Remake flyer</h3>
     <p class="flyer-help">Edit the flyer prompt, then remake. Uses each player’s uploaded face photo from the site.</p>
@@ -294,10 +295,12 @@
     if (remakeCancel && remakePanel) {
         remakeCancel.addEventListener('click', function () { remakePanel.hidden = true; });
     }
-    if (remakeBtn) {
-        remakeBtn.closest('form').addEventListener('submit', function () {
-            remakeBtn.disabled = true;
-            remakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+    if (window.bindAiGenerateFormLoading && remakeBtn) {
+        window.bindAiGenerateFormLoading(remakeBtn.closest('form'), {
+            title: 'Generating your flyer...',
+            detail: 'Something is happening — please stay on this page for about 5 minutes until it finishes. Leaving will cancel generation.',
+            illustration: true,
+            submitButton: remakeBtn,
         });
     }
 
@@ -329,10 +332,12 @@
             if (retakePanel) retakePanel.hidden = true;
         });
     });
-    if (soloRemakeBtn) {
-        soloRemakeBtn.closest('form').addEventListener('submit', function () {
-            soloRemakeBtn.disabled = true;
-            soloRemakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+    if (window.bindAiGenerateFormLoading && soloRemakeBtn) {
+        window.bindAiGenerateFormLoading(soloRemakeBtn.closest('form'), {
+            title: 'Remaking caricature...',
+            detail: 'Stay on this page until it finishes — leaving will cancel generation.',
+            illustration: true,
+            submitButton: soloRemakeBtn,
         });
     }
 })();

@@ -607,13 +607,14 @@ def _signature_look_visual_instructions(plural=False):
     """Require signature looks to be embodied visually — never painted as phrase text."""
     if plural:
         return (
-            'Each "illustrate …(no text)." clause is a signature look for that same person '
-            'only. Embody each look visually (costume, body, props, posture) — e.g. '
-            '"illustrate broken elbow(no text)." means a visibly broken/bandaged elbow. '
+            'Each "illustrate …(no text)." clause lists that person\'s signature looks. '
+            'Embody each look visually (costume, body, props, posture) — e.g. '
+            '"illustrate broken elbow. puerto rican. (no text)." means a visibly '
+            'broken/bandaged elbow and a Puerto Rican look. '
             'Never paint look phrases as text on the image.'
         )
     return (
-        'Each "illustrate …(no text)." clause is a signature look. '
+        'The "illustrate …(no text)." clause lists signature looks. '
         'Embody each look visually (costume, body, props, posture) — e.g. '
         '"illustrate broken elbow(no text)." means a visibly broken/bandaged elbow. '
         'Never paint look phrases as text on the image.'
@@ -621,7 +622,7 @@ def _signature_look_visual_instructions(plural=False):
 
 
 def _quote_prompt_phrase(text):
-    """Single-quoted prompt token, e.g. 'dan 4-5'."""
+    """Single-quoted prompt token, e.g. 'Brian 3-3 (-8)'."""
     clean = ' '.join((text or '').strip().split())
     if not clean:
         return ''
@@ -636,29 +637,37 @@ def _player_display_from_label(label, full_name=''):
     return (full_name or '').strip().split()[0] if (full_name or '').strip() else 'player'
 
 
-def _format_signature_look_clause(phrase):
-    """Format one signature look exactly as saved: illustrate 'Mr. Clean Cans'(no text)."""
-    clean = ' '.join((phrase or '').strip().split())
-    if not clean:
+def _format_signature_looks_clause(trait_phrases):
+    """Wrap all signature looks once: illustrate drinks twisted tea. tall and skinny. fast.(no text)."""
+    looks = []
+    for phrase in trait_phrases or []:
+        clean = ' '.join((phrase or '').strip().split()).rstrip('.')
+        if clean:
+            looks.append(clean)
+    if not looks:
         return ''
-    return f'illustrate {clean}(no text).'
+    joined = '. '.join(looks) + '. '
+    return f'illustrate {joined}(no text).'
 
 
 def _player_quoted_bits(label, trait_phrases):
-    """Name/stats quoted; looks as exact illustrate clauses."""
+    """Name/stats quoted; all signature looks in one illustrate …(no text). clause.
+
+    Keep nickname/first-name capitalization as saved in player data
+    (e.g. 'Brian', 'KT') — do not force lowercase.
+    """
     bits = []
-    clean_label = ' '.join((label or '').strip().lower().split())
+    clean_label = ' '.join((label or '').strip().split())
     if clean_label:
         bits.append(_quote_prompt_phrase(clean_label))
-    for phrase in trait_phrases or []:
-        clause = _format_signature_look_clause(phrase)
-        if clause:
-            bits.append(clause)
+    looks_clause = _format_signature_looks_clause(trait_phrases)
+    if looks_clause:
+        bits.append(looks_clause)
     return ' '.join(bits)
 
 
 def _player_clean_prompt_line(label, trait_phrases, full_name='', has_picture=True):
-    """One person line: 'dan 4-5' illustrate broken leg(no text)."""
+    """One person line: 'Brian 3-3 (-8)' illustrate broken leg. puerto rican. (no text)."""
     display = _player_display_from_label(label, full_name=full_name)
     quoted = _player_quoted_bits(label or display, trait_phrases)
     if has_picture:
@@ -1061,7 +1070,7 @@ def _reference_parts_from_uploaded_photos(
     Skips players with neither. Raises ValueError if nobody can be illustrated.
 
     Each person uses the compact format:
-    'dan 4-5' illustrate broken leg(no text).
+    'Brian 3-3 (-8)' illustrate broken leg. puerto rican. (no text).
 
     Face photos (when present) are attached immediately before that person's
     text line so the model can match likeness to stats/looks by order.
@@ -1110,7 +1119,7 @@ def _reference_parts_from_uploaded_photos(
     parts = [{
         'text': (
             'Players below. Each face photo is followed by that person\'s line: '
-            "'name stats' illustrate signature look(no text). ..."
+            "'name stats' illustrate signature looks(no text). ..."
         ),
     }]
     for name in included:

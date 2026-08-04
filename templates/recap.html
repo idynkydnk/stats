@@ -647,6 +647,7 @@
     <script type="application/json" id="recap-ig-data">{{ ig_slide_data | tojson }}</script>
     {% endif %}
     {% if show_creator_view and can_remake %}
+    {% include 'partials/ai_generate_loading.html' %}
     <div class="recap-remake-panel" id="recap-remake-summary-panel">
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_summary', share_id=share_id) }}" id="recap-remake-summary-form">
@@ -1009,21 +1010,17 @@
             el.addEventListener('click', closeRemakePanels);
         });
 
-        var remakeForm = document.getElementById('recap-remake-form');
-        var remakeBtn = document.getElementById('recap-remake-btn');
-        if (remakeForm && remakeBtn) {
-            remakeForm.addEventListener('submit', function () {
-                remakeBtn.disabled = true;
-                remakeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+        if (window.bindAiGenerateFormLoading) {
+            window.bindAiGenerateFormLoading(document.getElementById('recap-remake-form'), {
+                title: 'Generating your illustration...',
+                detail: 'Something is happening — please stay on this page for about 5 minutes until it finishes. Leaving will cancel generation.',
+                illustration: true,
+                submitButton: document.getElementById('recap-remake-btn'),
             });
-        }
-
-        var remakeSummaryForm = document.getElementById('recap-remake-summary-form');
-        var remakeSummaryBtn = document.getElementById('recap-remake-summary-btn');
-        if (remakeSummaryForm && remakeSummaryBtn) {
-            remakeSummaryForm.addEventListener('submit', function () {
-                remakeSummaryBtn.disabled = true;
-                remakeSummaryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Remaking…';
+            window.bindAiGenerateFormLoading(document.getElementById('recap-remake-summary-form'), {
+                title: 'Writing your recap...',
+                detail: 'Stay on this page until it finishes — leaving will cancel generation.',
+                submitButton: document.getElementById('recap-remake-summary-btn'),
             });
         }
 

@@ -199,31 +199,6 @@
     padding: 32px 16px;
     color: var(--sr-muted);
 }
-.sr-generate-loading {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    background: rgba(11, 15, 20, 0.72);
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-.sr-generate-loading.show { display: flex; }
-.sr-generate-loading-card {
-    background: var(--sr-panel);
-    border: 1px solid var(--sr-line);
-    border-radius: 12px;
-    padding: 28px 24px;
-    max-width: 420px;
-    text-align: center;
-    color: var(--sr-text);
-}
-.sr-generate-loading-card i {
-    font-size: 28px;
-    color: var(--sr-accent);
-    margin-bottom: 12px;
-}
 </style>
 {% endblock %}
 {% block content %}
@@ -327,14 +302,7 @@
     </form>
 </div>
 
-<div id="flyer-loading" class="sr-generate-loading" aria-live="polite" aria-busy="true">
-    <div class="sr-generate-loading-card">
-        <i class="fas fa-spinner fa-spin"></i>
-        <strong>Creating your flyer…</strong>
-        <p>Building the group flyer from uploaded player photos. Stay on this page until it finishes.</p>
-    </div>
-</div>
-
+{% include 'partials/ai_generate_loading.html' %}
 {% include 'partials/player_photo_modal.html' %}
 {% endblock %}
 {% block extra_js %}
@@ -349,16 +317,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     var form = document.getElementById('flyer-generate-form');
     var submitBtn = document.getElementById('flyer-submit');
-    var loading = document.getElementById('flyer-loading');
-    if (form) {
-        form.addEventListener('submit', function(event) {
-            if (event.submitter && event.submitter.id === 'flyer-back-btn') {
-                return;
-            }
-            if (submitBtn) submitBtn.disabled = true;
-            if (loading) loading.classList.add('show');
-        });
-    }
+    if (!form) return;
+    form.addEventListener('submit', function(event) {
+        if (event.submitter && event.submitter.id === 'flyer-back-btn') return;
+        if (form.dataset.submitting === '1') return;
+        event.preventDefault();
+        if (submitBtn) submitBtn.disabled = true;
+        if (window.showAiGenerateLoading) {
+            window.showAiGenerateLoading({
+                title: 'Creating your flyer…',
+                detail: 'Building the group flyer from uploaded player photos. Stay on this page until it finishes. Leaving will cancel generation.',
+                illustration: true,
+            });
+        }
+        form.dataset.submitting = '1';
+        var submitForm = function () { form.submit(); };
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(submitForm);
+            });
+        } else {
+            window.setTimeout(submitForm, 50);
+        }
+    });
 });
 </script>
 {% endblock %}
