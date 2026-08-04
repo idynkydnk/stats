@@ -619,20 +619,20 @@ def _signature_look_visual_instructions(plural=False):
     """Require signature looks to be embodied visually — never painted as phrase text."""
     if plural:
         return (
-            'After the name/stats quote, every other quoted phrase is a signature look '
+            'After the name/stats quote, any unquoted words are signature looks '
             'for that same person only. Embody each look visually (costume, body, props, '
-            'posture) — e.g. "broken elbow" = a visibly broken/bandaged elbow. Never paint '
+            'posture) — e.g. broken elbow = a visibly broken/bandaged elbow. Never paint '
             'look phrases as text on the image.'
         )
     return (
-        'After the name/stats quote, every other quoted phrase is a signature look. '
-        'Embody each look visually (costume, body, props, posture) — e.g. "broken elbow" '
+        'After the name/stats quote, any unquoted words are signature looks. '
+        'Embody each look visually (costume, body, props, posture) — e.g. broken elbow '
         '= a visibly broken/bandaged elbow. Never paint look phrases as text on the image.'
     )
 
 
 def _quote_prompt_phrase(text):
-    """Single-quoted prompt token, e.g. 'broken leg'."""
+    """Single-quoted prompt token, e.g. 'dan 4-5'."""
     clean = ' '.join((text or '').strip().split())
     if not clean:
         return ''
@@ -654,20 +654,20 @@ def _player_display_from_label(label, full_name=''):
 
 
 def _player_quoted_bits(label, trait_phrases):
-    """Quoted tokens: 'dan 4-5' 'broken leg' 'bucket hat'."""
+    """Name/stats quoted; signature looks plain: 'dan 4-5' broken leg bucket hat."""
     bits = []
     clean_label = ' '.join((label or '').strip().lower().split())
     if clean_label:
         bits.append(_quote_prompt_phrase(clean_label))
     for phrase in trait_phrases or []:
-        quoted = _quote_prompt_phrase(phrase)
-        if quoted:
-            bits.append(quoted)
+        clean = ' '.join((phrase or '').strip().split())
+        if clean:
+            bits.append(clean.replace("'", ''))
     return ' '.join(bits)
 
 
 def _player_clean_prompt_line(label, trait_phrases, full_name='', has_picture=True):
-    """One clean person line: :dans picture: 'dan 4-5' 'broken leg'."""
+    """One clean person line: :dans picture: 'dan 4-5' broken leg."""
     display = _player_display_from_label(label, full_name=full_name)
     slot = _player_picture_slot(display)
     quoted = _player_quoted_bits(label or display, trait_phrases)
@@ -952,7 +952,7 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     Skips players with neither. Raises ValueError if nobody can be illustrated.
 
     Each person uses the compact format:
-    :dans picture: 'dan 4-5' 'broken leg'
+    :dans picture: 'dan 4-5' broken leg
 
     Returns (reference_parts, included_players).
     """
@@ -995,7 +995,7 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     parts = [{
         'text': (
             'Players below. Format for each person: '
-            ":names picture: 'name stats' 'signature look' ..."
+            ":names picture: 'name stats' signature look ..."
         ),
     }]
     for name in included:
