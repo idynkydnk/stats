@@ -592,21 +592,23 @@ def _illustration_players(player_names, game_type, games, selected_players=None)
 
 def _solo_reference_parts_for_player(name, entry):
     """Build face-reference parts for a solo caricature call."""
-    parts = [{'text': '=== Character reference ==='}]
+    from player_functions import player_display_name
+
+    display = player_display_name(name) or name or 'player'
+    slot = _player_picture_slot(display)
+    parts = [{'text': f':{slot} picture:'}]
     if not entry or not entry.get('parts'):
         parts.append({
             'text': (
-                'No face reference photo. Invent one unique stylized character '
-                'from the signature details in the prompt below.'
+                'no face photo. Invent one unique stylized character '
+                'from the signature looks in the prompt below.'
             ),
         })
         return parts
 
     for ref in entry['parts']:
-        parts.append({'text': 'Face reference. Use for facial features and expression.'})
         parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
     return parts
-
 
 def _player_can_illustrate(has_reference_photos, trait_phrases):
     """Only illustrate players who have a face photo and/or signature looks."""
@@ -617,41 +619,137 @@ def _signature_look_visual_instructions(plural=False):
     """Require signature looks to be embodied visually — never painted as phrase text."""
     if plural:
         return (
-            'For each person, physically embody their signature looks in the character '
-            'design (costume, body, props, posture) so each look is unmistakable at a '
-            'glance. Example: "broken elbow" means a visibly broken/bandaged elbow — '
-            'do NOT write the words "broken elbow" on the image. Never paint signature-look '
-            'phrases as text labels, captions, stickers, or arrows.'
+            'After the name/stats quote, every other quoted phrase is a signature look '
+            'for that same person only. Embody each look visually (costume, body, props, '
+            'posture) — e.g. "broken elbow" = a visibly broken/bandaged elbow. Never paint '
+            'look phrases as text on the image.'
         )
     return (
-        'Physically embody each signature look in the character design (costume, body, '
-        'props, posture) so it is unmistakable at a glance. Example: "broken elbow" means '
-        'a visibly broken/bandaged elbow — do NOT write the words "broken elbow" on the '
-        'image. Never paint signature-look phrases as text labels, captions, stickers, or arrows.'
+        'After the name/stats quote, every other quoted phrase is a signature look. '
+        'Embody each look visually (costume, body, props, posture) — e.g. "broken elbow" '
+        '= a visibly broken/bandaged elbow. Never paint look phrases as text on the image.'
     )
 
 
+def _quote_prompt_phrase(text):
+    """Single-quoted prompt token, e.g. 'broken leg'."""
+    clean = ' '.join((text or '').strip().split())
+    if not clean:
+        return ''
+    return f"'{clean.replace(chr(39), '')}'"
+
+
+def _player_picture_slot(display_name):
+    """Dan -> dans for ':dans picture:'."""
+    base = ''.join(ch for ch in (display_name or '').strip().lower() if ch.isalnum())
+    return f'{base}s' if base else 'players'
+
+
+def _player_display_from_label(label, full_name=''):
+    """Nickname from an image label like 'Dan 4-5'."""
+    text = (label or '').strip()
+    if text:
+        return text.split()[0]
+    return (full_name or '').strip().split()[0] if (full_name or '').strip() else 'player'
+
+
+def _player_quoted_bits(label, trait_phrases):
+    """Quoted tokens: 'dan 4-5' 'broken leg' 'bucket hat'."""
+    bits = []
+    clean_label = ' '.join((label or '').strip().lower().split())
+    if clean_label:
+        bits.append(_quote_prompt_phrase(clean_label))
+    for phrase in trait_phrases or []:
+        quoted = _quote_prompt_phrase(phrase)
+        if quoted:
+            bits.append(quoted)
+    return ' '.join(bits)
+
+
+def _player_clean_prompt_line(label, trait_phrases, full_name='', has_picture=True):
+    """One clean person line: :dans picture: 'dan 4-5' 'broken leg'."""
+    display = _player_display_from_label(label, full_name=full_name)
+    slot = _player_picture_slot(display)
+    quoted = _player_quoted_bits(label or display, trait_phrases)
+    header = f':{slot} picture:'
+    if has_picture:
+        return f'{header} {quoted}'.rstrip() if quoted else header
+    if quoted:
+        return f'{header} no face photo. {quoted}'
+    return f'{header} no face photo.'
+
+
+def _phrases_by_player_name(players):
+    """full_name -> signature-look phrase list."""
+    from player_functions import collect_player_ai_image_traits
+
+    players = _dedupe_players_preserve_order(players)
+    trait_entries = collect_player_ai_image_traits(players)
+    by_lower = {
+        (entry.get('name') or '').strip().lower(): (entry.get('phrases') or [])
+        for entry in trait_entries
+    }
+    return {
+        name: list(by_lower.get((name or '').strip().lower()) or [])
+        for name in players
+    }
+
+
+def _clean_player_lines_block(players, labels_by_name=None, phrases_by_name=None):
+    """Newline-separated :names picture: lines for prompts."""
+    from player_functions import player_display_names_map
+
+    players = _dedupe_players_preserve_order(players)
+    labels_by_name = labels_by_name or {}
+    if not labels_by_name and players:
+        labels_by_name = {
+            name: (display or name)
+            for name, display in player_display_names_map(players).items()
+        }
+    if phrases_by_name is None:
+        phrases_by_name = _phrases_by_player_name(players)
+    lines = []
+    for name in players:
+        label = (labels_by_name.get(name) or name).strip()
+        lines.append(_player_clean_prompt_line(
+            label,
+            phrases_by_name.get(name) or [],
+            full_name=name,
+            has_picture=True,
+        ))
+    return '\n\n'.join(lines), len(players), players
+
+def _clean_prompt_format_rules(player_count, flyer=False):
+    """Aspect ratio note for scene prompts."""
+    _ = (player_count, flyer)
+    return 'Vertical 4:5.'
+
+
+def _scene_setting_line(game_type, game_name=None):
+    """Short setting for the scene prompt, e.g. 'beach volleyball court'."""
+    if game_type == 'doubles':
+        return 'beach volleyball court'
+    if game_type == 'vollis':
+        return 'vollis court'
+    if game_type == 'other' and game_name:
+        return str(game_name).strip()
+    return 'game court'
+
+
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
-    traits_block = ''
-    if trait_phrases:
-        phrase_lines = '\n'.join(f'- {phrase}' for phrase in trait_phrases)
-        traits_block = (
-            '\nSignature looks — exaggerate these heavily as VISUAL features of the '
-            'character (not as written text):\n'
-            f'{phrase_lines}\n'
-            f'{_signature_look_visual_instructions()}\n'
-        )
-    if has_reference_photos:
-        likeness = (
-            'Use the attached face reference photo to capture this person\'s face, '
-            'then exaggerate their signature details so they are instantly recognizable.\n'
-        )
-    else:
-        likeness = (
-            'invent a unique character from the signature details below.\n'
-        )
+    from player_functions import player_display_name
+
+    display = player_display_name(name) or name
+    label = (display or name or '').strip()
+    line = _player_clean_prompt_line(
+        label,
+        trait_phrases,
+        full_name=name,
+        has_picture=has_reference_photos,
+    )
     return f"""Draw exactly ONE person.
-{likeness}{traits_block}
+{line}
+Use the attached face photo when provided. {_signature_look_visual_instructions()}
 Plain neutral background."""
 
 
@@ -666,29 +764,47 @@ def build_flyer_scene_prompt(
 ):
     """Build the default Instagram flyer group prompt."""
     sport_desc = _sport_desc_for_image(game_type, game_name)
-    roster_block, player_count, players = _image_roster_block(
+    roster_block, player_count, players = _clean_player_lines_block(
         players, labels_by_name=labels_by_name,
     )
-    details_block = _image_details_block(image_details)
+    details = (image_details or '').strip()
     when_bits = [bit for bit in [(event_date or '').strip(), (event_time or '').strip()] if bit]
     when_line = ' '.join(when_bits) if when_bits else 'TBD'
     where_line = (location or '').strip() or 'TBD'
     title = sport_desc.title() if sport_desc else 'Game Night'
-    return f"""Create a bold promotional Instagram flyer for an upcoming game.
-Event: {title}
-When: {when_line}
-Where: {where_line}
-{details_block}{roster_block}
-Use each attached uploaded face photo for likeness when provided — same face per roster person.
-For anyone without a face photo, invent them from their signature looks only.
-Highly exaggerate each person's signature looks so they read instantly at a glance.
-{_signature_look_visual_instructions(plural=True)}
-Draw all {player_count} people in the scene — one per roster entry.
-Next to each person, draw a clear readable text label with their roster name (nickname/first name). Do not put Person numbers on the image.
-Include clear, readable flyer text for the event title, date/time, and location.
-Compose as a vertical 4:5 Instagram portrait (taller than wide). Keep every person
-fully inside the frame with comfortable margin — no one cut off at the edges.
-Energetic, fun, poster-quality illustration — not a plain photo collage."""
+    setting = _scene_setting_line(game_type, game_name)
+    sections = [
+        'Create a bold promotional Instagram flyer for an upcoming game.',
+        f'Event: {title}',
+        f'When: {when_line}',
+        f'Where: {where_line}',
+        roster_block,
+    ]
+    if details:
+        sections.append(details)
+    sections.append(setting)
+    sections.append(_clean_prompt_format_rules(player_count, flyer=True))
+    sections.append(
+        'Energetic, fun, poster-quality illustration — not a plain photo collage.'
+    )
+    return '\n\n'.join(section for section in sections if section)
+
+
+def build_scene_image_prompt(
+    game_type, players, game_name=None, image_details='', labels_by_name=None,
+):
+    """Build the default group-scene prompt (for preview/edit in the UI)."""
+    roster_block, player_count, players = _clean_player_lines_block(
+        players, labels_by_name=labels_by_name,
+    )
+    details = (image_details or '').strip()
+    setting = _scene_setting_line(game_type, game_name)
+    sections = [roster_block]
+    if details:
+        sections.append(details)
+    sections.append(setting)
+    sections.append(_clean_prompt_format_rules(player_count))
+    return '\n\n'.join(section for section in sections if section)
 
 
 def session_stats_for_illustration(game_type, games):
@@ -830,10 +946,13 @@ def _image_labels_for_players(players, player_stats=None):
 
 
 def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
-    """Build numbered likeness refs for a single group image call.
+    """Build likeness refs for a single group image call.
 
     Includes a player when they have a face photo and/or signature looks.
     Skips players with neither. Raises ValueError if nobody can be illustrated.
+
+    Each person uses the compact format:
+    :dans picture: 'dan 4-5' 'broken leg'
 
     Returns (reference_parts, included_players).
     """
@@ -873,28 +992,21 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
 
     # OpenAI edits accepts up to 16 reference images; also cap roster size.
     included = included[:16]
-    roster_block, player_count, included = _image_roster_block(
-        included, labels_by_name=labels_by_name,
-    )
-    with_photos = sum(1 for name in included if name in photos_by_name)
     parts = [{
         'text': (
-            f'{player_count} players below.'
-            f' {with_photos} have an uploaded face photo;'
-            f' others use signature looks only.'
-            f'{roster_block}'
+            'Players below. Format for each person: '
+            ":names picture: 'name stats' 'signature look' ..."
         ),
     }]
-    for index, name in enumerate(included, start=1):
+    for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
         phrases = phrases_by_name.get(name) or []
+        display = _player_display_from_label(label, full_name=name)
+        slot = _player_picture_slot(display)
+        quoted = _player_quoted_bits(label, phrases)
         if refs:
-            parts.append({
-                'text': (
-                    f'{label} — use this uploaded face photo for likeness:'
-                ),
-            })
+            parts.append({'text': f':{slot} picture:'})
             for ref in refs:
                 parts.append({
                     'inline_data': {
@@ -902,23 +1014,13 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
                         'data': ref['data_b64'],
                     },
                 })
+            if quoted:
+                parts.append({'text': quoted})
         else:
-            parts.append({
-                'text': (
-                    f'{label} — no face photo. Invent one unique '
-                    f'stylized character from the signature looks below.'
-                ),
-            })
-        if phrases:
-            phrase_lines = '\n'.join(f'- {phrase}' for phrase in phrases)
-            parts.append({
-                'text': (
-                    f'{label} signature looks — exaggerate these heavily as VISUAL '
-                    f'features of the character so they read instantly. Embody the look '
-                    f'(e.g. "broken elbow" = bandaged/broken elbow). Do NOT write the '
-                    f'phrase words on the image:\n{phrase_lines}'
-                ),
-            })
+            line = _player_clean_prompt_line(
+                label, phrases, full_name=name, has_picture=False,
+            )
+            parts.append({'text': line})
     return parts, included
 
 
@@ -940,42 +1042,8 @@ def _image_details_block(image_details):
 
 
 def _image_roster_block(players, labels_by_name=None):
-    """Roster lines with nickname/stats labels (not anonymous Person numbers)."""
-    players = _dedupe_players_preserve_order(players)
-    player_count = len(players)
-    if player_count == 0:
-        return '', 0, players
-    labels_by_name = labels_by_name or {}
-    roster_lines = '\n'.join(
-        f'{index}. {(labels_by_name.get(name) or name).strip()}'
-        for index, name in enumerate(players, start=1)
-    )
-    block = (
-        f'\n{player_count} players:\n'
-        f'{roster_lines}\n'
-    )
-    return block, player_count, players
-
-
-def build_scene_image_prompt(
-    game_type, players, game_name=None, image_details='', labels_by_name=None,
-):
-    """Build the default group-scene prompt (for preview/edit in the UI)."""
-    sport_desc = _sport_desc_for_image(game_type, game_name)
-    roster_block, player_count, players = _image_roster_block(
-        players, labels_by_name=labels_by_name,
-    )
-    details_block = _image_details_block(image_details)
-    return f"""Game: {sport_desc}.
-{details_block}{roster_block}
-Use each attached uploaded face photo for likeness when provided — same face per roster person.
-For anyone without a face photo, invent them from their signature looks only.
-Highly exaggerate each person's signature looks so they read instantly at a glance.
-{_signature_look_visual_instructions(plural=True)}
-Draw all {player_count} people in the scene — one per roster entry.
-Next to each person, draw a clear readable text label matching the roster
-(nickname/first name and session stats). Do not put Person numbers on the image.
-Compose as a vertical 4:5 portrait (taller than wide). Keep every person fully inside the frame with comfortable margin — no one cut off at the edges."""
+    """Roster in clean :names picture: format (legacy helper name kept)."""
+    return _clean_player_lines_block(players, labels_by_name=labels_by_name)
 
 
 def _build_scene_image_prompt(
@@ -988,17 +1056,21 @@ def _build_scene_image_prompt(
 
 
 def _reference_parts_from_caricatures(players, caricatures):
-    """Attach pass-1 caricatures as numbered scene references."""
-    roster_block, player_count, players = _image_roster_block(players)
+    """Attach pass-1 caricatures as scene references in clean picture format."""
+    from player_functions import player_display_names_map
+
+    players = _dedupe_players_preserve_order(players)
+    display = player_display_names_map(players)
     parts = [{
         'text': (
-            f'{player_count} players, each with a caricature reference attached below.'
-            f'{roster_block}'
+            'Players below. Format for each person: '
+            ":names picture: (caricature attached)"
         ),
     }]
-    for index, name in enumerate(players, start=1):
+    for name in players:
+        slot = _player_picture_slot(display.get(name) or name)
         raw, mime = caricatures[name]
-        parts.append({'text': f'Person {index} — use this caricature exactly:'})
+        parts.append({'text': f':{slot} picture:'})
         parts.append({
             'inline_data': {
                 'mime_type': mime,
@@ -1006,7 +1078,6 @@ def _reference_parts_from_caricatures(players, caricatures):
             },
         })
     return parts
-
 
 def _is_quota_error(msg):
     s = str(msg).lower()
