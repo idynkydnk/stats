@@ -1263,6 +1263,7 @@ def build_player_list_cards(players):
         face_focus = meta.get('face_focus', default_focus)
 
         cards.append({
+            'id': player_row[0] if player_row[0] is not None else None,
             'name': name,
             'nickname': player_row[10] if len(player_row) > 10 and player_row[10] else '',
             'email': player_row[2] or '',
@@ -5392,6 +5393,50 @@ def api_rename_player():
         return jsonify({'success': True, 'updates_made': updates_made, 'message': f'Successfully renamed "{old_name}" to "{new_name}" in {updates_made} records.'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/delete_player', methods=['POST'])
+@login_required
+def api_delete_player():
+    """Delete a roster player. Admin only (e.g. kyle)."""
+    if not is_admin():
+        return jsonify({'success': False, 'error': 'Admin access required.'}), 403
+
+    data = request.get_json() or {}
+    try:
+        player_id = int(data.get('player_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Valid player_id is required.'}), 400
+
+    from player_functions import get_player_by_id, remove_player, count_player_games
+
+    player = get_player_by_id(player_id)
+    if not player:
+        return jsonify({'success': False, 'error': 'Player not found.'}), 404
+
+    full_name = player[1]
+    game_count = count_player_games(full_name)
+
+    if game_count > 0:
+        return jsonify({
+            'success': False,
+            'error': (
+                f'Cannot delete "{full_name}" — they appear in {game_count} game'
+                f'{"s" if game_count != 1 else ""}. Rename them or remove those games first.'
+            ),
+        }), 400
+
+    try:
+        remove_player(player_id)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    user = session.get('username', 'unknown')
+    log_user_action(user, 'Deleted player', f'{full_name} (id {player_id})')
+    log_activity('Deleted player', target='player', target_id=player_id, summary=full_name)
+    clear_stats_cache()
+
+    return jsonify({'success': True, 'message': f'Deleted "{full_name}".'})
 
 
 @app.route('/add_player_email', methods=['POST'])

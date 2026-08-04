@@ -1331,8 +1331,36 @@ def update_player_info(
     with conn:
         update_player(conn, player)
 
+def count_player_games(player_name):
+    """Return total doubles + vollis + other games for a player name."""
+    name = (player_name or '').strip()
+    if not name:
+        return 0
+    conn = _players_db_connection()
+    if conn is None:
+        return 0
+    try:
+        cur = conn.cursor()
+        doubles, vollis, other = _game_stats_by_player(cur)
+        total = 0
+        for bucket in (doubles, vollis, other):
+            count, _ = bucket.get(name, (0, None))
+            total += int(count or 0)
+        return total
+    finally:
+        conn.close()
+
+
 def remove_player(player_id):
-    """Delete a player from the database"""
+    """Delete a player roster row and any stored photos."""
+    try:
+        remove_player_photo(player_id)
+    except Exception:
+        pass
+    try:
+        remove_player_full_body_photo(player_id)
+    except Exception:
+        pass
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:

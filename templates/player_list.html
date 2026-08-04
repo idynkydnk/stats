@@ -226,6 +226,31 @@
     color: var(--sr-accent);
     margin-top: 4px;
 }
+.pl-delete-btn {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--sr-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.pl-delete-btn:hover {
+    color: var(--sr-loss);
+    border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(248, 113, 113, 0.12);
+}
+.pl-delete-btn:disabled {
+    opacity: 0.45;
+    cursor: wait;
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -283,6 +308,16 @@
                     </div>
                     <div class="pl-stats">{{ card.games }} game{{ 's' if card.games != 1 else '' }}{% if card.firstGame %} · since {{ card.firstGame[5:7] }}/{{ card.firstGame[2:4] }}{% endif %}</div>
                 </button>
+                {% if is_admin_user and card.id %}
+                <button type="button" class="pl-delete-btn" title="Delete player"
+                        aria-label="Delete {{ card.name }}"
+                        data-player-id="{{ card.id }}"
+                        data-player-name="{{ card.name }}"
+                        data-player-games="{{ card.games }}"
+                        onclick="deletePlayer(event, this)">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -472,6 +507,44 @@ function submitRenamePlayer(event) {
         }
     })
     .catch(error => alert('Error: ' + error.message));
+}
+
+function deletePlayer(event, btn) {
+    event.preventDefault();
+    event.stopPropagation();
+    const playerId = btn.getAttribute('data-player-id');
+    const playerName = btn.getAttribute('data-player-name') || 'this player';
+    const games = parseInt(btn.getAttribute('data-player-games') || '0', 10) || 0;
+    if (games > 0) {
+        alert(`Cannot delete "${playerName}" — they appear in ${games} game${games === 1 ? '' : 's'}. Rename them or remove those games first.`);
+        return;
+    }
+    if (!confirm(`Delete "${playerName}" from the player list?\n\nThis cannot be undone.`)) {
+        return;
+    }
+    btn.disabled = true;
+    fetch('{{ url_for("api_delete_player") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: Number(playerId) })
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, data })))
+    .then(({ ok, data }) => {
+        if (ok && data.success) {
+            const card = btn.closest('.pl-card');
+            if (card) card.remove();
+            const remaining = document.querySelectorAll('#player-grid .pl-card').length;
+            const countEl = document.getElementById('result-count');
+            if (countEl) countEl.textContent = `${remaining} players`;
+            return;
+        }
+        btn.disabled = false;
+        alert('Error: ' + ((data && data.error) || 'Unable to delete player.'));
+    })
+    .catch(error => {
+        btn.disabled = false;
+        alert('Error: ' + error.message);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
