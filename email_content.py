@@ -731,7 +731,10 @@ def _scene_setting_line(game_type, game_name=None):
     if game_type == 'vollis':
         return 'vollis court'
     if game_type == 'other' and game_name:
-        return str(game_name).strip()
+        name = str(game_name).strip()
+        if name.lower() == 'coed':
+            return 'coed beach volleyball'
+        return name
     return 'game court'
 
 
@@ -1139,7 +1142,10 @@ def _sport_desc_for_image(game_type, game_name=None):
     if game_type == 'vollis':
         return 'one-on-one vollis volleyball'
     if game_type == 'other' and game_name:
-        return game_name
+        name = str(game_name).strip()
+        if name.lower() == 'coed':
+            return 'coed beach volleyball'
+        return name
     return 'recreational games'
 
 
