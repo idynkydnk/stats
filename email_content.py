@@ -820,7 +820,7 @@ def build_scene_image_prompt(
     return '\n\n'.join(section for section in sections if section)
 
 
-# First names treated as female for queen-of-the-beach titles (no gender column).
+# First names treated as female for "dressed like a queen" titles (no gender column).
 _FEMALE_FIRST_NAMES = frozenset({
     'abby', 'abigail', 'alexa', 'alexandra', 'alice', 'alicia', 'allison', 'alyssa',
     'amanda', 'amber', 'amy', 'andrea', 'angela', 'anita', 'anna', 'anne', 'annie',
@@ -876,8 +876,8 @@ def _player_is_female_for_beach_title(full_name):
 
 def _beach_royalty_phrase(full_name):
     if _player_is_female_for_beach_title(full_name):
-        return 'queen of the beach'
-    return 'king of the beach'
+        return 'dressed like a queen'
+    return 'dressed like a king'
 
 
 def _session_beach_royalty_names(player_stats):
@@ -904,7 +904,7 @@ def _session_beach_royalty_names(player_stats):
 
 
 def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
-    """Append king/queen of the beach to session leaders' signature-look lists."""
+    """Append dressed like a king/queen to session leaders' signature-look lists."""
     merged = {
         name: list(phrases or [])
         for name, phrases in (phrases_by_name or {}).items()
