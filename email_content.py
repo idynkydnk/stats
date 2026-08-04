@@ -12,7 +12,6 @@ import html
 import base64
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from urllib.parse import quote
 
@@ -38,13 +37,6 @@ SOLO_BODY_PHOTOS_PER_PLAYER = 1
 # find and expire; group hero images keep the bare uuid filename.
 SOLO_IMAGE_PREFIX = 'solo_'
 SOLO_IMAGE_MAX_AGE_HOURS = 48
-
-# Independent solo caricature API calls run in parallel (same quality). Cap
-# concurrency to avoid provider rate limits; override via env if needed.
-try:
-    SOLO_IMAGE_MAX_WORKERS = max(1, int(os.environ.get('SOLO_IMAGE_MAX_WORKERS', '4')))
-except ValueError:
-    SOLO_IMAGE_MAX_WORKERS = 4
 
 # WhatsApp requires og:image under 600KB; AI hero PNGs are often multi-MB.
 OG_IMAGE_PREFIX = 'og_'
@@ -592,23 +584,19 @@ def _illustration_players(player_names, game_type, games, selected_players=None)
 
 def _solo_reference_parts_for_player(name, entry):
     """Build face-reference parts for a solo caricature call."""
-    from player_functions import player_display_name
-
-    display = player_display_name(name) or name or 'player'
-    slot = _player_picture_slot(display)
-    parts = [{'text': f':{slot} picture:'}]
+    _ = name
     if not entry or not entry.get('parts'):
-        parts.append({
+        return [{
             'text': (
                 'no face photo. Invent one unique stylized character '
                 'from the signature looks in the prompt below.'
             ),
-        })
-        return parts
+        }]
 
-    for ref in entry['parts']:
-        parts.append({'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}})
-    return parts
+    return [
+        {'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}}
+        for ref in entry['parts']
+    ]
 
 def _player_can_illustrate(has_reference_photos, trait_phrases):
     """Only illustrate players who have a face photo and/or signature looks."""
@@ -639,12 +627,6 @@ def _quote_prompt_phrase(text):
     return f"'{clean.replace(chr(39), '')}'"
 
 
-def _player_picture_slot(display_name):
-    """Dan -> dans for ':dans picture:'."""
-    base = ''.join(ch for ch in (display_name or '').strip().lower() if ch.isalnum())
-    return f'{base}s' if base else 'players'
-
-
 def _player_display_from_label(label, full_name=''):
     """Nickname from an image label like 'Dan 4-5'."""
     text = (label or '').strip()
@@ -667,16 +649,14 @@ def _player_quoted_bits(label, trait_phrases):
 
 
 def _player_clean_prompt_line(label, trait_phrases, full_name='', has_picture=True):
-    """One clean person line: :dans picture: 'dan 4-5' broken leg."""
+    """One person line: 'dan 4-5' broken leg."""
     display = _player_display_from_label(label, full_name=full_name)
-    slot = _player_picture_slot(display)
     quoted = _player_quoted_bits(label or display, trait_phrases)
-    header = f':{slot} picture:'
     if has_picture:
-        return f'{header} {quoted}'.rstrip() if quoted else header
+        return quoted
     if quoted:
-        return f'{header} no face photo. {quoted}'
-    return f'{header} no face photo.'
+        return f'no face photo. {quoted}'
+    return 'no face photo.'
 
 
 def _phrases_by_player_name(players):
@@ -696,7 +676,7 @@ def _phrases_by_player_name(players):
 
 
 def _clean_player_lines_block(players, labels_by_name=None, phrases_by_name=None):
-    """Newline-separated :names picture: lines for prompts."""
+    """Newline-separated person lines for prompts."""
     from player_functions import player_display_names_map
 
     players = _dedupe_players_preserve_order(players)
@@ -952,7 +932,10 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     Skips players with neither. Raises ValueError if nobody can be illustrated.
 
     Each person uses the compact format:
-    :dans picture: 'dan 4-5' broken leg
+    'dan 4-5' broken leg
+
+    Face photos (when present) are attached immediately before that person's
+    text line so the model can match likeness to stats/looks by order.
 
     Returns (reference_parts, included_players).
     """
@@ -994,19 +977,16 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
     included = included[:16]
     parts = [{
         'text': (
-            'Players below. Format for each person: '
-            ":names picture: 'name stats' signature look ..."
+            'Players below. Each face photo is followed by that person\'s line: '
+            "'name stats' signature look ..."
         ),
     }]
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
         phrases = phrases_by_name.get(name) or []
-        display = _player_display_from_label(label, full_name=name)
-        slot = _player_picture_slot(display)
         quoted = _player_quoted_bits(label, phrases)
         if refs:
-            parts.append({'text': f':{slot} picture:'})
             for ref in refs:
                 parts.append({
                     'inline_data': {
@@ -1042,7 +1022,7 @@ def _image_details_block(image_details):
 
 
 def _image_roster_block(players, labels_by_name=None):
-    """Roster in clean :names picture: format (legacy helper name kept)."""
+    """Roster in clean person-line format (legacy helper name kept)."""
     return _clean_player_lines_block(players, labels_by_name=labels_by_name)
 
 
@@ -1054,30 +1034,6 @@ def _build_scene_image_prompt(
         labels_by_name=labels_by_name,
     )
 
-
-def _reference_parts_from_caricatures(players, caricatures):
-    """Attach pass-1 caricatures as scene references in clean picture format."""
-    from player_functions import player_display_names_map
-
-    players = _dedupe_players_preserve_order(players)
-    display = player_display_names_map(players)
-    parts = [{
-        'text': (
-            'Players below. Format for each person: '
-            ":names picture: (caricature attached)"
-        ),
-    }]
-    for name in players:
-        slot = _player_picture_slot(display.get(name) or name)
-        raw, mime = caricatures[name]
-        parts.append({'text': f':{slot} picture:'})
-        parts.append({
-            'inline_data': {
-                'mime_type': mime,
-                'data': base64.b64encode(raw).decode('ascii'),
-            },
-        })
-    return parts
 
 def _is_quota_error(msg):
     s = str(msg).lower()
@@ -2425,40 +2381,6 @@ def _ext_to_mime(path_or_ext):
     return 'image/png'
 
 
-def _load_caricatures_from_solo_images(players, solo_images):
-    """Load on-disk solo files into {name: (raw_bytes, mime)} for players that have them."""
-    by_name = {}
-    for item in solo_images or []:
-        name = (item or {}).get('name')
-        if not name:
-            continue
-        by_name[name.strip().lower()] = item
-
-    caricatures = {}
-    loaded_solos = []
-    for name in players:
-        item = by_name.get((name or '').strip().lower())
-        if not item:
-            continue
-        path = _solo_image_path(item)
-        if not path:
-            continue
-        try:
-            with open(path, 'rb') as handle:
-                raw = handle.read()
-        except OSError:
-            continue
-        if not raw:
-            continue
-        caricatures[name] = (raw, _ext_to_mime(path))
-        loaded_solos.append({
-            'name': name,
-            'url': item.get('url') or '',
-            'path': path,
-        })
-    return caricatures, loaded_solos
-
-
 def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=None):
     """Build the default solo caricature prompt (for preview/edit in the UI)."""
     from player_functions import (
@@ -2473,53 +2395,6 @@ def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=Non
     reference_parts = _solo_reference_parts_for_player(name, entry)
     has_reference_photos = any(part.get('inline_data') for part in reference_parts)
     return _build_solo_player_prompt(name, trait_phrases, has_reference_photos)
-
-
-def generate_solo_caricature(
-    api_key, player_name, game_type='doubles', game_name=None, custom_prompt=None,
-):
-    """Generate one temporary solo caricature for a player.
-
-    Returns {name, url, path, prompt}. When custom_prompt is set, that text is
-    used as the main illustration prompt (reference photos still attached).
-    Requires a face photo and/or signature looks.
-    """
-    from player_functions import (
-        collect_player_ai_image_traits,
-        collect_solo_reference_images,
-    )
-
-    name = (player_name or '').strip()
-    if not name:
-        raise ValueError('Player name is required.')
-
-    entry = collect_solo_reference_images(name)
-    reference_parts = _solo_reference_parts_for_player(name, entry)
-    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-    trait_entries = collect_player_ai_image_traits([name])
-    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
-    if not _player_can_illustrate(has_reference_photos, trait_phrases):
-        raise ValueError(
-            f'{name} has no face photo or signature looks — cannot create an image.'
-        )
-    solo_prompt = (custom_prompt or '').strip()
-    if not solo_prompt:
-        solo_prompt = build_solo_caricature_prompt(
-            name, game_type=game_type, game_name=game_name,
-        )
-    try:
-        raw, mime = _generate_image_bytes(solo_prompt, api_key, reference_parts=reference_parts)
-    except Exception as e:
-        raise ImageGenerationError(
-            _friendly_image_error(e, api_calls=1),
-            image_prompt=_image_prompt_bundle(reference_parts, solo_prompt),
-            solo_images=[],
-        ) from e
-
-    solo_url, solo_path = _save_email_image(
-        raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
-    )
-    return {'name': name, 'url': solo_url, 'path': solo_path, 'prompt': solo_prompt}
 
 
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
@@ -2545,19 +2420,6 @@ def _mime_to_ext(mime):
     return 'png'
 
 
-def _image_prompt_bundle_multipass(solo_passes, scene_reference_parts, scene_prompt):
-    sections = ['=== Pass 1: Solo caricatures ===']
-    for index, (_name, ref_parts, prompt) in enumerate(solo_passes, start=1):
-        sections.append(f'--- Person {index} ---')
-        sections.append(_image_prompt_bundle(ref_parts, prompt))
-    sections.append('')
-    sections.append('=== Pass 2: Group scene ===')
-    sections.append(_image_prompt_bundle(
-        scene_reference_parts, scene_prompt, image_label='[Generated caricature attached]',
-    ))
-    return '\n\n'.join(sections)
-
-
 def _illustration_meta(player_names, game_type, games, selected_players=None):
     all_players = _ordered_email_image_players(player_names)
     api_calls = 1 if all_players else 0
@@ -2578,147 +2440,6 @@ def _illustration_status_note(all_players):
         f'Illustration is one group image from uploaded face photos '
         f'({len(all_players)} players).'
     )
-
-
-def _generate_email_hero_image_two_pass(
-    api_key, game_type, players, game_name=None, image_details='',
-    existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None, scene_players=None, solo_prompt_builder=None,
-    scene_prompt_builder=None,
-):
-    """Solo caricature per illustratable player, then one group scene.
-
-    Only players with a face photo and/or signature looks get a solo
-    caricature. Those solos are saved temporarily (creator preview only;
-    auto-expire), then attached as references for the group scene. Only the
-    group illustration is kept permanently.
-
-    When reuse_existing_solos is True, any matching on-disk solos in
-    existing_solo_images are kept and only missing players are regenerated.
-
-    When custom_scene_prompt is set, that text is used as the group scene
-    prompt (caricature references still attached).
-
-    solo_prompt_builder(name, trait_phrases, has_refs) overrides the default
-    solo prompt. scene_prompt_builder(players, ...) overrides the default scene
-    prompt when custom_scene_prompt is empty.
-    """
-    from player_functions import (
-        collect_player_ai_image_traits,
-        collect_solo_reference_images,
-    )
-
-    players = _dedupe_players_preserve_order(players)
-    if not players:
-        raise ValueError('No players in roster for illustration')
-
-    # Group scene includes only players who got (or reused) a solo caricature.
-    scene_roster = list(players)
-    build_solo = solo_prompt_builder or _build_solo_player_prompt
-
-    caricatures = {}
-    solo_images = []
-    if reuse_existing_solos and existing_solo_images:
-        caricatures, solo_images = _load_caricatures_from_solo_images(
-            players, existing_solo_images,
-        )
-
-    trait_entries = collect_player_ai_image_traits(players)
-    traits_by_name = {entry['name']: entry for entry in trait_entries}
-
-    solo_passes = []
-    pending_solos = []
-    for name in players:
-        if name in caricatures:
-            solo_passes.append((name, [], f'[Reused existing solo caricature for {name}]'))
-            continue
-
-        entry = collect_solo_reference_images(name)
-        reference_parts = _solo_reference_parts_for_player(name, entry)
-        trait_entry = traits_by_name.get(name)
-        trait_phrases = trait_entry.get('phrases', []) if trait_entry else []
-        has_reference_photos = any(part.get('inline_data') for part in reference_parts)
-        if not _player_can_illustrate(has_reference_photos, trait_phrases):
-            # No face photo and no signature looks — skip this player entirely.
-            continue
-        solo_prompt = build_solo(name, trait_phrases, has_reference_photos)
-        solo_passes.append((name, reference_parts, solo_prompt))
-        pending_solos.append((name, reference_parts, solo_prompt))
-
-    def _run_one_solo(job):
-        name, reference_parts, solo_prompt = job
-        raw, mime = _generate_image_bytes(
-            solo_prompt, api_key, reference_parts=reference_parts,
-        )
-        solo_url, solo_path = _save_email_image(
-            raw, _mime_to_ext(mime), prefix=SOLO_IMAGE_PREFIX,
-        )
-        return name, raw, mime, solo_url, solo_path, solo_prompt
-
-    # Parallelize independent solo API calls (same model/quality). Group scene
-    # still waits until all solos finish.
-    if pending_solos:
-        workers = min(SOLO_IMAGE_MAX_WORKERS, len(pending_solos))
-        first_error = None
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(_run_one_solo, job) for job in pending_solos]
-            for future in as_completed(futures):
-                try:
-                    name, raw, mime, solo_url, solo_path, solo_prompt = future.result()
-                except Exception as e:
-                    if first_error is None:
-                        first_error = e
-                    continue
-                caricatures[name] = (raw, mime)
-                solo_images.append({
-                    'name': name,
-                    'url': solo_url,
-                    'path': solo_path,
-                    'prompt': solo_prompt,
-                })
-        if first_error is not None:
-            partial_prompt = _image_prompt_bundle_multipass(
-                solo_passes, [], 'Group scene not reached — solo caricature failed.',
-            )
-            raise ImageGenerationError(
-                _friendly_image_error(first_error, api_calls=len(solo_passes)),
-                image_prompt=partial_prompt,
-                solo_images=solo_images,
-            ) from first_error
-
-    # Keep solo_images in roster order for stable UI.
-    by_name = {(item.get('name') or '').strip().lower(): item for item in solo_images}
-    solo_images = [by_name[n.strip().lower()] for n in players if n.strip().lower() in by_name]
-
-    scene_for_refs = [name for name in scene_roster if name in caricatures]
-    if not scene_for_refs:
-        raise ValueError(
-            'No players have a face photo or signature looks to illustrate.'
-        )
-    scene_refs = _reference_parts_from_caricatures(scene_for_refs, caricatures)
-    if (custom_scene_prompt or '').strip():
-        scene_prompt = custom_scene_prompt.strip()
-    elif scene_prompt_builder:
-        scene_prompt = scene_prompt_builder(scene_for_refs)
-    else:
-        scene_prompt = _build_scene_image_prompt(
-            game_type, scene_for_refs, game_name=game_name, image_details=image_details,
-        )
-    image_prompt = _image_prompt_bundle_multipass(solo_passes, scene_refs, scene_prompt)
-    try:
-        raw, mime = _generate_image_bytes(
-            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
-        )
-    except Exception as e:
-        raise ImageGenerationError(
-            _friendly_image_error(e, api_calls=len(players) + 1),
-            image_prompt=image_prompt,
-            solo_images=solo_images,
-        ) from e
-    # Guarantee Instagram 4:5 even if the model returns a near-miss ratio.
-    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
-    url, path = _save_email_image(raw, _mime_to_ext(mime))
-    return url, path, image_prompt, solo_images, scene_prompt
 
 
 def generate_flyer_image(
