@@ -212,18 +212,34 @@ def complete_job(
     conn.close()
 
 
-def reset_stale_running_jobs(max_age_minutes=20):
-    """Re-queue jobs stuck in running (e.g. after a daemon crash)."""
+def reset_running_jobs():
+    """Re-queue every running job. Call on daemon startup — nothing can still be in-flight."""
     conn = _connect()
-    conn.execute('''
+    cur = conn.execute('''
+        UPDATE ai_auto_send_jobs
+        SET status = 'pending', started_at = NULL
+        WHERE status = 'running'
+    ''')
+    count = cur.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+
+def reset_stale_running_jobs(max_age_minutes=20):
+    """Re-queue jobs stuck in running (e.g. hung mid-process without a daemon restart)."""
+    conn = _connect()
+    cur = conn.execute('''
         UPDATE ai_auto_send_jobs
         SET status = 'pending', started_at = NULL
         WHERE status = 'running'
           AND started_at IS NOT NULL
           AND started_at < datetime('now', ? || ' minutes')
     ''', (f'-{int(max_age_minutes)}',))
+    count = cur.rowcount
     conn.commit()
     conn.close()
+    return count
 
 
 def get_job(job_id):

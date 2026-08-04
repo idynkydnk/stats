@@ -103,12 +103,23 @@ def _load_missing_env_from_wsgi():
     return loaded_from
 
 
+def _preload_stats():
+    """Import stats once at boot so job claims don't hang on a silent first import."""
+    _log('Loading stats module…')
+    try:
+        from stats import run_ai_auto_send_job, run_flyer_job  # noqa: F401
+    except Exception:
+        _log(f'FATAL import stats:\n{traceback.format_exc()}')
+        raise
+    _log('stats module ready')
+
+
 def _process_job(job):
+    from stats import run_ai_auto_send_job, run_flyer_job
+
     job_type = (job.get('job_type') or 'recap').strip() or 'recap'
 
     if job_type == 'flyer':
-        from stats import run_flyer_job
-
         payload = job.get('payload') or {}
         players = payload.get('players') or []
         _log(
@@ -134,8 +145,6 @@ def _process_job(job):
             jobs.complete_job(job['id'], False, error=err)
             _log(f'job #{job["id"]} failed: {err}')
         return
-
-    from stats import run_ai_auto_send_job
 
     _log(
         f'processing job #{job["id"]} user={job["username"]} '
@@ -176,8 +185,11 @@ def main():
     _load_missing_env_from_wsgi()
 
     jobs.init_ai_auto_send_jobs_db()
-    jobs.reset_stale_running_jobs()
+    # Fresh process: nothing can still be in-flight. Reclaim orphans from prior crashes.
+    reclaimed = jobs.reset_running_jobs()
     _log(f'AI auto-send daemon started (cwd={os.getcwd()})')
+    if reclaimed:
+        _log(f'Re-queued {reclaimed} job(s) left in running from a previous daemon')
 
     if not (os.environ.get('OPENAI_API_KEY') or os.environ.get('GEMINI_API_KEY')):
         _log('WARNING: OPENAI_API_KEY / GEMINI_API_KEY not set — jobs will fail')
@@ -185,11 +197,20 @@ def main():
         provider = 'OPENAI_API_KEY' if os.environ.get('OPENAI_API_KEY') else 'GEMINI_API_KEY'
         _log(f'AI provider key present: {provider}')
 
+    _preload_stats()
+
+    idle_loops = 0
     while True:
         jobs.touch_daemon_heartbeat()
         try:
+            # Safety net if a job hangs without killing the process.
+            stale = jobs.reset_stale_running_jobs(max_age_minutes=20)
+            if stale:
+                _log(f'Re-queued {stale} stale running job(s)')
+
             job = jobs.claim_next_pending_job()
             if job:
+                idle_loops = 0
                 try:
                     _process_job(job)
                 except Exception:
@@ -197,6 +218,10 @@ def main():
                     jobs.complete_job(job['id'], False, error=err)
                     _log(f'job #{job["id"]} crashed:\n{err}')
             else:
+                idle_loops += 1
+                # Heartbeat-style log so Always-on consoles don't look frozen.
+                if idle_loops == 1 or idle_loops % 12 == 0:
+                    _log('waiting for jobs…')
                 time.sleep(POLL_SECONDS)
         except Exception:
             _log(f'daemon loop error:\n{traceback.format_exc()[-800:]}')
