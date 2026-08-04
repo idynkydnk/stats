@@ -874,10 +874,14 @@ def _player_is_female_for_beach_title(full_name):
     return False
 
 
-def _beach_royalty_phrase(full_name):
-    if _player_is_female_for_beach_title(full_name):
-        return 'dressed like a queen'
-    return 'dressed like a king'
+def _beach_royalty_phrases(full_name):
+    """Signature looks for the session leader (king/queen staging)."""
+    dress = (
+        'dressed like a queen'
+        if _player_is_female_for_beach_title(full_name)
+        else 'dressed like a king'
+    )
+    return [dress, 'taller than everyone', 'in front of everyone']
 
 
 def _session_beach_royalty_names(player_stats):
@@ -904,7 +908,7 @@ def _session_beach_royalty_names(player_stats):
 
 
 def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
-    """Append dressed like a king/queen to session leaders' signature-look lists."""
+    """Append king/queen staging looks to session leaders' signature-look lists."""
     merged = {
         name: list(phrases or [])
         for name, phrases in (phrases_by_name or {}).items()
@@ -915,10 +919,12 @@ def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
     for name in _dedupe_players_preserve_order(players):
         if name not in leaders:
             continue
-        title = _beach_royalty_phrase(name)
         phrases = list(merged.get(name) or [])
-        if not any((p or '').strip().casefold() == title for p in phrases):
-            phrases.append(title)
+        existing = {(p or '').strip().casefold() for p in phrases}
+        for title in _beach_royalty_phrases(name):
+            if title.casefold() not in existing:
+                phrases.append(title)
+                existing.add(title.casefold())
         merged[name] = phrases
     return merged
 
