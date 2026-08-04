@@ -1222,6 +1222,14 @@ input[type=number] {
     left: auto;
     right: 0;
 }
+/* When Add wraps to the left on narrow screens, open the menu rightward
+   so it stays on screen (right:0 would extend past the left edge). */
+@media (max-width: 768px) {
+    .sr-header-actions .sr-dropdown-content {
+        left: 0;
+        right: auto;
+    }
+}
 .sr-dropdown-btn {
     background: var(--sr-panel);
     border: 1px solid var(--sr-line);
