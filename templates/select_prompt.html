@@ -411,17 +411,19 @@ let selectedPrompt = null;
         }
 
         document.getElementById('generate-form').addEventListener('submit', function(event) {
-            if (document.getElementById('generate-form').dataset.submitting === '1') {
-                event.preventDefault();
+            var form = document.getElementById('generate-form');
+            if (form.dataset.submitting === '1') {
+                // Allow the deferred programmatic submit through.
                 return;
             }
+            // Stop the native submit so mobile can paint the loading dialog first.
+            event.preventDefault();
             syncCustomPrompt();
             syncImageDetails();
 
             if (selectedPrompt === 'custom') {
                 var customText = (document.getElementById('custom-prompt-text').value || '').trim();
                 if (!customText) {
-                    event.preventDefault();
                     setGenerateButtonsEnabled(true);
                     document.getElementById('generate-loading').classList.remove('show');
                     var existing = document.getElementById('select-prompt-client-error');
@@ -446,10 +448,19 @@ let selectedPrompt = null;
             }
 
             var mode = document.getElementById('image-mode').value || 'none';
-
-            document.getElementById('generate-form').dataset.submitting = '1';
             setGenerateButtonsEnabled(false);
             showGenerateLoading(mode);
+            form.dataset.submitting = '1';
+
+            // Two rAFs (with setTimeout fallback) let mobile Safari paint before navigation.
+            var submitForm = function() { form.submit(); };
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(function() {
+                    window.requestAnimationFrame(submitForm);
+                });
+            } else {
+                window.setTimeout(submitForm, 50);
+            }
         });
 
         selectPrompt({{ (selected_prompt_style or 'default')|tojson }});
