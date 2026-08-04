@@ -714,6 +714,11 @@ def _clean_prompt_format_rules(player_count, flyer=False):
     return 'Vertical 4:5.'
 
 
+def _name_stats_label_rule():
+    """Require quoted name/stats labels next to each person in the image."""
+    return 'show name and stats next to each person'
+
+
 def _scene_setting_line(game_type, game_name=None):
     """Short setting for the scene prompt, e.g. 'beach volleyball court'."""
     if game_type == 'doubles':
@@ -791,6 +796,7 @@ def build_scene_image_prompt(
     sections = [roster_block]
     if details:
         sections.append(details)
+    sections.append(_name_stats_label_rule())
     sections.append(setting)
     sections.append(_clean_prompt_format_rules(player_count))
     return '\n\n'.join(section for section in sections if section)
