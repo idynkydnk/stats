@@ -637,15 +637,15 @@ def _player_display_from_label(label, full_name=''):
 
 
 def _format_signature_look_clause(phrase):
-    """Format one signature look: illustrate broken elbow(no text)."""
+    """Format one signature look exactly as saved: illustrate 'Mr. Clean Cans'(no text)."""
     clean = ' '.join((phrase or '').strip().split())
     if not clean:
         return ''
-    return f"illustrate {clean.replace(chr(39), '')}(no text)."
+    return f'illustrate {clean}(no text).'
 
 
 def _player_quoted_bits(label, trait_phrases):
-    """Name/stats quoted; looks as illustrate clauses: 'dan 4-5' illustrate broken leg(no text)."""
+    """Name/stats quoted; looks as exact illustrate clauses."""
     bits = []
     clean_label = ' '.join((label or '').strip().lower().split())
     if clean_label:
