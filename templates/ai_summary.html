@@ -276,9 +276,17 @@
                 <div id="tab-doubles" class="sr-tab-content active">
                     <div class="sr-search-area" id="search-area-doubles"></div>
                     <div class="sr-browse-games">
+                    {% set doubles_first_day = doubles_games[0][1]|game_day if doubles_games else '' %}
+                    {% set doubles_day_ns = namespace(count=0) %}
                     {% for game in doubles_games %}
-                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
-                         data-game-id="{{ game[0] }}" data-game-type="doubles"
+                        {% if game[1]|game_day == doubles_first_day %}
+                            {% set doubles_day_ns.count = doubles_day_ns.count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for game in doubles_games %}
+                    {% set game_day = game[1]|game_day %}
+                    <div class="sr-game-card sr-browse-card {% if game_day != doubles_first_day %}sr-hidden-game{% endif %}"
+                         data-game-id="{{ game[0] }}" data-game-type="doubles" data-game-day="{{ game_day }}"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
                         <div class="sr-game-info">
@@ -301,13 +309,13 @@
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
-                    {% if doubles_games|length > 10 %}
+                    {% if game_day == doubles_first_day and loop.index == doubles_day_ns.count and doubles_games|length > doubles_day_ns.count %}
                     <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('doubles')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
-                        Show {{ doubles_games|length - 10 }} More Games
+                        Show {{ doubles_games|length - doubles_day_ns.count }} More Games
                     </button>
                     {% endif %}
+                    {% endfor %}
                     {% if not doubles_games %}
                     <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games found.</p>
                     {% endif %}
@@ -318,9 +326,17 @@
                 <div id="tab-vollis" class="sr-tab-content" style="display: none;">
                     <div class="sr-search-area" id="search-area-vollis"></div>
                     <div class="sr-browse-games">
+                    {% set vollis_first_day = vollis_games[0][1]|game_day if vollis_games else '' %}
+                    {% set vollis_day_ns = namespace(count=0) %}
                     {% for game in vollis_games %}
-                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
-                         data-game-id="{{ game[0] }}" data-game-type="vollis"
+                        {% if game[1]|game_day == vollis_first_day %}
+                            {% set vollis_day_ns.count = vollis_day_ns.count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for game in vollis_games %}
+                    {% set game_day = game[1]|game_day %}
+                    <div class="sr-game-card sr-browse-card {% if game_day != vollis_first_day %}sr-hidden-game{% endif %}"
+                         data-game-id="{{ game[0] }}" data-game-type="vollis" data-game-day="{{ game_day }}"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game[0] }}" onclick="event.stopPropagation()" disabled>
                         <div class="sr-game-info">
@@ -339,13 +355,13 @@
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
-                    {% if vollis_games|length > 10 %}
+                    {% if game_day == vollis_first_day and loop.index == vollis_day_ns.count and vollis_games|length > vollis_day_ns.count %}
                     <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('vollis')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
-                        Show {{ vollis_games|length - 10 }} More Games
+                        Show {{ vollis_games|length - vollis_day_ns.count }} More Games
                     </button>
                     {% endif %}
+                    {% endfor %}
                     {% if not vollis_games %}
                     <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No vollis games found.</p>
                     {% endif %}
@@ -356,9 +372,18 @@
                 <div id="tab-other" class="sr-tab-content" style="display: none;">
                     <div class="sr-search-area" id="search-area-other"></div>
                     <div class="sr-browse-games">
+                    {% set other_first_day = (other_games[0].game_date_only or other_games[0].game_date|game_day) if other_games else '' %}
+                    {% set other_day_ns = namespace(count=0) %}
                     {% for game in other_games %}
-                    <div class="sr-game-card sr-browse-card {% if loop.index > 10 %}sr-hidden-game{% endif %}" 
-                         data-game-id="{{ game.game_id }}" data-game-type="other"
+                        {% set game_day = game.game_date_only or game.game_date|game_day %}
+                        {% if game_day == other_first_day %}
+                            {% set other_day_ns.count = other_day_ns.count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for game in other_games %}
+                    {% set game_day = game.game_date_only or game.game_date|game_day %}
+                    <div class="sr-game-card sr-browse-card {% if game_day != other_first_day %}sr-hidden-game{% endif %}"
+                         data-game-id="{{ game.game_id }}" data-game-type="other" data-game-day="{{ game_day }}"
                          onclick="toggleGame(this, event)">
                         <input type="checkbox" class="sr-game-checkbox" name="game_ids" value="{{ game.game_id }}" onclick="event.stopPropagation()" disabled>
                         <div class="sr-game-info">
@@ -389,13 +414,13 @@
                             {% endfor %}
                         </div>
                     </div>
-                    {% endfor %}
-                    {% if other_games|length > 10 %}
+                    {% if game_day == other_first_day and loop.index == other_day_ns.count and other_games|length > other_day_ns.count %}
                     <button type="button" class="sr-expand-btn sr-browse-only" onclick="toggleExpand('other')">
                         <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
-                        Show {{ other_games|length - 10 }} More Games
+                        Show {{ other_games|length - other_day_ns.count }} More Games
                     </button>
                     {% endif %}
+                    {% endfor %}
                     {% if not other_games %}
                     <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games found.</p>
                     {% endif %}
@@ -697,9 +722,28 @@ let currentTab = 'doubles';
             updateSelectedCount();
         }
 
+        function firstBrowseDay(tabEl) {
+            var first = tabEl.querySelector('.sr-browse-card');
+            return first ? (first.dataset.gameDay || '') : '';
+        }
+
         function selectAll() {
             var activeTab = document.getElementById('tab-' + currentTab);
-            visibleCards(activeTab).forEach(function(card) {
+            if (searchMode) {
+                visibleCards(activeTab).forEach(function(card) {
+                    var checkbox = card.querySelector('.sr-game-checkbox');
+                    checkbox.checked = true;
+                    card.classList.add('selected');
+                });
+                updateSelectedCount();
+                return;
+            }
+
+            // Browse mode: select every game from the most recent day.
+            var day = firstBrowseDay(activeTab);
+            activeTab.querySelectorAll('.sr-browse-card').forEach(function(card) {
+                if ((card.dataset.gameDay || '') !== day) return;
+                card.classList.remove('sr-hidden-game');
                 var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = true;
                 card.classList.add('selected');
@@ -719,18 +763,29 @@ let currentTab = 'doubles';
 
         function toggleExpand(tab) {
             var container = document.getElementById('tab-' + tab);
-            var cards = container.querySelectorAll('.sr-game-card');
+            var cards = container.querySelectorAll('.sr-browse-card');
             var btn = container.querySelector('.sr-expand-btn');
-            
+            if (!btn || !cards.length) return;
+            var day = firstBrowseDay(container);
+            var olderCount = 0;
+            cards.forEach(function(card) {
+                if ((card.dataset.gameDay || '') !== day) olderCount += 1;
+            });
+
             if (!expandedTabs[tab]) {
                 cards.forEach(function(card) { card.classList.remove('sr-hidden-game'); });
                 btn.innerHTML = '<i class="fas fa-chevron-up" style="margin-right: 6px;"></i>Show Less';
                 expandedTabs[tab] = true;
             } else {
-                cards.forEach(function(card, index) {
-                    if (index >= 10) card.classList.add('sr-hidden-game');
+                cards.forEach(function(card) {
+                    if ((card.dataset.gameDay || '') !== day) {
+                        card.classList.add('sr-hidden-game');
+                    } else {
+                        card.classList.remove('sr-hidden-game');
+                    }
                 });
-                btn.innerHTML = '<i class="fas fa-chevron-down" style="margin-right: 6px;"></i>Show ' + (cards.length - 10) + ' More Games';
+                btn.innerHTML = '<i class="fas fa-chevron-down" style="margin-right: 6px;"></i>Show '
+                    + olderCount + ' More Games';
                 expandedTabs[tab] = false;
             }
         }

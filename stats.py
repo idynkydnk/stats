@@ -1003,6 +1003,13 @@ def game_year_filter(date_str):
     return str(date.today().year)
 
 
+@app.template_filter('game_day')
+def game_day_filter(date_str):
+    """Calendar day key from a display datetime (text before the first space)."""
+    s = str(date_str or '').strip()
+    return s.split(' ', 1)[0] if s else ''
+
+
 def init_auth_tokens_db():
     """Initialize the auth_tokens table for remember me functionality"""
     conn = sqlite3.connect(_stats_db_path())
