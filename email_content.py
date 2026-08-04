@@ -613,13 +613,33 @@ def _player_can_illustrate(has_reference_photos, trait_phrases):
     return bool(has_reference_photos) or bool(trait_phrases)
 
 
+def _signature_look_visual_instructions(plural=False):
+    """Require signature looks to be embodied visually — never painted as phrase text."""
+    if plural:
+        return (
+            'For each person, physically embody their signature looks in the character '
+            'design (costume, body, props, posture) so each look is unmistakable at a '
+            'glance. Example: "broken elbow" means a visibly broken/bandaged elbow — '
+            'do NOT write the words "broken elbow" on the image. Never paint signature-look '
+            'phrases as text labels, captions, stickers, or arrows.'
+        )
+    return (
+        'Physically embody each signature look in the character design (costume, body, '
+        'props, posture) so it is unmistakable at a glance. Example: "broken elbow" means '
+        'a visibly broken/bandaged elbow — do NOT write the words "broken elbow" on the '
+        'image. Never paint signature-look phrases as text labels, captions, stickers, or arrows.'
+    )
+
+
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
     traits_block = ''
     if trait_phrases:
+        phrase_lines = '\n'.join(f'- {phrase}' for phrase in trait_phrases)
         traits_block = (
-            '\nSignature exaggerations:\n'
-            + '\n'.join(f'- {phrase}' for phrase in trait_phrases)
-            + '\n'
+            '\nSignature looks — exaggerate these heavily as VISUAL features of the '
+            'character (not as written text):\n'
+            f'{phrase_lines}\n'
+            f'{_signature_look_visual_instructions()}\n'
         )
     if has_reference_photos:
         likeness = (
@@ -662,6 +682,7 @@ Where: {where_line}
 Use each attached uploaded face photo for likeness when provided — same face per roster person.
 For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
+{_signature_look_visual_instructions(plural=True)}
 Draw all {player_count} people in the scene — one per roster entry.
 Next to each person, draw a clear readable text label with their roster name (nickname/first name). Do not put Person numbers on the image.
 Include clear, readable flyer text for the event title, date/time, and location.
@@ -892,8 +913,10 @@ def _reference_parts_from_uploaded_photos(players, labels_by_name=None):
             phrase_lines = '\n'.join(f'- {phrase}' for phrase in phrases)
             parts.append({
                 'text': (
-                    f'{label} signature looks — exaggerate these heavily so they '
-                    f'read instantly:\n{phrase_lines}'
+                    f'{label} signature looks — exaggerate these heavily as VISUAL '
+                    f'features of the character so they read instantly. Embody the look '
+                    f'(e.g. "broken elbow" = bandaged/broken elbow). Do NOT write the '
+                    f'phrase words on the image:\n{phrase_lines}'
                 ),
             })
     return parts, included
@@ -948,6 +971,7 @@ def build_scene_image_prompt(
 Use each attached uploaded face photo for likeness when provided — same face per roster person.
 For anyone without a face photo, invent them from their signature looks only.
 Highly exaggerate each person's signature looks so they read instantly at a glance.
+{_signature_look_visual_instructions(plural=True)}
 Draw all {player_count} people in the scene — one per roster entry.
 Next to each person, draw a clear readable text label matching the roster
 (nickname/first name and session stats). Do not put Person numbers on the image.
