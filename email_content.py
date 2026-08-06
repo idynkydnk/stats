@@ -242,7 +242,72 @@ If any games include comments, you must weave every comment into the summary. Do
 Only quote a comment if it is already in the data enclosed in quotation marks.
 Base the recap only on the information below.
 
+Output format (exactly these labels, nothing else before HEADLINE):
+HEADLINE: <short page title, max 60 characters, punchy and specific to what happened — no quotes or emojis>
+SUMMARY:
+<the recap body>
+
 {context}"""
+
+
+def _sanitize_recap_headline(raw):
+    """Clean AI headline output to a single short page title."""
+    if not raw:
+        return ''
+    headline = raw.strip().splitlines()[0].strip()
+    for prefix in (
+        'HEADLINE:', 'Headline:', 'headline:',
+        'Title:', 'title:',
+        'Subject line:', 'Subject:', 'subject:',
+    ):
+        if headline.lower().startswith(prefix.lower()):
+            headline = headline[len(prefix):].strip()
+    if len(headline) >= 2 and headline[0] == headline[-1] and headline[0] in '"\'':
+        headline = headline[1:-1].strip()
+    return headline[:60].strip()
+
+
+def _parse_recap_headline_and_summary(text):
+    """Split a combined AI response into (headline, summary body)."""
+    raw = (text or '').strip()
+    if not raw:
+        return '', ''
+
+    lines = raw.splitlines()
+    headline = ''
+    summary_start = 0
+
+    first = lines[0].strip()
+    for prefix in ('HEADLINE:', 'Headline:', 'headline:', 'Title:', 'title:'):
+        if first.lower().startswith(prefix.lower()):
+            headline = _sanitize_recap_headline(first[len(prefix):])
+            summary_start = 1
+            break
+    if not headline and first:
+        # Model sometimes returns title on line 1 without a label.
+        if len(lines) > 1 and not first.lower().startswith('summary'):
+            headline = _sanitize_recap_headline(first)
+            summary_start = 1
+
+    rest = '\n'.join(lines[summary_start:]).strip()
+    for prefix in ('SUMMARY:', 'Summary:', 'summary:'):
+        if rest.lower().startswith(prefix.lower()):
+            rest = rest[len(prefix):].lstrip('\n').strip()
+            break
+    return headline, rest
+
+
+def generate_ai_recap_text(style_instructions, context, game_type, date_obj,
+                           game_name_label=''):
+    """One text API call → (prompt, page_headline, summary_body)."""
+    prompt = _build_recap_prompt(style_instructions, context)
+    raw = generate_ai_text(prompt)
+    headline, summary = _parse_recap_headline_and_summary(raw)
+    if not summary:
+        summary = raw.strip()
+    if not headline:
+        headline = recap_page_title(game_type, date_obj, game_name_label)
+    return prompt, headline, summary
 
 
 def _email_hero_styles():
@@ -449,62 +514,20 @@ def replace_recap_hero_image(html_body, new_hero_url):
     return str(soup)
 
 
-def ai_email_subject(game_type, date_obj, game_name_label=''):
-    """Human-friendly subject line for better inbox placement."""
+def recap_page_title(game_type, date_obj, game_name_label=''):
+    """Fallback page title when the model omits a headline."""
     date_label = date_obj.strftime('%b ') + str(date_obj.day)
     if game_type == 'doubles':
-        return f'Volleyball recap – {date_label} (your group)'
+        return f'Volleyball Recap – {date_label}'
     if game_type == 'vollis':
-        return f'Vollis recap – {date_label} (your group)'
+        return f'Vollis Recap – {date_label}'
     label = (game_name_label or 'Game').strip()
-    return f'{label} recap – {date_label} (your group)'
+    return f'{label} Recap – {date_label}'
 
 
-def _sanitize_email_subject(raw):
-    """Clean AI subject output to a single short line."""
-    if not raw:
-        return ''
-    subject = raw.strip().splitlines()[0].strip()
-    for prefix in ('Subject line:', 'Subject:', 'subject:'):
-        if subject.lower().startswith(prefix.lower()):
-            subject = subject[len(prefix):].strip()
-    if len(subject) >= 2 and subject[0] == subject[-1] and subject[0] in '"\'':
-        subject = subject[1:-1].strip()
-    return subject[:60].strip()
-
-
-def generate_ai_email_subject(summary, game_type, date_obj, game_name_label=''):
-    """Generate a short subject from the recap. Falls back to a template."""
-    fallback = ai_email_subject(game_type, date_obj, game_name_label)
-    if not (summary or '').strip():
-        return fallback
-
-    date_label = date_obj.strftime('%b ') + str(date_obj.day)
-    if game_type == 'doubles':
-        game_label = 'volleyball'
-    elif game_type == 'vollis':
-        game_label = 'vollis'
-    else:
-        game_label = (game_name_label or 'game').strip().lower()
-
-    prompt = f"""Write one short email subject line for this {game_label} recap from {date_label}.
-
-Rules:
-- Max 50 characters (hard limit)
-- Punchy and specific to what happened—not generic like "recap"
-- No quotes, emojis, or "Subject:" prefix
-- Output only the subject line, nothing else
-
-Recap:
-{summary.strip()[:500]}"""
-
-    try:
-        subject = _sanitize_email_subject(generate_ai_text(prompt))
-        if subject and len(subject) <= 60:
-            return subject
-    except Exception:
-        pass
-    return fallback
+def ai_email_subject(game_type, date_obj, game_name_label=''):
+    """Alias for recap_page_title (legacy name used by older email paths)."""
+    return recap_page_title(game_type, date_obj, game_name_label)
 
 
 def personalize_ai_email_content(html_body, plain_text_body, recipient_email, hero_image_url=None, embed_hero=False):
@@ -3463,8 +3486,17 @@ def build_doubles_email_payload(
         context += f"- {winners} def. {losers} ({score}){comment_str}\n"
 
     style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
-    prompt = _build_recap_prompt(style_instructions, context)
-    summary = generate_ai_text(prompt)
+    # Date needed for headline fallback before the text call finishes parsing.
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
+    prompt, subject, summary = generate_ai_recap_text(
+        style_instructions, context, 'doubles', date_obj,
+    )
 
     players_set = set()
     for game in games:
@@ -3492,14 +3524,6 @@ def build_doubles_email_payload(
         if opt_in_email and opt_in_email not in all_emails:
             all_emails.append(opt_in_email)
 
-    # Parse earliest game date for email subject (raw DB is YYYY-MM-DD; fallback may be MM/DD/YYYY)
-    try:
-        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
-    except ValueError:
-        try:
-            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
-        except ValueError:
-            date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     hero_image_url, hero_image_path, hero_image_error, image_prompt, illustration_meta = (
@@ -3514,7 +3538,6 @@ def build_doubles_email_payload(
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
     plain_text_body = create_doubles_email_plain_text(summary, stats, games, date_obj)
-    subject = generate_ai_email_subject(summary, 'doubles', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -3961,8 +3984,18 @@ def build_vollis_email_payload(
         context += f"- {winner} def. {loser} ({w_score}-{l_score})\n"
 
     style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
-    prompt = _build_recap_prompt(style_instructions, context)
-    summary = generate_ai_text(prompt)
+    date_values = [r[1] for r in raw_games if len(r) > 1 and r[1]]
+    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
+    prompt, subject, summary = generate_ai_recap_text(
+        style_instructions, context, 'vollis', date_obj,
+    )
 
     players_set = set()
     for game in games:
@@ -3989,15 +4022,6 @@ def build_vollis_email_payload(
         if opt_in_email and opt_in_email not in all_emails:
             all_emails.append(opt_in_email)
 
-    date_values = [r[1] for r in raw_games if len(r) > 1 and r[1]]
-    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
-    try:
-        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
-    except ValueError:
-        try:
-            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
-        except ValueError:
-            date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     hero_image_url, hero_image_path, hero_image_error, image_prompt, illustration_meta = (
@@ -4012,7 +4036,6 @@ def build_vollis_email_payload(
         summary, stats, games, date_obj, hero_image_url=hero_image_url,
     )
     plain_text_body = create_vollis_email_plain_text(summary, stats, games, date_obj)
-    subject = generate_ai_email_subject(summary, 'vollis', date_obj)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
@@ -4130,8 +4153,18 @@ def build_other_email_payload(
         context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
 
     style_instructions = _build_recap_style_instructions(prompt_style, context, custom_prompt)
-    prompt = _build_recap_prompt(style_instructions, context)
-    summary = generate_ai_text(prompt)
+    date_values = [dict(r).get('game_date') for r in raw_games if dict(r).get('game_date')]
+    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
+    try:
+        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
+    except ValueError:
+        try:
+            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
+        except ValueError:
+            date_obj = datetime.now()
+    prompt, subject, summary = generate_ai_recap_text(
+        style_instructions, context, 'other', date_obj, game_name_label,
+    )
 
     players_set = set()
     for game in games:
@@ -4166,15 +4199,6 @@ def build_other_email_payload(
         if opt_in_email and opt_in_email not in all_emails:
             all_emails.append(opt_in_email)
 
-    date_values = [dict(r).get('game_date') for r in raw_games if dict(r).get('game_date')]
-    earliest_game_date = min(date_values) if date_values else datetime.now().strftime('%Y-%m-%d')
-    try:
-        date_obj = datetime.strptime(str(earliest_game_date)[:10], '%Y-%m-%d')
-    except ValueError:
-        try:
-            date_obj = datetime.strptime(str(earliest_game_date)[:10], '%m/%d/%Y')
-        except ValueError:
-            date_obj = datetime.now()
     formatted_date = date_obj.strftime('%m/%d/%y')
 
     hero_image_url, hero_image_path, hero_image_error, image_prompt, illustration_meta = (
@@ -4193,7 +4217,6 @@ def build_other_email_payload(
     plain_text_body = create_other_email_plain_text(
         summary, stats, games, date_obj, game_name_label,
     )
-    subject = generate_ai_email_subject(summary, 'other', date_obj, game_name_label)
 
     summary_preview = summary[:150] + "..." if len(summary) > 150 else summary
 
