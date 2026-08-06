@@ -778,10 +778,14 @@ def delete_ai_recap_page(share_id):
     return removed
 
 
-def list_ai_recap_pages(page=1, per_page=25):
-    """Return (page_entries, total) for all published AI recap pages, newest first."""
+def list_ai_recap_pages(page=1, per_page=25, username=None):
+    """Return (page_entries, total) for published AI recap pages, newest first.
+
+    If username is set, only pages created by that user are included.
+    """
     page = max(int(page or 1), 1)
     per_page = max(int(per_page or 25), 1)
+    filter_username = (username or '').strip()
     entries_by_id = {}
 
     recap_dir = _recap_storage_dir()
@@ -897,6 +901,11 @@ def list_ai_recap_pages(page=1, per_page=25):
         }
 
     pages = list(entries_by_id.values())
+    if filter_username:
+        pages = [
+            item for item in pages
+            if (item.get('username') or '').strip() == filter_username
+        ]
     pages.sort(key=lambda item: item.get('created_at') or '', reverse=True)
     total = len(pages)
     start = (page - 1) * per_page

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ error_code }} — {{ error_title }} · Stats</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260804a') }}">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <style>
+        .err-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px 48px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .err-court {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        .err-court::before,
+        .err-court::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid var(--sr-line);
+        }
+
+        .err-court::before {
+            top: 12%;
+            bottom: 12%;
+            width: min(720px, 88vw);
+            border-radius: 4px;
+        }
+
+        .err-court::after {
+            top: 50%;
+            width: min(720px, 88vw);
+            height: 0;
+            border: none;
+            border-top: 2px dashed rgba(110, 231, 255, 0.25);
+        }
+
+        html.sr-light .err-court::after {
+            border-top-color: rgba(2, 132, 199, 0.28);
+        }
+
+        .err-net {
+            position: absolute;
+            top: 12%;
+            bottom: 12%;
+            left: 50%;
+            width: 2px;
+            transform: translateX(-50%);
+            background: linear-gradient(
+                to bottom,
+                transparent 0%,
+                var(--sr-accent) 8%,
+                var(--sr-accent) 92%,
+                transparent 100%
+            );
+            opacity: 0.35;
+            box-shadow: 0 0 24px var(--sr-accent-dim);
+        }
+
+        .err-ball {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 30% 30%, #fff 0%, #e8e8e8 35%, #c4c4c4 100%);
+            box-shadow:
+                inset -6px -8px 14px rgba(0, 0, 0, 0.25),
+                0 12px 28px rgba(0, 0, 0, 0.35);
+            animation: err-float 4.5s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        .err-ball::before {
+            content: '';
+            position: absolute;
+            inset: 8%;
+            border-radius: 50%;
+            background:
+                linear-gradient(105deg, transparent 46%, #333 46%, #333 54%, transparent 54%),
+                linear-gradient(15deg, transparent 46%, #333 46%, #333 54%, transparent 54%);
+            opacity: 0.35;
+        }
+
+        .err-ball-a { top: 14%; left: 12%; animation-delay: 0s; }
+        .err-ball-b { top: 68%; right: 10%; width: 36px; height: 36px; animation-delay: -1.6s; opacity: 0.7; }
+        .err-ball-c { top: 22%; right: 18%; width: 28px; height: 28px; animation-delay: -2.8s; opacity: 0.5; }
+
+        @keyframes err-float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            40% { transform: translateY(-28px) rotate(18deg); }
+            70% { transform: translateY(10px) rotate(-10deg); }
+        }
+
+        .err-card {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 480px;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            border-radius: 16px;
+            padding: 36px 32px 28px;
+            text-align: center;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+            animation: err-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes err-rise {
+            from { opacity: 0; transform: translateY(24px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .err-scoreboard {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            padding: 16px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--sr-line);
+            border-radius: 12px;
+        }
+
+        html.sr-light .err-scoreboard {
+            background: rgba(15, 30, 50, 0.04);
+        }
+
+        .err-side {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .err-side-label {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--sr-muted);
+            font-weight: 600;
+        }
+
+        .err-side-score {
+            font-size: 42px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            color: var(--sr-text);
+        }
+
+        .err-side-score.is-fault {
+            color: var(--sr-loss);
+            text-shadow: 0 0 24px rgba(248, 113, 113, 0.35);
+            animation: err-pulse 2.2s ease-in-out infinite;
+        }
+
+        .err-side.right .err-side-label,
+        .err-side.right .err-side-score {
+            text-align: right;
+        }
+
+        @keyframes err-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.72; }
+        }
+
+        .err-vs {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: var(--sr-accent-dim);
+            border: 1px solid var(--sr-accent);
+            color: var(--sr-accent);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+        }
+
+        .err-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--sr-accent-dim);
+            border: 1px solid rgba(110, 231, 255, 0.35);
+            color: var(--sr-accent);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        html.sr-light .err-badge {
+            border-color: rgba(2, 132, 199, 0.3);
+        }
+
+        .err-title {
+            font-size: 28px;
+            font-weight: 750;
+            margin: 0 0 10px;
+            background: linear-gradient(135deg, var(--sr-text), var(--sr-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .err-message {
+            color: var(--sr-muted);
+            font-size: 15px;
+            line-height: 1.55;
+            margin: 0 0 28px;
+        }
+
+        .err-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .err-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease;
+        }
+
+        .err-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .err-btn-primary {
+            background: var(--sr-accent);
+            color: #0b0f14;
+        }
+
+        html.sr-light .err-btn-primary {
+            color: #ffffff;
+        }
+
+        .err-btn-ghost {
+            background: transparent;
+            border: 1px solid var(--sr-line);
+            color: var(--sr-text);
+        }
+
+        .err-btn-ghost:hover {
+            background: var(--sr-panel-hover);
+        }
+
+        .err-foot {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid var(--sr-line);
+            font-size: 12px;
+            color: var(--sr-muted);
+        }
+
+        .err-theme {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 3;
+            background: var(--sr-panel);
+            border: 1px solid var(--sr-line);
+            color: var(--sr-muted);
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .err-theme:hover {
+            color: var(--sr-accent);
+            border-color: var(--sr-accent);
+        }
+
+        @media (max-width: 480px) {
+            .err-card { padding: 28px 20px 22px; }
+            .err-side-score { font-size: 34px; }
+            .err-title { font-size: 24px; }
+            .err-ball-a { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .err-ball, .err-card, .err-side-score.is-fault {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+<body class="sr-page err-page">
+    <button type="button" class="err-theme" onclick="srToggleTheme()" aria-label="Toggle theme" title="Toggle theme">
+        <i class="fas fa-adjust"></i>
+    </button>
+
+    <div class="err-court" aria-hidden="true">
+        <div class="err-net"></div>
+        <div class="err-ball err-ball-a"></div>
+        <div class="err-ball err-ball-b"></div>
+        <div class="err-ball err-ball-c"></div>
+    </div>
+
+    <div class="err-card">
+        <div class="err-scoreboard" aria-hidden="true">
+            <div class="err-side">
+                <span class="err-side-label">You</span>
+                <span class="err-side-score">21</span>
+            </div>
+            <div class="err-vs">VS</div>
+            <div class="err-side right">
+                <span class="err-side-label">Server</span>
+                <span class="err-side-score is-fault">{{ error_code }}</span>
+            </div>
+        </div>
+
+        <div class="err-badge">
+            <i class="fas {{ error_icon }}"></i>
+            {{ error_call }}
+        </div>
+
+        <h1 class="err-title">{{ error_title }}</h1>
+        <p class="err-message">{{ error_message }}</p>
+
+        <div class="err-actions">
+            <a href="{{ url_for('index') }}" class="err-btn err-btn-primary">
+                <i class="fas fa-chart-bar"></i>
+                Back to Stats
+            </a>
+            <a href="javascript:history.back()" class="err-btn err-btn-ghost">
+                <i class="fas fa-undo"></i>
+                Go Back
+            </a>
+        </div>
+
+        <div class="err-foot">
+            Error {{ error_code }} · Match still on — try another play.
+        </div>
+    </div>
+</body>
+</html>

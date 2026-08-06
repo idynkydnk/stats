@@ -1767,6 +1767,71 @@ def ai_summary():
                            other_games=other_games)
 
 
+@app.route('/ai-recaps/')
+@login_required
+def my_ai_recaps():
+    """Browse AI recap pages published by the current user."""
+    username = (session.get('username') or '').strip()
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 25
+    entries, total_entries = adminfx.list_ai_recap_pages(
+        page=page, per_page=per_page, username=username,
+    )
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    for entry in entries:
+        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+        hero = adminfx.absolutize_hero_image_url(
+            entry.get('hero_image_url') or '', site_base,
+        )
+        entry['hero_image_url'] = hero
+        entry['share_url'] = url_for(
+            'view_ai_recap',
+            share_id=entry['share_id'],
+            _external=True,
+            **adminfx.recap_share_query_args(hero),
+        )
+    return render_template(
+        'ai_recaps.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+    )
+
+
+@app.route('/ai-recaps/delete', methods=['POST'])
+@login_required
+def my_ai_recaps_delete():
+    """Delete one of the current user's published AI recap pages."""
+    share_id = (request.form.get('share_id') or '').strip()
+    page = max(int(request.form.get('page', 1) or 1), 1)
+    if not share_id:
+        flash('No recap selected.', 'error')
+        return redirect(url_for('my_ai_recaps', page=page))
+
+    row = adminfx.get_ai_recap_page(share_id)
+    if not row:
+        flash('Recap not found.', 'error')
+        return redirect(url_for('my_ai_recaps', page=page))
+
+    if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+        flash('You can only delete AI recaps you created.', 'error')
+        return redirect(url_for('my_ai_recaps', page=page))
+
+    if adminfx.delete_ai_recap_page(share_id):
+        subject = (row.get('subject') or 'Game Recap').strip()
+        log_activity(
+            'Deleted AI recap',
+            target=share_id,
+            summary=subject,
+        )
+        flash(f'Deleted recap "{subject}".', 'success')
+    else:
+        flash('Recap not found.', 'error')
+    return redirect(url_for('my_ai_recaps', page=page))
+
+
 def _serialize_ai_summary_game(game_type, game):
     """Normalize a game row for the AI summary search API."""
     if game_type == 'doubles':
@@ -6338,6 +6403,112 @@ def admin_test_email():
     except Exception as e:
         flash(f'Test email failed: {e}', 'error')
     return redirect(url_for('admin_dashboard'))
+
+
+# ============================================
+# ERROR PAGES
+# ============================================
+
+_ERROR_PAGE_COPY = {
+    400: {
+        'title': 'Bad Set',
+        'call': 'Fault',
+        'icon': 'fa-exclamation-triangle',
+        'message': "That request didn't land cleanly. Check the URL or try the play again.",
+    },
+    403: {
+        'title': 'Not on the Roster',
+        'call': 'Blocked',
+        'icon': 'fa-lock',
+        'message': "You don't have access to this court. Sign in if you've got the password.",
+    },
+    404: {
+        'title': 'Out of Bounds',
+        'call': 'Whiff',
+        'icon': 'fa-search',
+        'message': "This page shanked into the bushes. It doesn't exist — or it already left the gym.",
+    },
+    405: {
+        'title': 'Wrong Approach',
+        'call': 'Illegal',
+        'icon': 'fa-ban',
+        'message': "That method isn't allowed here. Try a different angle of attack.",
+    },
+    500: {
+        'title': 'Server Double-Fault',
+        'call': 'Timeout',
+        'icon': 'fa-bolt',
+        'message': "Something broke on our side. We're resetting the point — try again in a moment.",
+    },
+    502: {
+        'title': 'Net Violation',
+        'call': 'Replay',
+        'icon': 'fa-unlink',
+        'message': "An upstream server dropped the ball. Give it another swing shortly.",
+    },
+    503: {
+        'title': 'Court Closed',
+        'call': 'Delay',
+        'icon': 'fa-tools',
+        'message': "Stats is temporarily unavailable. Warm up a bit and try again soon.",
+    },
+}
+
+
+def _wants_json_error_response():
+    """Prefer JSON errors for API-ish clients."""
+    if request.path.startswith('/api'):
+        return True
+    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    return best == 'application/json' and (
+        request.accept_mimetypes['application/json']
+        > request.accept_mimetypes['text/html']
+    )
+
+
+def _render_error_page(error, code):
+    copy = _ERROR_PAGE_COPY.get(code) or {
+        'title': 'Side Out',
+        'call': 'Error',
+        'icon': 'fa-exclamation-circle',
+        'message': "Something unexpected happened. Head back to the stats board and try again.",
+    }
+    if _wants_json_error_response():
+        return jsonify({
+            'success': False,
+            'error': copy['title'],
+            'message': copy['message'],
+            'code': code,
+        }), code
+    return render_template(
+        'error.html',
+        error_code=code,
+        error_title=copy['title'],
+        error_call=copy['call'],
+        error_icon=copy['icon'],
+        error_message=copy['message'],
+    ), code
+
+
+@app.errorhandler(400)
+@app.errorhandler(403)
+@app.errorhandler(404)
+@app.errorhandler(405)
+@app.errorhandler(500)
+@app.errorhandler(502)
+@app.errorhandler(503)
+def handle_http_error(error):
+    code = getattr(error, 'code', None) or 500
+    return _render_error_page(error, code)
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    """Catch-all so unexpected crashes still get the branded page (non-debug)."""
+    if app.debug:
+        raise error
+    app.logger.exception('Unhandled exception')
+    return _render_error_page(error, 500)
 
 
 if __name__ == '__main__':
