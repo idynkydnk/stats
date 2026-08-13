@@ -757,17 +757,17 @@ def _name_stats_label_rule():
 
 
 def _scene_setting_line(game_type, game_name=None):
-    """Short setting for the scene prompt, e.g. 'beach volleyball court'."""
+    """Activity line for the scene prompt, e.g. 'all players playing beach volleyball'."""
     if game_type == 'doubles':
-        return 'beach volleyball court'
-    if game_type == 'vollis':
-        return 'vollis court'
-    if game_type == 'other' and game_name:
+        sport = 'beach volleyball'
+    elif game_type == 'vollis':
+        sport = 'vollis'
+    elif game_type == 'other' and game_name:
         name = str(game_name).strip()
-        if name.lower() == 'coed':
-            return 'coed beach volleyball'
-        return name
-    return 'game court'
+        sport = 'coed beach volleyball' if name.lower() == 'coed' else name
+    else:
+        sport = 'the game'
+    return f'all players playing {sport}'
 
 
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
