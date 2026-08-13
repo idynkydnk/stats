@@ -1868,7 +1868,7 @@ def _serialize_ai_summary_game(game_type, game):
 
 
 @app.route('/api/ai_summary_game_search/')
-@login_required
+@api_login_required
 def api_ai_summary_game_search():
     """Search all historical games for the AI summary picker."""
     from stat_functions import search_doubles_games
@@ -2089,7 +2089,7 @@ def ai_summary_job_status(job_id):
 
 
 @app.route('/api/ai_summary_job/<int:job_id>/')
-@login_required
+@api_login_required
 def api_ai_summary_job_status(job_id):
     """JSON status for background AI recap jobs."""
     job = ai_jobs.get_job(job_id)
@@ -2113,7 +2113,7 @@ def api_ai_summary_job_status(job_id):
 
 
 @app.route('/api/flyer_prompts/', methods=['POST'])
-@login_required
+@api_login_required
 def api_flyer_prompts():
     """Return the default flyer prompt for the current selection."""
     from email_content import build_flyer_scene_prompt
@@ -3275,7 +3275,7 @@ def remake_ai_recap_summary(share_id):
 
 
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])
-@login_required
+@api_login_required
 def api_generate_and_send_ai_summary():
     """Queue AI summary generation; an Always-on daemon publishes a share link in the background."""
     game_type = request.form.get('game_type', 'doubles')
@@ -3398,7 +3398,7 @@ def add_game_voice():
 
 
 @app.route('/api/parse_voice_doubles', methods=['POST'])
-@login_required
+@api_login_required
 def api_parse_voice_doubles():
     """Parse a spoken doubles game transcript into structured fields using AI."""
     if 'username' not in session:
@@ -4531,9 +4531,8 @@ def api_login():
     return jsonify({'token': token, 'username': username})
 
 @app.route('/api/doubles/games', methods=['GET'])
-@api_login_required
 def api_doubles_list():
-    """List doubles games. Query: year=YYYY (optional), since=ISO8601 (optional, for sync - games with updated_at >= since)."""
+    """List doubles games. Query: year=YYYY (optional), since=ISO8601 (optional, for sync - games with updated_at >= since). Public read."""
     database = _api_get_db()
     conn = sqlite3.connect(database)
     conn.row_factory = sqlite3.Row
@@ -4558,10 +4557,15 @@ def api_doubles_list():
     rows = cur.fetchall()
     conn.close()
     games = [_api_game_row_to_dict(r) for r in rows]
-    return jsonify({'games': games})
+    since_str_for_deletes = since_str
+    try:
+        from ios_api import deleted_ids_since
+        deleted_ids = deleted_ids_since('doubles_game', since_str_for_deletes)
+    except Exception:
+        deleted_ids = []
+    return jsonify({'games': games, 'deleted_ids': deleted_ids})
 
 @app.route('/api/doubles/games/<int:game_id>', methods=['GET'])
-@api_login_required
 def api_doubles_get(game_id):
     """Get one doubles game by id."""
     x = find_game(game_id)
@@ -4677,6 +4681,11 @@ def api_doubles_delete(game_id):
         return jsonify({'error': 'Game not found'}), 404
     before_row = adminfx.snapshot_row('doubles_game', game_id)
     remove_game(game_id)
+    try:
+        from ios_api import record_deletion
+        record_deletion('doubles_game', game_id)
+    except Exception:
+        pass
     clear_stats_cache()
     update_kobs()
     log_activity('Deleted doubles game (iPhone)', target='doubles_game', target_id=game_id,
@@ -4696,7 +4705,7 @@ def mark_notifications_read_route():
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/api/notifications/count')
-@login_required
+@api_login_required
 def get_notification_count():
     """Legacy endpoint; notifications badge is retired."""
     return jsonify({'count': 0})
@@ -4752,7 +4761,7 @@ def get_other_game_common_scores(game_name):
 
 
 @app.route('/api/doubles_players')
-@login_required
+@api_login_required
 def api_doubles_players():
     """Fresh doubles player list for add-game autocomplete after AJAX submit (no full reload)."""
     current_user = session.get('username')
@@ -4761,14 +4770,14 @@ def api_doubles_players():
 
 
 @app.route('/api/todays_doubles_dashboard')
-@login_required
+@api_login_required
 def api_todays_doubles_dashboard():
     """Today's stats + games for add doubles page (updates after AJAX submit)."""
     return jsonify(todays_doubles_dashboard_payload())
 
 
 @app.route('/api/other_game_players/<game_name>')
-@login_required
+@api_login_required
 def get_other_game_players(game_name):
     """API endpoint to get players ordered for a game: by current user's last-entered first."""
     from other_functions import get_players_ordered_for_game
@@ -4860,7 +4869,7 @@ def api_search_all_players():
         return jsonify([])
 
 @app.route('/api/search_email_recipients')
-@login_required
+@api_login_required
 def api_search_email_recipients():
     """Search known players/emails for AI summary recipient autocomplete."""
     query = request.args.get('q', '').strip()
@@ -4875,7 +4884,7 @@ def api_search_email_recipients():
         return jsonify([])
 
 @app.route('/api/clear_stats_cache', methods=['POST'])
-@login_required
+@api_login_required
 def api_clear_stats_cache():
     """Clear in-memory stats cache (e.g. after running DB migrations)."""
     clear_stats_cache()
@@ -4883,7 +4892,7 @@ def api_clear_stats_cache():
 
 
 @app.route('/api/delete_games', methods=['POST'])
-@login_required
+@api_login_required
 def api_delete_games():
     """API endpoint to delete multiple games at once"""
     data = request.get_json()
@@ -5071,7 +5080,7 @@ def edit_player(player_id):
 
 
 @app.route('/api/player_photo/<path:name>/', methods=['POST'])
-@login_required
+@api_login_required
 def api_upload_player_photo(name):
     """Upload or remove a player photo from a player stats page."""
     from player_functions import (
@@ -5134,7 +5143,7 @@ def api_upload_player_photo(name):
 
 
 @app.route('/api/player_ai_image_traits/<path:name>/', methods=['POST'])
-@login_required
+@api_login_required
 def api_save_player_ai_image_traits(name):
     """Save a player's signature-look phrase list for AI email images."""
     from player_functions import set_player_ai_image_traits
@@ -5400,7 +5409,7 @@ Write the summary:"""
         }), 500
 
 @app.route('/api/add_player', methods=['POST'])
-@login_required
+@api_login_required
 def api_add_player():
     """Add a new player via AJAX and ensure they appear in future dropdowns."""
     data = request.get_json() or {}
@@ -5433,7 +5442,7 @@ def api_add_player():
 
 
 @app.route('/api/rename_player', methods=['POST'])
-@login_required
+@api_login_required
 def api_rename_player():
     """Rename a player across all game types via AJAX."""
     data = request.get_json() or {}
@@ -5461,7 +5470,7 @@ def api_rename_player():
 
 
 @app.route('/api/delete_player', methods=['POST'])
-@login_required
+@api_login_required
 def api_delete_player():
     """Delete a roster player. Admin only (e.g. kyle)."""
     if not is_admin():
@@ -5542,7 +5551,7 @@ def add_player_email():
 
 
 @app.route('/api/update_player_info', methods=['POST'])
-@login_required
+@api_login_required
 def api_update_player_info():
     """Update player info (nickname, email, birthday, height) from profile modal."""
     data = request.get_json() or {}
@@ -6509,6 +6518,10 @@ def handle_unexpected_error(error):
         raise error
     app.logger.exception('Unhandled exception')
     return _render_error_page(error, 500)
+
+
+import ios_api
+ios_api.register_ios_api(app)
 
 
 if __name__ == '__main__':
