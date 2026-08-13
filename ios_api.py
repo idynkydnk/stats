@@ -569,6 +569,14 @@ def register_ios_api(app):
         )
         return jsonify({'message': 'Deleted', 'id': game_id})
 
+    @app.route('/api/vollis_players')
+    @api_login_required
+    def api_vollis_players():
+        from vollis_functions import vollis_year_games, all_vollis_players
+        from player_functions import merge_roster_into_player_names
+        games = vollis_year_games('All years')
+        return jsonify(merge_roster_into_player_names(all_vollis_players(games)))
+
     @app.route('/api/vollis/players/<path:name>')
     def api_vollis_player(name):
         from vollis_functions import (
