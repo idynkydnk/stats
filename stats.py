@@ -5275,8 +5275,14 @@ def api_save_player_ai_image_traits(name):
 @app.route('/api/player_ai_image/<path:name>/', methods=['POST'])
 @api_login_required
 def api_generate_player_ai_image(name):
-    """Create or remake the saved AI character sheet for a player."""
+    """Upload, remove, or generate the saved AI character sheet for a player."""
     from email_content import ImageGenerationError, ai_api_key_error_message
+    from player_functions import (
+        get_player_ai_image_traits,
+        get_player_photo_path,
+        remove_player_ai_image,
+        save_player_ai_image_upload,
+    )
 
     name = name.strip()
     if not name:
@@ -5286,14 +5292,38 @@ def api_generate_player_ai_image(name):
     if not player or not player[0]:
         return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
 
-    from player_functions import get_player_ai_image_traits, get_player_photo_path
+    player_id = player[0]
+    username = session.get('username', 'unknown')
+
+    try:
+        if request.form.get('remove') == '1':
+            remove_player_ai_image(player_id)
+            log_activity('Updated AI character', summary=f'Removed AI character for {name}', username=username)
+            clear_stats_cache()
+            return jsonify({'success': True, 'ai_image_url': None})
+
+        file_storage = request.files.get('photo')
+        if file_storage and file_storage.filename:
+            save_player_ai_image_upload(player_id, file_storage)
+            log_user_action(username, 'Uploaded AI character', name)
+            log_activity('Updated AI character', summary=f'Uploaded AI character for {name}', username=username)
+            clear_stats_cache()
+            return jsonify({
+                'success': True,
+                'ai_image_url': player_ai_image_url_for(name),
+            })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.exception('Player AI character upload failed')
+        return jsonify({'success': False, 'error': f'Upload failed: {e}'}), 500
+
     if not get_player_photo_path(name) and not get_player_ai_image_traits(name):
         return jsonify({
             'success': False,
             'error': 'Add a face photo or signature look before creating an AI character.',
         }), 400
 
-    username = session.get('username', 'unknown')
     worker_alive = ai_jobs.daemon_is_alive()
     if worker_alive:
         job_id = ai_jobs.enqueue_player_ai_image_job(username, name)

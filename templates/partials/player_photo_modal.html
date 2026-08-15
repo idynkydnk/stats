@@ -76,7 +76,7 @@
 
         <section class="sr-photo-section">
             <h4>AI character</h4>
-            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Takes about a minute — you can leave this page after you tap Create. Come back to this player to see it. If they don’t have a character yet, group pictures still use their face photo.</p>
+            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can leave this page after you tap Create. If they don’t have a character yet, group pictures still use their face photo.</p>
             <div class="sr-ai-character-row">
                 <div class="sr-ai-character-preview-wrap">
                     <img src="" alt="AI character" class="sr-ai-character-preview" id="modal-ai-image-preview" hidden>
@@ -86,6 +86,11 @@
                     <button type="button" class="sr-photo-action-btn" id="player-ai-image-btn">
                         <i class="fas fa-magic"></i> <span id="player-ai-image-btn-label">Create AI character</span>
                     </button>
+                    <label class="sr-photo-action-btn" id="player-ai-image-upload-label">
+                        <i class="fas fa-upload"></i> Upload character
+                        <input type="file" id="player-ai-image-upload" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                    </label>
+                    <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="player-ai-image-remove-btn" hidden>Remove character</button>
                     <p class="sr-ai-character-status" id="player-ai-image-status" hidden></p>
                 </div>
             </div>
@@ -614,6 +619,9 @@ window.PlayerPhotoManager = (function() {
     var aiImageEmpty = document.getElementById('modal-ai-image-empty');
     var aiImageBtn = document.getElementById('player-ai-image-btn');
     var aiImageBtnLabel = document.getElementById('player-ai-image-btn-label');
+    var aiImageUpload = document.getElementById('player-ai-image-upload');
+    var aiImageUploadLabel = document.getElementById('player-ai-image-upload-label');
+    var aiImageRemoveBtn = document.getElementById('player-ai-image-remove-btn');
     var aiImageStatus = document.getElementById('player-ai-image-status');
     var currentAiImageUrl = '';
     var aiImagePollTimer = null;
@@ -1549,6 +1557,7 @@ window.PlayerPhotoManager = (function() {
         if (aiImageBtnLabel) {
             aiImageBtnLabel.textContent = currentAiImageUrl ? 'Remake AI character' : 'Create AI character';
         }
+        if (aiImageRemoveBtn) aiImageRemoveBtn.hidden = !currentAiImageUrl;
         if (currentAiImageUrl) {
             if (aiImagePreview) {
                 aiImagePreview.hidden = false;
@@ -1567,6 +1576,9 @@ window.PlayerPhotoManager = (function() {
     function setAiImageBusy(busy, message, isError) {
         aiImageGenerating = !!busy;
         if (aiImageBtn) aiImageBtn.disabled = !!busy;
+        if (aiImageUpload) aiImageUpload.disabled = !!busy;
+        if (aiImageRemoveBtn) aiImageRemoveBtn.disabled = !!busy;
+        if (aiImageUploadLabel) aiImageUploadLabel.style.opacity = busy ? '0.55' : '';
         document.dispatchEvent(new CustomEvent('player-ai-image-status', {
             detail: { busy: !!busy, message: message || '', isError: !!isError, name: playerName },
         }));
@@ -1669,6 +1681,63 @@ window.PlayerPhotoManager = (function() {
         })
         .catch(function() {
             setAiImageBusy(false, 'Could not create AI character.', true);
+        });
+    }
+
+    function uploadPlayerAiImage(file) {
+        if (!playerName || !file || aiImageGenerating) return;
+        setAiImageBusy(true, 'Uploading character picture…');
+        var fd = new FormData();
+        fd.append('photo', file);
+        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        })
+        .then(function(r) {
+            return r.json().then(function(data) {
+                return { ok: r.ok, data: data || {} };
+            }).catch(function() {
+                return { ok: false, data: {} };
+            });
+        })
+        .then(function(res) {
+            if (!res.ok || res.data.success === false) {
+                setAiImageBusy(false, (res.data && res.data.error) || 'Upload failed.', true);
+                return;
+            }
+            if (res.data.ai_image_url) {
+                applySavedAiImage(res.data.ai_image_url);
+                return;
+            }
+            setAiImageBusy(false, 'Uploaded, but the image URL was missing. Refresh the page.', true);
+        })
+        .catch(function() {
+            setAiImageBusy(false, 'Upload failed.', true);
+        });
+    }
+
+    function removePlayerAiImage() {
+        if (!playerName || aiImageGenerating) return;
+        setAiImageBusy(true, 'Removing…');
+        var fd = new FormData();
+        fd.append('remove', '1');
+        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) {
+                setAiImageBusy(false, data.error || 'Remove failed.', true);
+                return;
+            }
+            setAiImagePreview(null);
+            setAiImageBusy(false, 'Removed.');
+            syncActiveCardProfile({ aiImageUrl: null });
+            document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
+                detail: { url: '', name: playerName },
+            }));
+        })
+        .catch(function() {
+            setAiImageBusy(false, 'Remove failed.', true);
         });
     }
 
@@ -2090,6 +2159,15 @@ window.PlayerPhotoManager = (function() {
     }
     if (traitsAddBtn) traitsAddBtn.addEventListener('click', addTrait);
     if (aiImageBtn) aiImageBtn.addEventListener('click', generatePlayerAiImage);
+    if (aiImageUpload) {
+        aiImageUpload.addEventListener('change', function() {
+            if (aiImageUpload.files && aiImageUpload.files[0]) {
+                uploadPlayerAiImage(aiImageUpload.files[0]);
+            }
+            aiImageUpload.value = '';
+        });
+    }
+    if (aiImageRemoveBtn) aiImageRemoveBtn.addEventListener('click', removePlayerAiImage);
     if (traitsInput) traitsInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -2113,6 +2191,7 @@ window.PlayerPhotoManager = (function() {
         loadPlayer: loadPlayer,
         open: openModal,
         generateAiImage: generatePlayerAiImage,
+        uploadAiImage: uploadPlayerAiImage,
         layoutListAvatars: layoutListAvatars,
     };
 })();

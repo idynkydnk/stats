@@ -745,6 +745,15 @@ def save_player_ai_image_bytes(player_id, image_bytes, ext='png'):
     return rel_path
 
 
+def save_player_ai_image_upload(player_id, file_storage):
+    """Validate and save an uploaded AI character picture."""
+    ext = _validate_photo_upload(file_storage)
+    file_storage.stream.seek(0)
+    raw = file_storage.read()
+    file_storage.stream.seek(0)
+    return save_player_ai_image_bytes(player_id, raw, ext.lstrip('.'))
+
+
 def remove_player_ai_image(player_id):
     """Delete the saved AI character sheet and clear ai_image_path."""
     rel_path = get_player_ai_image_path_by_id(player_id)
