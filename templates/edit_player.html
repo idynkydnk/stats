@@ -51,7 +51,7 @@
                         <input type="file" id="edit-page-ai-upload" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
                     </label>
                     <p class="edit-photo-hint" id="edit-page-ai-status" hidden></p>
-                    <p class="edit-photo-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can leave this page after you tap Create.</p>
+                    <p class="edit-photo-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can start another player while this one is working, or leave this page after you tap Create.</p>
                     <button type="button" class="edit-photo-upload-label" id="player-edit-trigger" style="margin-top: 8px; border: 0;">
                         <i class="fas fa-pen"></i> Photos, signature look &amp; details
                     </button>
@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         faceFocus: {{ (player_face_photo_focus if player_face_photo_focus is defined else {'x': 50, 'y': 50, 'z': 1})|tojson }},
         triggerIds: ['player-edit-trigger'],
     });
+    var pagePlayerName = {{ player[1]|tojson }};
     var genBtn = document.getElementById('edit-page-ai-btn');
     var genLabel = document.getElementById('edit-page-ai-btn-label');
     var genStatus = document.getElementById('edit-page-ai-status');
@@ -283,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.addEventListener('player-ai-image-status', function(e) {
         var d = e.detail || {};
+        if (d.name && d.name !== pagePlayerName) return;
         if (genBtn) genBtn.disabled = !!d.busy;
         if (uploadInput) uploadInput.disabled = !!d.busy;
         if (!genStatus) return;
@@ -296,6 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
         genStatus.style.color = d.isError ? '#c0392b' : '';
     });
     document.addEventListener('player-ai-image-updated', function(e) {
+        if (e.detail && e.detail.name && e.detail.name !== pagePlayerName) return;
         var url = e.detail && e.detail.url;
         var preview = document.querySelector('.edit-ai-character');
         if (!preview) return;

@@ -76,7 +76,7 @@
 
         <section class="sr-photo-section">
             <h4>AI character</h4>
-            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can leave this page after you tap Create. If they don’t have a character yet, group pictures still use their face photo.</p>
+            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can start another player while this one is working, or leave this page after you tap Create. If they don’t have a character yet, group pictures still use their face photo.</p>
             <div class="sr-ai-character-row">
                 <div class="sr-ai-character-preview-wrap">
                     <img src="" alt="AI character" class="sr-ai-character-preview" id="modal-ai-image-preview" hidden>
@@ -624,8 +624,7 @@ window.PlayerPhotoManager = (function() {
     var aiImageRemoveBtn = document.getElementById('player-ai-image-remove-btn');
     var aiImageStatus = document.getElementById('player-ai-image-status');
     var currentAiImageUrl = '';
-    var aiImagePollTimer = null;
-    var aiImageGenerating = false;
+    var aiImageJobs = {};
     var detailSaveCloseBtn = document.getElementById('player-detail-save-close');
     var detailName = document.getElementById('player-detail-name');
     var detailNickname = document.getElementById('player-detail-nickname');
@@ -1183,21 +1182,45 @@ window.PlayerPhotoManager = (function() {
         }
     }
 
-    function syncActiveCardProfile(updates) {
-        if (!activeListCard || !playerName) return;
-        var raw = activeListCard.getAttribute('data-player-profile');
+    function cardForPlayer(name) {
+        if (!name) return null;
+        if (activeListCard) {
+            try {
+                var activeRaw = activeListCard.getAttribute('data-player-profile');
+                var activeProfile = activeRaw ? JSON.parse(activeRaw) : null;
+                if (activeProfile && activeProfile.name === name) return activeListCard;
+            } catch (e) {}
+        }
+        var cards = document.querySelectorAll('.pl-card[data-player-profile]');
+        for (var i = 0; i < cards.length; i++) {
+            try {
+                var profile = JSON.parse(cards[i].getAttribute('data-player-profile') || '');
+                if (profile && profile.name === name) return cards[i];
+            } catch (e) {}
+        }
+        return null;
+    }
+
+    function updatePlayerCardProfile(name, updates) {
+        var card = cardForPlayer(name);
+        if (!card) return;
+        var raw = card.getAttribute('data-player-profile');
         if (!raw) return;
         try {
             var profile = JSON.parse(raw);
             Object.keys(updates || {}).forEach(function(key) {
                 profile[key] = updates[key];
             });
-            activeListCard.setAttribute('data-player-profile', JSON.stringify(profile));
-            refreshCardLookSummary(activeListCard, profile);
+            card.setAttribute('data-player-profile', JSON.stringify(profile));
+            refreshCardLookSummary(card, profile);
             document.dispatchEvent(new CustomEvent('player-profile-updated', {
-                detail: { name: playerName, profile: profile, card: activeListCard },
+                detail: { name: name, profile: profile, card: card },
             }));
         } catch (e) {}
+    }
+
+    function syncActiveCardProfile(updates) {
+        updatePlayerCardProfile(playerName, updates);
     }
 
     function clearListAvatar() {
@@ -1236,6 +1259,7 @@ window.PlayerPhotoManager = (function() {
             : { x: 50, y: 50, z: 1 };
         setFacePreview(cfg.photoUrl || null, faceFocus);
         setAiImagePreview(cfg.aiImageUrl || '');
+        refreshAiImageBusyUi();
         renderTraits();
     }
 
@@ -1573,84 +1597,120 @@ window.PlayerPhotoManager = (function() {
         }
     }
 
-    function setAiImageBusy(busy, message, isError) {
-        aiImageGenerating = !!busy;
-        if (aiImageBtn) aiImageBtn.disabled = !!busy;
-        if (aiImageUpload) aiImageUpload.disabled = !!busy;
-        if (aiImageRemoveBtn) aiImageRemoveBtn.disabled = !!busy;
+    function ensureAiImageJob(name) {
+        if (!name) return null;
+        if (!aiImageJobs[name]) aiImageJobs[name] = {};
+        return aiImageJobs[name];
+    }
+
+    function isPlayerAiBusy(name) {
+        var job = name && aiImageJobs[name];
+        return !!(job && job.busy);
+    }
+
+    function clearAiImagePoll(name) {
+        var job = name && aiImageJobs[name];
+        if (job && job.timer) {
+            clearTimeout(job.timer);
+            job.timer = null;
+        }
+    }
+
+    function refreshAiImageBusyUi() {
+        var job = (playerName && aiImageJobs[playerName]) || {};
+        var busy = !!job.busy;
+        if (aiImageBtn) aiImageBtn.disabled = busy;
+        if (aiImageUpload) aiImageUpload.disabled = busy;
+        if (aiImageRemoveBtn) aiImageRemoveBtn.disabled = busy;
         if (aiImageUploadLabel) aiImageUploadLabel.style.opacity = busy ? '0.55' : '';
-        document.dispatchEvent(new CustomEvent('player-ai-image-status', {
-            detail: { busy: !!busy, message: message || '', isError: !!isError, name: playerName },
-        }));
         if (!aiImageStatus) return;
-        if (!message) {
+        if (!job.message) {
             aiImageStatus.hidden = true;
             aiImageStatus.textContent = '';
             aiImageStatus.classList.remove('is-error');
             return;
         }
         aiImageStatus.hidden = false;
-        aiImageStatus.textContent = message;
-        aiImageStatus.classList.toggle('is-error', !!isError);
+        aiImageStatus.textContent = job.message;
+        aiImageStatus.classList.toggle('is-error', !!job.isError);
     }
 
-    function applySavedAiImage(url) {
-        if (!url) return;
-        setAiImagePreview(url);
-        setAiImageBusy(false, 'Saved for this player.');
-        syncActiveCardProfile({ aiImageUrl: url });
-        document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
-            detail: { url: url, name: playerName },
+    function setAiImageBusy(busy, message, isError, forName) {
+        var name = forName || playerName;
+        if (!name) return;
+        var job = ensureAiImageJob(name);
+        job.busy = !!busy;
+        job.message = message || '';
+        job.isError = !!isError;
+        if (!busy) job.jobId = null;
+        refreshAiImageBusyUi();
+        document.dispatchEvent(new CustomEvent('player-ai-image-status', {
+            detail: { busy: !!busy, message: message || '', isError: !!isError, name: name },
         }));
     }
 
-    function pollAiImageJob(jobId, attempt) {
+    function applySavedAiImage(url, forName) {
+        var name = forName || playerName;
+        if (!url || !name) return;
+        if (name === playerName) setAiImagePreview(url);
+        setAiImageBusy(false, 'Saved for this player.', false, name);
+        updatePlayerCardProfile(name, { aiImageUrl: url });
+        document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
+            detail: { url: url, name: name },
+        }));
+    }
+
+    function pollAiImageJob(jobId, attempt, forName) {
+        var name = forName || playerName;
         attempt = attempt || 0;
-        if (aiImagePollTimer) {
-            clearTimeout(aiImagePollTimer);
-            aiImagePollTimer = null;
-        }
+        if (!name) return;
+        clearAiImagePoll(name);
         fetch('/api/ai/jobs/' + jobId, { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(job) {
+            var tracked = aiImageJobs[name];
+            if (!tracked || tracked.jobId !== jobId) return;
             var status = ((job && job.status) || '').toLowerCase();
             if (status === 'failed' || status === 'error') {
-                setAiImageBusy(false, (job && job.error) || 'Could not create AI character.', true);
+                setAiImageBusy(false, (job && job.error) || 'Could not create AI character.', true, name);
                 return;
             }
             if (status === 'completed' || status === 'complete') {
                 var url = (job && job.ai_image_url) || (job && job.result_summary) || '';
                 if (url && (url.indexOf('/static/') !== -1 || url.indexOf('http') === 0)) {
-                    applySavedAiImage(url);
+                    applySavedAiImage(url, name);
                     return;
                 }
-                setAiImageBusy(false, 'Saved, but the image URL was missing. Refresh the page.', true);
+                setAiImageBusy(false, 'Saved, but the image URL was missing. Refresh the page.', true, name);
                 return;
             }
             if (attempt >= 90) {
-                setAiImageBusy(false, 'Still generating. Close and check this player again in a minute.', true);
+                setAiImageBusy(false, 'Still generating. Close and check this player again in a minute.', true, name);
                 return;
             }
-            setAiImageBusy(true, 'Working in the background. You can leave this page and check this player again in a minute.');
-            aiImagePollTimer = setTimeout(function() {
-                pollAiImageJob(jobId, attempt + 1);
+            setAiImageBusy(true, 'Working in the background. You can start another player, or leave and check this one again in a minute.', false, name);
+            tracked.timer = setTimeout(function() {
+                pollAiImageJob(jobId, attempt + 1, name);
             }, 4000);
         })
         .catch(function() {
+            var tracked = aiImageJobs[name];
+            if (!tracked || tracked.jobId !== jobId) return;
             if (attempt >= 90) {
-                setAiImageBusy(false, 'Lost connection while generating.', true);
+                setAiImageBusy(false, 'Lost connection while generating.', true, name);
                 return;
             }
-            aiImagePollTimer = setTimeout(function() {
-                pollAiImageJob(jobId, attempt + 1);
+            tracked.timer = setTimeout(function() {
+                pollAiImageJob(jobId, attempt + 1, name);
             }, 4000);
         });
     }
 
     function generatePlayerAiImage() {
-        if (!playerName || aiImageGenerating) return;
-        setAiImageBusy(true, 'Starting… you can leave once this says it’s working in the background.');
-        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+        var name = playerName;
+        if (!name || isPlayerAiBusy(name)) return;
+        setAiImageBusy(true, 'Starting… you can leave once this says it’s working in the background.', false, name);
+        fetch('/api/player_ai_image/' + encodeURIComponent(name) + '/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -1665,31 +1725,34 @@ window.PlayerPhotoManager = (function() {
         })
         .then(function(res) {
             if (!res.ok || res.data.success === false) {
-                setAiImageBusy(false, (res.data && res.data.error) || 'Could not create AI character.', true);
+                setAiImageBusy(false, (res.data && res.data.error) || 'Could not create AI character.', true, name);
                 return;
             }
             if (res.data.ai_image_url) {
-                applySavedAiImage(res.data.ai_image_url);
+                applySavedAiImage(res.data.ai_image_url, name);
                 return;
             }
             if (res.data.job_id) {
-                setAiImageBusy(true, 'Working in the background. You can leave this page and check this player again in a minute.');
-                pollAiImageJob(res.data.job_id, 0);
+                var tracked = ensureAiImageJob(name);
+                tracked.jobId = res.data.job_id;
+                setAiImageBusy(true, 'Working in the background. You can start another player, or leave and check this one again in a minute.', false, name);
+                pollAiImageJob(res.data.job_id, 0, name);
                 return;
             }
-            setAiImageBusy(false, 'Could not start AI character generation.', true);
+            setAiImageBusy(false, 'Could not start AI character generation.', true, name);
         })
         .catch(function() {
-            setAiImageBusy(false, 'Could not create AI character.', true);
+            setAiImageBusy(false, 'Could not create AI character.', true, name);
         });
     }
 
     function uploadPlayerAiImage(file) {
-        if (!playerName || !file || aiImageGenerating) return;
-        setAiImageBusy(true, 'Uploading character picture…');
+        var name = playerName;
+        if (!name || !file || isPlayerAiBusy(name)) return;
+        setAiImageBusy(true, 'Uploading character picture…', false, name);
         var fd = new FormData();
         fd.append('photo', file);
-        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+        fetch('/api/player_ai_image/' + encodeURIComponent(name) + '/', {
             method: 'POST', body: fd, credentials: 'same-origin'
         })
         .then(function(r) {
@@ -1701,43 +1764,44 @@ window.PlayerPhotoManager = (function() {
         })
         .then(function(res) {
             if (!res.ok || res.data.success === false) {
-                setAiImageBusy(false, (res.data && res.data.error) || 'Upload failed.', true);
+                setAiImageBusy(false, (res.data && res.data.error) || 'Upload failed.', true, name);
                 return;
             }
             if (res.data.ai_image_url) {
-                applySavedAiImage(res.data.ai_image_url);
+                applySavedAiImage(res.data.ai_image_url, name);
                 return;
             }
-            setAiImageBusy(false, 'Uploaded, but the image URL was missing. Refresh the page.', true);
+            setAiImageBusy(false, 'Uploaded, but the image URL was missing. Refresh the page.', true, name);
         })
         .catch(function() {
-            setAiImageBusy(false, 'Upload failed.', true);
+            setAiImageBusy(false, 'Upload failed.', true, name);
         });
     }
 
     function removePlayerAiImage() {
-        if (!playerName || aiImageGenerating) return;
-        setAiImageBusy(true, 'Removing…');
+        var name = playerName;
+        if (!name || isPlayerAiBusy(name)) return;
+        setAiImageBusy(true, 'Removing…', false, name);
         var fd = new FormData();
         fd.append('remove', '1');
-        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+        fetch('/api/player_ai_image/' + encodeURIComponent(name) + '/', {
             method: 'POST', body: fd, credentials: 'same-origin'
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.success) {
-                setAiImageBusy(false, data.error || 'Remove failed.', true);
+                setAiImageBusy(false, data.error || 'Remove failed.', true, name);
                 return;
             }
-            setAiImagePreview(null);
-            setAiImageBusy(false, 'Removed.');
-            syncActiveCardProfile({ aiImageUrl: null });
+            if (name === playerName) setAiImagePreview(null);
+            setAiImageBusy(false, 'Removed.', false, name);
+            updatePlayerCardProfile(name, { aiImageUrl: null });
             document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
-                detail: { url: '', name: playerName },
+                detail: { url: '', name: name },
             }));
         })
         .catch(function() {
-            setAiImageBusy(false, 'Remove failed.', true);
+            setAiImageBusy(false, 'Remove failed.', true, name);
         });
     }
 
