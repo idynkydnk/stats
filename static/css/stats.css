@@ -205,8 +205,34 @@ html.sr-light .sr-form-dot {
 /* Search Box */
 .sr-search-wrap {
     position: relative;
+    z-index: 30;
     width: 100%;
     box-sizing: border-box;
+}
+
+/* Cards all use z-index: 1, so a later card (e.g. “Fewer than N games”)
+   would paint over this dropdown unless the search card sits higher. */
+.sr-card:has(#sr-search),
+.sr-card:has(#sr-search-dropdown) {
+    z-index: 20;
+    overflow: visible;
+}
+
+#sr-search-dropdown {
+    position: relative;
+    margin-top: 8px;
+    background: var(--sr-panel);
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    max-height: min(70vh, 480px);
+    overflow-y: auto;
+    z-index: 40;
+    box-shadow: none;
+    display: none;
+}
+
+body.sr-searching .sr-hide-while-searching {
+    display: none !important;
 }
 
 .sr-search {
@@ -235,8 +261,7 @@ html.sr-light .sr-form-dot {
 .sr-search-icon {
     position: absolute;
     left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 13px;
     color: var(--sr-muted);
     font-size: 14px;
     pointer-events: none;

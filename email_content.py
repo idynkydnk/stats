@@ -30,6 +30,9 @@ GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
 OPENAI_TEXT_MODEL = os.environ.get('OPENAI_TEXT_MODEL', 'gpt-4.1')
 OPENAI_IMAGE_MODEL = os.environ.get('OPENAI_IMAGE_MODEL', 'gpt-image-2')
 OPENAI_IMAGE_QUALITY = os.environ.get('OPENAI_IMAGE_QUALITY', 'high')
+# Mainline model that binds each photo to a name, then calls gpt-image-2.
+# ChatGPT uses this Responses path; /v1/images/edits cannot interleave them.
+OPENAI_RESPONSES_MODEL = os.environ.get('OPENAI_RESPONSES_MODEL') or OPENAI_TEXT_MODEL
 
 SOLO_BODY_PHOTOS_PER_PLAYER = 1
 
@@ -767,7 +770,9 @@ def _group_identity_rules(player_count):
         f'Keep identities accurate: exactly {who}. '
         'Do not swap or blend faces. Do not mix bodies, hair, or signature looks '
         'between people. No extra people, no missing people, no twins. '
-        'Each name/stats label sits on the person it names.'
+        'Each name/stats label sits on the person it names. '
+        'If a labeled identity sheet is attached, copy each person from the cell '
+        'with their name — never swap cells — and do not copy that sheet layout.'
     )
 
 
@@ -802,7 +807,7 @@ def _prompt_with_identity_lock(scene_prompt, reference_parts):
     return f'{prompt}\n\n{lock}'
 
 
-def _group_identity_lock_text(player_count, map_lines):
+def _group_identity_lock_text(player_count, map_lines, has_identity_sheet=False):
     n = int(player_count or 0)
     who = '1 person' if n == 1 else f'{n} distinct people'
     lines = [
@@ -810,8 +815,18 @@ def _group_identity_lock_text(player_count, map_lines):
         'Do not swap faces or bodies. Do not blend two people into one. '
         'Do not duplicate anyone. Do not add extra people. Do not drop anyone.',
         'Each name/stats label must sit on the person it names.',
-        'Image 1 is the first attached photo, Image 2 the second, and so on:',
     ]
+    if has_identity_sheet:
+        lines.append(
+            'Image 1 is a labeled identity sheet: each person has their name '
+            'painted under them. Copy that exact person into the scene. Never '
+            'swap people between those name labels. Do not copy the sheet grid '
+            'or those painted names into the final picture — the final picture '
+            'uses the name/stats labels from the prompt instead.'
+        )
+        lines.append('Later images are the same people one at a time:')
+    else:
+        lines.append('Image 1 is the first attached photo, Image 2 the second, and so on:')
     lines.extend(map_lines)
     lines.append(
         'If a reference is an illustrated character sheet, keep that SAME person '
@@ -820,6 +835,133 @@ def _group_identity_lock_text(player_count, map_lines):
         'Do not copy the empty studio pose or give everyone the same stance.'
     )
     return '\n'.join(lines)
+
+
+def _sheet_caption_for_cell(cell, used):
+    """Unique painted name for an identity-sheet cell."""
+    caption = (cell.get('caption') or '').strip() or 'player'
+    if caption.casefold() in used:
+        caption = (cell.get('name') or caption).strip() or caption
+    if caption.casefold() in used:
+        base = caption
+        n = 2
+        caption = f'{base} {n}'
+        while caption.casefold() in used:
+            n += 1
+            caption = f'{base} {n}'
+    used.add(caption.casefold())
+    return caption
+
+
+def _identity_sheet_grid(count):
+    n = max(1, int(count or 1))
+    if n <= 2:
+        return 1, n
+    if n <= 4:
+        return 2, 2
+    if n <= 6:
+        return 2, 3
+    if n <= 9:
+        return 3, 3
+    if n <= 12:
+        return 3, 4
+    return 4, 4
+
+
+def _fit_rgb_in_box(img, box_w, box_h, bg):
+    from PIL import Image
+
+    src = img.convert('RGB')
+    scale = min(box_w / float(src.width), box_h / float(src.height))
+    nw = max(1, int(round(src.width * scale)))
+    nh = max(1, int(round(src.height * scale)))
+    fitted = src.resize((nw, nh), _pil_lanczos())
+    canvas = Image.new('RGB', (box_w, box_h), bg)
+    canvas.paste(fitted, ((box_w - nw) // 2, (box_h - nh) // 2))
+    return canvas
+
+
+def _placeholder_identity_cell(caption, box_w, box_h):
+    from PIL import Image, ImageDraw
+
+    canvas = Image.new('RGB', (box_w, box_h), (36, 42, 54))
+    draw = ImageDraw.Draw(canvas)
+    font = _ig_load_font(max(18, box_w // 12), bold=True)
+    small = _ig_load_font(max(14, box_w // 16))
+    title = (caption or 'player').strip() or 'player'
+    hint = 'no photo — invent from signature looks'
+    tw = _ig_text_width(draw, title, font)
+    draw.text(((box_w - tw) / 2, box_h * 0.38), title, fill=(255, 255, 255), font=font)
+    hw = _ig_text_width(draw, hint, small)
+    draw.text(((box_w - hw) / 2, box_h * 0.55), hint, fill=(180, 190, 210), font=small)
+    return canvas
+
+
+def _build_labeled_identity_sheet(cells):
+    """Contact sheet with each person's name painted under them.
+
+    OpenAI keeps extra face detail from the first input image. Sending eight
+    separate photos therefore preserves person 1 and lets 2–N mix. Putting
+    everyone on one labeled sheet (OpenAI's multi-face recipe) plus ChatGPT-style
+    name-next-to-photo binding stops swaps.
+    """
+    import io
+    from PIL import Image, ImageDraw, ImageOps
+
+    cells = [cell for cell in (cells or []) if cell]
+    if not cells:
+        return None, []
+    used = set()
+    prepared = []
+    for cell in cells:
+        caption = _sheet_caption_for_cell(cell, used)
+        prepared.append({**cell, 'caption': caption})
+
+    rows, cols = _identity_sheet_grid(len(prepared))
+    cell_w, portrait_h, caption_h = 384, 384, 64
+    pad, gap = 16, 12
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = pad * 2 + rows * (portrait_h + caption_h) + (rows - 1) * gap
+    sheet = Image.new('RGB', (sheet_w, sheet_h), (18, 22, 28))
+    draw = ImageDraw.Draw(sheet)
+    caption_font = _ig_load_font(28, bold=True)
+
+    for index, cell in enumerate(prepared):
+        row, col = divmod(index, cols)
+        x = pad + col * (cell_w + gap)
+        y = pad + row * (portrait_h + caption_h + gap)
+        raw = cell.get('raw')
+        portrait = None
+        if raw:
+            try:
+                img = Image.open(io.BytesIO(raw))
+                img = ImageOps.exif_transpose(img)
+                portrait = _fit_rgb_in_box(img, cell_w, portrait_h, (28, 34, 44))
+            except Exception:
+                portrait = None
+        if portrait is None:
+            portrait = _placeholder_identity_cell(
+                cell.get('caption') or 'player', cell_w, portrait_h,
+            )
+        sheet.paste(portrait, (x, y))
+        bar_top = y + portrait_h
+        draw.rectangle([x, bar_top, x + cell_w, bar_top + caption_h], fill=(8, 10, 14))
+        caption = (cell.get('caption') or 'player').strip() or 'player'
+        tw = _ig_text_width(draw, caption, caption_font)
+        while tw > cell_w - 12 and len(caption) > 3:
+            caption = caption[:-2].rstrip() + '…'
+            tw = _ig_text_width(draw, caption, caption_font)
+        cell['caption'] = caption
+        draw.text(
+            (x + (cell_w - tw) / 2, bar_top + (caption_h - 28) / 2),
+            caption,
+            fill=(255, 220, 80),
+            font=caption_font,
+        )
+
+    buf = io.BytesIO()
+    sheet.save(buf, format='PNG')
+    return buf.getvalue(), [cell['caption'] for cell in prepared]
 
 
 def _scene_setting_line(game_type, game_name=None):
@@ -1227,14 +1369,64 @@ def _reference_parts_from_uploaded_photos(
             'Add those on the Players page, then try again.'
         )
 
-    # OpenAI edits accepts up to 16 reference images; also cap roster size.
-    included = included[:16]
+    # OpenAI edits accepts up to 16 files. A labeled identity sheet uses slot 1.
+    included = included[:15] if len(included) >= 2 else included[:16]
     phrases_by_name = _merge_beach_royalty_phrases(
         included, player_stats, phrases_by_name,
     )
+    sheet_cells = []
+    for name in included:
+        label = (labels_by_name.get(name) or name).strip()
+        refs = photos_by_name.get(name) or []
+        raw = None
+        if refs:
+            try:
+                raw = base64.b64decode(refs[0]['data_b64'])
+            except Exception:
+                raw = None
+        sheet_cells.append({
+            'name': name,
+            'caption': _player_display_from_label(label, full_name=name),
+            'raw': raw,
+        })
+    sheet_bytes = None
+    sheet_captions = []
+    if len(included) >= 2 and any(cell.get('raw') for cell in sheet_cells):
+        try:
+            sheet_bytes, sheet_captions = _build_labeled_identity_sheet(sheet_cells)
+        except Exception:
+            sheet_bytes, sheet_captions = None, []
+
     parts = []
     map_lines = []
     image_index = 0
+    if sheet_bytes:
+        image_index = 1
+        order = ', '.join(sheet_captions) or ', '.join(
+            cell.get('caption') or cell.get('name') or 'player'
+            for cell in sheet_cells
+        )
+        map_lines.append(
+            f'Image 1 labeled sheet, left-to-right then top-to-bottom: {order}. '
+            'The person under each painted name is that person only.'
+        )
+        parts.append({
+            'text': (
+                'Image 1 is the labeled identity sheet. Each cell is one person '
+                f'with their name painted underneath, in this order: {order}. '
+                'Copy those exact people into the scene. Never swap them. '
+                'Do not copy this grid or the painted names into the final picture.'
+            ),
+        })
+        parts.append({
+            'inline_data': {
+                'mime_type': 'image/png',
+                'data': base64.b64encode(sheet_bytes).decode('ascii'),
+            },
+            'image_index': 1,
+            'image_name': 'labeled identity sheet',
+            'is_identity_sheet': True,
+        })
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
@@ -1304,7 +1496,9 @@ def _reference_parts_from_uploaded_photos(
                     f'Do not copy another player\'s face onto {name}. {line}'
                 ),
             })
-    intro = _group_identity_lock_text(len(included), map_lines)
+    intro = _group_identity_lock_text(
+        len(included), map_lines, has_identity_sheet=bool(sheet_bytes),
+    )
     return [{'text': intro}] + parts, included
 
 
@@ -1452,8 +1646,149 @@ def _openai_prompt_and_images(prompt, reference_parts):
     return full_prompt, images
 
 
+def _openai_responses_content(prompt, reference_parts):
+    """ChatGPT-style interleaved text + images for the Responses API.
+
+    /v1/images/edits cannot keep a name next to its photo — it takes a prompt
+    string and a separate file bag, which is why group faces get swapped.
+    """
+    content = []
+    next_index = 1
+    for part in reference_parts or []:
+        text = (part.get('text') or '').strip()
+        if text:
+            content.append({'type': 'input_text', 'text': text})
+        inline = part.get('inline_data') or part.get('inlineData')
+        if not inline or not inline.get('data'):
+            continue
+        mime = inline.get('mime_type') or inline.get('mimeType') or 'image/png'
+        try:
+            index = int(part.get('image_index') or next_index)
+        except (TypeError, ValueError):
+            index = next_index
+        next_index = max(next_index, index + 1)
+        who = (part.get('image_name') or '').strip()
+        if who:
+            content.append({
+                'type': 'input_text',
+                'text': f'[Image {index} attached — {who} only]',
+            })
+        else:
+            content.append({
+                'type': 'input_text',
+                'text': f'[Image {index} attached]',
+            })
+        content.append({
+            'type': 'input_image',
+            'image_url': f'data:{mime};base64,{inline["data"]}',
+            'detail': 'high',
+        })
+    prompt_text = (prompt or '').strip()
+    if prompt_text:
+        content.append({
+            'type': 'input_text',
+            'text': f'--- Main illustration prompt ---\n{prompt_text}',
+        })
+    return content
+
+
+def _openai_image_from_responses_payload(data):
+    """Pull the generated image bytes out of a Responses API payload."""
+    def from_b64(value):
+        if not value or not isinstance(value, str):
+            return None
+        return base64.b64decode(value)
+
+    for item in data.get('output') or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get('type') == 'image_generation_call':
+            status = (item.get('status') or '').strip().lower()
+            if status and status not in ('completed', 'ready'):
+                err = item.get('error') or {}
+                message = err.get('message') if isinstance(err, dict) else err
+                raise ValueError(message or f'image generation {status}')
+            raw = from_b64(item.get('result'))
+            if raw:
+                return raw, 'image/png'
+            for content in item.get('content') or []:
+                if not isinstance(content, dict):
+                    continue
+                raw = from_b64(content.get('b64_json') or content.get('result'))
+                if raw:
+                    return raw, 'image/png'
+        for content in item.get('content') or []:
+            if not isinstance(content, dict):
+                continue
+            raw = from_b64(
+                content.get('b64_json')
+                or content.get('result')
+                or (content.get('image') or {}).get('b64_json')
+            )
+            if raw:
+                return raw, 'image/png'
+    raise ValueError('no image in OpenAI Responses output')
+
+
+def _generate_image_bytes_openai_responses(
+    prompt, api_key, reference_parts, size, timeout,
+):
+    """Match ChatGPT: language model binds identities, then gpt-image-2 draws."""
+    import requests
+
+    content = _openai_responses_content(prompt, reference_parts)
+    if not content:
+        raise ValueError('empty Responses image request')
+    tool = {
+        'type': 'image_generation',
+        'model': OPENAI_IMAGE_MODEL,
+        'quality': OPENAI_IMAGE_QUALITY,
+        'size': size,
+        'action': 'generate',
+    }
+    payload = {
+        'model': OPENAI_RESPONSES_MODEL,
+        'input': [{'role': 'user', 'content': content}],
+        'tools': [tool],
+        'tool_choice': {'type': 'image_generation'},
+    }
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json',
+    }
+    resp = requests.post(
+        'https://api.openai.com/v1/responses',
+        headers=headers,
+        json=payload,
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        detail = _rest_error_detail(resp)
+        if resp.status_code == 400:
+            payload['tools'] = [{
+                'type': 'image_generation',
+                'quality': OPENAI_IMAGE_QUALITY,
+                'size': size,
+            }]
+            resp = requests.post(
+                'https://api.openai.com/v1/responses',
+                headers=headers,
+                json=payload,
+                timeout=timeout,
+            )
+        if resp.status_code >= 400:
+            raise ValueError(_rest_error_detail(resp) or detail)
+    data = resp.json()
+    return _openai_image_from_responses_payload(data)
+
+
 def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None):
-    """One OpenAI Images API call (generate or edit-with-references)."""
+    """One OpenAI image call.
+
+    Group pictures (2+ reference images) use the Responses API so each photo
+    stays next to that person's name — the same path ChatGPT uses. Solo images
+    and Responses failures use /v1/images/edits.
+    """
     import io
     import requests
 
@@ -1466,8 +1801,25 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     max_attempts = max(1, min(max_attempts, 5))
 
     last_error = None
+    use_responses = len(images) >= 2
     for attempt in range(1, max_attempts + 1):
         try:
+            if use_responses:
+                try:
+                    return _generate_image_bytes_openai_responses(
+                        prompt, api_key, reference_parts, size, timeout,
+                    )
+                except Exception as e:
+                    last_error = e
+                    use_responses = False
+                    try:
+                        current_app.logger.warning(
+                            'OpenAI Responses group image failed; falling back to images/edits: %s',
+                            e,
+                        )
+                    except Exception:
+                        pass
+                    # Same attempt continues on /v1/images/edits.
             if images:
                 # Rebuild file buffers each attempt — BytesIO is consumed on read.
                 files = []

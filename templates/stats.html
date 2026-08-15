@@ -22,22 +22,7 @@
         white-space: normal !important;
     }
     
-    /* Search dropdown for all players */
-    #sr-search-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        margin-top: 4px;
-        background: var(--sr-panel);
-        border: 1px solid var(--sr-line);
-        border-radius: 8px;
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: none;
-    }
+    /* Search dropdown stacking is in stats.css (.sr-card:has(#sr-search)). */
     
     .sr-search-dropdown-header {
         padding: 8px 12px;
@@ -102,7 +87,7 @@
         {% endif %}
 
         {% if today_stats %}
-        <section class="sr-table-section">
+        <section class="sr-table-section sr-hide-while-searching">
             <div class="sr-card sr-card-compact">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <p class="sr-section-label" style="margin: 0;">
@@ -156,7 +141,7 @@
                     </div>
                 </div>
                 {% if stats %}
-                <div class="sr-table-wrap">
+                <div class="sr-table-wrap sr-hide-while-searching">
                     <table class="sr-table" id="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
@@ -195,7 +180,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div id="sr-no-results" class="sr-no-results">
+                <div id="sr-no-results" class="sr-no-results sr-hide-while-searching">
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
                     <p>No players found matching your search.</p>
                 </div>
@@ -209,7 +194,7 @@
         </section>
 
         {% if rare_stats %}
-        <section class="sr-table-section">
+        <section class="sr-table-section sr-hide-while-searching">
             <div class="sr-card sr-card-compact">
                 <p class="sr-section-label" style="margin-bottom: 2px;">Fewer than {{ minimum_games }} games</p>
                 <p style="font-size: 12px; color: var(--sr-muted); margin: 0 0 10px;">These players haven't played enough games this year to be ranked in the main table yet ({{ minimum_games }} game{{ 's' if minimum_games != 1 else '' }} needed{{ ', based on total games played this year' if minimum_games > 1 else '' }}).</p>
@@ -257,5 +242,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20260815a') }}"></script>
 {% endblock %}

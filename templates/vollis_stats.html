@@ -3,22 +3,7 @@
 {% block title %}{{ display_year|default(year) }} Vollis Stats{% endblock %}
 {% block extra_css %}
 <style>
-    /* Search dropdown for all players */
-    #sr-search-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        margin-top: 4px;
-        background: var(--sr-panel);
-        border: 1px solid var(--sr-line);
-        border-radius: 8px;
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: none;
-    }
+    /* Search dropdown stacking is in stats.css (.sr-card:has(#sr-search)). */
     
     .sr-search-dropdown-header {
         padding: 8px 12px;
@@ -98,7 +83,7 @@
                 </div>
                 
                 {% if stats %}
-                <div class="sr-table-wrap">
+                <div class="sr-table-wrap sr-hide-while-searching">
                     <table class="sr-table" id="sr-table" data-default-sort="winpct" data-default-dir="desc">
                         <thead>
                             <tr>
@@ -125,7 +110,7 @@
                     </table>
                 </div>
                 
-                <div id="sr-no-results" class="sr-no-results">
+                <div id="sr-no-results" class="sr-no-results sr-hide-while-searching">
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
                     <p>No players found matching your search.</p>
                 </div>
@@ -139,5 +124,5 @@
         </section>
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20260815a') }}"></script>
 {% endblock %}

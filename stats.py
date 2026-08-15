@@ -4891,12 +4891,24 @@ def api_search_all_players():
         all_players = get_all_unique_players()
         query_lower = query.lower()
         
-        # Filter players matching the search query
-        matching_players = [p for p in all_players if query_lower in p.lower()]
+        # Substring match so "ryan" also hits Bryan. Prefer names where a
+        # word starts with the query so Ryan McCoy is not buried under Bryans.
+        matching_players = [p for p in all_players if query_lower in (p or '').lower()]
+
+        def _name_search_key(name):
+            n = (name or '').lower()
+            words = n.replace('-', ' ').split()
+            word_hit = n.startswith(query_lower) or any(
+                w.startswith(query_lower) for w in words
+            )
+            return (0 if word_hit else 1, n)
+
+        matching_players.sort(key=_name_search_key)
+        matching_players = matching_players[:50]
         
         # For each matching player, get their years and game counts
         results = []
-        for player_name in matching_players[:20]:  # Limit to 20 results
+        for player_name in matching_players:
             try:
                 years_doubles = all_years_player(player_name) or []
             except:

@@ -75,6 +75,7 @@ function initSearch() {
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
         currentSearchQuery = query;
+        document.body.classList.toggle('sr-searching', Boolean(query));
         
         // First, filter the existing tables
         filterAllTables(query, tables, filterActive, filterChip, noResults);
@@ -99,6 +100,7 @@ function initSearch() {
         chipClose.addEventListener('click', function() {
             searchInput.value = '';
             currentSearchQuery = '';
+            document.body.classList.remove('sr-searching');
             filterAllTables('', tables, filterActive, filterChip, noResults);
             if (searchDropdown) {
                 searchDropdown.style.display = 'none';
@@ -106,8 +108,10 @@ function initSearch() {
         });
     }
     
-    // Close dropdown when clicking outside
+    // Keep the all-players list open while searching so it is not
+    // covered or dismissed in favor of the year ranking tables.
     document.addEventListener('click', function(e) {
+        if (document.body.classList.contains('sr-searching')) return;
         if (searchDropdown && !searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
             searchDropdown.style.display = 'none';
         }
@@ -121,7 +125,8 @@ function searchAllPlayers(query, dropdown) {
         .then(response => response.json())
         .then(players => {
             if (players.length === 0) {
-                dropdown.style.display = 'none';
+                dropdown.innerHTML = '<div class="sr-search-dropdown-header">No players found</div>';
+                dropdown.style.display = 'block';
                 return;
             }
             

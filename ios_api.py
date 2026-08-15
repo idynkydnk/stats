@@ -970,6 +970,30 @@ def register_ios_api(app):
             })
         return jsonify({'recaps': out, 'page': page, 'total': total})
 
+    @app.route('/api/ai/roster', methods=['POST'])
+    @api_login_required
+    def api_ai_roster():
+        """Player cards for the recap/flyer roster review step."""
+        S = _S()
+        data = request.get_json(force=True, silent=True) or {}
+        names = [
+            str(n).strip() for n in (data.get('players') or [])
+            if n and str(n).strip()
+        ]
+        if not names:
+            game_ids = [str(g) for g in (data.get('game_ids') or []) if g]
+            game_type = (data.get('game_type') or 'doubles').strip().lower()
+            if not game_ids:
+                return jsonify({'error': 'No games or players selected.'}), 400
+            names = S._roster_players_for_games(game_ids, game_type)
+        cards = S.build_ai_recap_roster_cards(names)
+        for card in cards:
+            if card.get('photoUrl'):
+                card['photoUrl'] = _abs(card['photoUrl'])
+            if card.get('aiImageUrl'):
+                card['aiImageUrl'] = _abs(card['aiImageUrl'])
+        return jsonify({'players': cards})
+
     @app.route('/api/ai/summary', methods=['POST'])
     @api_login_required
     def api_ai_summary_json():
