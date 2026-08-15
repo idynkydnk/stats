@@ -753,11 +753,77 @@ def _clean_prompt_format_rules(player_count, flyer=False):
 
 def _name_stats_label_rule():
     """Require quoted name/stats labels next to each person in the image."""
-    return 'show name and stats next to each person'
+    return (
+        "show each person's name and stats next to that same person only — "
+        'never on someone else'
+    )
+
+
+def _group_identity_rules(player_count):
+    """Hard identity lock for group scenes — models otherwise swap faces."""
+    n = int(player_count or 0)
+    who = '1 person' if n == 1 else f'{n} people'
+    return (
+        f'Keep identities accurate: exactly {who}. '
+        'Do not swap or blend faces. Do not mix bodies, hair, or signature looks '
+        'between people. No extra people, no missing people, no twins. '
+        'Each name/stats label sits on the person it names.'
+    )
+
+
+def _image_ref_slug(name):
+    """Filename-safe player token for OpenAI reference uploads."""
+    chars = []
+    for ch in (name or 'player').strip():
+        if ch.isalnum():
+            chars.append(ch.lower())
+        elif chars and chars[-1] != '_':
+            chars.append('_')
+    return ''.join(chars).strip('_')[:32] or 'player'
+
+
+def _image_ids_phrase(indices):
+    return ' and '.join(f'Image {i}' for i in indices)
+
+
+def _prompt_with_identity_lock(scene_prompt, reference_parts):
+    """Repeat the Image-N identity map in the main prompt (models follow last instructions)."""
+    lock = ''
+    for part in reference_parts or []:
+        text = (part.get('text') or '').strip()
+        if text.startswith('IDENTITY LOCK'):
+            lock = text
+            break
+    prompt = (scene_prompt or '').strip()
+    if not lock:
+        return prompt
+    if lock in prompt:
+        return prompt
+    return f'{prompt}\n\n{lock}'
+
+
+def _group_identity_lock_text(player_count, map_lines):
+    n = int(player_count or 0)
+    who = '1 person' if n == 1 else f'{n} distinct people'
+    lines = [
+        f'IDENTITY LOCK — exactly {who}.',
+        'Do not swap faces or bodies. Do not blend two people into one. '
+        'Do not duplicate anyone. Do not add extra people. Do not drop anyone.',
+        'Each name/stats label must sit on the person it names.',
+        'Image 1 is the first attached photo, Image 2 the second, and so on:',
+    ]
+    lines.extend(map_lines)
+    lines.append(
+        'If a reference is an illustrated character sheet, keep that SAME person '
+        '(face, hair, skin, body type, signature looks) and put them in the scene playing. '
+        'If it is a face photo, match that face and invent the body for the scene. '
+        'Do not copy the empty studio pose or give everyone the same stance.'
+    )
+    return '\n'.join(lines)
 
 
 def _scene_setting_line(game_type, game_name=None):
-    """Activity line for the scene prompt, e.g. 'all players playing beach volleyball'."""
+    """Activity line, e.g. 'all players playing beach volleyball in different volleyball poses'."""
     if game_type == 'doubles':
         sport = 'beach volleyball'
     elif game_type == 'vollis':
@@ -767,7 +833,19 @@ def _scene_setting_line(game_type, game_name=None):
         sport = 'coed beach volleyball' if name.lower() == 'coed' else name
     else:
         sport = 'the game'
-    return f'all players playing {sport}. Character sheets are blank likenesses — add sport gear, action, and scenery here.'
+    if 'volleyball' in sport.casefold():
+        pose = 'volleyball'
+    elif sport.casefold() == 'the game':
+        pose = None
+    else:
+        pose = sport
+    if pose:
+        activity = f'all players playing {sport} in different {pose} poses'
+    else:
+        activity = f'all players playing {sport} in different poses'
+    return (
+        f'{activity}. Character sheets are blank likenesses — add sport gear, action, and scenery here.'
+    )
 
 
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
@@ -807,8 +885,10 @@ def build_flyer_scene_prompt(
     where_line = (location or '').strip() or 'TBD'
     title = sport_desc.title() if sport_desc else 'Game Night'
     setting = _scene_setting_line(game_type, game_name)
+    identity = _group_identity_rules(player_count)
     sections = [
         'Create a bold promotional Instagram flyer for an upcoming game.',
+        identity,
         f'Event: {title}',
         f'When: {when_line}',
         f'Where: {where_line}',
@@ -834,7 +914,8 @@ def build_scene_image_prompt(
     )
     details = (image_details or '').strip()
     setting = _scene_setting_line(game_type, game_name)
-    sections = [roster_block]
+    identity = _group_identity_rules(player_count)
+    sections = [identity, roster_block]
     if details:
         sections.append(details)
     sections.append(_name_stats_label_rule())
@@ -1151,17 +1232,9 @@ def _reference_parts_from_uploaded_photos(
     phrases_by_name = _merge_beach_royalty_phrases(
         included, player_stats, phrases_by_name,
     )
-    parts = [{
-        'text': (
-            'Players below. Each reference image is followed by that person\'s line. '
-            'If the reference is an illustrated character sheet, it is a BLANK likeness '
-            'plus signature looks only. Keep that SAME person (face, body, signature looks) '
-            'and PUT THEM IN THE SCENE: playing the sport, with balls, court, outfits, '
-            'and other scene props added here. Do not copy the empty studio pose. '
-            'If it is a face photo, match likeness and invent the full body for the scene. '
-            "Then: 'name stats' illustrate signature looks(no text). ..."
-        ),
-    }]
+    parts = []
+    map_lines = []
+    image_index = 0
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
@@ -1178,31 +1251,61 @@ def _reference_parts_from_uploaded_photos(
         quoted = _player_quoted_bits(label, phrases)
         if refs:
             kind = kinds_by_name.get(name)
-            if kind == 'ai_portrait':
-                parts.append({
-                    'text': (
-                        f'Illustrated character sheet for {name}. '
-                        'This is a blank likeness plus signature looks. '
-                        'Keep this person and place them in the scene playing; add sport props here.'
-                    ),
-                })
-            else:
-                parts.append({'text': f'Face photo for {name}.'})
+            indices = []
+            image_parts = []
             for ref in refs:
-                parts.append({
+                image_index += 1
+                indices.append(image_index)
+                image_parts.append({
                     'inline_data': {
                         'mime_type': ref['mime'],
                         'data': ref['data_b64'],
                     },
+                    'image_index': image_index,
+                    'image_name': name,
                 })
+            ids = _image_ids_phrase(indices)
+            map_lines.append(
+                f'{ids} = {name} only. Copy {name}\'s face, hair, skin, and body from {ids} '
+                f'onto {name}. Never put this face on anyone else.'
+            )
+            if kind == 'ai_portrait':
+                parts.append({
+                    'text': (
+                        f'{ids} is the illustrated character sheet of {name} only. '
+                        'Blank likeness plus signature looks. Keep this exact person in the scene '
+                        'in a distinct playing pose; add sport props here. '
+                        f'Do not use {ids} for any other player.'
+                    ),
+                })
+            else:
+                parts.append({
+                    'text': (
+                        f'{ids} is the face photo of {name} only. Match {name}\'s likeness. '
+                        f'Do not use {ids} for any other player.'
+                    ),
+                })
+            parts.extend(image_parts)
             if quoted:
-                parts.append({'text': quoted})
+                parts.append({
+                    'text': f'{quoted} This is {name}, the person from {ids}.',
+                })
         else:
+            map_lines.append(
+                f'{name}: no photo — invent from signature looks only. '
+                f'Do not copy another player\'s face onto {name}.'
+            )
             line = _player_clean_prompt_line(
                 label, phrases, full_name=name, has_picture=False,
             )
-            parts.append({'text': line})
-    return parts, included
+            parts.append({
+                'text': (
+                    f'No reference photo for {name}. Invent {name} from signature looks only. '
+                    f'Do not copy another player\'s face onto {name}. {line}'
+                ),
+            })
+    intro = _group_identity_lock_text(len(included), map_lines)
+    return [{'text': intro}] + parts, included
 
 
 def _sport_desc_for_image(game_type, game_name=None):
@@ -1311,9 +1414,14 @@ def _openai_size_for_aspect(aspect_ratio):
 
 
 def _openai_prompt_and_images(prompt, reference_parts):
-    """Flatten Gemini-style parts into an OpenAI prompt + image byte list."""
+    """Flatten Gemini-style parts into an OpenAI prompt + image byte list.
+
+    Uploaded files are Image 1, Image 2, … in order. Each file is named
+    image_{n}_{player}.ext so the model can bind identity to that person.
+    """
     text_bits = []
     images = []
+    next_index = 1
     for part in reference_parts or []:
         text = part.get('text')
         if text:
@@ -1324,8 +1432,19 @@ def _openai_prompt_and_images(prompt, reference_parts):
             continue
         raw = base64.b64decode(inline['data'])
         mime = inline.get('mime_type') or inline.get('mimeType') or 'image/png'
-        images.append((raw, mime))
-        text_bits.append('[Reference image attached — use the next image in order]')
+        try:
+            index = int(part.get('image_index') or next_index)
+        except (TypeError, ValueError):
+            index = next_index
+        next_index = max(next_index, index + 1)
+        who = (part.get('image_name') or '').strip()
+        ext = 'png' if 'png' in (mime or '') else 'jpg'
+        filename = f'image_{index}_{_image_ref_slug(who or f"player{index}")}.{ext}'
+        images.append((raw, mime, filename))
+        if who:
+            text_bits.append(f'[Image {index} attached — {who} only]')
+        else:
+            text_bits.append(f'[Image {index} attached]')
     if text_bits:
         full_prompt = '\n\n'.join(text_bits + ['--- Main illustration prompt ---', prompt])
     else:
@@ -1352,12 +1471,15 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
             if images:
                 # Rebuild file buffers each attempt — BytesIO is consumed on read.
                 files = []
-                for index, (raw, mime) in enumerate(images[:16]):
+                for index, item in enumerate(images[:16]):
+                    raw = item[0]
+                    mime = item[1] if len(item) > 1 else 'image/png'
                     ext = 'png' if 'png' in (mime or '') else 'jpg'
+                    filename = item[2] if len(item) > 2 and item[2] else f'reference_{index}.{ext}'
                     content_type = mime or ('image/png' if ext == 'png' else 'image/jpeg')
                     files.append((
                         'image[]',
-                        (f'reference_{index}.{ext}', io.BytesIO(raw), content_type),
+                        (filename, io.BytesIO(raw), content_type),
                     ))
                 data = {
                     'model': OPENAI_IMAGE_MODEL,
@@ -2616,12 +2738,23 @@ def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=Non
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
     """Serialize the full text sent to the image model (reference labels + prompt)."""
     lines = []
+    next_index = 1
     for part in reference_parts or []:
         text = part.get('text')
         if text:
             lines.append(text)
-        elif part.get('inline_data'):
-            lines.append(image_label)
+            continue
+        if part.get('inline_data'):
+            try:
+                index = int(part.get('image_index') or next_index)
+            except (TypeError, ValueError):
+                index = next_index
+            next_index = max(next_index, index + 1)
+            who = (part.get('image_name') or '').strip()
+            if who:
+                lines.append(f'[Image {index} attached — {who} only]')
+            else:
+                lines.append(f'[Image {index} attached]')
     lines.append('')
     lines.append('--- Main illustration prompt ---')
     lines.append(prompt)
@@ -2699,10 +2832,11 @@ def generate_flyer_image(
             image_details=image_details,
             labels_by_name=labels_by_name,
         )
-    image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
+    api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
+    image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
         raw, mime = _generate_image_bytes(
-            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+            api_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
         )
     except Exception as e:
         raise ImageGenerationError(
@@ -2890,10 +3024,11 @@ def generate_email_hero_image(
             game_type, scene_players, game_name=game_name, image_details=image_details,
             labels_by_name=labels_by_name, player_stats=player_stats,
         )
-    image_prompt = _image_prompt_bundle(scene_refs, scene_prompt)
+    api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
+    image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
         raw, mime = _generate_image_bytes(
-            scene_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+            api_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
         )
     except Exception as e:
         raise ImageGenerationError(
