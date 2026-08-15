@@ -54,7 +54,12 @@
             background: var(--recap-bg);
             color: var(--recap-text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            overflow-x: hidden;
+            overflow-x: clip;
+        }
+        /* Full-bleed hero is sized from this box (layout width, not 100vw / scrollbar). */
+        .recap-bleed-root {
+            width: 100%;
+            container-type: inline-size;
         }
         .recap-share-bar {
             position: sticky;
@@ -192,8 +197,10 @@
             font-size: 13px;
             margin-bottom: 16px;
         }
-        .recap-body-wrap {
-            overflow-x: visible;
+        .recap-body-wrap,
+        .recap-body,
+        .recap-body .container {
+            overflow: visible;
         }
         .recap-body {
             max-width: 600px;
@@ -211,21 +218,30 @@
         .recap-body a:hover {
             opacity: 0.85;
         }
-        /* Full-bleed AI illustration across the browser width. */
+        /* Full-bleed AI illustration across the visible page width.
+           100vw includes the desktop scrollbar, so left:50% / -50vw shifts the
+           picture off the left edge; Mac browsers clip it, iPhone does not. */
         .recap-body .hero-image-card {
-            width: 100vw;
-            max-width: 100vw;
+            width: 100%;
+            max-width: none;
             position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
+            left: auto;
+            right: auto;
+            margin-left: 0;
+            margin-right: 0;
             margin-bottom: 16px;
             padding: 0;
             border: none;
             border-radius: 0;
             background: transparent;
             text-align: center;
+        }
+        @supports (width: 1cqw) {
+            .recap-body .hero-image-card {
+                width: 100cqw;
+                max-width: 100cqw;
+                margin-left: calc(50% - 50cqw);
+            }
         }
         .recap-body .hero-image-card img {
             display: block;
@@ -235,6 +251,8 @@
             margin: 0;
             border: 0;
             border-radius: 0 !important;
+            object-fit: contain;
+            object-position: center;
         }
         .recap-page-public {
             padding-top: 12px;
@@ -702,6 +720,7 @@
     {% endwith %}
     {% endif %}
 
+    <div class="recap-bleed-root">
     <main class="recap-page{% if not show_creator_view %} recap-page-public{% endif %}">
         {% if show_creator_view and created_at_fmt %}
         <p class="recap-meta">Published {{ created_at_fmt }}</p>
@@ -715,6 +734,7 @@
             {{ recap_html | safe }}
         </div>
     </main>
+    </div>
 
     {% if show_creator_view %}
     <script>
