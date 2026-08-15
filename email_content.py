@@ -1283,19 +1283,28 @@ def _rest_error_detail(resp):
         return resp.text[:300] if resp.text else f'HTTP {resp.status_code}'
 
 
+def _openai_valid_size(width, height):
+    """Snap a size to gpt-image-2 rules: both edges multiples of 16."""
+    def snap(value):
+        return max(16, int(round(int(value) / 16.0) * 16))
+
+    return f'{snap(width)}x{snap(height)}'
+
+
 def _openai_size_for_aspect(aspect_ratio):
     """Map Gemini-style aspect hints to OpenAI size strings."""
     ratio = (aspect_ratio or '').strip()
     if ratio == '4:5':
         # Exact Instagram portrait; gpt-image-2 accepts custom resolutions.
-        return '1024x1280'
-    if ratio == '3:4':
-        return '1024x1365'
-    if ratio == '16:9':
-        return '1536x1024'
-    if ratio == '1:1':
-        return '1024x1024'
-    return '1024x1024'
+        width, height = 1024, 1280
+    elif ratio == '3:4':
+        # 1024x1365 is true 3:4 but 1365 is not divisible by 16.
+        width, height = 1024, 1360
+    elif ratio == '16:9':
+        width, height = 1536, 1024
+    else:
+        width, height = 1024, 1024
+    return _openai_valid_size(width, height)
 
 
 def _openai_prompt_and_images(prompt, reference_parts):
