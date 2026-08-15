@@ -634,16 +634,37 @@ def _signature_look_visual_instructions(plural=False):
     if plural:
         return (
             'Each "illustrate …(no text)." clause lists that person\'s signature looks. '
-            'Embody each look visually (costume, body, props, posture) — e.g. '
-            '"illustrate broken elbow. puerto rican. (no text)." means a visibly '
-            'broken/bandaged elbow and a Puerto Rican look. '
-            'Never paint look phrases as text on the image.'
+            'Every look MUST appear in the picture as costume, body, prop, vehicle, '
+            'pet, object, or posture — highly exaggerated. '
+            '"drives a motorhome" means a motorhome is in the picture with them. '
+            '"broken elbow" means a visibly broken/bandaged elbow. '
+            'Never skip a look. Never paint look phrases as text on the image.'
         )
     return (
         'The "illustrate …(no text)." clause lists signature looks. '
-        'Embody each look visually (costume, body, props, posture) — e.g. '
-        '"illustrate broken elbow(no text)." means a visibly broken/bandaged elbow. '
-        'Never paint look phrases as text on the image.'
+        'Every look MUST appear in the picture as costume, body, prop, vehicle, '
+        'pet, object, or posture — highly exaggerated. '
+        '"drives a motorhome" means a motorhome is in the picture with them. '
+        '"broken elbow" means a visibly broken/bandaged elbow. '
+        'Never skip a look. Never paint look phrases as text on the image.'
+    )
+
+
+def _signature_looks_must_appear_block(trait_phrases):
+    """Force every saved look into the picture as a visible element."""
+    looks = []
+    for phrase in trait_phrases or []:
+        clean = ' '.join((phrase or '').strip().split()).rstrip('.')
+        if clean:
+            looks.append(clean)
+    if not looks:
+        return ''
+    bullets = '\n'.join(f'- MUST BE VISIBLE in the picture: {look}' for look in looks)
+    return (
+        'SIGNATURE LOOKS — include every one, highly exaggerated. '
+        'These are required objects, clothes, body traits, or poses in the image, '
+        'not captions. If they drive a motorhome, draw the motorhome.\n'
+        f'{bullets}'
     )
 
 
@@ -986,7 +1007,8 @@ def _scene_setting_line(game_type, game_name=None):
     else:
         activity = f'all players playing {sport} in different poses'
     return (
-        f'{activity}. Character sheets are blank likenesses — add sport gear, action, and scenery here.'
+        f'{activity}. Keep each person\'s signature-look props from their character sheet '
+        '(hats, vehicles, pets, objects). Add sport gear, action, and scenery here.'
     )
 
 
@@ -1004,7 +1026,8 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
     return f"""Draw exactly ONE person.
 {line}
 Use the attached face photo when provided. {_signature_look_visual_instructions()}
-Plain neutral background."""
+{_signature_looks_must_appear_block(trait_phrases)}
+Simple background except for objects the signature looks require."""
 
 
 def build_flyer_solo_prompt(player_name):
@@ -1465,8 +1488,9 @@ def _reference_parts_from_uploaded_photos(
                 parts.append({
                     'text': (
                         f'{ids} is the illustrated character sheet of {name} only. '
-                        'Blank likeness plus signature looks. Keep this exact person in the scene '
-                        'in a distinct playing pose; add sport props here. '
+                        'Character sheet of this person including their signature-look props. '
+                        'Keep those looks (vehicles, hats, objects) in the scene. '
+                        'Put them in a distinct playing pose; add sport props here. '
                         f'Do not use {ids} for any other player.'
                     ),
                 })
@@ -3241,13 +3265,16 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 
 
 PLAYER_CHARACTER_SHEET_STYLE = (
-    'HOUSE STYLE: Blank full-body character sheet. '
+    'HOUSE STYLE: Full-body character sheet. '
     'Bold, highly exaggerated illustrated caricature — not photoreal. '
-    'Exactly this one person: match the face, apply signature looks, nothing else. '
-    'Plain neutral clothes unless a signature look names an outfit. '
-    'Empty hands. No sport, no ball, no surfboard, no scenery, no extra gear, '
-    'no extra people. Scene props belong in later group pictures, not here. '
-    'Plain warm off-white studio background. '
+    'Exactly this one person: match the face. '
+    'Every signature look is a required visible part of THIS picture: '
+    'outfit, body, props, vehicles, pets, objects, posture. '
+    'If a look is "drives a motorhome", a motorhome is in the picture with them. '
+    'Do not save props for later group pictures — they belong here. '
+    'Plain clothes only when a look is not clothing. '
+    'Do not add volleyball, surfing, or sport action unless a signature look names it. '
+    'No extra people. Simple background except for objects the looks require. '
     'Full body standing, feet visible, three-quarter view. '
     'No text, no name labels, no stats, no captions, no watermarks.'
 )
@@ -3273,15 +3300,20 @@ def build_player_character_sheet_prompt(player_name):
         full_name=name,
         has_picture=has_picture,
     )
-    return f"""Create a blank full-body character sheet of exactly ONE person.
-
-{PLAYER_CHARACTER_SHEET_STYLE}
-
-{line}
-
-Use the attached face photo for likeness when provided. {_signature_look_visual_instructions()}
-Do not add volleyball, surfing, or any activity. This sheet is only the person.
-Vertical 3:4."""
+    looks_block = _signature_looks_must_appear_block(trait_phrases)
+    sections = [
+        'Create a full-body character sheet of exactly ONE person.',
+        PLAYER_CHARACTER_SHEET_STYLE,
+        line,
+        looks_block,
+        (
+            'Use the attached face photo for likeness when provided. '
+            f'{_signature_look_visual_instructions()}'
+        ),
+        'Do not add volleyball, surfing, or sport action unless a signature look names it.',
+        'Vertical 3:4.',
+    ]
+    return '\n\n'.join(section for section in sections if section)
 
 
 def generate_player_character_sheet(api_key, player_name):
