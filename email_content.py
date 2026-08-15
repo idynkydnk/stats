@@ -610,7 +610,9 @@ def _illustration_players(player_names, game_type, games, selected_players=None)
 
 def _solo_reference_parts_for_player(name, entry):
     """Build face-reference parts for a solo caricature call."""
-    _ = name
+    from player_functions import player_display_name
+
+    display = (player_display_name(name) or name or '').strip() or 'this person'
     if not entry or not entry.get('parts'):
         return [{
             'text': (
@@ -619,10 +621,17 @@ def _solo_reference_parts_for_player(name, entry):
             ),
         }]
 
-    return [
-        {'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']}}
-        for ref in entry['parts']
-    ]
+    parts = []
+    for index, ref in enumerate(entry['parts'], start=1):
+        parts.append({
+            'text': f'This photo is {display}. Match this face.',
+        })
+        parts.append({
+            'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']},
+            'image_index': index,
+            'image_name': display,
+        })
+    return parts
 
 def _player_can_illustrate(has_reference_photos, trait_phrases):
     """Only illustrate players who have a face photo and/or signature looks."""
@@ -1837,9 +1846,9 @@ def _generate_image_bytes_openai_responses(
 def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None):
     """One OpenAI image call.
 
-    Group pictures (2+ reference images) use the Responses API so each photo
-    stays next to that person's name — the same path ChatGPT uses. Solo images
-    and Responses failures use /v1/images/edits.
+    Reference photos use the Responses API (chat model sees the picture, then
+    gpt-image-2 draws) — the same path ChatGPT uses. Failures fall back to
+    /v1/images/edits.
     """
     import io
     import requests
@@ -1853,7 +1862,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     max_attempts = max(1, min(max_attempts, 5))
 
     last_error = None
-    use_responses = len(images) >= 2
+    use_responses = len(images) >= 1
     for attempt in range(1, max_attempts + 1):
         try:
             if use_responses:
@@ -1866,7 +1875,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                     use_responses = False
                     try:
                         current_app.logger.warning(
-                            'OpenAI Responses group image failed; falling back to images/edits: %s',
+                            'OpenAI Responses image failed; falling back to images/edits: %s',
                             e,
                         )
                     except Exception:
@@ -3295,18 +3304,11 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 
 
 PLAYER_CHARACTER_SHEET_STYLE = (
-    'HOUSE STYLE: Full-body character sheet. '
-    'Bold, highly exaggerated illustrated caricature — not photoreal. '
-    'Exactly this one person: match the face. '
-    'Every signature look is a required visible part of THIS picture: '
-    'outfit, body, props, vehicles, pets, objects, posture. '
-    'If a look is "drives a motorhome", a motorhome is in the picture with them. '
-    'Do not save props for later group pictures — they belong here. '
-    'Plain clothes only when a look is not clothing. '
-    'Do not add volleyball, surfing, or sport action unless a signature look names it. '
-    'No extra people. Simple background except for objects the looks require. '
-    'Full body standing, feet visible, three-quarter view. '
-    'No text, no name labels, no stats, no captions, no watermarks.'
+    'Exactly one person. Match the attached face. '
+    'Full body, feet visible, so signature looks can show. '
+    'Simple background except for objects the looks need. '
+    'No extra people, no text, no captions, no watermarks. '
+    'Do not add volleyball, surfing, or sport action unless a signature look names it.'
 )
 
 
@@ -3324,25 +3326,26 @@ def build_player_character_sheet_prompt(player_name):
     trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
     entry = collect_solo_reference_images(name) if name else None
     has_picture = bool((entry or {}).get('parts'))
-    line = _player_clean_prompt_line(
-        (display or name or '').strip(),
-        trait_phrases,
-        full_name=name,
-        has_picture=has_picture,
-    )
-    looks_block = _signature_looks_must_appear_block(trait_phrases)
+    looks = []
+    for phrase in trait_phrases or []:
+        clean = ' '.join((phrase or '').strip().split()).rstrip('.')
+        if clean:
+            looks.append(clean)
     sections = [
-        'Create a full-body character sheet of exactly ONE person.',
+        'Create this person in portrait size.',
         PLAYER_CHARACTER_SHEET_STYLE,
-        line,
-        looks_block,
-        (
-            'Use the attached face photo for likeness when provided. '
-            f'{_signature_look_visual_instructions()}'
-        ),
-        'Do not add volleyball, surfing, or sport action unless a signature look names it.',
-        'Vertical 3:4.',
     ]
+    if looks:
+        bullets = '\n'.join(f'- {look}' for look in looks)
+        sections.append(
+            'Include every signature look in the picture, highly exaggerated — '
+            'as clothes, body, props, or pose, never as written text:\n'
+            f'{bullets}'
+        )
+    if has_picture:
+        sections.append(f'Use the attached photo for {display or "this person"}\'s face.')
+    else:
+        sections.append('No face photo — invent this person from the signature looks.')
     return '\n\n'.join(section for section in sections if section)
 
 
@@ -3368,7 +3371,7 @@ def generate_player_character_sheet(api_key, player_name):
         raise ValueError(f'Could not find player record for {name}.')
     player_id = player[0]
 
-    entry = collect_solo_reference_images(name)
+    entry = collect_solo_reference_images(name, max_pixels=1536)
     reference_parts = _solo_reference_parts_for_player(name, entry)
     has_reference_photos = any(part.get('inline_data') for part in reference_parts)
     trait_entries = collect_player_ai_image_traits([name])

@@ -1099,9 +1099,11 @@ def remove_player_photo(player_id):
     set_player_face_photo_focus(player_id, 50, 50, 1.0)
 
 
-def collect_solo_reference_images(name):
+def collect_solo_reference_images(name, max_pixels=768):
     """Face reference for creating a player's AI character sheet (not the saved sheet)."""
-    refs = collect_player_reference_images([name], max_players=1)
+    refs = collect_player_reference_images(
+        [name], max_players=1, max_pixels=max_pixels,
+    )
     if refs:
         return refs[0]
     return {'name': name, 'parts': [], 'kind': None}
@@ -1135,7 +1137,7 @@ def collect_illustration_reference_images(name):
     return entry
 
 
-def collect_player_reference_images(player_names, max_players=4):
+def collect_player_reference_images(player_names, max_players=4, max_pixels=768):
     """Build face-reference image parts from uploaded photos (not saved AI sheets).
 
     Uses each player's saved face photo. Signature looks are attached separately via traits.
@@ -1154,7 +1156,8 @@ def collect_player_reference_images(player_names, max_players=4):
             continue
         fx, fy, fz = get_player_face_photo_focus(display_name)
         raw, mime = read_cropped_player_image(
-            face_path, {'x': fx, 'y': fy, 'z': fz}, output_aspect=1.0,
+            face_path, {'x': fx, 'y': fy, 'z': fz},
+            output_aspect=1.0, max_pixels=max_pixels,
         )
         if raw:
             entry['parts'].append({
