@@ -170,15 +170,19 @@
 .edit-ai-character {
     width: 120px;
     height: 160px;
-    object-fit: cover;
-    object-position: top center;
+    object-fit: contain;
+    object-position: center;
     border-radius: 10px;
     border: 2px solid var(--border);
-    background: var(--bg);
+    background: #000;
     font-size: 13px;
     text-align: center;
-    padding: 8px;
+    padding: 0;
     box-sizing: border-box;
+}
+.edit-ai-character.edit-player-photo-fallback {
+    background: var(--button-bg-1);
+    padding: 8px;
 }
 .edit-photo-actions {
     text-align: left;

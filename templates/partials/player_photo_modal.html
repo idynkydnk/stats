@@ -297,11 +297,11 @@
 .sr-ai-character-preview {
     width: 120px;
     height: 160px;
-    object-fit: cover;
-    object-position: top center;
+    object-fit: contain;
+    object-position: center;
     border-radius: 10px;
     border: 2px solid var(--sr-line);
-    background: var(--sr-bg);
+    background: #000;
     display: block;
 }
 .sr-ai-character-preview[hidden] { display: none !important; }
@@ -338,10 +338,11 @@
 .sr-roster-ai-thumb {
     width: 36px;
     height: 48px;
-    object-fit: cover;
-    object-position: top center;
+    object-fit: contain;
+    object-position: center;
     border-radius: 6px;
     border: 1px solid var(--sr-line);
+    background: #000;
     flex-shrink: 0;
 }
 .sr-roster-ai-row {
