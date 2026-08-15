@@ -4884,7 +4884,7 @@ def get_other_game_info(game_name):
 def api_search_all_players():
     """Search for players across all years and game types"""
     query = request.args.get('q', '').strip()
-    if not query:
+    if len(query) < 2:
         return jsonify([])
     
     try:
