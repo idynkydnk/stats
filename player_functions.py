@@ -61,6 +61,10 @@ def init_players_photo_column():
     except Exception:
         # Don't block app startup if an odd photo fails to recompress.
         pass
+    try:
+        repair_duplicate_player_names()
+    except Exception:
+        pass
 
 
 def player_first_name(full_name):
@@ -142,14 +146,29 @@ def player_photos_dir():
     return path
 
 
+def _query_player_by_name(sql, full_name):
+    """Run a players SELECT by full_name, then case-insensitive if needed."""
+    name = (full_name or '').strip()
+    if not name:
+        return None
+    cur = set_cur()
+    cur.execute(sql, (name,))
+    row = cur.fetchone()
+    if row:
+        return row
+    nocase_sql = sql.replace('WHERE full_name = ?', 'WHERE full_name = ? COLLATE NOCASE', 1)
+    if nocase_sql == sql:
+        return None
+    cur.execute(nocase_sql, (name,))
+    return cur.fetchone()
+
+
 def get_player_photo_path(full_name):
     """Return stored photo_path (e.g. player_photos/3.jpg) or None."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT photo_path FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     return row[0] if row and row[0] else None
 
 
@@ -201,12 +220,10 @@ def _parse_face_photo_focus(raw):
 
 def get_player_face_photo_focus(full_name):
     """Return face crop focus (x%, y%, zoom) for the circle avatar."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT face_photo_focus FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     return _parse_face_photo_focus(row[0] if row else None)
 
 
@@ -315,12 +332,10 @@ def _get_body_crops_by_id(player_id):
 
 
 def get_player_full_body_photo_crops(full_name):
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT full_body_photo_crops FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     return _parse_body_crops_json(row[0] if row else None)
 
 
@@ -526,12 +541,10 @@ def read_face_avatar_image(full_name, max_pixels=128):
 
 def get_player_full_body_photo_paths(full_name):
     """Return all stored full-body photo paths for a player."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT full_body_photo_paths, full_body_photo_path FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     if not row:
         return []
     return _existing_body_paths(_body_paths_from_row(row[0], row[1]))
@@ -577,12 +590,10 @@ def set_player_full_body_photo_paths(player_id, paths):
 
 def get_player_photo_paths(full_name):
     """Return face path and list of full-body paths for a player."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT photo_path, full_body_photo_paths, full_body_photo_path FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     if not row:
         return None, []
     face = row[0] or None
@@ -621,12 +632,10 @@ def normalize_player_ai_image_traits(value):
 
 def get_player_ai_image_traits(full_name):
     """Return signature-look phrases for AI image exaggeration."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT ai_image_traits FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     return normalize_player_ai_image_traits(row[0] if row else None)
 
 
@@ -672,12 +681,10 @@ def collect_player_ai_image_traits(player_names):
 
 def get_player_ai_image_path(full_name):
     """Return stored AI character-sheet path (e.g. player_photos/ai_3.png) or None."""
-    cur = set_cur()
-    cur.execute(
+    row = _query_player_by_name(
         'SELECT ai_image_path FROM players WHERE full_name = ?',
-        (full_name,),
+        full_name,
     )
-    row = cur.fetchone()
     return row[0] if row and row[0] else None
 
 
@@ -1239,21 +1246,24 @@ def get_players_list_extras(names):
                ai_image_path
         FROM players
         WHERE full_name IN ({placeholders})
+           OR lower(full_name) IN ({placeholders})
         """,
-        list(names),
+        list(names) + [n.lower() for n in names],
     )
 
     extras = {}
     for row in cur.fetchall():
         name, paths_json, legacy_path, traits_raw, face_raw, crops_raw, ai_path = row
         x, y, z = _parse_face_photo_focus(face_raw)
-        extras[name] = {
+        payload = {
             'body_paths': _body_paths_from_row(paths_json, legacy_path),
             'body_crops': _parse_body_crops_json(crops_raw),
             'traits': normalize_player_ai_image_traits(traits_raw),
             'face_focus': {'x': x, 'y': y, 'z': z},
             'ai_image_path': ai_path or None,
         }
+        extras[name] = payload
+        extras.setdefault((name or '').lower(), payload)
 
     conn.close()
     return extras
@@ -1281,11 +1291,12 @@ def get_roster_player_names():
 def merge_roster_into_player_names(ordered_names):
     """Append roster players missing from a game-history list (alphabetically at the end)."""
     ordered = list(ordered_names or [])
-    seen = {((name or '').strip()) for name in ordered if (name or '').strip()}
+    seen = {((name or '').strip().lower()) for name in ordered if (name or '').strip()}
     for name in get_roster_player_names():
-        if name not in seen:
+        key = (name or '').strip().lower()
+        if key and key not in seen:
             ordered.append(name)
-            seen.add(name)
+            seen.add(key)
     return ordered
 
 
@@ -1300,10 +1311,20 @@ def get_all_players():
     doubles, vollis, other = _game_stats_by_player(cur)
 
     cur.execute(PLAYERS_SELECT)
-    players_by_name = {row[1]: row for row in cur.fetchall()}
+    player_rows = cur.fetchall()
+    players_by_name = {row[1]: row for row in player_rows}
+    players_by_lower = {}
+    for row in player_rows:
+        key = (row[1] or '').strip().lower()
+        if key and key not in players_by_lower:
+            players_by_lower[key] = row
 
     # Include roster-only players (added on Players page before they've played).
-    all_player_names = set(doubles) | set(vollis) | set(other) | set(players_by_name.keys())
+    all_player_names = set(doubles) | set(vollis) | set(other)
+    game_lower = {(name or '').strip().lower() for name in all_player_names if name}
+    for name in players_by_name:
+        if name and (name or '').strip().lower() not in game_lower:
+            all_player_names.add(name)
 
     players_with_stats = []
     now = datetime.now()
@@ -1316,9 +1337,10 @@ def get_all_players():
         dates = [d for d in [doubles_date, vollis_date, other_date] if d is not None]
         first_game_date = min(dates) if dates else None
 
-        player_record = players_by_name.get(player_name)
+        player_record = players_by_name.get(player_name) or players_by_lower.get((player_name or '').lower())
         if player_record:
             player_list = list(player_record)
+            player_list[1] = player_name
         else:
             player_list = [None, player_name, None, None, None, None, now, now, None, None, None]
 
@@ -1346,15 +1368,185 @@ def get_player_by_id(player_id):
     player = cur.fetchone()
     return player
 
+PLAYER_PROFILE_COLUMNS = (
+    'email', 'date_of_birth', 'height', 'notes', 'nickname',
+    'photo_path', 'full_body_photo_path', 'full_body_photo_paths',
+    'face_photo_focus', 'full_body_photo_crops',
+    'ai_image_path', 'ai_image_traits',
+)
+
+
+def _profile_value_empty(value):
+    return value is None or (isinstance(value, str) and not str(value).strip())
+
+
 def get_player_by_name(full_name):
-    """Get a specific player by full name"""
+    """Get a specific player by full name (exact, then case-insensitive)."""
+    name = (full_name or '').strip()
+    if not name:
+        return None
     cur = set_cur()
-    cur.execute(f"{PLAYERS_SELECT} WHERE full_name=?", (full_name,))
+    cur.execute(f"{PLAYERS_SELECT} WHERE full_name=?", (name,))
     player = cur.fetchone()
-    return player
+    if player:
+        return player
+    cur.execute(f"{PLAYERS_SELECT} WHERE full_name = ? COLLATE NOCASE", (name,))
+    return cur.fetchone()
+
+
+def _player_id_for_name(cur, name):
+    name = (name or '').strip()
+    if not name:
+        return None
+    cur.execute('SELECT id FROM players WHERE full_name = ?', (name,))
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    cur.execute('SELECT id FROM players WHERE full_name = ? COLLATE NOCASE', (name,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _merge_player_row_into(conn, source_id, dest_id):
+    """Copy empty dest profile fields from source, then delete source."""
+    if not source_id or not dest_id or source_id == dest_id:
+        return False
+    cur = conn.cursor()
+    existing = {row[1] for row in cur.execute('PRAGMA table_info(players)').fetchall()}
+    cols = [c for c in PLAYER_PROFILE_COLUMNS if c in existing]
+    if not cols:
+        cur.execute('DELETE FROM players WHERE id = ?', (source_id,))
+        return True
+    col_sql = ', '.join(cols)
+    cur.execute(f'SELECT {col_sql} FROM players WHERE id = ?', (source_id,))
+    src = cur.fetchone()
+    cur.execute(f'SELECT {col_sql} FROM players WHERE id = ?', (dest_id,))
+    dst = cur.fetchone()
+    if not src or not dst:
+        return False
+    updates = []
+    values = []
+    for i, col in enumerate(cols):
+        if _profile_value_empty(dst[i]) and not _profile_value_empty(src[i]):
+            updates.append(f'{col} = ?')
+            values.append(src[i])
+    if updates:
+        values.extend([datetime.now(), dest_id])
+        cur.execute(
+            f"UPDATE players SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
+            values,
+        )
+    cur.execute('DELETE FROM players WHERE id = ?', (source_id,))
+    return True
+
+
+def rename_player_roster(old_name, new_name):
+    """Keep photo/looks on the same player row when renaming.
+
+    Game tables are updated separately. This updates players.full_name, or
+    merges the old row into an existing new-name row if both exist.
+    """
+    old_name = (old_name or '').strip()
+    new_name = (new_name or '').strip()
+    if not old_name or not new_name or old_name == new_name:
+        return False
+    conn = _players_db_connection()
+    if conn is None:
+        return False
+    try:
+        cur = conn.cursor()
+        old_id = _player_id_for_name(cur, old_name)
+        cur.execute('SELECT id FROM players WHERE full_name = ?', (new_name,))
+        new_row = cur.fetchone()
+        new_id = new_row[0] if new_row else None
+        if new_id and old_id and new_id != old_id:
+            _merge_player_row_into(conn, old_id, new_id)
+        elif old_id:
+            cur.execute(
+                'UPDATE players SET full_name = ?, updated_at = ? WHERE id = ?',
+                (new_name, datetime.now(), old_id),
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def repair_duplicate_player_names():
+    """Merge player rows that differ only by capitalization.
+
+    After a rename that updated games but not the roster, the new spelling can
+    show up as a blank player while photo/looks stay on the old spelling.
+    """
+    conn = _players_db_connection()
+    if conn is None:
+        return 0
+    try:
+        cur = conn.cursor()
+        game_names = set()
+        for sql in (
+            "SELECT DISTINCT winner1 FROM games UNION SELECT DISTINCT winner2 FROM games "
+            "UNION SELECT DISTINCT loser1 FROM games UNION SELECT DISTINCT loser2 FROM games",
+            "SELECT DISTINCT winner FROM vollis_games UNION SELECT DISTINCT loser FROM vollis_games",
+            """
+            SELECT DISTINCT winner1 FROM other_games UNION SELECT DISTINCT winner2 FROM other_games
+            UNION SELECT DISTINCT winner3 FROM other_games UNION SELECT DISTINCT winner4 FROM other_games
+            UNION SELECT DISTINCT winner5 FROM other_games UNION SELECT DISTINCT winner6 FROM other_games
+            UNION SELECT DISTINCT loser1 FROM other_games UNION SELECT DISTINCT loser2 FROM other_games
+            UNION SELECT DISTINCT loser3 FROM other_games UNION SELECT DISTINCT loser4 FROM other_games
+            UNION SELECT DISTINCT loser5 FROM other_games UNION SELECT DISTINCT loser6 FROM other_games
+            """,
+        ):
+            try:
+                cur.execute(sql)
+                game_names.update((row[0] or '').strip() for row in cur.fetchall() if row and row[0])
+            except Exception:
+                continue
+
+        game_by_lower = {}
+        for name in game_names:
+            game_by_lower.setdefault(name.lower(), set()).add(name)
+
+        cur.execute('SELECT id, full_name FROM players')
+        groups = {}
+        for player_id, full_name in cur.fetchall():
+            key = (full_name or '').strip().lower()
+            if not key:
+                continue
+            groups.setdefault(key, []).append((player_id, full_name))
+
+        merged = 0
+        for key, members in groups.items():
+            if not members:
+                continue
+            spellings = game_by_lower.get(key) or set()
+            keep = next((m for m in members if m[1] in spellings), None)
+            if keep is None:
+                keep = members[0]
+            keep_id, keep_name = keep
+            if keep_name not in spellings and len(spellings) == 1:
+                desired = next(iter(spellings))
+                cur.execute(
+                    'UPDATE players SET full_name = ?, updated_at = ? WHERE id = ?',
+                    (desired, datetime.now(), keep_id),
+                )
+                keep_name = desired
+            for player_id, _name in members:
+                if player_id == keep_id:
+                    continue
+                if _merge_player_row_into(conn, player_id, keep_id):
+                    merged += 1
+        conn.commit()
+        return merged
+    finally:
+        conn.close()
 
 def add_new_player(full_name, email=None, date_of_birth=None, height=None, notes=None, nickname=None):
     """Add a new player to the database"""
+    existing = get_player_by_name(full_name)
+    if existing:
+        return existing[0]
+
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:

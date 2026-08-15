@@ -1321,7 +1321,7 @@ def build_player_list_cards(players):
 
     for player_row in players:
         name = player_row[1]
-        meta = extras.get(name, {})
+        meta = extras.get(name) or extras.get((name or '').lower(), {})
         photo_path = player_row[8] if len(player_row) > 8 and player_row[8] else None
         face_focus = meta.get('face_focus', default_focus)
 
@@ -5698,7 +5698,9 @@ def api_update_player_info():
         player_record = get_player_by_name(player_name)
         if player_record:
             player_id = player_record[0]
-            existing_full_name = player_record[1]
+            stored_name = player_record[1]
+            # Keep photo/looks on this row even if only capitalization changed.
+            name_to_save = player_name if player_name else stored_name
             # Use new values if provided, otherwise keep existing
             new_email = email if email else player_record[2]
             new_birthday = birthday if birthday else player_record[3]
@@ -5706,7 +5708,7 @@ def api_update_player_info():
             notes = player_record[5]
             # Nickname is always taken from the form so clearing it works.
             update_player_info(
-                player_id, existing_full_name, email=new_email,
+                player_id, name_to_save, email=new_email,
                 date_of_birth=new_birthday, height=new_height, notes=notes,
                 nickname=nickname,
             )

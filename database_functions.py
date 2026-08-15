@@ -225,7 +225,13 @@ def update_player_name(old_name, new_name):
     
     conn.commit()
     conn.close()
-    
+
+    try:
+        from player_functions import rename_player_roster
+        rename_player_roster(old_name, new_name)
+    except Exception:
+        pass
+
     return updates_made
 
 def get_all_unique_players():
