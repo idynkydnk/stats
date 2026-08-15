@@ -1095,20 +1095,22 @@ def _reference_parts_from_uploaded_photos(
 ):
     """Build likeness refs for a single group image call.
 
-    Includes a player when they have a face photo and/or signature looks.
-    Skips players with neither. Raises ValueError if nobody can be illustrated.
+    Prefers each player's saved AI character sheet when one exists; otherwise
+    uses their face photo. Includes a player when they have an AI sheet, a face
+    photo, and/or signature looks. Skips players with none of those. Raises
+    ValueError if nobody can be illustrated.
 
     Each person uses the compact format:
     'Brian 3-3 (-8)' illustrate broken leg. puerto rican. (no text).
 
-    Face photos (when present) are attached immediately before that person's
-    text line so the model can match likeness to stats/looks by order.
+    Reference images (when present) are attached immediately before that
+    person's text line so the model can match likeness to stats/looks by order.
 
     Returns (reference_parts, included_players).
     """
     from player_functions import (
         collect_player_ai_image_traits,
-        collect_solo_reference_images,
+        collect_illustration_reference_images,
     )
 
     players = _dedupe_players_preserve_order(players)
@@ -1121,14 +1123,18 @@ def _reference_parts_from_uploaded_photos(
     included = []
     photos_by_name = {}
     phrases_by_name = {}
+    kinds_by_name = {}
+    original_phrases_by_name = {}
     for name in players:
-        entry = collect_solo_reference_images(name)
+        entry = collect_illustration_reference_images(name)
         refs = (entry or {}).get('parts') or []
         trait = traits_by_name.get((name or '').strip().lower())
         phrases = list((trait or {}).get('phrases') or [])
         if not _player_can_illustrate(bool(refs), phrases):
             continue
         included.append(name)
+        kinds_by_name[name] = (entry or {}).get('kind')
+        original_phrases_by_name[name] = list(phrases)
         if refs:
             photos_by_name[name] = refs
         if phrases:
@@ -1136,8 +1142,8 @@ def _reference_parts_from_uploaded_photos(
 
     if not included:
         raise ValueError(
-            'No selected players have a face photo or signature looks. '
-            'Add face photos or signature looks on the Players page, then try again.'
+            'No selected players have an AI character, face photo, or signature looks. '
+            'Add those on the Players page, then try again.'
         )
 
     # OpenAI edits accepts up to 16 reference images; also cap roster size.
@@ -1147,16 +1153,38 @@ def _reference_parts_from_uploaded_photos(
     )
     parts = [{
         'text': (
-            'Players below. Each face photo is followed by that person\'s line: '
-            "'name stats' illustrate signature looks(no text). ..."
+            'Players below. Each reference image is followed by that person\'s line. '
+            'If the reference is an illustrated character sheet, keep that SAME character '
+            '(face, body, costume) — do not invent a new design. '
+            'If it is a face photo, match likeness. '
+            "Then: 'name stats' illustrate signature looks(no text). ..."
         ),
     }]
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
         phrases = phrases_by_name.get(name) or []
+        if kinds_by_name.get(name) == 'ai_portrait':
+            original = {
+                (p or '').strip().casefold()
+                for p in (original_phrases_by_name.get(name) or [])
+            }
+            phrases = [
+                p for p in phrases
+                if (p or '').strip().casefold() not in original
+            ]
         quoted = _player_quoted_bits(label, phrases)
         if refs:
+            kind = kinds_by_name.get(name)
+            if kind == 'ai_portrait':
+                parts.append({
+                    'text': (
+                        f'Illustrated character sheet for {name}. '
+                        'Redraw this exact character in the scene.'
+                    ),
+                })
+            else:
+                parts.append({'text': f'Face photo for {name}.'})
             for ref in refs:
                 parts.append({
                     'inline_data': {
@@ -1261,6 +1289,8 @@ def _openai_size_for_aspect(aspect_ratio):
     if ratio == '4:5':
         # Exact Instagram portrait; gpt-image-2 accepts custom resolutions.
         return '1024x1280'
+    if ratio == '3:4':
+        return '1024x1365'
     if ratio == '16:9':
         return '1536x1024'
     if ratio == '1:1':
@@ -2611,8 +2641,8 @@ def _illustration_status_note(all_players):
     if not all_players:
         return ''
     return (
-        f'Illustration is one group image from uploaded face photos '
-        f'({len(all_players)} players).'
+        f'Illustration is one group image from saved AI characters and/or '
+        f'face photos ({len(all_players)} players).'
     )
 
 
@@ -2622,10 +2652,11 @@ def generate_flyer_image(
     reuse_existing_solos=False, custom_scene_prompt=None,
     custom_solo_prompts=None,
 ):
-    """Generate Instagram 4:5 flyer from uploaded player face photos (one API call).
+    """Generate Instagram 4:5 flyer from saved AI characters and/or face photos (one API call).
 
-    Does not create per-player caricatures. Uses each player's existing face photo
-    on the site as a likeness reference. Signature looks are exaggerated in-prompt.
+    Does not create per-player caricatures. Prefers each player's saved AI character
+    sheet when one exists; otherwise uses their face photo. Signature looks are
+    exaggerated in-prompt when using a face photo.
 
     existing_solo_images / reuse_existing_solos / custom_solo_prompts are ignored
     (kept for call-site compatibility).
@@ -2711,16 +2742,110 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
     return {'name': name, 'url': solo_url, 'path': solo_path, 'prompt': solo_prompt}
 
 
+PLAYER_CHARACTER_SHEET_STYLE = (
+    'HOUSE STYLE: Beach stats character sheet. '
+    'Bold, highly exaggerated illustrated caricature — not photoreal. '
+    'Full body standing, feet visible, three-quarter view. '
+    'Plain warm off-white studio background. No scenery, no extra people. '
+    'No text, no name labels, no stats, no captions, no watermarks.'
+)
+
+
+def build_player_character_sheet_prompt(player_name):
+    """Prompt for a reusable full-body character sheet (always the same house style)."""
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+        player_display_name,
+    )
+
+    name = (player_name or '').strip()
+    display = player_display_name(name) or name
+    trait_entries = collect_player_ai_image_traits([name]) if name else []
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    entry = collect_solo_reference_images(name) if name else None
+    has_picture = bool((entry or {}).get('parts'))
+    line = _player_clean_prompt_line(
+        (display or name or '').strip(),
+        trait_phrases,
+        full_name=name,
+        has_picture=has_picture,
+    )
+    return f"""Create a full-body character sheet of exactly ONE person.
+
+{PLAYER_CHARACTER_SHEET_STYLE}
+
+{line}
+
+Use the attached face photo for likeness when provided. {_signature_look_visual_instructions()}
+Vertical 3:4."""
+
+
+def generate_player_character_sheet(api_key, player_name):
+    """Generate a full-body AI character sheet and save it on the player.
+
+    Uses the face photo and/or signature looks. Does not use a previously saved
+    AI sheet as a reference, so Remake starts from the real photo and looks.
+    """
+    from player_functions import (
+        collect_player_ai_image_traits,
+        collect_solo_reference_images,
+        get_player_by_name,
+        save_player_ai_image_bytes,
+    )
+
+    name = (player_name or '').strip()
+    if not name:
+        raise ValueError('Player name is required.')
+
+    player = get_player_by_name(name)
+    if not player or not player[0]:
+        raise ValueError(f'Could not find player record for {name}.')
+    player_id = player[0]
+
+    entry = collect_solo_reference_images(name)
+    reference_parts = _solo_reference_parts_for_player(name, entry)
+    has_reference_photos = any(part.get('inline_data') for part in reference_parts)
+    trait_entries = collect_player_ai_image_traits([name])
+    trait_phrases = trait_entries[0].get('phrases', []) if trait_entries else []
+    if not _player_can_illustrate(has_reference_photos, trait_phrases):
+        raise ValueError(
+            f'{name} has no face photo or signature looks — cannot create an AI character.'
+        )
+
+    prompt = build_player_character_sheet_prompt(name)
+    try:
+        raw, mime = _generate_image_bytes(
+            prompt, api_key, reference_parts=reference_parts, aspect_ratio='3:4',
+        )
+    except Exception as e:
+        raise ImageGenerationError(
+            _friendly_image_error(e, api_calls=1),
+            image_prompt=_image_prompt_bundle(reference_parts, prompt),
+            solo_images=[],
+        ) from e
+
+    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=3, ratio_h=4)
+    rel_path = save_player_ai_image_bytes(player_id, raw, _mime_to_ext(mime))
+    return {
+        'name': name,
+        'rel_path': rel_path,
+        'prompt': prompt,
+    }
+
+
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
     selected_players=None, player_stats=None,
 ):
-    """Generate one group hero image from uploaded face photos (single API call).
+    """Generate one group hero image from saved AI characters and/or face photos.
 
-    Does not create per-player caricatures. Uses each player's existing face photo
-    on the site as a likeness reference. Signature looks are exaggerated in-prompt.
-    Image labels use nickname (or first name) plus session stats when available.
+    Does not create per-player caricatures. Prefers each player's saved AI
+    character sheet when one exists; otherwise uses their face photo on the site
+    as a likeness reference. Signature looks are exaggerated in-prompt when
+    using a face photo. Image labels use nickname (or first name) plus session
+    stats when available.
 
     existing_solo_images / reuse_existing_solos are ignored (kept for call-site
     compatibility).

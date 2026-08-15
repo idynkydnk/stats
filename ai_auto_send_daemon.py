@@ -107,7 +107,7 @@ def _preload_stats():
     """Import stats once at boot so job claims don't hang on a silent first import."""
     _log('Loading stats module…')
     try:
-        from stats import run_ai_auto_send_job, run_flyer_job  # noqa: F401
+        from stats import run_ai_auto_send_job, run_flyer_job, run_player_ai_image_job  # noqa: F401
     except Exception:
         _log(f'FATAL import stats:\n{traceback.format_exc()}')
         raise
@@ -115,7 +115,7 @@ def _preload_stats():
 
 
 def _process_job(job):
-    from stats import run_ai_auto_send_job, run_flyer_job
+    from stats import run_ai_auto_send_job, run_flyer_job, run_player_ai_image_job
 
     job_type = (job.get('job_type') or 'recap').strip() or 'recap'
 
@@ -138,6 +138,29 @@ def _process_job(job):
                 emails_sent=0,
                 result_summary=summary,
                 share_id=share_id,
+            )
+            _log(f'job #{job["id"]} completed: {summary}')
+        else:
+            err = (result.get('error') or 'Unknown error')[:500]
+            jobs.complete_job(job['id'], False, error=err)
+            _log(f'job #{job["id"]} failed: {err}')
+        return
+
+    if job_type == 'player_ai_image':
+        payload = job.get('payload') or {}
+        player_name = (payload.get('player_name') or job.get('custom_prompt') or '').strip()
+        _log(
+            f'processing player AI image job #{job["id"]} user={job["username"]} '
+            f'player={player_name}'
+        )
+        result = run_player_ai_image_job(username=job['username'], player_name=player_name)
+        if result.get('success'):
+            url = result.get('ai_image_url') or ''
+            summary = url or 'Saved AI character'
+            jobs.complete_job(
+                job['id'], True,
+                emails_sent=0,
+                result_summary=summary,
             )
             _log(f'job #{job["id"]} completed: {summary}')
         else:

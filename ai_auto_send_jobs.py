@@ -135,6 +135,43 @@ def enqueue_flyer_job(username, payload):
     return job_id
 
 
+def enqueue_player_ai_image_job(username, player_name):
+    """Queue generation of a saved AI character sheet for one player."""
+    init_ai_auto_send_jobs_db()
+    name = (player_name or '').strip()
+    payload = json.dumps({'player_name': name}, default=str)
+    conn = _connect()
+    existing = conn.execute('''
+        SELECT id FROM ai_auto_send_jobs
+        WHERE COALESCE(job_type, '') = 'player_ai_image'
+          AND payload_json = ?
+          AND status IN ('pending', 'running')
+        ORDER BY id DESC
+        LIMIT 1
+    ''', (payload,)).fetchone()
+    if existing:
+        job_id = existing['id']
+        conn.close()
+        return job_id
+
+    cur = conn.execute('''
+        INSERT INTO ai_auto_send_jobs
+            (username, game_type, game_ids_json, prompt_style, custom_prompt,
+             image_mode, image_details, illustration_players_json, job_type,
+             payload_json, status)
+        VALUES (?, 'player', '[]', 'player_ai_image', ?, 'image', '', '[]',
+                'player_ai_image', ?, 'pending')
+    ''', (
+        username,
+        name,
+        payload,
+    ))
+    job_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return job_id
+
+
 def claim_next_pending_job():
     """Atomically take the oldest pending job for processing."""
     init_ai_auto_send_jobs_db()

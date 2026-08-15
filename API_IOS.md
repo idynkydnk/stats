@@ -39,7 +39,8 @@ Send `Authorization: Bearer <token>` on write endpoints. Session cookies still w
 - Vollis: `POST /api/vollis/games`, `PUT/DELETE /api/vollis/games/<id>`
 - Other: `POST /api/other/games`, `PUT/DELETE /api/other/games/<id>`
 - `GET/POST /api/tournaments`
-- Players: existing `/api/add_player`, `/api/rename_player`, `/api/update_player_info`, `/api/player_photo/<name>/`
+- Players: existing `/api/add_player`, `/api/rename_player`, `/api/update_player_info`, `/api/player_photo/<name>/`, `POST /api/player_ai_image/<name>/` (create/remake saved AI character; returns `job_id` or `ai_image_url`), `POST /api/player_ai_image_traits/<name>/` JSON `{phrases: [String]}` (signature look)
+- `GET /api/players` includes `photoUrl`, `aiImageUrl`, `aiImageTraits`
 - AI: `POST /api/ai/summary`, `GET /api/ai/recaps`, `GET /api/ai/jobs/<id>`, `POST /api/flyers`
 - Existing `/api/parse_voice_doubles`, `/api/generate_and_send_ai_summary/`
 

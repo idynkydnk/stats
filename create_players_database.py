@@ -95,7 +95,8 @@ def main():
                                     full_body_photo_paths TEXT,
                                     face_photo_focus TEXT,
                                     full_body_photo_crops TEXT,
-                                    nickname TEXT
+                                    nickname TEXT,
+                                    ai_image_path TEXT
                                 );"""
 
     # create a database connection

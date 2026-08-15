@@ -51,6 +51,8 @@ def init_players_photo_column():
         cur.execute('ALTER TABLE players ADD COLUMN full_body_photo_crops TEXT')
     if 'nickname' not in cols:
         cur.execute('ALTER TABLE players ADD COLUMN nickname TEXT')
+    if 'ai_image_path' not in cols:
+        cur.execute('ALTER TABLE players ADD COLUMN ai_image_path TEXT')
     conn.commit()
     conn.close()
     trim_all_players_full_body_photos()
@@ -668,6 +670,82 @@ def collect_player_ai_image_traits(player_names):
     return traits
 
 
+def get_player_ai_image_path(full_name):
+    """Return stored AI character-sheet path (e.g. player_photos/ai_3.png) or None."""
+    cur = set_cur()
+    cur.execute(
+        'SELECT ai_image_path FROM players WHERE full_name = ?',
+        (full_name,),
+    )
+    row = cur.fetchone()
+    return row[0] if row and row[0] else None
+
+
+def get_player_ai_image_path_by_id(player_id):
+    cur = set_cur()
+    cur.execute(
+        'SELECT ai_image_path FROM players WHERE id = ?',
+        (player_id,),
+    )
+    row = cur.fetchone()
+    return row[0] if row and row[0] else None
+
+
+def set_player_ai_image_path(player_id, ai_image_path):
+    """Update ai_image_path for a player."""
+    database = '/home/Idynkydnk/stats/stats.db'
+    conn = create_connection(database)
+    if conn is None:
+        database = r'stats.db'
+        conn = create_connection(database)
+    now = datetime.now()
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE players SET ai_image_path = ?, updated_at = ? WHERE id = ?',
+            (ai_image_path, now, player_id),
+        )
+        conn.commit()
+
+
+def save_player_ai_image_bytes(player_id, image_bytes, ext='png'):
+    """Save generated AI character-sheet bytes and attach them to the player."""
+    if not image_bytes:
+        raise ValueError('Empty AI image.')
+    ext = (ext or 'png').lower().lstrip('.')
+    if ext == 'jpeg':
+        ext = 'jpg'
+    if f'.{ext}' not in ALLOWED_PHOTO_EXTENSIONS:
+        ext = 'png'
+
+    dest_dir = player_photos_dir()
+    prefix = f'ai_{player_id}.'
+    for name in os.listdir(dest_dir):
+        if name.startswith(prefix):
+            try:
+                os.remove(os.path.join(dest_dir, name))
+            except OSError:
+                pass
+
+    data, stored_ext = _compress_image_bytes_under_limit(image_bytes, f'.{ext}')
+    if stored_ext == '.jpeg':
+        stored_ext = '.jpg'
+    filename = f'ai_{player_id}{stored_ext}'
+    abs_path = os.path.join(dest_dir, filename)
+    _write_photo_bytes(abs_path, data)
+    rel_path = f'player_photos/{filename}'
+    set_player_ai_image_path(player_id, rel_path)
+    return rel_path
+
+
+def remove_player_ai_image(player_id):
+    """Delete the saved AI character sheet and clear ai_image_path."""
+    rel_path = get_player_ai_image_path_by_id(player_id)
+    if rel_path:
+        _remove_stored_photo(rel_path)
+    set_player_ai_image_path(player_id, None)
+
+
 def set_player_photo_path(player_id, photo_path):
     """Update photo_path for a player."""
     database = '/home/Idynkydnk/stats/stats.db'
@@ -1006,15 +1084,43 @@ def remove_player_photo(player_id):
 
 
 def collect_solo_reference_images(name):
-    """Face reference for two-pass solo caricatures (signature looks come from traits)."""
+    """Face reference for creating a player's AI character sheet (not the saved sheet)."""
     refs = collect_player_reference_images([name], max_players=1)
     if refs:
         return refs[0]
-    return {'name': name, 'parts': []}
+    return {'name': name, 'parts': [], 'kind': None}
+
+
+def collect_illustration_reference_images(name):
+    """Prefer the saved AI character sheet; otherwise the cropped face photo."""
+    display_name = (name or '').strip()
+    entry = {'name': display_name, 'parts': [], 'kind': None}
+    if not display_name:
+        return entry
+
+    ai_path = get_player_ai_image_path(display_name)
+    raw, mime = read_player_image_file(ai_path) if ai_path else (None, None)
+    if raw:
+        entry['kind'] = 'ai_portrait'
+        entry['parts'].append({
+            'label': (
+                f'Illustrated character sheet for {display_name}. '
+                'Keep this exact character (face, body, costume).'
+            ),
+            'mime': mime,
+            'data_b64': base64.b64encode(raw).decode('ascii'),
+        })
+        return entry
+
+    refs = collect_player_reference_images([display_name], max_players=1)
+    if refs:
+        entry['parts'] = refs[0].get('parts') or []
+        entry['kind'] = 'face_photo' if entry['parts'] else None
+    return entry
 
 
 def collect_player_reference_images(player_names, max_players=4):
-    """Build Gemini face-reference image parts for AI email illustrations.
+    """Build face-reference image parts from uploaded photos (not saved AI sheets).
 
     Uses each player's saved face photo. Signature looks are attached separately via traits.
     """
@@ -1129,7 +1235,8 @@ def get_players_list_extras(names):
     cur.execute(
         f"""
         SELECT full_name, full_body_photo_paths, full_body_photo_path,
-               ai_image_traits, face_photo_focus, full_body_photo_crops
+               ai_image_traits, face_photo_focus, full_body_photo_crops,
+               ai_image_path
         FROM players
         WHERE full_name IN ({placeholders})
         """,
@@ -1138,13 +1245,14 @@ def get_players_list_extras(names):
 
     extras = {}
     for row in cur.fetchall():
-        name, paths_json, legacy_path, traits_raw, face_raw, crops_raw = row
+        name, paths_json, legacy_path, traits_raw, face_raw, crops_raw, ai_path = row
         x, y, z = _parse_face_photo_focus(face_raw)
         extras[name] = {
             'body_paths': _body_paths_from_row(paths_json, legacy_path),
             'body_crops': _parse_body_crops_json(crops_raw),
             'traits': normalize_player_ai_image_traits(traits_raw),
             'face_focus': {'x': x, 'y': y, 'z': z},
+            'ai_image_path': ai_path or None,
         }
 
     conn.close()
@@ -1359,6 +1467,10 @@ def remove_player(player_id):
         pass
     try:
         remove_player_full_body_photo(player_id)
+    except Exception:
+        pass
+    try:
+        remove_player_ai_image(player_id)
     except Exception:
         pass
     database = '/home/Idynkydnk/stats/stats.db'

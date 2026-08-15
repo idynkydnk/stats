@@ -3,11 +3,15 @@
     <div class="sr-photo-modal-backdrop" data-close-photo-modal></div>
     <div class="sr-photo-modal-dialog" role="dialog" aria-labelledby="player-photo-title">
         <h3 id="player-photo-title"><span id="player-photo-title-name">Player</span></h3>
-        <p class="sr-photo-modal-hint">Manage photos and details. Face photo and signature look are used for AI email illustrations.</p>
+        <p class="sr-photo-modal-hint">Edit this player’s details, photos, signature look, and saved AI character.</p>
 
         <section class="sr-photo-section">
             <h4>Player details</h4>
             <div class="sr-player-details-form">
+                <label class="sr-player-detail-field">
+                    <span>Name</span>
+                    <input type="text" id="player-detail-name" placeholder="Full name" autocomplete="off">
+                </label>
                 <label class="sr-player-detail-field">
                     <span>Nickname</span>
                     <input type="text" id="player-detail-nickname" placeholder="Shown on AI pictures (defaults to first name)" autocomplete="off">
@@ -68,6 +72,23 @@
                 </button>
             </div>
             <span class="sr-traits-saved" id="ai-image-traits-saved" hidden>Saved!</span>
+        </section>
+
+        <section class="sr-photo-section">
+            <h4>AI character</h4>
+            <p class="sr-traits-hint">Saved full-body character used in later recaps and flyers. Create one here; if a player doesn’t have one yet, group pictures still use their face photo.</p>
+            <div class="sr-ai-character-row">
+                <div class="sr-ai-character-preview-wrap">
+                    <img src="" alt="AI character" class="sr-ai-character-preview" id="modal-ai-image-preview" hidden>
+                    <div class="sr-ai-character-empty" id="modal-ai-image-empty">No AI character yet</div>
+                </div>
+                <div class="sr-ai-character-actions-col">
+                    <button type="button" class="sr-photo-action-btn" id="player-ai-image-btn">
+                        <i class="fas fa-magic"></i> <span id="player-ai-image-btn-label">Create AI character</span>
+                    </button>
+                    <p class="sr-ai-character-status" id="player-ai-image-status" hidden></p>
+                </div>
+            </div>
         </section>
 
         <div class="sr-photo-modal-footer">
@@ -257,7 +278,72 @@
     cursor: pointer;
     border: 1px solid var(--sr-line);
 }
-.sr-photo-action-btn input { display: none; }
+.sr-photo-action-btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+.sr-ai-character-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.sr-ai-character-preview-wrap { flex-shrink: 0; }
+.sr-ai-character-preview {
+    width: 120px;
+    height: 160px;
+    object-fit: cover;
+    object-position: top center;
+    border-radius: 10px;
+    border: 2px solid var(--sr-line);
+    background: var(--sr-bg);
+    display: block;
+}
+.sr-ai-character-preview[hidden] { display: none !important; }
+.sr-ai-character-empty {
+    width: 120px;
+    height: 160px;
+    border-radius: 10px;
+    border: 2px dashed var(--sr-line);
+    background: var(--sr-bg);
+    color: var(--sr-muted);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px;
+    box-sizing: border-box;
+}
+.sr-ai-character-empty[hidden] { display: none !important; }
+.sr-ai-character-actions-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sr-ai-character-status {
+    margin: 0;
+    font-size: 12px;
+    color: var(--sr-muted);
+    line-height: 1.4;
+    max-width: 220px;
+}
+.sr-ai-character-status[hidden] { display: none !important; }
+.sr-ai-character-status.is-error { color: #f85149; }
+.sr-roster-ai-thumb {
+    width: 36px;
+    height: 48px;
+    object-fit: cover;
+    object-position: top center;
+    border-radius: 6px;
+    border: 1px solid var(--sr-line);
+    flex-shrink: 0;
+}
+.sr-roster-ai-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
 .sr-photo-action-danger {
     background: rgba(248, 81, 73, 0.12);
     color: #f85149;
@@ -524,7 +610,16 @@ window.PlayerPhotoManager = (function() {
     var traitsInput = document.getElementById('ai-image-traits-input');
     var traitsAddBtn = document.getElementById('ai-image-traits-add');
     var traitsSaved = document.getElementById('ai-image-traits-saved');
+    var aiImagePreview = document.getElementById('modal-ai-image-preview');
+    var aiImageEmpty = document.getElementById('modal-ai-image-empty');
+    var aiImageBtn = document.getElementById('player-ai-image-btn');
+    var aiImageBtnLabel = document.getElementById('player-ai-image-btn-label');
+    var aiImageStatus = document.getElementById('player-ai-image-status');
+    var currentAiImageUrl = '';
+    var aiImagePollTimer = null;
+    var aiImageGenerating = false;
     var detailSaveCloseBtn = document.getElementById('player-detail-save-close');
+    var detailName = document.getElementById('player-detail-name');
     var detailNickname = document.getElementById('player-detail-nickname');
     var detailEmail = document.getElementById('player-detail-email');
     var detailBirthday = document.getElementById('player-detail-birthday');
@@ -1055,8 +1150,9 @@ window.PlayerPhotoManager = (function() {
         if (statusEl) {
             var rule = card.getAttribute('data-ready-rule') || 'photo-or-traits';
             var hasPhoto = !!profile.photoUrl;
+            var hasAi = !!profile.aiImageUrl;
             var hasTraits = Array.isArray(profile.aiImageTraits) && profile.aiImageTraits.length > 0;
-            var ready = rule === 'photo' ? hasPhoto : (hasPhoto || hasTraits);
+            var ready = rule === 'photo' ? (hasPhoto || hasAi) : (hasPhoto || hasTraits || hasAi);
             var readyLabel = statusEl.getAttribute('data-ready-label') || 'Ready for illustration';
             var missingLabel = statusEl.getAttribute('data-missing-label')
                 || (rule === 'photo'
@@ -1066,6 +1162,16 @@ window.PlayerPhotoManager = (function() {
             statusEl.innerHTML = ready
                 ? '<i class="fas fa-check-circle"></i> ' + readyLabel
                 : '<i class="fas fa-exclamation-circle"></i> ' + missingLabel;
+        }
+        var aiThumb = card.querySelector('[data-pl-ai-image]');
+        if (aiThumb) {
+            if (profile.aiImageUrl) {
+                aiThumb.hidden = false;
+                aiThumb.src = profile.aiImageUrl;
+            } else {
+                aiThumb.hidden = true;
+                aiThumb.removeAttribute('src');
+            }
         }
     }
 
@@ -1110,6 +1216,7 @@ window.PlayerPhotoManager = (function() {
         headerAvatarImg = cfg.headerAvatarImg || document.getElementById('player-avatar-img');
         headerAvatarFallback = cfg.headerAvatarFallback || document.getElementById('player-avatar-fallback');
         if (titleName) titleName.textContent = playerName || 'Player';
+        if (detailName) detailName.value = playerName || '';
         if (modalFaceEmpty) modalFaceEmpty.textContent = playerName ? playerName.charAt(0) : '?';
         if (detailNickname) detailNickname.value = cfg.nickname || '';
         if (detailEmail) detailEmail.value = cfg.email || '';
@@ -1120,6 +1227,7 @@ window.PlayerPhotoManager = (function() {
             ? { x: cfg.faceFocus.x, y: cfg.faceFocus.y, z: cfg.faceFocus.z != null ? cfg.faceFocus.z : 1 }
             : { x: 50, y: 50, z: 1 };
         setFacePreview(cfg.photoUrl || null, faceFocus);
+        setAiImagePreview(cfg.aiImageUrl || '');
         renderTraits();
     }
 
@@ -1129,21 +1237,48 @@ window.PlayerPhotoManager = (function() {
             if (opts.closeAfter) closeModal();
             return;
         }
+        var newName = detailName ? detailName.value.trim() : playerName;
         var nicknameVal = detailNickname ? detailNickname.value.trim() : '';
         if (detailSaveCloseBtn) detailSaveCloseBtn.disabled = true;
-        fetch('/api/update_player_info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                player_name: playerName,
-                nickname: nicknameVal,
-                email: detailEmail ? detailEmail.value.trim() : '',
-                birthday: detailBirthday ? detailBirthday.value : '',
-                height: detailHeight ? detailHeight.value.trim() : '',
-            }),
+
+        var renamePromise = Promise.resolve({ ok: true, data: { success: true } });
+        if (newName && newName !== playerName) {
+            renamePromise = fetch('/api/rename_player', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ old_name: playerName, new_name: newName }),
+            }).then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, status: r.status, data: data || {} };
+                }).catch(function() {
+                    return { ok: false, status: r.status, data: {} };
+                });
+            });
+        }
+
+        renamePromise.then(function(renamed) {
+            if (!renamed.ok || renamed.data.success === false) {
+                alert((renamed.data && renamed.data.error) || 'Could not rename player.');
+                return Promise.reject();
+            }
+            if (newName) playerName = newName;
+            if (titleName) titleName.textContent = playerName || 'Player';
+            return fetch('/api/update_player_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    player_name: playerName,
+                    nickname: nicknameVal,
+                    email: detailEmail ? detailEmail.value.trim() : '',
+                    birthday: detailBirthday ? detailBirthday.value : '',
+                    height: detailHeight ? detailHeight.value.trim() : '',
+                }),
+            });
         })
         .then(function(r) {
+            if (!r) return null;
             return r.json().then(function(data) {
                 return { ok: r.ok, status: r.status, data: data || {} };
             }).catch(function() {
@@ -1151,6 +1286,7 @@ window.PlayerPhotoManager = (function() {
             });
         })
         .then(function(res) {
+            if (!res) return;
             if (!res.ok || !res.data.success) {
                 alert((res.data && res.data.error) || ('Save failed (HTTP ' + res.status + ')'));
                 return;
@@ -1160,23 +1296,58 @@ window.PlayerPhotoManager = (function() {
             }
             updateListMeta();
             syncActiveCardProfile({
+                name: playerName,
                 nickname: detailNickname ? detailNickname.value.trim() : nicknameVal,
                 email: detailEmail ? detailEmail.value.trim() : '',
                 dateOfBirth: detailBirthday ? detailBirthday.value : '',
                 height: detailHeight ? detailHeight.value.trim() : '',
             });
             if (opts.closeAfter) closeModal();
+            if (newName && !activeListCard && window.location.pathname.indexOf(encodeURIComponent(newName)) === -1) {
+                window.location.reload();
+            }
         })
-        .catch(function() { alert('Save failed.'); })
+        .catch(function(err) {
+            if (err) alert('Save failed.');
+        })
         .finally(function() {
             if (detailSaveCloseBtn) detailSaveCloseBtn.disabled = false;
         });
     }
 
+    function bindEditTriggers(root) {
+        (root || document).querySelectorAll('[data-player-edit]').forEach(function(el) {
+            if (el.dataset.playerEditBound) return;
+            el.dataset.playerEditBound = '1';
+            el.addEventListener('click', openModal);
+        });
+    }
+
+    function addTitleEditButton() {
+        var info = document.querySelector('.sr-player-info');
+        if (!info || info.querySelector('[data-player-edit]')) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sr-link-btn sr-player-edit-btn';
+        btn.setAttribute('data-player-edit', '1');
+        btn.setAttribute('aria-label', 'Edit player');
+        btn.innerHTML = '<i class="fas fa-pen"></i> Edit';
+        var h1 = info.querySelector('h1');
+        if (h1) h1.insertAdjacentElement('afterend', btn);
+        else info.prepend(btn);
+        bindEditTriggers(info);
+    }
+
     function initPage(cfg) {
         loadPlayer(cfg);
-        var trigger = document.getElementById(cfg.triggerId || 'player-avatar-trigger');
-        if (trigger) trigger.addEventListener('click', openModal);
+        var triggerIds = cfg.triggerIds || [cfg.triggerId || 'player-avatar-trigger'];
+        triggerIds.forEach(function(id) {
+            if (!id) return;
+            var trigger = document.getElementById(id);
+            if (trigger) trigger.addEventListener('click', openModal);
+        });
+        addTitleEditButton();
+        bindEditTriggers();
         relayoutHeaderAvatar();
     }
 
@@ -1363,6 +1534,133 @@ window.PlayerPhotoManager = (function() {
         var focuses = data.photo_focuses || [];
         return paths.map(function(path, i) {
             return { path: path, url: urls[i] || '', focus: normalizeBodyFocus(focuses[i]) };
+        });
+    }
+
+    function setAiImagePreview(url) {
+        currentAiImageUrl = url || '';
+        if (aiImageBtnLabel) {
+            aiImageBtnLabel.textContent = currentAiImageUrl ? 'Remake AI character' : 'Create AI character';
+        }
+        if (currentAiImageUrl) {
+            if (aiImagePreview) {
+                aiImagePreview.hidden = false;
+                aiImagePreview.src = currentAiImageUrl;
+            }
+            if (aiImageEmpty) aiImageEmpty.hidden = true;
+        } else {
+            if (aiImagePreview) {
+                aiImagePreview.hidden = true;
+                aiImagePreview.removeAttribute('src');
+            }
+            if (aiImageEmpty) aiImageEmpty.hidden = false;
+        }
+    }
+
+    function setAiImageBusy(busy, message, isError) {
+        aiImageGenerating = !!busy;
+        if (aiImageBtn) aiImageBtn.disabled = !!busy;
+        document.dispatchEvent(new CustomEvent('player-ai-image-status', {
+            detail: { busy: !!busy, message: message || '', isError: !!isError, name: playerName },
+        }));
+        if (!aiImageStatus) return;
+        if (!message) {
+            aiImageStatus.hidden = true;
+            aiImageStatus.textContent = '';
+            aiImageStatus.classList.remove('is-error');
+            return;
+        }
+        aiImageStatus.hidden = false;
+        aiImageStatus.textContent = message;
+        aiImageStatus.classList.toggle('is-error', !!isError);
+    }
+
+    function applySavedAiImage(url) {
+        if (!url) return;
+        setAiImagePreview(url);
+        setAiImageBusy(false, 'Saved for this player.');
+        syncActiveCardProfile({ aiImageUrl: url });
+        document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
+            detail: { url: url, name: playerName },
+        }));
+    }
+
+    function pollAiImageJob(jobId, attempt) {
+        attempt = attempt || 0;
+        if (aiImagePollTimer) {
+            clearTimeout(aiImagePollTimer);
+            aiImagePollTimer = null;
+        }
+        fetch('/api/ai/jobs/' + jobId, { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(job) {
+            var status = ((job && job.status) || '').toLowerCase();
+            if (status === 'failed' || status === 'error') {
+                setAiImageBusy(false, (job && job.error) || 'Could not create AI character.', true);
+                return;
+            }
+            if (status === 'completed' || status === 'complete') {
+                var url = (job && job.ai_image_url) || (job && job.result_summary) || '';
+                if (url && (url.indexOf('/static/') !== -1 || url.indexOf('http') === 0)) {
+                    applySavedAiImage(url);
+                    return;
+                }
+                setAiImageBusy(false, 'Saved, but the image URL was missing. Refresh the page.', true);
+                return;
+            }
+            if (attempt >= 90) {
+                setAiImageBusy(false, 'Still generating. Close and check this player again in a minute.', true);
+                return;
+            }
+            setAiImageBusy(true, 'Creating AI character… this can take a minute.');
+            aiImagePollTimer = setTimeout(function() {
+                pollAiImageJob(jobId, attempt + 1);
+            }, 4000);
+        })
+        .catch(function() {
+            if (attempt >= 90) {
+                setAiImageBusy(false, 'Lost connection while generating.', true);
+                return;
+            }
+            aiImagePollTimer = setTimeout(function() {
+                pollAiImageJob(jobId, attempt + 1);
+            }, 4000);
+        });
+    }
+
+    function generatePlayerAiImage() {
+        if (!playerName || aiImageGenerating) return;
+        setAiImageBusy(true, 'Creating AI character… this can take a minute.');
+        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: '{}',
+        })
+        .then(function(r) {
+            return r.json().then(function(data) {
+                return { ok: r.ok, data: data || {} };
+            }).catch(function() {
+                return { ok: false, data: {} };
+            });
+        })
+        .then(function(res) {
+            if (!res.ok || res.data.success === false) {
+                setAiImageBusy(false, (res.data && res.data.error) || 'Could not create AI character.', true);
+                return;
+            }
+            if (res.data.ai_image_url) {
+                applySavedAiImage(res.data.ai_image_url);
+                return;
+            }
+            if (res.data.job_id) {
+                pollAiImageJob(res.data.job_id, 0);
+                return;
+            }
+            setAiImageBusy(false, 'Could not start AI character generation.', true);
+        })
+        .catch(function() {
+            setAiImageBusy(false, 'Could not create AI character.', true);
         });
     }
 
@@ -1783,6 +2081,7 @@ window.PlayerPhotoManager = (function() {
         });
     }
     if (traitsAddBtn) traitsAddBtn.addEventListener('click', addTrait);
+    if (aiImageBtn) aiImageBtn.addEventListener('click', generatePlayerAiImage);
     if (traitsInput) traitsInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -1805,6 +2104,7 @@ window.PlayerPhotoManager = (function() {
         initList: initList,
         loadPlayer: loadPlayer,
         open: openModal,
+        generateAiImage: generatePlayerAiImage,
         layoutListAvatars: layoutListAvatars,
     };
 })();

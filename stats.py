@@ -791,6 +791,46 @@ def run_flyer_job(username, payload):
             return {'success': False, 'error': str(e)[:300]}
 
 
+def run_player_ai_image_job(username, player_name):
+    """Generate a reusable AI character sheet and save it on the player."""
+    with app.app_context():
+        try:
+            from email_content import (
+                ImageGenerationError,
+                generate_player_character_sheet,
+                require_ai_api_key,
+            )
+
+            name = (player_name or '').strip()
+            if not name:
+                raise ValueError('Player name is required.')
+            api_key = require_ai_api_key()
+            result = generate_player_character_sheet(api_key, name)
+            rel_path = result.get('rel_path') or ''
+            image_url = _cache_busted_static_url(rel_path) if rel_path else None
+            clear_stats_cache()
+            log_activity(
+                'Saved AI character',
+                summary=f'Generated AI character sheet for {name}',
+                username=username,
+            )
+            return {
+                'success': True,
+                'ai_image_url': image_url,
+                'rel_path': rel_path,
+            }
+        except ImageGenerationError as e:
+            return {'success': False, 'error': str(e)[:300]}
+        except Exception as e:
+            app.logger.exception('Player AI character generation failed')
+            log_activity(
+                'AI character failed',
+                summary=f'{player_name}: {str(e)[:200]}',
+                username=username,
+            )
+            return {'success': False, 'error': str(e)[:300]}
+
+
 def _parse_flyer_form():
     """Parse Create Flyer form fields into a normalized payload dict."""
     players = [(name or '').strip() for name in request.form.getlist('players')]
@@ -1162,6 +1202,28 @@ def player_photo_url_for(name):
     return None
 
 
+def _cache_busted_static_url(rel_path):
+    """Static path with a file-mtime query so remakes refresh in the browser."""
+    if not rel_path:
+        return None
+    rel = str(rel_path).replace('\\', '/').lstrip('/')
+    try:
+        url = url_for('static', filename=rel)
+    except Exception:
+        url = f'/static/{rel}'
+    abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', rel)
+    try:
+        return f'{url}?v={int(os.path.getmtime(abs_path))}'
+    except OSError:
+        return url
+
+
+def player_ai_image_url_for(name):
+    """Static URL for a player's saved AI character sheet, or None."""
+    from player_functions import get_player_ai_image_path
+    return _cache_busted_static_url(get_player_ai_image_path(name))
+
+
 # Square face crop size for link previews (og:image); iMessage/WhatsApp
 # want at least ~200px, and this stays well under WhatsApp's 600KB cap.
 OG_FACE_IMAGE_SIZE = 600
@@ -1227,6 +1289,7 @@ def player_avatar_context(name):
     fields = player_profile_fields_for(name)
     return {
         'player_photo_url': player_photo_url_for(name),
+        'player_ai_image_url': player_ai_image_url_for(name),
         'player_ai_image_traits': player_ai_image_traits_for(name),
         'player_face_photo_focus': player_face_photo_focus_for(name),
         'player_email': fields['email'],
@@ -1272,6 +1335,7 @@ def build_player_list_cards(players):
             'games': int(player_row[12]) if len(player_row) > 12 and player_row[12] is not None else 0,
             'firstGame': player_row[11] if len(player_row) > 11 and player_row[11] else '',
             'photoUrl': url_for('static', filename=photo_path) if photo_path else None,
+            'aiImageUrl': _cache_busted_static_url(meta.get('ai_image_path')),
             'aiImageTraits': meta.get('traits', []),
             'faceFocus': face_focus,
         })
@@ -2098,13 +2162,19 @@ def api_ai_summary_job_status(job_id):
     if job.get('username') != session.get('username'):
         return jsonify({'success': False, 'error': 'Not allowed.'}), 403
     share_id = job.get('share_id') or ''
+    summary = (job.get('result_summary') or '').strip()
+    ai_image_url = ''
+    if (job.get('job_type') or '') == 'player_ai_image' and (job.get('status') or '') == 'completed':
+        if summary.startswith('/') or summary.startswith('http'):
+            ai_image_url = summary
     return jsonify({
         'success': True,
         'job_id': job_id,
         'status': job.get('status') or 'pending',
         'error': job.get('error') or '',
         'share_id': share_id,
-        'result_summary': job.get('result_summary') or '',
+        'result_summary': summary,
+        'ai_image_url': ai_image_url,
         'recap_url': (
             url_for('view_ai_recap', share_id=share_id, published=1)
             if share_id else ''
@@ -5058,7 +5128,7 @@ def edit_player(player_id):
                 return render_template(
                     'edit_player.html',
                     player=get_player_by_id(player_id),
-                    player_photo_url=player_photo_url_for(player[1]),
+                    **player_avatar_context(full_name),
                 )
 
             user = session.get('username', 'unknown')
@@ -5075,7 +5145,7 @@ def edit_player(player_id):
     return render_template(
         'edit_player.html',
         player=player,
-        player_photo_url=player_photo_url_for(player[1]),
+        **player_avatar_context(player[1]),
     )
 
 
@@ -5185,6 +5255,61 @@ def api_save_player_ai_image_traits(name):
     except Exception as e:
         app.logger.exception('Player AI image traits save failed')
         return jsonify({'success': False, 'error': f'Save failed: {e}'}), 500
+
+
+@app.route('/api/player_ai_image/<path:name>/', methods=['POST'])
+@api_login_required
+def api_generate_player_ai_image(name):
+    """Create or remake the saved AI character sheet for a player."""
+    from email_content import ImageGenerationError, ai_api_key_error_message
+
+    name = name.strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    player = _ensure_player_record(name)
+    if not player or not player[0]:
+        return jsonify({'success': False, 'error': 'Could not find or create player record.'}), 400
+
+    from player_functions import get_player_ai_image_traits, get_player_photo_path
+    if not get_player_photo_path(name) and not get_player_ai_image_traits(name):
+        return jsonify({
+            'success': False,
+            'error': 'Add a face photo or signature look before creating an AI character.',
+        }), 400
+
+    username = session.get('username', 'unknown')
+    worker_alive = ai_jobs.daemon_is_alive()
+    if worker_alive:
+        job_id = ai_jobs.enqueue_player_ai_image_job(username, name)
+        log_activity(
+            'Queued AI character',
+            summary=f'job #{job_id}: AI character for {name}',
+            username=username,
+        )
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'worker_alive': True,
+        })
+
+    try:
+        result = run_player_ai_image_job(username, name)
+    except ImageGenerationError as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    except Exception as e:
+        app.logger.exception('Player AI character generation failed')
+        return jsonify({'success': False, 'error': str(e)[:300]}), 500
+
+    if not result.get('success'):
+        err = result.get('error') or ai_api_key_error_message()
+        return jsonify({'success': False, 'error': err}), 500
+    return jsonify({
+        'success': True,
+        'ai_image_url': result.get('ai_image_url'),
+        'worker_alive': False,
+    })
+
 
 @app.route('/benchmarks')
 def benchmarks():

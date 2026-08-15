@@ -5,7 +5,7 @@
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
     {% if session.logged_in %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
-            title="Manage player photos" aria-label="Manage player photos">
+            title="Edit player" aria-label="Edit player">
         {% if player_photo_url %}
         <div class="sr-avatar-crop-frame" id="player-avatar-frame">
             <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img">
@@ -13,6 +13,9 @@
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
+    </button>
+    <button type="button" class="sr-link-btn sr-player-edit-btn" id="player-edit-trigger">
+        <i class="fas fa-pen"></i> Edit
     </button>
     {% elif player_photo_url %}
     <img src="{{ url_for('player_face_thumb', name=display_name) }}" alt="{{ display_name }}"
@@ -30,6 +33,18 @@
     outline: 2px solid var(--sr-accent);
     outline-offset: 2px;
 }
+.sr-player-edit-btn {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 12px;
+}
+.sr-player-info .sr-player-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 6px;
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -41,9 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
         dateOfBirth: {{ (player_date_of_birth if player_date_of_birth is defined else '')|tojson }},
         height: {{ (player_height if player_height is defined else '')|tojson }},
         photoUrl: {{ (player_photo_url or '')|tojson }},
+        aiImageUrl: {{ (player_ai_image_url or '')|tojson }},
         aiImageTraits: {{ player_ai_image_traits|tojson }},
         faceFocus: {{ player_face_photo_focus|tojson }},
-        triggerId: 'player-avatar-trigger',
+        triggerIds: ['player-avatar-trigger', 'player-edit-trigger'],
     });
 });
 </script>

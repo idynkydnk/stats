@@ -130,6 +130,24 @@
     gap: 6px;
     min-height: 28px;
 }
+.sr-roster-ai-row {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+}
+.sr-roster-ai-row > .sr-roster-traits {
+    flex: 1;
+    min-width: 0;
+}
+.sr-roster-ai-thumb {
+    width: 36px;
+    height: 48px;
+    object-fit: cover;
+    object-position: top center;
+    border-radius: 6px;
+    border: 1px solid var(--sr-line);
+    flex-shrink: 0;
+}
 .sr-roster-trait {
     display: inline-block;
     max-width: 100%;
@@ -217,13 +235,13 @@
 
     <h2 class="sr-card-title">Review player pictures &amp; signature looks</h2>
     <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 4px;">
-        Tap a player to edit their face photo and signature look. Flyers need a face photo to include someone — signature looks make them more recognizable.
+        Tap a player to edit their face photo, signature look, and AI character. Flyers use a saved AI character when one exists; otherwise they need a face photo.
     </p>
 
     {% if player_cards %}
     <div class="sr-roster-grid" id="roster-grid">
         {% for card in player_cards %}
-        {% set ready = card.photoUrl %}
+        {% set ready = card.photoUrl or card.aiImageUrl %}
         <div class="sr-roster-card pl-card" data-player-profile='{{ card | tojson }}'
              data-ready-rule="photo">
             <div class="sr-roster-top">
@@ -246,16 +264,22 @@
                     <div class="sr-roster-status {% if ready %}ready{% else %}missing{% endif %}"
                          data-pl-ready
                          data-ready-label="Ready for flyer"
-                         data-missing-label="Needs face photo">
+                         data-missing-label="Needs face photo or AI character">
                         {% if ready %}
                         <i class="fas fa-check-circle"></i> Ready for flyer
                         {% else %}
-                        <i class="fas fa-exclamation-circle"></i> Needs face photo
+                        <i class="fas fa-exclamation-circle"></i> Needs face photo or AI character
                         {% endif %}
                     </div>
                 </button>
             </div>
-            <div class="sr-roster-traits" data-pl-traits>
+            <div class="sr-roster-traits sr-roster-ai-row" data-pl-traits-row>
+                {% if card.aiImageUrl %}
+                <img class="sr-roster-ai-thumb" data-pl-ai-image src="{{ card.aiImageUrl }}" alt="">
+                {% else %}
+                <img class="sr-roster-ai-thumb" data-pl-ai-image alt="" hidden>
+                {% endif %}
+                <div class="sr-roster-traits" data-pl-traits>
                 {% if card.aiImageTraits %}
                     {% for phrase in card.aiImageTraits %}
                     <span class="sr-roster-trait">{{ phrase }}</span>
@@ -263,6 +287,7 @@
                 {% else %}
                     <span class="sr-roster-trait-empty">No signature look yet</span>
                 {% endif %}
+                </div>
             </div>
         </div>
         {% endfor %}

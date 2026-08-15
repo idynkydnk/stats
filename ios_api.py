@@ -879,6 +879,8 @@ def register_ios_api(app):
         for card in cards:
             if card.get('photoUrl'):
                 card['photoUrl'] = _abs(card['photoUrl'])
+            if card.get('aiImageUrl'):
+                card['aiImageUrl'] = _abs(card['aiImageUrl'])
         return jsonify({'players': cards})
 
     @app.route('/api/tournaments', methods=['GET'])
@@ -1039,9 +1041,25 @@ def register_ios_api(app):
                 job = None
         if not job:
             return jsonify({'error': 'Job not found'}), 404
-        if isinstance(job, dict):
-            return jsonify(job)
-        return jsonify(dict(job))
+        if not isinstance(job, dict):
+            job = dict(job)
+        payload = {}
+        raw_payload = job.get('payload_json')
+        if isinstance(raw_payload, str) and raw_payload.strip():
+            try:
+                parsed = json.loads(raw_payload)
+                if isinstance(parsed, dict):
+                    payload = parsed
+            except (json.JSONDecodeError, TypeError):
+                payload = {}
+        ai_image_url = None
+        if (job.get('job_type') or '') == 'player_ai_image' and (job.get('status') or '') == 'completed':
+            summary = (job.get('result_summary') or '').strip()
+            if summary.startswith('/') or summary.startswith('http'):
+                ai_image_url = _abs(summary) if summary.startswith('/') else summary
+        job['ai_image_url'] = ai_image_url
+        job['player_name'] = payload.get('player_name') or job.get('custom_prompt') or ''
+        return jsonify(job)
 
     # ----- Admin -----
 
