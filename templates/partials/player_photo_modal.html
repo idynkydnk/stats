@@ -76,7 +76,7 @@
 
         <section class="sr-photo-section">
             <h4>AI character</h4>
-            <p class="sr-traits-hint">Saved full-body character used in later recaps and flyers. Create one here; if a player doesn’t have one yet, group pictures still use their face photo.</p>
+            <p class="sr-traits-hint">A blank full-body person with this face and signature looks. Recaps and flyers add the sport and extra props. Takes about a minute — you can leave this page after you tap Create. Come back to this player to see it. If they don’t have a character yet, group pictures still use their face photo.</p>
             <div class="sr-ai-character-row">
                 <div class="sr-ai-character-preview-wrap">
                     <img src="" alt="AI character" class="sr-ai-character-preview" id="modal-ai-image-preview" hidden>
@@ -1612,7 +1612,7 @@ window.PlayerPhotoManager = (function() {
                 setAiImageBusy(false, 'Still generating. Close and check this player again in a minute.', true);
                 return;
             }
-            setAiImageBusy(true, 'Creating AI character… this can take a minute.');
+            setAiImageBusy(true, 'Working in the background. You can leave this page and check this player again in a minute.');
             aiImagePollTimer = setTimeout(function() {
                 pollAiImageJob(jobId, attempt + 1);
             }, 4000);
@@ -1630,7 +1630,7 @@ window.PlayerPhotoManager = (function() {
 
     function generatePlayerAiImage() {
         if (!playerName || aiImageGenerating) return;
-        setAiImageBusy(true, 'Creating AI character… this can take a minute.');
+        setAiImageBusy(true, 'Starting… you can leave once this says it’s working in the background.');
         fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1654,6 +1654,7 @@ window.PlayerPhotoManager = (function() {
                 return;
             }
             if (res.data.job_id) {
+                setAiImageBusy(true, 'Working in the background. You can leave this page and check this player again in a minute.');
                 pollAiImageJob(res.data.job_id, 0);
                 return;
             }

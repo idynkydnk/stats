@@ -767,7 +767,7 @@ def _scene_setting_line(game_type, game_name=None):
         sport = 'coed beach volleyball' if name.lower() == 'coed' else name
     else:
         sport = 'the game'
-    return f'all players playing {sport}'
+    return f'all players playing {sport}. Character sheets are blank likenesses — add sport gear, action, and scenery here.'
 
 
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
@@ -1154,9 +1154,11 @@ def _reference_parts_from_uploaded_photos(
     parts = [{
         'text': (
             'Players below. Each reference image is followed by that person\'s line. '
-            'If the reference is an illustrated character sheet, keep that SAME character '
-            '(face, body, costume) — do not invent a new design. '
-            'If it is a face photo, match likeness. '
+            'If the reference is an illustrated character sheet, it is a BLANK likeness '
+            'plus signature looks only. Keep that SAME person (face, body, signature looks) '
+            'and PUT THEM IN THE SCENE: playing the sport, with balls, court, outfits, '
+            'and other scene props added here. Do not copy the empty studio pose. '
+            'If it is a face photo, match likeness and invent the full body for the scene. '
             "Then: 'name stats' illustrate signature looks(no text). ..."
         ),
     }]
@@ -1180,7 +1182,8 @@ def _reference_parts_from_uploaded_photos(
                 parts.append({
                     'text': (
                         f'Illustrated character sheet for {name}. '
-                        'Redraw this exact character in the scene.'
+                        'This is a blank likeness plus signature looks. '
+                        'Keep this person and place them in the scene playing; add sport props here.'
                     ),
                 })
             else:
@@ -2752,10 +2755,14 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 
 
 PLAYER_CHARACTER_SHEET_STYLE = (
-    'HOUSE STYLE: Beach stats character sheet. '
+    'HOUSE STYLE: Blank full-body character sheet. '
     'Bold, highly exaggerated illustrated caricature — not photoreal. '
+    'Exactly this one person: match the face, apply signature looks, nothing else. '
+    'Plain neutral clothes unless a signature look names an outfit. '
+    'Empty hands. No sport, no ball, no surfboard, no scenery, no extra gear, '
+    'no extra people. Scene props belong in later group pictures, not here. '
+    'Plain warm off-white studio background. '
     'Full body standing, feet visible, three-quarter view. '
-    'Plain warm off-white studio background. No scenery, no extra people. '
     'No text, no name labels, no stats, no captions, no watermarks.'
 )
 
@@ -2780,13 +2787,14 @@ def build_player_character_sheet_prompt(player_name):
         full_name=name,
         has_picture=has_picture,
     )
-    return f"""Create a full-body character sheet of exactly ONE person.
+    return f"""Create a blank full-body character sheet of exactly ONE person.
 
 {PLAYER_CHARACTER_SHEET_STYLE}
 
 {line}
 
 Use the attached face photo for likeness when provided. {_signature_look_visual_instructions()}
+Do not add volleyball, surfing, or any activity. This sheet is only the person.
 Vertical 3:4."""
 
 

@@ -1112,7 +1112,7 @@ def collect_illustration_reference_images(name):
         entry['parts'].append({
             'label': (
                 f'Illustrated character sheet for {display_name}. '
-                'Keep this exact character (face, body, costume).'
+                'Blank likeness plus signature looks. Keep this person; add scene props in the group picture.'
             ),
             'mime': mime,
             'data_b64': base64.b64encode(raw).decode('ascii'),
