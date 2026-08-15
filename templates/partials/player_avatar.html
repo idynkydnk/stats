@@ -14,9 +14,6 @@
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>
         {% endif %}
     </button>
-    <button type="button" class="sr-link-btn sr-player-edit-btn" id="player-edit-trigger">
-        <i class="fas fa-pen"></i> Edit
-    </button>
     {% elif player_photo_url %}
     <img src="{{ url_for('player_face_thumb', name=display_name) }}" alt="{{ display_name }}"
          class="sr-player-avatar sr-player-photo" id="player-avatar-img"
@@ -33,8 +30,16 @@
     outline: 2px solid var(--sr-accent);
     outline-offset: 2px;
 }
+.sr-player-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.sr-player-title-row h1 {
+    margin: 0;
+}
 .sr-player-edit-btn {
-    margin-top: 4px;
     font-size: 13px;
     font-weight: 600;
     padding: 5px 12px;
@@ -43,7 +48,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin: 4px 0 6px;
+    margin: 0;
+    flex-shrink: 0;
 }
 </style>
 <script>
@@ -59,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         aiImageUrl: {{ (player_ai_image_url or '')|tojson }},
         aiImageTraits: {{ player_ai_image_traits|tojson }},
         faceFocus: {{ player_face_photo_focus|tojson }},
-        triggerIds: ['player-avatar-trigger', 'player-edit-trigger'],
+        triggerIds: ['player-avatar-trigger'],
     });
 });
 </script>

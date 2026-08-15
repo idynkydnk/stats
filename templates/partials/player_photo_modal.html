@@ -1333,8 +1333,15 @@ window.PlayerPhotoManager = (function() {
         btn.setAttribute('aria-label', 'Edit player');
         btn.innerHTML = '<i class="fas fa-pen"></i> Edit';
         var h1 = info.querySelector('h1');
-        if (h1) h1.insertAdjacentElement('afterend', btn);
-        else info.prepend(btn);
+        if (h1) {
+            var row = document.createElement('div');
+            row.className = 'sr-player-title-row';
+            h1.parentNode.insertBefore(row, h1);
+            row.appendChild(h1);
+            row.appendChild(btn);
+        } else {
+            info.prepend(btn);
+        }
         bindEditTriggers(info);
     }
 
