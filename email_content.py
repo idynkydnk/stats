@@ -592,17 +592,17 @@ def _dedupe_players_preserve_order(player_names):
 
 
 def resolve_illustration_players(player_names, selected_players=None):
-    """Return the full roster for illustrations.
+    """Return players who can appear in a group illustration.
 
-    Players without a face photo or signature looks are skipped later during
-    generation. selected_players is ignored; kept for call-site compatibility.
+    selected_players is ignored; kept for call-site compatibility.
     """
-    return _ordered_email_image_players(player_names)
+    return filter_illustratable_players(player_names)
 
 
 def _illustration_players(player_names, game_type, games, selected_players=None):
-    """Choose roster for illustration. One group image from uploaded face photos."""
-    all_players = _ordered_email_image_players(player_names)
+    """Choose roster for illustration. Skip anyone with no likeness to draw."""
+    _ = (game_type, games, selected_players)
+    all_players = filter_illustratable_players(player_names)
     if not all_players:
         return [], 'single', all_players
     return list(all_players), 'single', all_players
@@ -627,6 +627,30 @@ def _solo_reference_parts_for_player(name, entry):
 def _player_can_illustrate(has_reference_photos, trait_phrases):
     """Only illustrate players who have a face photo and/or signature looks."""
     return bool(has_reference_photos) or bool(trait_phrases)
+
+
+def _player_has_illustration_likeness(name):
+    """True if they have an AI character, face photo, or signature looks."""
+    from player_functions import (
+        get_player_ai_image_path,
+        get_player_ai_image_traits,
+        get_player_photo_path,
+    )
+
+    name = (name or '').strip()
+    if not name:
+        return False
+    if get_player_ai_image_path(name) or get_player_photo_path(name):
+        return True
+    return bool(get_player_ai_image_traits(name))
+
+
+def filter_illustratable_players(player_names):
+    """Keep only players who can appear in a group AI photo."""
+    return [
+        name for name in _dedupe_players_preserve_order(player_names)
+        if _player_has_illustration_likeness(name)
+    ]
 
 
 def _signature_look_visual_instructions(plural=False):
@@ -746,7 +770,7 @@ def _clean_player_lines_block(
     """Newline-separated person lines for prompts."""
     from player_functions import player_display_names_map
 
-    players = _dedupe_players_preserve_order(players)
+    players = filter_illustratable_players(players)
     labels_by_name = labels_by_name or {}
     if not labels_by_name and players:
         labels_by_name = {
@@ -791,6 +815,8 @@ def _group_identity_rules(player_count):
         f'Keep identities accurate: exactly {who}. '
         'Do not swap or blend faces. Do not mix bodies, hair, or signature looks '
         'between people. No extra people, no missing people, no twins. '
+        'Only draw people who have a face photo, AI character, or signature look. '
+        'Omit anyone else even if their name appears. '
         'Each name/stats label sits on the person it names. '
         'If a labeled identity sheet is attached, copy each person from the cell '
         'with their name — never swap cells — and do not copy that sheet layout.'
@@ -834,7 +860,9 @@ def _group_identity_lock_text(player_count, map_lines, has_identity_sheet=False)
     lines = [
         f'IDENTITY LOCK — exactly {who}.',
         'Do not swap faces or bodies. Do not blend two people into one. '
-        'Do not duplicate anyone. Do not add extra people. Do not drop anyone.',
+        'Do not duplicate anyone. Do not add extra people. Do not drop anyone '
+        'from this lock. Only draw people with a face photo, AI character, or '
+        'signature look. Omit anyone else even if their name appears.',
         'Each name/stats label must sit on the person it names.',
     ]
     if has_identity_sheet:
@@ -3146,7 +3174,9 @@ def _mime_to_ext(mime):
 
 
 def _illustration_meta(player_names, game_type, games, selected_players=None):
-    all_players = _ordered_email_image_players(player_names)
+    all_players = filter_illustratable_players(
+        selected_players if selected_players else player_names
+    )
     api_calls = 1 if all_players else 0
     return {
         'strategy': 'single',
@@ -3390,9 +3420,12 @@ def generate_email_hero_image(
     """
     _ = (games, existing_solo_images, reuse_existing_solos, selected_players)
 
-    all_players = _ordered_email_image_players(player_names)
+    all_players = filter_illustratable_players(player_names)
     if not all_players:
-        raise ValueError('No players in roster for illustration')
+        raise ValueError(
+            'No selected players have an AI character, face photo, or signature looks. '
+            'Add those on the Players page, then try again.'
+        )
 
     if player_stats is None and games:
         player_stats = session_stats_for_illustration(game_type, games)
