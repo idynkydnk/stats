@@ -3516,6 +3516,16 @@ def recap_html_for_page(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
     for el in soup.select('.opt-in-section'):
         el.decompose()
+    # Title + illustration sit outside the padded column so the picture can
+    # span the page without a 100vw breakout (desktop scrollbars clip that).
+    container = soup.select_one('.container')
+    if container:
+        heading = container.find('h1')
+        if heading:
+            container.insert_before(heading.extract())
+        hero = container.select_one('.hero-image-card')
+        if hero:
+            container.insert_before(hero.extract())
     cleaned = str(soup)
     return _email_html_for_embedded_display(cleaned, wrapper_class='recap-body')
 
