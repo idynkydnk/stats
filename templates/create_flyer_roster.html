@@ -342,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     var form = document.getElementById('flyer-generate-form');
     var submitBtn = document.getElementById('flyer-submit');
+    var workerAlive = {{ worker_alive|default(false)|tojson }};
     if (!form) return;
     form.addEventListener('submit', function(event) {
         if (event.submitter && event.submitter.id === 'flyer-back-btn') return;
@@ -351,7 +352,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.showAiGenerateLoading) {
             window.showAiGenerateLoading({
                 title: 'Creating your flyer…',
-                detail: 'Building the group flyer from uploaded player photos. Stay on this page until it finishes. Leaving will cancel generation.',
+                detail: workerAlive
+                    ? 'About 5 minutes. This keeps running in the background — you can leave this page.'
+                    : 'Building the group flyer from uploaded player photos. Stay on this page until it finishes. Leaving will cancel generation.',
                 illustration: true,
             });
         }

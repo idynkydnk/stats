@@ -244,7 +244,7 @@
                 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses each player's saved AI character when they have one; otherwise face photos and/or signature looks. Players with none of those are skipped. Illustration can take about 5 minutes — stay on this page until it finishes.</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses each player's saved AI character when they have one; otherwise face photos and/or signature looks. Players with none of those are skipped.{% if worker_alive %} Illustration can take about 5 minutes — you can leave after you tap generate; it keeps running in the background.{% else %} Illustration can take about 5 minutes — stay on this page until it finishes.{% endif %}</p>
                     <div class="sr-illustration-details">
                         <label for="image-details-text">Extra illustration details (optional)</label>
                         <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
@@ -257,7 +257,7 @@
                         </button>
                         <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" disabled onclick="setImageMode('image')">
                             <strong><i class="fas fa-image"></i> With illustration</strong>
-                            <span>About 5 minutes — stay on page</span>
+                            <span>{% if worker_alive %}About 5 minutes — you can leave{% else %}About 5 minutes — stay on page{% endif %}</span>
                         </button>
                     </div>
                 </div>
@@ -281,7 +281,17 @@
 <script>
 let selectedPrompt = null;
 
-        var loadingCopy = {
+        var workerAlive = {{ worker_alive|default(false)|tojson }};
+        var loadingCopy = workerAlive ? {
+            none: {
+                title: 'Writing your recap...',
+                detail: 'This keeps running in the background — you can leave this page. Come back here or check Recaps when it’s done.'
+            },
+            image: {
+                title: 'Generating your illustration...',
+                detail: 'About 5 minutes. This keeps running in the background — you can leave this page. Come back here or check Recaps when it’s done.'
+            }
+        } : {
             none: {
                 title: 'Writing your recap...',
                 detail: 'Stay on this page until it finishes — leaving will cancel generation.'

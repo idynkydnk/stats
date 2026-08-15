@@ -83,7 +83,7 @@
         var detail = document.getElementById('ai-loading-detail');
         if (title) title.textContent = opts.title || 'Generating…';
         if (detail) {
-            detail.textContent = opts.detail || 'Stay on this page until it finishes. Leaving will cancel generation.';
+            detail.textContent = opts.detail || 'This can take a few minutes.';
         }
         loading.classList.toggle('sr-generate-loading-illustration', !!opts.illustration);
         loading.classList.add('show');

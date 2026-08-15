@@ -2014,6 +2014,7 @@ def select_ai_style():
         'select_prompt.html',
         game_ids=selected_game_ids,
         game_type=game_type,
+        worker_alive=ai_jobs.daemon_is_alive(),
     )
 
 
@@ -2034,6 +2035,7 @@ def _render_select_ai_prompt(
         selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
+        worker_alive=ai_jobs.daemon_is_alive(),
     )
 
 
@@ -2294,6 +2296,7 @@ def create_flyer_roster():
         'create_flyer_roster.html',
         player_cards=build_ai_recap_roster_cards(payload['players']),
         flyer=payload,
+        worker_alive=ai_jobs.daemon_is_alive(),
     )
 
 
