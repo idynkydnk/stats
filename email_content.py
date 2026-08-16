@@ -616,7 +616,7 @@ def _solo_reference_parts_for_player(name, entry):
     if not entry or not entry.get('parts'):
         return [{
             'text': (
-                'no face photo. Invent one unique stylized character '
+                'no face photo. Invent one unique realistic person '
                 'from the signature looks in the prompt below.'
             ),
         }]
@@ -3304,6 +3304,7 @@ def generate_flyer_solo_caricature(api_key, player_name, custom_prompt=None):
 
 
 PLAYER_CHARACTER_SHEET_STYLE = (
+    'Realistic photo, not a cartoon or caricature. '
     'Exactly one person. Match the attached face. '
     'Full body, feet visible, so signature looks can show. '
     'Simple background except for objects the looks need. '
@@ -3338,8 +3339,8 @@ def build_player_character_sheet_prompt(player_name):
     if looks:
         bullets = '\n'.join(f'- {look}' for look in looks)
         sections.append(
-            'Include every signature look in the picture, highly exaggerated — '
-            'as clothes, body, props, or pose, never as written text:\n'
+            'Include every signature look in the picture as clothes, body, props, '
+            'or pose, never as written text:\n'
             f'{bullets}'
         )
     if has_picture:
