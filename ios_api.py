@@ -959,36 +959,36 @@ def register_ios_api(app):
     @api_login_required
     def api_my_recaps():
         S = _S()
-        username = (session.get('username') or '').strip()
+        username = S._browse_username_filter()
         page = max(int(request.args.get('page', 1) or 1), 1)
         per_page = 25
         entries, total = S.adminfx.list_ai_recap_pages(page=page, per_page=per_page, username=username)
         site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
-        out = []
-        for entry in entries:
-            hero = S.adminfx.absolutize_hero_image_url(entry.get('hero_image_url') or '', site_base)
-            out.append({
-                'share_id': entry.get('share_id'),
-                'created_at': entry.get('created_at'),
-                'hero_image_url': hero,
-                'share_url': url_for('view_ai_recap', share_id=entry['share_id'], _external=True),
-                'headline': entry.get('headline') or entry.get('title') or '',
-                'summary': entry.get('summary_text') or entry.get('summary') or '',
-            })
-        return jsonify({'recaps': out, 'page': page, 'total': total})
+        out = [S.serialize_recap_list_entry(entry, site_base) for entry in entries]
+        return jsonify({
+            'recaps': out,
+            'page': page,
+            'total': total,
+            'showing_all': username is None,
+        })
 
     @app.route('/api/flyers', methods=['GET'])
     @api_login_required
     def api_my_flyers():
         S = _S()
         import flyer_functions as flyerfx
-        username = (session.get('username') or '').strip()
+        username = S._browse_username_filter()
         page = max(int(request.args.get('page', 1) or 1), 1)
         per_page = 25
         entries, total = flyerfx.list_flyer_pages(page=page, per_page=per_page, username=username)
         site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
         out = [S.serialize_flyer_list_entry(entry, site_base) for entry in entries]
-        return jsonify({'flyers': out, 'page': page, 'total': total})
+        return jsonify({
+            'flyers': out,
+            'page': page,
+            'total': total,
+            'showing_all': username is None,
+        })
 
     @app.route('/api/flyers/<share_id>', methods=['DELETE'])
     @api_login_required
@@ -999,7 +999,7 @@ def register_ios_api(app):
         row = flyerfx.get_flyer_page(share_id)
         if not row:
             return jsonify({'error': 'Flyer not found'}), 404
-        if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+        if not S._is_owner_or_admin(row.get('username')):
             return jsonify({'error': 'You can only delete flyers you created.'}), 403
         if not flyerfx.delete_flyer_page(share_id):
             return jsonify({'error': 'Flyer not found'}), 404
@@ -1103,6 +1103,8 @@ def register_ios_api(app):
                 job = None
         if not job:
             return jsonify({'error': 'Job not found'}), 404
+        if not S._can_access_job(job):
+            return jsonify({'error': 'Not allowed'}), 403
         if not isinstance(job, dict):
             job = dict(job)
         payload = {}
@@ -1150,6 +1152,7 @@ def register_ios_api(app):
         recent = S.adminfx.most_recent_game()
         users = S.adminfx.list_site_users()
         activity = S.adminfx.activity_overview()
+        shares = S._admin_share_previews()
         try:
             db_size_mb = round(os.path.getsize(S.adminfx.stats_db_path()) / (1024 * 1024), 1)
         except OSError:
@@ -1161,6 +1164,12 @@ def register_ios_api(app):
             'users': [_admin_user_payload(u) for u in users],
             'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
             'activity': activity,
+            'recent_recaps': shares['recent_recaps'],
+            'recap_count': shares['recap_total'],
+            'recent_flyers': shares['recent_flyers'],
+            'flyer_count': shares['flyer_total'],
+            'recent_jobs': shares['recent_jobs'],
+            'job_count': shares['job_total'],
         })
 
     @app.route('/api/admin/activity')
@@ -1186,6 +1195,74 @@ def register_ios_api(app):
             'per_page': per_page,
             'total': total,
             'total_pages': total_pages,
+        })
+
+    @app.route('/api/admin/recaps')
+    @api_admin_required
+    def api_admin_recaps():
+        S = _S()
+        page = max(int(request.args.get('page', 1) or 1), 1)
+        try:
+            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
+        except (TypeError, ValueError):
+            per_page = 25
+        username = (request.args.get('username') or '').strip() or None
+        entries, total = S.adminfx.list_ai_recap_pages(
+            page=page, per_page=per_page, username=username,
+        )
+        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
+        return jsonify({
+            'recaps': [S.serialize_recap_list_entry(entry, site_base) for entry in entries],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'showing_all': username is None,
+        })
+
+    @app.route('/api/admin/flyers')
+    @api_admin_required
+    def api_admin_flyers():
+        S = _S()
+        import flyer_functions as flyerfx
+        page = max(int(request.args.get('page', 1) or 1), 1)
+        try:
+            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
+        except (TypeError, ValueError):
+            per_page = 25
+        username = (request.args.get('username') or '').strip() or None
+        entries, total = flyerfx.list_flyer_pages(
+            page=page, per_page=per_page, username=username,
+        )
+        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
+        return jsonify({
+            'flyers': [S.serialize_flyer_list_entry(entry, site_base) for entry in entries],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'showing_all': username is None,
+        })
+
+    @app.route('/api/admin/jobs')
+    @api_admin_required
+    def api_admin_jobs():
+        S = _S()
+        page = max(int(request.args.get('page', 1) or 1), 1)
+        try:
+            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
+        except (TypeError, ValueError):
+            per_page = 25
+        job_type = (request.args.get('job_type') or '').strip() or None
+        username = (request.args.get('username') or '').strip() or None
+        status = (request.args.get('status') or '').strip() or None
+        jobs, total = S.ai_jobs.list_jobs(
+            page=page, per_page=per_page, job_type=job_type,
+            username=username, status=status,
+        )
+        return jsonify({
+            'jobs': jobs,
+            'page': page,
+            'per_page': per_page,
+            'total': total,
         })
 
     @app.route('/api/admin/activity/<int:log_id>')

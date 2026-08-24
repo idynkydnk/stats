@@ -710,9 +710,11 @@ def run_ai_auto_send_job(
             )
             log_activity(
                 'Published AI recap',
+                target=share_id,
                 summary=(
                     f'{game_type} recap for {len(game_ids)} game(s), style "{prompt_style}"'
                     + img_note
+                    + f' — {share_url}'
                 ),
                 username=username,
             )
@@ -758,6 +760,38 @@ def serialize_flyer_list_entry(entry, site_base=''):
     return out
 
 
+def serialize_recap_list_entry(entry, site_base=''):
+    """Absolute share/hero URLs plus display fields for a recap list row."""
+    share_id = (entry.get('share_id') or '').strip()
+    hero = adminfx.absolutize_hero_image_url(entry.get('hero_image_url') or '', site_base)
+    subject = (
+        (entry.get('subject') or entry.get('headline') or entry.get('title') or 'Game Recap')
+        .strip()
+        or 'Game Recap'
+    )
+    out = dict(entry)
+    out['hero_image_url'] = hero
+    out['subject'] = subject
+    out['headline'] = subject
+    out['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+    if share_id:
+        try:
+            out['share_url'] = url_for(
+                'view_ai_recap',
+                share_id=share_id,
+                _external=True,
+                **adminfx.recap_share_query_args(hero),
+            )
+        except RuntimeError:
+            out['share_url'] = _absolute_site_url(
+                f'/recap/{share_id}/',
+                **adminfx.recap_share_query_args(hero),
+            )
+    else:
+        out['share_url'] = ''
+    return out
+
+
 def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_images=None,
                         scene_prompt=''):
     """Create a shareable flyer page from form payload + generation results."""
@@ -792,9 +826,10 @@ def run_flyer_job(username, payload):
             share_url = _absolute_site_url(f'/flyer/{share_id}/')
             log_activity(
                 'Published flyer',
+                target=share_id,
                 summary=(
                     f'{_flyer_sport_label(payload.get("game_type"), payload.get("game_name"))} '
-                    f'flyer for {len(payload.get("players") or [])} player(s)'
+                    f'flyer for {len(payload.get("players") or [])} player(s) — {share_url}'
                 ),
                 username=username,
             )
@@ -1025,6 +1060,28 @@ def is_admin(username=None):
     except Exception:
         pass
     return False
+
+
+def _is_owner_or_admin(owner_username):
+    """True if the current user created the item, or is an admin."""
+    current = (session.get('username') or '').strip()
+    owner = (owner_username or '').strip()
+    if current and owner and current == owner:
+        return True
+    return is_admin()
+
+
+def _browse_username_filter():
+    """None = list everyone's recaps/flyers (admins). Otherwise the current user."""
+    if is_admin():
+        return None
+    return (session.get('username') or '').strip() or None
+
+
+def _can_access_job(job):
+    if not job:
+        return False
+    return _is_owner_or_admin(job.get('username'))
 
 
 def _stats_db_path():
@@ -1855,8 +1912,8 @@ def ai_summary():
 @app.route('/ai-recaps/')
 @login_required
 def my_ai_recaps():
-    """Browse AI recap pages published by the current user."""
-    username = (session.get('username') or '').strip()
+    """Browse AI recap pages. Admins see everyone's; everyone else sees their own."""
+    username = _browse_username_filter()
     page = max(int(request.args.get('page', 1) or 1), 1)
     per_page = 25
     entries, total_entries = adminfx.list_ai_recap_pages(
@@ -1864,24 +1921,14 @@ def my_ai_recaps():
     )
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
-    for entry in entries:
-        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
-        hero = adminfx.absolutize_hero_image_url(
-            entry.get('hero_image_url') or '', site_base,
-        )
-        entry['hero_image_url'] = hero
-        entry['share_url'] = url_for(
-            'view_ai_recap',
-            share_id=entry['share_id'],
-            _external=True,
-            **adminfx.recap_share_query_args(hero),
-        )
+    entries = [serialize_recap_list_entry(entry, site_base) for entry in entries]
     return render_template(
         'ai_recaps.html',
         entries=entries,
         page=page,
         total_pages=total_pages,
         total_entries=total_entries,
+        showing_all=username is None,
     )
 
 
@@ -1900,7 +1947,7 @@ def my_ai_recaps_delete():
         flash('Recap not found.', 'error')
         return redirect(url_for('my_ai_recaps', page=page))
 
-    if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+    if not _is_owner_or_admin(row.get('username')):
         flash('You can only delete AI recaps you created.', 'error')
         return redirect(url_for('my_ai_recaps', page=page))
 
@@ -1920,10 +1967,10 @@ def my_ai_recaps_delete():
 @app.route('/flyers/')
 @login_required
 def my_ai_flyers():
-    """Browse flyer pictures created by the current user."""
+    """Browse flyer pictures. Admins see everyone's; everyone else sees their own."""
     import flyer_functions as flyerfx
 
-    username = (session.get('username') or '').strip()
+    username = _browse_username_filter()
     page = max(int(request.args.get('page', 1) or 1), 1)
     per_page = 25
     entries, total_entries = flyerfx.list_flyer_pages(
@@ -1938,6 +1985,7 @@ def my_ai_flyers():
         page=page,
         total_pages=total_pages,
         total_entries=total_entries,
+        showing_all=username is None,
     )
 
 
@@ -1958,7 +2006,7 @@ def my_ai_flyers_delete():
         flash('Flyer not found.', 'error')
         return redirect(url_for('my_ai_flyers', page=page))
 
-    if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+    if not _is_owner_or_admin(row.get('username')):
         flash('You can only delete flyers you created.', 'error')
         return redirect(url_for('my_ai_flyers', page=page))
 
@@ -2211,6 +2259,7 @@ def preview_ai_summary_with_prompt():
         )
         log_activity(
             'Published AI recap',
+            target=share_id,
             summary=f'{game_type} recap published at /recap/{share_id}',
         )
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
@@ -2226,7 +2275,7 @@ def ai_summary_job_status(job_id):
     job = ai_jobs.get_job(job_id)
     if not job:
         abort(404)
-    if job.get('username') != session.get('username'):
+    if not _can_access_job(job):
         abort(403)
     if job.get('status') == 'completed' and job.get('share_id'):
         return redirect(url_for('view_ai_recap', share_id=job['share_id'], published=1))
@@ -2240,7 +2289,7 @@ def api_ai_summary_job_status(job_id):
     job = ai_jobs.get_job(job_id)
     if not job:
         return jsonify({'success': False, 'error': 'Job not found.'}), 404
-    if job.get('username') != session.get('username'):
+    if not _can_access_job(job):
         return jsonify({'success': False, 'error': 'Not allowed.'}), 403
     share_id = job.get('share_id') or ''
     summary = (job.get('result_summary') or '').strip()
@@ -2421,6 +2470,7 @@ def create_flyer_generate():
     else:
         log_activity(
             'Published flyer',
+            target=share_id,
             summary=(
                 f'{_flyer_sport_label(payload["game_type"], payload["game_name"])} '
                 f'flyer for {len(payload["players"])} player(s)'
@@ -2438,7 +2488,7 @@ def flyer_job_status(job_id):
     job = ai_jobs.get_job(job_id)
     if not job:
         abort(404)
-    if job.get('username') != session.get('username'):
+    if not _can_access_job(job):
         abort(403)
     if job.get('status') == 'completed' and job.get('share_id'):
         return redirect(url_for('view_flyer', share_id=job['share_id']))
@@ -2469,8 +2519,7 @@ def view_flyer(share_id):
 
     show_creator_view = bool(
         session.get('logged_in')
-        and row.get('username')
-        and row.get('username') == session.get('username')
+        and _is_owner_or_admin(row.get('username'))
     )
     can_remake = show_creator_view
 
@@ -2551,7 +2600,7 @@ def remake_flyer_image(share_id):
     row = flyerfx.get_flyer_page(share_id)
     if not row:
         abort(404)
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can remake this flyer.', 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
@@ -2637,7 +2686,7 @@ def remake_flyer_solo(share_id):
     row = flyerfx.get_flyer_page(share_id)
     if not row:
         abort(404)
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can remake this caricature.', 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
@@ -2701,7 +2750,7 @@ def upload_flyer_solo(share_id):
     row = flyerfx.get_flyer_page(share_id)
     if not row:
         abort(404)
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can change this flyer.', 'error')
         return redirect(url_for('view_flyer', share_id=share_id))
 
@@ -2786,8 +2835,7 @@ def view_ai_recap(share_id):
     can_remake = bool(
         show_creator_view
         and session.get('logged_in')
-        and row.get('username')
-        and row.get('username') == session.get('username')
+        and _is_owner_or_admin(row.get('username'))
     )
 
     remake_summary_prompt = ''
@@ -3123,7 +3171,7 @@ def remake_ai_recap_image(share_id):
     if not row:
         abort(404)
 
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can remake this picture.', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
@@ -3273,7 +3321,7 @@ def _require_recap_creator(share_id):
     row = adminfx.get_ai_recap_page(share_id)
     if not row:
         abort(404)
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can change this recap.', 'error')
         return None, redirect(url_for('view_ai_recap', share_id=share_id, published=1))
     return row, None
@@ -3347,7 +3395,7 @@ def remake_ai_recap_summary(share_id):
     if not row:
         abort(404)
 
-    if row.get('username') != session.get('username'):
+    if not _is_owner_or_admin(row.get('username')):
         flash('Only the creator can remake this summary.', 'error')
         return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
 
@@ -6235,6 +6283,47 @@ def send_daily_emails():
 # ADMIN DASHBOARD
 # ============================================
 
+def _admin_share_previews(recap_limit=8, flyer_limit=8, job_limit=12):
+    """Latest recaps, flyers, and AI jobs for the admin dashboard/API."""
+    import flyer_functions as flyerfx
+
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    recap_entries, recap_total = adminfx.list_ai_recap_pages(page=1, per_page=recap_limit)
+    flyer_entries, flyer_total = flyerfx.list_flyer_pages(page=1, per_page=flyer_limit)
+    job_entries, job_total = ai_jobs.list_jobs(page=1, per_page=job_limit)
+    recaps = [serialize_recap_list_entry(entry, site_base) for entry in recap_entries]
+    flyers = [serialize_flyer_list_entry(entry, site_base) for entry in flyer_entries]
+    for job in job_entries:
+        job['created_at_fmt'] = _format_utc_str(job.get('completed_at') or job.get('created_at'))
+        share_id = job.get('share_id') or ''
+        job_type = job.get('job_type') or 'recap'
+        try:
+            if share_id and job_type == 'flyer':
+                job['item_url'] = url_for('view_flyer', share_id=share_id, _external=True)
+            elif share_id:
+                job['item_url'] = url_for(
+                    'view_ai_recap', share_id=share_id, published=1, _external=True,
+                )
+            elif job_type == 'flyer':
+                job['item_url'] = url_for('flyer_job_status', job_id=job['id'], _external=True)
+            elif job_type == 'player_ai_image':
+                job['item_url'] = ''
+            else:
+                job['item_url'] = url_for(
+                    'ai_summary_job_status', job_id=job['id'], _external=True,
+                )
+        except RuntimeError:
+            job['item_url'] = ''
+    return {
+        'recent_recaps': recaps,
+        'recap_total': recap_total,
+        'recent_flyers': flyers,
+        'flyer_total': flyer_total,
+        'recent_jobs': job_entries,
+        'job_total': job_total,
+    }
+
+
 @app.route('/admin/')
 @admin_required
 def admin_dashboard():
@@ -6242,6 +6331,7 @@ def admin_dashboard():
     today = date.today()
     counts = adminfx.games_counts(today.strftime('%Y-%m-%d'), (today - timedelta(days=6)).strftime('%Y-%m-%d'))
     recent_game = adminfx.most_recent_game()
+    shares = _admin_share_previews()
 
     page = max(int(request.args.get('page', 1) or 1), 1)
     per_page = 25
@@ -6262,7 +6352,10 @@ def admin_dashboard():
         counts=counts, recent_game=recent_game,
         entries=entries, page=page, total_pages=total_pages, total_entries=total_entries,
         users=users, db_size_mb=db_size_mb,
-        email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')))
+        email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')),
+        recent_recaps=shares['recent_recaps'], recap_total=shares['recap_total'],
+        recent_flyers=shares['recent_flyers'], flyer_total=shares['flyer_total'],
+        recent_jobs=shares['recent_jobs'], job_total=shares['job_total'])
 
 
 @app.route('/admin/activity/')
@@ -6355,6 +6448,14 @@ def _format_utc_str(ts):
 def _format_activity_times(entries):
     for e in entries:
         e['created_at_fmt'] = _format_utc_str(e.get('created_at'))
+        path = adminfx.activity_item_path(e)
+        target = (e.get('target') or '').strip()
+        if path.startswith('/recap/') and target:
+            e['item_url'] = url_for('view_ai_recap', share_id=target, published=1)
+        elif path.startswith('/flyer/') and target:
+            e['item_url'] = url_for('view_flyer', share_id=target)
+        else:
+            e['item_url'] = ''
     return entries
 
 
@@ -6417,18 +6518,7 @@ def admin_ai_recaps():
     entries, total_entries = adminfx.list_ai_recap_pages(page=page, per_page=per_page)
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
-    for entry in entries:
-        entry['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
-        hero = adminfx.absolutize_hero_image_url(
-            entry.get('hero_image_url') or '', site_base,
-        )
-        entry['hero_image_url'] = hero
-        entry['share_url'] = url_for(
-            'view_ai_recap',
-            share_id=entry['share_id'],
-            _external=True,
-            **adminfx.recap_share_query_args(hero),
-        )
+    entries = [serialize_recap_list_entry(entry, site_base) for entry in entries]
     return render_template(
         'admin_ai_recaps.html',
         entries=entries,

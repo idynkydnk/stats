@@ -286,6 +286,81 @@ def get_job(job_id):
     return dict(row) if row else None
 
 
+def job_public_dict(row):
+    """JSON-safe job row for admin lists and APIs."""
+    d = dict(row) if row else {}
+    job_type = (d.get('job_type') or 'recap').strip() or 'recap'
+    return {
+        'id': d.get('id'),
+        'created_at': d.get('created_at'),
+        'started_at': d.get('started_at'),
+        'completed_at': d.get('completed_at'),
+        'username': d.get('username') or '',
+        'job_type': job_type,
+        'status': d.get('status') or '',
+        'game_type': d.get('game_type') or '',
+        'prompt_style': d.get('prompt_style') or '',
+        'share_id': (d.get('share_id') or '').strip(),
+        'result_summary': d.get('result_summary') or '',
+        'error': d.get('error') or '',
+    }
+
+
+def list_jobs(page=1, per_page=25, job_type=None, username=None, status=None):
+    """Return (page_jobs, total) newest first."""
+    init_ai_auto_send_jobs_db()
+    page = max(int(page or 1), 1)
+    per_page = max(int(per_page or 25), 1)
+    offset = (page - 1) * per_page
+    clauses = []
+    params = []
+    if job_type:
+        clauses.append("COALESCE(job_type, 'recap') = ?")
+        params.append(job_type.strip())
+    if username:
+        clauses.append('lower(username) = lower(?)')
+        params.append(username.strip())
+    if status:
+        clauses.append('status = ?')
+        params.append(status.strip())
+    where = f'WHERE {" AND ".join(clauses)}' if clauses else ''
+    conn = _connect()
+    total = conn.execute(f'SELECT COUNT(*) FROM ai_auto_send_jobs {where}', params).fetchone()[0]
+    rows = conn.execute(f'''
+        SELECT id, created_at, started_at, completed_at, username, job_type, status,
+               game_type, prompt_style, share_id, result_summary, error
+        FROM ai_auto_send_jobs {where}
+        ORDER BY id DESC LIMIT ? OFFSET ?
+    ''', (*params, per_page, offset)).fetchall()
+    conn.close()
+    return [job_public_dict(r) for r in rows], total
+
+
+def list_jobs_with_share_ids(job_type=None):
+    """Jobs that recorded a published share_id (used to backfill recap/flyer lists)."""
+    init_ai_auto_send_jobs_db()
+    clauses = ["share_id IS NOT NULL", "trim(share_id) != ''"]
+    params = []
+    if job_type:
+        clauses.append("COALESCE(job_type, 'recap') = ?")
+        params.append(job_type)
+    where = ' AND '.join(clauses)
+    conn = _connect()
+    try:
+        rows = conn.execute(f'''
+            SELECT share_id, username, created_at, completed_at, game_type, prompt_style,
+                   job_type, status
+            FROM ai_auto_send_jobs
+            WHERE {where}
+            ORDER BY id DESC
+        ''', params).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
 def daemon_heartbeat_path():
     root = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(root, 'ai_auto_send_daemon.heartbeat')

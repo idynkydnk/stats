@@ -5,7 +5,9 @@
     <div class="adm-feed-main">
         <a class="adm-feed-user" href="{{ url_for('admin_user_activity', username=e.username) }}">{{ e.username }}</a>
         <span class="adm-feed-action">{{ e.action }}</span>
-        {% if e.summary %}<div class="adm-feed-summary">{{ e.summary }}</div>{% endif %}
+        {% if e.item_url and e.summary %}
+        <div class="adm-feed-summary"><a href="{{ e.item_url }}" style="color: var(--sr-accent);">{{ e.summary }}</a></div>
+        {% elif e.summary %}<div class="adm-feed-summary">{{ e.summary }}</div>{% endif %}
         <div class="adm-feed-time">{{ e.created_at_fmt }}</div>
     </div>
     {% if e.undoable %}

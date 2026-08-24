@@ -73,6 +73,46 @@
 .adm-user-actions .adm-btn { flex: 0 0 auto; }
 .adm-add-user-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sr-line); }
 .adm-add-user-form .adm-input { flex: 1 1 140px; min-width: 0; }
+.adm-share-list { display: flex; flex-direction: column; gap: 8px; }
+.adm-share-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--sr-line);
+    border-radius: 8px;
+    background: #0f1620;
+    text-decoration: none;
+    color: inherit;
+}
+.adm-share-row:hover { border-color: var(--sr-accent); }
+.adm-share-thumb {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sr-muted);
+}
+.adm-share-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.adm-share-main { flex: 1; min-width: 0; }
+.adm-share-title { font-size: 14px; font-weight: 600; color: var(--sr-text); }
+.adm-share-meta { font-size: 12px; color: var(--sr-muted); margin-top: 2px; }
+.adm-job-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.adm-job-completed { background: var(--sr-accent-dim); color: var(--sr-accent); }
+.adm-job-failed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.adm-job-running, .adm-job-pending { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
 @media (min-width: 700px) {
     .adm-user-meta { grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .adm-user-meta-row { flex-direction: column; gap: 2px; }
@@ -120,6 +160,90 @@
         <div style="font-size: 14px; color: var(--sr-text);">{{ recent_game.summary }}</div>
         <div class="adm-card-sub">{{ recent_game.game_date }}</div>
     </div>
+    {% endif %}
+</div>
+
+<div class="adm-section">
+    <h2>
+        <i class="fas fa-share-alt"></i> AI Recaps
+        <a class="adm-section-link" href="{{ url_for('admin_ai_recaps') }}">See all ({{ recap_total }}) →</a>
+    </h2>
+    {% if recent_recaps %}
+    <div class="adm-share-list">
+        {% for e in recent_recaps %}
+        <a class="adm-share-row" href="{{ e.share_url or url_for('view_ai_recap', share_id=e.share_id, published=1) }}">
+            <div class="adm-share-thumb">
+                {% if e.hero_image_url %}
+                <img src="{{ e.hero_image_url }}" alt="">
+                {% else %}
+                <i class="fas fa-file-alt"></i>
+                {% endif %}
+            </div>
+            <div class="adm-share-main">
+                <div class="adm-share-title">{{ e.subject or 'Game Recap' }}</div>
+                <div class="adm-share-meta">{{ e.username or 'unknown' }} · {{ e.created_at_fmt or e.created_at or '—' }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="adm-empty">No published recaps yet.</p>
+    {% endif %}
+</div>
+
+<div class="adm-section">
+    <h2>
+        <i class="fas fa-scroll"></i> AI Flyers
+        <a class="adm-section-link" href="{{ url_for('admin_ai_flyers') }}">See all ({{ flyer_total }}) →</a>
+    </h2>
+    {% if recent_flyers %}
+    <div class="adm-share-list">
+        {% for e in recent_flyers %}
+        <a class="adm-share-row" href="{{ e.view_url or url_for('view_flyer', share_id=e.share_id) }}">
+            <div class="adm-share-thumb">
+                {% if e.flyer_image_url %}
+                <img src="{{ e.flyer_image_url }}" alt="">
+                {% else %}
+                <i class="fas fa-image"></i>
+                {% endif %}
+            </div>
+            <div class="adm-share-main">
+                <div class="adm-share-title">{{ e.title or 'Flyer' }}</div>
+                <div class="adm-share-meta">{{ e.username or 'unknown' }} · {{ e.created_at_fmt or e.created_at or '—' }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="adm-empty">No published flyers yet.</p>
+    {% endif %}
+</div>
+
+<div class="adm-section">
+    <h2>
+        <i class="fas fa-tasks"></i> Recent AI jobs
+        <span class="adm-section-link" style="font-weight: 500;">{{ job_total }} total</span>
+    </h2>
+    {% if recent_jobs %}
+    <div class="adm-share-list">
+        {% for job in recent_jobs %}
+        <a class="adm-share-row" href="{{ job.item_url or '#' }}">
+            <div class="adm-share-main">
+                <div class="adm-share-title">
+                    {{ job.username or 'unknown' }}
+                    · {{ job.job_type or 'recap' }}
+                    <span class="adm-job-status adm-job-{{ job.status or 'pending' }}">{{ job.status or 'pending' }}</span>
+                </div>
+                <div class="adm-share-meta">
+                    {{ job.created_at_fmt or job.created_at or '—' }}
+                    {% if job.error %} · {{ job.error }}{% elif job.result_summary %} · {{ job.result_summary }}{% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="adm-empty">No AI jobs logged yet.</p>
     {% endif %}
 </div>
 

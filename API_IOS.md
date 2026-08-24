@@ -48,6 +48,9 @@ Send `Authorization: Bearer <token>` on write endpoints. Session cookies still w
 
 - `GET /api/admin/overview`
 - `GET /api/admin/activity?page=&q=&username=`
+- `GET /api/admin/recaps?page=&username=`
+- `GET /api/admin/flyers?page=&username=`
+- `GET /api/admin/jobs?page=&job_type=&username=&status=`
 - `POST /api/admin/undo/<id>`
 - `POST /api/admin/users`
 - `POST /api/admin/users/reset_password`

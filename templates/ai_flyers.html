@@ -128,10 +128,10 @@
 
 <div class="adm-section">
     <p class="flyer-help-desktop" style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
-        Your flyer pictures. Download the image and share that file — don’t send a website link.
+        {% if showing_all %}Everyone's flyer pictures.{% else %}Your flyer pictures.{% endif %} Download the image and share that file — don’t send a website link.
     </p>
     <p class="flyer-help-phone" style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
-        Your flyer pictures. Save them to Photos, then share from there — don’t send a website link.
+        {% if showing_all %}Everyone's flyer pictures.{% else %}Your flyer pictures.{% endif %} Save them to Photos, then share from there — don’t send a website link.
     </p>
     {% if entries %}
     <div class="adm-flyer-list">
@@ -146,6 +146,9 @@
             </div>
             <div class="adm-flyer-main">
                 <div class="adm-flyer-meta">
+                    {% if showing_all %}
+                    <span class="adm-flyer-badge">{{ e.username or 'unknown' }}</span>
+                    {% endif %}
                     <span class="adm-flyer-badge">{{ (e.game_type or 'game')|capitalize }}</span>
                     {% if e.flyer_image_url %}
                     <span class="adm-flyer-badge"><i class="fas fa-image"></i> Picture</span>

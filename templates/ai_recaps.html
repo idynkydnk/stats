@@ -38,6 +38,7 @@
     gap: 8px;
     align-items: center;
 }
+.adm-recap-user { font-weight: 600; color: var(--sr-accent); font-size: 13px; }
 .adm-recap-badge {
     display: inline-block;
     padding: 2px 8px;
@@ -125,7 +126,7 @@
 
 <div class="adm-section">
     <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
-        Your published AI recap pages. Copy the share link for group text — pages with an illustration
+        Your published AI recap pages{% if showing_all %}, including every user's{% endif %}. Copy the share link for group text — pages with an illustration
         use that image as the thumbnail. After you upload or remake a picture, copy the link again
         so WhatsApp picks up the new thumbnail.
     </p>
@@ -142,6 +143,9 @@
             </div>
             <div class="adm-recap-main">
                 <div class="adm-recap-meta">
+                    {% if showing_all %}
+                    <span class="adm-recap-user">{{ e.username or 'unknown' }}</span>
+                    {% endif %}
                     <span class="adm-recap-badge">{{ (e.game_type or 'game')|capitalize }}</span>
                     {% if e.prompt_style %}
                     <span class="adm-recap-badge">{{ e.prompt_style }}</span>

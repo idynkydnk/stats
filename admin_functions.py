@@ -31,6 +31,61 @@ def _recap_storage_dir():
     return path
 
 
+def _legacy_recap_dir():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recaps')
+
+
+def _created_at_from_paths(*paths):
+    for path in paths:
+        try:
+            if path and os.path.isfile(path):
+                return datetime.fromtimestamp(
+                    os.path.getmtime(path), tz=timezone.utc,
+                ).strftime('%Y-%m-%d %H:%M:%S')
+        except OSError:
+            continue
+    return ''
+
+
+def _collect_disk_recap_ids():
+    """Share ids that have a .json or .html file in current or legacy recap dirs."""
+    ids = set()
+    for directory in (_recap_storage_dir(), _legacy_recap_dir()):
+        if not os.path.isdir(directory):
+            continue
+        try:
+            names = os.listdir(directory)
+        except OSError:
+            continue
+        for name in names:
+            if name.endswith('.json') or name.endswith('.html'):
+                stem = name.rsplit('.', 1)[0]
+                if stem:
+                    ids.add(stem)
+    return ids
+
+
+def _recap_list_entry(share_id, source=None):
+    source = source or {}
+    subject = (
+        source.get('subject')
+        or source.get('headline')
+        or source.get('title')
+        or 'Game Recap'
+    )
+    return {
+        'share_id': share_id,
+        'created_at': source.get('created_at') or '',
+        'username': source.get('username') or '',
+        'game_type': source.get('game_type') or '',
+        'prompt_style': source.get('prompt_style') or '',
+        'subject': subject,
+        'hero_image_url': source.get('hero_image_url') or '',
+        'hero_image_error': source.get('hero_image_error') or '',
+        'image_mode': source.get('image_mode') or '',
+    }
+
+
 def _safe_recap_share_id(share_id):
     safe_id = ''.join(ch for ch in (share_id or '') if ch.isalnum() or ch in ('-', '_'))
     if not safe_id:
@@ -238,9 +293,23 @@ def snapshot_changes(before, after):
     return changes
 
 
+def activity_item_path(row):
+    """Relative site path for a recap/flyer activity row, or ''."""
+    target = (row.get('target') or '').strip()
+    if not target or target in TARGET_TABLES:
+        return ''
+    action = (row.get('action') or '').lower()
+    if 'flyer' in action:
+        return f'/flyer/{target}/'
+    if 'recap' in action:
+        return f'/recap/{target}/'
+    return ''
+
+
 def serialize_activity_entry(row, include_snapshots=False):
     """JSON-safe activity row: bools instead of 0/1, optional change list."""
     d = _decorate_activity_row(row)
+    item_path = activity_item_path(d)
     out = {
         'id': int(d['id']),
         'created_at': d.get('created_at'),
@@ -252,6 +321,7 @@ def serialize_activity_entry(row, include_snapshots=False):
         'undone': bool(d.get('undone')),
         'undoable': bool(d.get('undoable')),
         'undo_kind': d.get('undo_kind'),
+        'item_path': item_path or None,
     }
     if include_snapshots:
         before = _load_snapshot(d.get('before_json'))
@@ -865,20 +935,15 @@ def list_ai_recap_pages(page=1, per_page=25, username=None):
     """Return (page_entries, total) for published AI recap pages, newest first.
 
     If username is set, only pages created by that user are included.
+    Sources: disk JSON/HTML (current + legacy dirs), leftover SQLite rows,
+    and completed recap jobs that recorded a share_id.
     """
     page = max(int(page or 1), 1)
     per_page = max(int(per_page or 25), 1)
-    filter_username = (username or '').strip()
+    filter_username = (username or '').strip().lower()
     entries_by_id = {}
 
-    recap_dir = _recap_storage_dir()
-    disk_ids = set()
-    if os.path.isdir(recap_dir):
-        for name in os.listdir(recap_dir):
-            if name.endswith('.json') or name.endswith('.html'):
-                disk_ids.add(name.rsplit('.', 1)[0])
-
-    for share_id in disk_ids:
+    for share_id in _collect_disk_recap_ids():
         try:
             meta = _read_recap_meta_file(share_id)
         except (OSError, json.JSONDecodeError, ValueError):
@@ -887,77 +952,27 @@ def list_ai_recap_pages(page=1, per_page=25, username=None):
             sid = (meta.get('share_id') or share_id or '').strip()
             if not sid:
                 continue
-            hero = ensure_recap_hero_image_url(sid, {
-                **meta,
-                'html_body': read_recap_html_file(sid) or '',
-            })
-            created_at = meta.get('created_at') or ''
-            if not created_at:
-                path = _recap_html_path(sid)
-                if not os.path.isfile(path):
-                    path = _recap_meta_path(sid)
-                try:
-                    created_at = datetime.fromtimestamp(
-                        os.path.getmtime(path), tz=timezone.utc,
-                    ).strftime('%Y-%m-%d %H:%M:%S')
-                except OSError:
-                    created_at = ''
-            entries_by_id[sid] = {
-                'share_id': sid,
-                'created_at': created_at,
-                'username': meta.get('username') or '',
-                'game_type': meta.get('game_type') or '',
-                'prompt_style': meta.get('prompt_style') or '',
-                'subject': meta.get('subject') or '',
-                'hero_image_url': hero,
-                'hero_image_error': meta.get('hero_image_error') or '',
-                'image_mode': meta.get('image_mode') or '',
-            }
+            created_at = meta.get('created_at') or _created_at_from_paths(
+                _recap_html_path(sid), _recap_meta_path(sid),
+            )
+            entry = _recap_list_entry(sid, {**meta, 'created_at': created_at})
+            entries_by_id[sid] = entry
             continue
 
-        # HTML on disk without JSON (older publishes): recover from SQLite or HTML alone.
-        page_row = get_ai_recap_page(share_id)
-        if not page_row:
-            html = read_recap_html_file(share_id) or ''
-            if not html:
-                continue
-            try:
-                mtime = os.path.getmtime(_recap_html_path(share_id))
-                created_at = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime(
-                    '%Y-%m-%d %H:%M:%S'
-                )
-            except OSError:
-                created_at = ''
-            page_row = {
-                'share_id': share_id,
-                'created_at': created_at,
-                'username': '',
-                'game_type': '',
-                'prompt_style': '',
-                'subject': 'Game Recap',
-                'html_body': html,
-                'hero_image_url': '',
-                'hero_image_error': '',
-            }
-        sid = (page_row.get('share_id') or share_id).strip()
-        hero = ensure_recap_hero_image_url(sid, page_row)
-        entries_by_id[sid] = {
-            'share_id': sid,
-            'created_at': page_row.get('created_at') or '',
-            'username': page_row.get('username') or '',
-            'game_type': page_row.get('game_type') or '',
-            'prompt_style': page_row.get('prompt_style') or '',
-            'subject': page_row.get('subject') or '',
-            'hero_image_url': hero,
-            'hero_image_error': page_row.get('hero_image_error') or '',
-            'image_mode': page_row.get('image_mode') or '',
-        }
+        created_at = _created_at_from_paths(
+            _recap_html_path(share_id),
+            os.path.join(_legacy_recap_dir(), f'{share_id}.html'),
+        )
+        entries_by_id[share_id] = _recap_list_entry(share_id, {
+            'created_at': created_at,
+            'subject': 'Game Recap',
+        })
 
     conn = _connect()
     try:
         rows = conn.execute('''
             SELECT share_id, created_at, username, game_type, prompt_style, subject,
-                   hero_image_url, hero_image_error, html_body
+                   hero_image_url, hero_image_error
             FROM ai_recap_pages
             ORDER BY created_at DESC
         ''').fetchall()
@@ -970,29 +985,53 @@ def list_ai_recap_pages(page=1, per_page=25, username=None):
         sid = (row['share_id'] or '').strip()
         if not sid or sid in entries_by_id:
             continue
-        hero = ensure_recap_hero_image_url(sid, dict(row))
-        entries_by_id[sid] = {
-            'share_id': sid,
-            'created_at': row['created_at'] or '',
-            'username': row['username'] or '',
-            'game_type': row['game_type'] or '',
-            'prompt_style': row['prompt_style'] or '',
-            'subject': row['subject'] or '',
-            'hero_image_url': hero,
-            'hero_image_error': row['hero_image_error'] or '',
-            'image_mode': '',
-        }
+        entries_by_id[sid] = _recap_list_entry(sid, dict(row))
+
+    try:
+        import ai_auto_send_jobs as jobs_mod
+        for job in jobs_mod.list_jobs_with_share_ids(job_type='recap'):
+            sid = (job.get('share_id') or '').strip()
+            if not sid:
+                continue
+            created_at = job.get('completed_at') or job.get('created_at') or ''
+            if sid in entries_by_id:
+                existing = entries_by_id[sid]
+                if not existing.get('username') and job.get('username'):
+                    existing['username'] = job.get('username') or ''
+                if not existing.get('created_at') and created_at:
+                    existing['created_at'] = created_at
+                if not existing.get('game_type') and job.get('game_type'):
+                    existing['game_type'] = job.get('game_type') or ''
+                continue
+            page_row = get_ai_recap_page(sid) or {}
+            entries_by_id[sid] = _recap_list_entry(sid, {
+                **page_row,
+                'created_at': page_row.get('created_at') or created_at,
+                'username': page_row.get('username') or job.get('username') or '',
+                'game_type': page_row.get('game_type') or job.get('game_type') or '',
+                'prompt_style': page_row.get('prompt_style') or job.get('prompt_style') or '',
+                'subject': page_row.get('subject') or 'Game Recap',
+            })
+    except Exception:
+        pass
 
     pages = list(entries_by_id.values())
     if filter_username:
         pages = [
             item for item in pages
-            if (item.get('username') or '').strip() == filter_username
+            if (item.get('username') or '').strip().lower() == filter_username
         ]
     pages.sort(key=lambda item: item.get('created_at') or '', reverse=True)
     total = len(pages)
     start = (page - 1) * per_page
-    return pages[start:start + per_page], total
+    page_entries = pages[start:start + per_page]
+    for item in page_entries:
+        if item.get('hero_image_url'):
+            continue
+        sid = item.get('share_id') or ''
+        if sid:
+            item['hero_image_url'] = ensure_recap_hero_image_url(sid, item) or ''
+    return page_entries, total
 
 
 # --- AI illustration files (static/email_images) ---

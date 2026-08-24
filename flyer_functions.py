@@ -99,11 +99,16 @@ def list_flyer_pages(page=1, per_page=25, username=None):
     """
     page = max(int(page or 1), 1)
     per_page = max(int(per_page or 25), 1)
-    filter_username = (username or '').strip()
+    filter_username = (username or '').strip().lower()
 
     flyer_dir = _flyer_storage_dir()
     entries = []
-    for name in os.listdir(flyer_dir):
+    seen = set()
+    try:
+        names = os.listdir(flyer_dir)
+    except OSError:
+        names = []
+    for name in names:
         if not name.endswith('.json'):
             continue
         share_id = name[:-len('.json')]
@@ -121,13 +126,15 @@ def list_flyer_pages(page=1, per_page=25, username=None):
                 ).strftime('%Y-%m-%d %H:%M:%S')
             except OSError:
                 created_at = ''
-        username = meta.get('username') or ''
-        if filter_username and username.strip() != filter_username:
+        owner = meta.get('username') or ''
+        if filter_username and owner.strip().lower() != filter_username:
             continue
+        sid = meta.get('share_id') or share_id
+        seen.add(sid)
         entries.append({
-            'share_id': meta.get('share_id') or share_id,
+            'share_id': sid,
             'created_at': created_at,
-            'username': username,
+            'username': owner,
             'players': list(meta.get('players') or []),
             'game_type': meta.get('game_type') or '',
             'game_name': meta.get('game_name') or '',
@@ -140,6 +147,40 @@ def list_flyer_pages(page=1, per_page=25, username=None):
             'solo_images': list(meta.get('solo_images') or []),
             'scene_prompt': meta.get('scene_prompt') or '',
         })
+
+    try:
+        import ai_auto_send_jobs as jobs_mod
+        for job in jobs_mod.list_jobs_with_share_ids(job_type='flyer'):
+            sid = (job.get('share_id') or '').strip()
+            if not sid or sid in seen:
+                continue
+            owner = job.get('username') or ''
+            if filter_username and owner.strip().lower() != filter_username:
+                continue
+            meta = get_flyer_page(sid) or {}
+            if meta:
+                owner = meta.get('username') or owner
+            if filter_username and (owner or '').strip().lower() != filter_username:
+                continue
+            seen.add(sid)
+            entries.append({
+                'share_id': sid,
+                'created_at': meta.get('created_at') or job.get('completed_at') or job.get('created_at') or '',
+                'username': owner,
+                'players': list(meta.get('players') or []),
+                'game_type': meta.get('game_type') or job.get('game_type') or '',
+                'game_name': meta.get('game_name') or '',
+                'event_date': meta.get('event_date') or '',
+                'event_time': meta.get('event_time') or '',
+                'location': meta.get('location') or '',
+                'image_details': meta.get('image_details') or '',
+                'flyer_image_url': meta.get('flyer_image_url') or '',
+                'flyer_image_error': meta.get('flyer_image_error') or '',
+                'solo_images': list(meta.get('solo_images') or []),
+                'scene_prompt': meta.get('scene_prompt') or '',
+            })
+    except Exception:
+        pass
 
     entries.sort(key=lambda e: e.get('created_at') or '', reverse=True)
     total = len(entries)
