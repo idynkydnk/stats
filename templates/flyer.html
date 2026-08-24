@@ -10,11 +10,16 @@
     border: 1px solid var(--sr-line);
     border-radius: 12px;
 }
+.flyer-share-help {
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--sr-muted);
+}
 .flyer-share-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 10px;
 }
 .flyer-btn {
     display: inline-flex;
@@ -34,16 +39,6 @@
     background: var(--sr-accent);
     border-color: var(--sr-accent);
     color: #0b0f14;
-}
-.flyer-url-input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--sr-line);
-    background: rgba(0,0,0,0.2);
-    color: var(--sr-muted);
-    font-size: 12px;
 }
 .flyer-hero {
     /* As wide as the content column allows, capped so 4:5 still fits the viewport. */
@@ -148,19 +143,23 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title"><i class="fas fa-bullhorn" style="margin-right: 10px; color: var(--sr-accent);"></i>{{ flyer_title }}</h1>
     <div class="sr-header-actions">
+        {% if show_creator_view %}
+        <a href="{{ url_for('my_ai_flyers') }}" class="sr-link-btn"><i class="fas fa-images"></i> Flyers</a>
+        {% endif %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 
-{% if show_creator_view %}
+{% if flyer_image_url or show_creator_view %}
 <div class="flyer-share-bar">
+    <p class="flyer-share-help">
+        Share the picture — download it and post that image in Instagram or your group chat.
+        Don’t send a website link.
+    </p>
     <div class="flyer-share-actions">
-        <button type="button" class="flyer-btn flyer-btn-primary" id="flyer-copy-btn">
-            <i class="fas fa-copy"></i> Copy link
-        </button>
         {% if flyer_image_url %}
-        <a class="flyer-btn" href="{{ url_for('download_flyer', share_id=share_id) }}">
-            <i class="fas fa-download"></i> Download Instagram
+        <a class="flyer-btn flyer-btn-primary" href="{{ url_for('download_flyer', share_id=share_id) }}">
+            <i class="fas fa-download"></i> Download picture
         </a>
         {% endif %}
         {% if can_remake %}
@@ -168,11 +167,12 @@
             <i class="fas fa-sync-alt"></i> Remake flyer
         </button>
         {% endif %}
+        {% if show_creator_view %}
         <a class="flyer-btn" href="{{ url_for('create_flyer') }}">
             <i class="fas fa-plus"></i> New flyer
         </a>
+        {% endif %}
     </div>
-    <input type="text" class="flyer-url-input" id="flyer-share-url" value="{{ share_url }}" readonly>
 </div>
 {% endif %}
 
@@ -265,24 +265,6 @@
 {% block extra_js %}
 <script>
 (function () {
-    var copyBtn = document.getElementById('flyer-copy-btn');
-    var urlInput = document.getElementById('flyer-share-url');
-    if (copyBtn && urlInput) {
-        copyBtn.addEventListener('click', function () {
-            urlInput.select();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(urlInput.value).then(function () {
-                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
-                    setTimeout(function () {
-                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link';
-                    }, 1500);
-                });
-            } else {
-                document.execCommand('copy');
-            }
-        });
-    }
-
     var remakePanel = document.getElementById('flyer-remake-panel');
     var remakeToggle = document.getElementById('flyer-remake-toggle');
     var remakeCancel = document.getElementById('flyer-remake-cancel');

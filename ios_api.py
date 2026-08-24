@@ -421,7 +421,10 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/stats')
     def api_vollis_stats():
-        from vollis_functions import vollis_stats_per_year, all_vollis_years, vollis_year_games
+        from vollis_functions import (
+            vollis_stats_per_year, all_vollis_years,
+            todays_vollis_stats, todays_vollis_games,
+        )
         year = _year_arg(str(date.today().year))
         current_year = str(date.today().year)
         display_year = year
@@ -434,12 +437,16 @@ def register_ios_api(app):
                 stats = vollis_stats_per_year(previous_year, 0)
                 display_year = previous_year
                 showing_previous_year = True
+        today = todays_vollis_stats()
+        today_games = todays_vollis_games()
         return jsonify({
             'year': year,
             'display_year': display_year,
             'showing_previous_year': showing_previous_year,
             'all_years': all_years,
             'stats': [_ranking(r) for r in (stats or [])],
+            'today_stats': [_ranking(r, rating_key='plus_minus') for r in (today or [])],
+            'today_game_count': len(today_games or []),
         })
 
     @app.route('/api/vollis/games', methods=['GET'])
@@ -970,6 +977,37 @@ def register_ios_api(app):
             })
         return jsonify({'recaps': out, 'page': page, 'total': total})
 
+    @app.route('/api/flyers', methods=['GET'])
+    @api_login_required
+    def api_my_flyers():
+        S = _S()
+        import flyer_functions as flyerfx
+        username = (session.get('username') or '').strip()
+        page = max(int(request.args.get('page', 1) or 1), 1)
+        per_page = 25
+        entries, total = flyerfx.list_flyer_pages(page=page, per_page=per_page, username=username)
+        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
+        out = [S.serialize_flyer_list_entry(entry, site_base) for entry in entries]
+        return jsonify({'flyers': out, 'page': page, 'total': total})
+
+    @app.route('/api/flyers/<share_id>', methods=['DELETE'])
+    @api_login_required
+    def api_delete_flyer(share_id):
+        S = _S()
+        import flyer_functions as flyerfx
+        share_id = (share_id or '').strip()
+        row = flyerfx.get_flyer_page(share_id)
+        if not row:
+            return jsonify({'error': 'Flyer not found'}), 404
+        if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+            return jsonify({'error': 'You can only delete flyers you created.'}), 403
+        if not flyerfx.delete_flyer_page(share_id):
+            return jsonify({'error': 'Flyer not found'}), 404
+        S.log_activity('Deleted flyer', target=share_id, summary=S._flyer_sport_label(
+            row.get('game_type'), row.get('game_name'),
+        ))
+        return jsonify({'ok': True})
+
     @app.route('/api/ai/roster', methods=['POST'])
     @api_login_required
     def api_ai_roster():
@@ -1083,9 +1121,25 @@ def register_ios_api(app):
                 ai_image_url = _abs(summary) if summary.startswith('/') else summary
         job['ai_image_url'] = ai_image_url
         job['player_name'] = payload.get('player_name') or job.get('custom_prompt') or ''
+        share_id = (job.get('share_id') or '').strip()
+        if (job.get('job_type') or '') == 'flyer' and share_id:
+            import flyer_functions as flyerfx
+            row = flyerfx.get_flyer_page(share_id) or {}
+            job['flyer_image_url'] = _abs(row.get('flyer_image_url') or '')
+            job['download_url'] = _abs(f'/flyer/{share_id}/download.jpg')
         return jsonify(job)
 
     # ----- Admin -----
+
+    def _admin_user_payload(u):
+        return {
+            'username': u.get('username'),
+            'is_admin': bool(u.get('is_admin')),
+            'active': bool(u.get('active')),
+            'created_at': u.get('created_at'),
+            'last_seen': u.get('last_seen'),
+            'last_login': u.get('last_login'),
+        }
 
     @app.route('/api/admin/overview')
     @api_admin_required
@@ -1095,24 +1149,18 @@ def register_ios_api(app):
         counts = S.adminfx.games_counts(today.strftime('%Y-%m-%d'), (today - timedelta(days=6)).strftime('%Y-%m-%d'))
         recent = S.adminfx.most_recent_game()
         users = S.adminfx.list_site_users()
+        activity = S.adminfx.activity_overview()
         try:
             db_size_mb = round(os.path.getsize(S.adminfx.stats_db_path()) / (1024 * 1024), 1)
         except OSError:
             db_size_mb = None
-        def _user(u):
-            return {
-                'username': u.get('username'),
-                'is_admin': bool(u.get('is_admin')),
-                'active': bool(u.get('active')),
-                'created_at': u.get('created_at'),
-                'last_seen': u.get('last_seen'),
-                'last_login': u.get('last_login'),
-            }
         return jsonify({
             'counts': counts,
             'recent_game': recent,
             'db_size_mb': db_size_mb,
-            'users': [_user(u) for u in users],
+            'users': [_admin_user_payload(u) for u in users],
+            'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
+            'activity': activity,
         })
 
     @app.route('/api/admin/activity')
@@ -1120,10 +1168,34 @@ def register_ios_api(app):
     def api_admin_activity():
         S = _S()
         page = max(int(request.args.get('page', 1) or 1), 1)
+        try:
+            per_page = int(request.args.get('per_page', 40) or 40)
+        except (TypeError, ValueError):
+            per_page = 40
+        per_page = min(max(per_page, 1), 100)
         q = (request.args.get('q') or '').strip() or None
         username = (request.args.get('username') or '').strip() or None
-        entries, total = S.adminfx.get_activity_page(page=page, per_page=50, username=username, q=q)
-        return jsonify({'entries': entries, 'page': page, 'total': total})
+        action = (request.args.get('action') or '').strip() or None
+        entries, total = S.adminfx.get_activity_page(
+            page=page, per_page=per_page, username=username, q=q, action=action,
+        )
+        total_pages = max((total + per_page - 1) // per_page, 1)
+        return jsonify({
+            'entries': [S.adminfx.serialize_activity_entry(e) for e in entries],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': total_pages,
+        })
+
+    @app.route('/api/admin/activity/<int:log_id>')
+    @api_admin_required
+    def api_admin_activity_entry(log_id):
+        S = _S()
+        entry = S.adminfx.get_activity_entry(log_id)
+        if not entry:
+            return jsonify({'error': 'Log entry not found'}), 404
+        return jsonify({'entry': S.adminfx.serialize_activity_entry(entry, include_snapshots=True)})
 
     @app.route('/api/admin/undo/<int:log_id>', methods=['POST'])
     @api_admin_required
@@ -1150,17 +1222,21 @@ def register_ios_api(app):
     def api_admin_add_user():
         S = _S()
         data = request.get_json(force=True, silent=True) or {}
-        username = (data.get('username') or '').strip()
+        username = (data.get('username') or '').strip().lower()
         password = data.get('password') or ''
         make_admin = bool(data.get('is_admin'))
         if not username or not password:
-            return jsonify({'error': 'username and password required'}), 400
+            return jsonify({'error': 'Username and password are required'}), 400
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        if S.adminfx.get_site_user(username):
+            return jsonify({'error': f'User "{username}" already exists'}), 400
         ok = S.adminfx.create_site_user(
             username, generate_password_hash(password, method='pbkdf2:sha256'), is_admin=make_admin,
         )
         if not ok:
             return jsonify({'error': 'Could not create user'}), 400
-        S.log_activity('Added site user', summary=username)
+        S.log_activity('Added site user', summary=f'{username}{" (admin)" if make_admin else ""}')
         return jsonify({'ok': True, 'username': username}), 201
 
     @app.route('/api/admin/users/reset_password', methods=['POST'])
@@ -1171,8 +1247,13 @@ def register_ios_api(app):
         username = (data.get('username') or '').strip()
         password = data.get('password') or ''
         if not username or not password:
-            return jsonify({'error': 'username and password required'}), 400
-        S.adminfx.update_site_user(username, password_hash=generate_password_hash(password, method='pbkdf2:sha256'))
+            return jsonify({'error': 'Username and password are required'}), 400
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        if not S.adminfx.update_site_user(
+            username, password_hash=generate_password_hash(password, method='pbkdf2:sha256'),
+        ):
+            return jsonify({'error': f'User "{username}" not found'}), 404
         S.log_activity('Reset user password', summary=username)
         return jsonify({'ok': True})
 
@@ -1184,9 +1265,18 @@ def register_ios_api(app):
         username = (data.get('username') or '').strip()
         active = data.get('active')
         if not username or active is None:
-            return jsonify({'error': 'username and active required'}), 400
-        S.adminfx.update_site_user(username, active=1 if active else 0)
-        S.log_activity('Toggled user active', summary=f'{username} -> {active}')
+            return jsonify({'error': 'Username and active are required'}), 400
+        if username.lower() == (session.get('username') or '').lower():
+            return jsonify({'error': 'You cannot deactivate your own account'}), 400
+        activate = bool(active)
+        if not S.adminfx.update_site_user(username, active=1 if activate else 0):
+            return jsonify({'error': f'User "{username}" not found'}), 404
+        if not activate:
+            S.revoke_all_user_tokens(username)
+        S.log_activity(
+            'Reactivated site user' if activate else 'Deactivated site user',
+            summary=username,
+        )
         return jsonify({'ok': True})
 
     @app.route('/api/admin/backup', methods=['POST'])
@@ -1198,7 +1288,10 @@ def register_ios_api(app):
         backup_dir = os.path.join(os.path.dirname(os.path.abspath(src)) or '.', 'backups')
         os.makedirs(backup_dir, exist_ok=True)
         dest = os.path.join(backup_dir, f"stats_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
-        shutil.copy2(src, dest)
+        try:
+            shutil.copy2(src, dest)
+        except OSError as e:
+            return jsonify({'ok': False, 'error': f'Backup failed: {e}'}), 500
         S.log_activity('Backed up database', summary=os.path.basename(dest))
         return jsonify({'ok': True, 'filename': os.path.basename(dest)})
 

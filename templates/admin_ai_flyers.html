@@ -253,14 +253,16 @@ details[open] > summary .adm-flyer-chevron { transform: rotate(90deg); }
                         <a class="adm-btn" href="{{ e.share_url }}" target="_blank" rel="noopener">
                             <i class="fas fa-external-link-alt"></i> Open
                         </a>
-                        <button type="button" class="adm-btn" data-copy-url="{{ e.share_url }}">
-                            <i class="fas fa-copy"></i> Copy link
-                        </button>
+                        {% if e.flyer_image_url %}
+                        <a class="adm-btn" href="{{ url_for('download_flyer', share_id=e.share_id) }}">
+                            <i class="fas fa-download"></i> Download picture
+                        </a>
+                        {% endif %}
                         <form method="POST" action="{{ url_for('admin_ai_flyers_delete') }}" style="display:inline;margin:0;">
                             <input type="hidden" name="share_id" value="{{ e.share_id }}">
                             <input type="hidden" name="page" value="{{ page }}">
                             <button type="submit" class="adm-btn adm-btn-danger"
-                                    onclick="return confirm('Delete this flyer page permanently? The share link will stop working.');">
+                                    onclick="return confirm('Delete this flyer permanently?');">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </form>

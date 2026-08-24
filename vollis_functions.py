@@ -228,7 +228,7 @@ def todays_vollis_stats():
                 differential -= (game[3] - game[5])
         win_percentage = wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage, differential])
-    stats.sort(key=lambda x: x[3], reverse=True)
+    stats.sort(key=lambda x: (x[3], x[4]), reverse=True)
     return stats
 
 def all_vollis_players(games):

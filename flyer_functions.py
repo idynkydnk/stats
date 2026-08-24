@@ -92,10 +92,14 @@ def update_flyer_page(share_id, **meta_updates):
     return meta
 
 
-def list_flyer_pages(page=1, per_page=25):
-    """Return (page_entries, total) for all published flyer pages, newest first."""
+def list_flyer_pages(page=1, per_page=25, username=None):
+    """Return (page_entries, total) for published flyer pages, newest first.
+
+    If username is set, only pages created by that user are included.
+    """
     page = max(int(page or 1), 1)
     per_page = max(int(per_page or 25), 1)
+    filter_username = (username or '').strip()
 
     flyer_dir = _flyer_storage_dir()
     entries = []
@@ -117,10 +121,13 @@ def list_flyer_pages(page=1, per_page=25):
                 ).strftime('%Y-%m-%d %H:%M:%S')
             except OSError:
                 created_at = ''
+        username = meta.get('username') or ''
+        if filter_username and username.strip() != filter_username:
+            continue
         entries.append({
             'share_id': meta.get('share_id') or share_id,
             'created_at': created_at,
-            'username': meta.get('username') or '',
+            'username': username,
             'players': list(meta.get('players') or []),
             'game_type': meta.get('game_type') or '',
             'game_name': meta.get('game_name') or '',

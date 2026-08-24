@@ -166,11 +166,11 @@ def _decorate_activity_row(row):
     return d
 
 
-def get_activity_page(page=1, per_page=50, username=None, q=None):
+def get_activity_page(page=1, per_page=50, username=None, q=None, action=None):
     """One page of activity entries (newest first) plus total count.
 
-    Optional filters: username (exact, case-insensitive) and q (substring match
-    across username/action/summary).
+    Optional filters: username (exact, case-insensitive), action (exact),
+    and q (substring match across username/action/summary).
     """
     offset = (max(page, 1) - 1) * per_page
     clauses = []
@@ -178,6 +178,9 @@ def get_activity_page(page=1, per_page=50, username=None, q=None):
     if username:
         clauses.append('lower(username) = lower(?)')
         params.append(username.strip())
+    if action:
+        clauses.append('action = ?')
+        params.append(action.strip())
     if q:
         needle = f'%{q.strip()}%'
         clauses.append('(username LIKE ? OR action LIKE ? OR IFNULL(summary, "") LIKE ?)')
@@ -201,6 +204,86 @@ def get_activity_entry(log_id):
     row = conn.execute('SELECT * FROM activity_log WHERE id = ?', (log_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def _load_snapshot(raw):
+    if not raw:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def snapshot_changes(before, after):
+    """Field-level diff of two row snapshots for the admin detail view."""
+    skip = {'password_hash'}
+    changes = []
+    keys = sorted(set(before or {}) | set(after or {}))
+    for key in keys:
+        if key in skip:
+            continue
+        old = None if before is None else before.get(key)
+        new = None if after is None else after.get(key)
+        if before is not None and after is not None and old == new:
+            continue
+        changes.append({
+            'field': key,
+            'before': None if old is None else str(old),
+            'after': None if new is None else str(new),
+        })
+    return changes
+
+
+def serialize_activity_entry(row, include_snapshots=False):
+    """JSON-safe activity row: bools instead of 0/1, optional change list."""
+    d = _decorate_activity_row(row)
+    out = {
+        'id': int(d['id']),
+        'created_at': d.get('created_at'),
+        'username': d.get('username') or '',
+        'action': d.get('action') or '',
+        'target': d.get('target'),
+        'target_id': d.get('target_id'),
+        'summary': d.get('summary'),
+        'undone': bool(d.get('undone')),
+        'undoable': bool(d.get('undoable')),
+        'undo_kind': d.get('undo_kind'),
+    }
+    if include_snapshots:
+        before = _load_snapshot(d.get('before_json'))
+        after = _load_snapshot(d.get('after_json'))
+        out['changes'] = snapshot_changes(before, after)
+        # Keep raw JSON so older clients can still diff locally.
+        out['before_json'] = d.get('before_json')
+        out['after_json'] = d.get('after_json')
+    return out
+
+
+def activity_overview():
+    """Totals plus today's action breakdown (UTC, matching SQLite CURRENT_TIMESTAMP)."""
+    conn = _connect()
+    total = conn.execute('SELECT COUNT(*) FROM activity_log').fetchone()[0]
+    today = conn.execute(
+        "SELECT COUNT(*) FROM activity_log WHERE date(created_at) = date('now')"
+    ).fetchone()[0]
+    rows = conn.execute('''
+        SELECT action, COUNT(*) AS c
+        FROM activity_log
+        WHERE date(created_at) = date('now')
+        GROUP BY action
+        ORDER BY c DESC, action
+        LIMIT 15
+    ''').fetchall()
+    conn.close()
+    return {
+        'total': total,
+        'today': today,
+        'today_by_action': [{'action': r['action'], 'count': r['c']} for r in rows],
+    }
 
 
 def snapshot_row(target, row_id):

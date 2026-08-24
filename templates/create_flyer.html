@@ -245,6 +245,7 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title"><i class="fas fa-bullhorn" style="margin-right: 10px; color: var(--sr-accent);"></i>Create Flyer</h1>
     <div class="sr-header-actions">
+        <a href="{{ url_for('my_ai_flyers') }}" class="sr-link-btn"><i class="fas fa-images"></i> Flyers</a>
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
@@ -252,6 +253,7 @@
 <div class="sr-card">
     <p style="color: var(--sr-muted); font-size: 13px; margin: 0 0 18px; line-height: 1.5;">
         Search for who’s playing, set the sport and when/where, then review player photos and signature looks before creating.
+        The result is a picture you download and share — Instagram, group chat, wherever. Don’t send a website link; share the image.
     </p>
 
     <form id="flyer-form" method="POST" action="{{ url_for('create_flyer_roster') }}">

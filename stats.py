@@ -740,6 +740,24 @@ def _flyer_sport_label(game_type, game_name=''):
     return 'Doubles'
 
 
+def serialize_flyer_list_entry(entry, site_base=''):
+    """Absolute image/download URLs plus display fields for a flyer list row."""
+    share_id = (entry.get('share_id') or '').strip()
+    image = adminfx.absolutize_hero_image_url(entry.get('flyer_image_url') or '', site_base)
+    title = _flyer_sport_label(entry.get('game_type'), entry.get('game_name')) + ' Flyer'
+    out = dict(entry)
+    out['flyer_image_url'] = image
+    out['title'] = title
+    out['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
+    if share_id:
+        out['view_url'] = url_for('view_flyer', share_id=share_id, _external=True)
+        out['download_url'] = url_for('download_flyer', share_id=share_id, _external=True)
+    else:
+        out['view_url'] = ''
+        out['download_url'] = ''
+    return out
+
+
 def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_images=None,
                         scene_prompt=''):
     """Create a shareable flyer page from form payload + generation results."""
@@ -1658,8 +1676,11 @@ def vollis_stats(year):
             display_year = previous_year
             showing_previous_year = True
     
+    today_stats = todays_vollis_stats()
+    today_games = todays_vollis_games()
     return render_template('vollis_stats.html', stats=stats, all_years=all_years, year=year,
-        display_year=display_year, showing_previous_year=showing_previous_year)
+        display_year=display_year, showing_previous_year=showing_previous_year,
+        today_stats=today_stats, today_games=today_games)
 
 @app.route('/vollis_games/')
 def vollis_games_default():
@@ -1894,6 +1915,64 @@ def my_ai_recaps_delete():
     else:
         flash('Recap not found.', 'error')
     return redirect(url_for('my_ai_recaps', page=page))
+
+
+@app.route('/flyers/')
+@login_required
+def my_ai_flyers():
+    """Browse flyer pictures created by the current user."""
+    import flyer_functions as flyerfx
+
+    username = (session.get('username') or '').strip()
+    page = max(int(request.args.get('page', 1) or 1), 1)
+    per_page = 25
+    entries, total_entries = flyerfx.list_flyer_pages(
+        page=page, per_page=per_page, username=username,
+    )
+    total_pages = max((total_entries + per_page - 1) // per_page, 1)
+    site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    entries = [serialize_flyer_list_entry(entry, site_base) for entry in entries]
+    return render_template(
+        'ai_flyers.html',
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total_entries=total_entries,
+    )
+
+
+@app.route('/flyers/delete', methods=['POST'])
+@login_required
+def my_ai_flyers_delete():
+    """Delete one of the current user's flyer pages."""
+    import flyer_functions as flyerfx
+
+    share_id = (request.form.get('share_id') or '').strip()
+    page = max(int(request.form.get('page', 1) or 1), 1)
+    if not share_id:
+        flash('No flyer selected.', 'error')
+        return redirect(url_for('my_ai_flyers', page=page))
+
+    row = flyerfx.get_flyer_page(share_id)
+    if not row:
+        flash('Flyer not found.', 'error')
+        return redirect(url_for('my_ai_flyers', page=page))
+
+    if (row.get('username') or '').strip() != (session.get('username') or '').strip():
+        flash('You can only delete flyers you created.', 'error')
+        return redirect(url_for('my_ai_flyers', page=page))
+
+    if flyerfx.delete_flyer_page(share_id):
+        label = _flyer_sport_label(row.get('game_type'), row.get('game_name'))
+        log_activity(
+            'Deleted flyer',
+            target=share_id,
+            summary=label,
+        )
+        flash(f'Deleted {label} flyer.', 'success')
+    else:
+        flash('Flyer not found.', 'error')
+    return redirect(url_for('my_ai_flyers', page=page))
 
 
 def _serialize_ai_summary_game(game_type, game):
@@ -2368,7 +2447,7 @@ def flyer_job_status(job_id):
 
 @app.route('/flyer/<share_id>/')
 def view_flyer(share_id):
-    """Public shareable flyer page (creator gets remake controls)."""
+    """Flyer page for the creator to download the picture and remake it."""
     import flyer_functions as flyerfx
     from email_content import (
         build_flyer_scene_prompt,

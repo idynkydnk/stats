@@ -51,10 +51,11 @@
 <div class="sr-card sr-job-card">
     <i class="fas fa-spinner fa-spin sr-job-spin" id="job-spin"></i>
     <h1 id="job-title">Creating your flyer…</h1>
-    <p>This keeps running in the background. Use <strong>Menu</strong> anytime — come back here when it’s done.</p>
+    <p>This keeps running in the background. Use <strong>Menu → Flyers</strong> anytime — when it’s done, download the picture to share. Don’t send a website link.</p>
     <p class="sr-job-status" id="job-status">Status: {{ job.status }}</p>
     <div class="sr-job-error" id="job-error" style="display:none;"></div>
     <p style="margin-top: 20px;">
+        <a href="{{ url_for('my_ai_flyers') }}" class="sr-link-btn">View Flyers</a>
         <a href="{{ url_for('create_flyer') }}" class="sr-link-btn">Back to Create Flyer</a>
     </p>
 </div>
