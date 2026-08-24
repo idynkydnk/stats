@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}{{ flyer_title }} - Stats{% endblock %}
 {% block extra_css %}
+{% include 'partials/flyer_save_css.html' %}
 <style>
 .flyer-share-bar {
     max-width: 720px;
@@ -54,6 +55,7 @@
     display: block;
     border-radius: 12px;
     border: 1px solid var(--sr-line);
+    -webkit-touch-callout: default;
 }
 .flyer-meta {
     text-align: center;
@@ -152,15 +154,25 @@
 
 {% if flyer_image_url or show_creator_view %}
 <div class="flyer-share-bar">
-    <p class="flyer-share-help">
-        Share the picture — download it and post that image in Instagram or your group chat.
+    <p class="flyer-share-help flyer-help-desktop">
+        Download the picture and share that file — Instagram, group chat, wherever.
         Don’t send a website link.
+    </p>
+    <p class="flyer-share-help flyer-help-phone">
+        Save the picture to Photos, then share it from there.
+        Don’t send a website link. You can also hold the picture.
     </p>
     <div class="flyer-share-actions">
         {% if flyer_image_url %}
-        <a class="flyer-btn flyer-btn-primary" href="{{ url_for('download_flyer', share_id=share_id) }}">
+        <a class="flyer-btn flyer-btn-primary flyer-save-desktop" href="{{ url_for('download_flyer', share_id=share_id) }}">
             <i class="fas fa-download"></i> Download picture
         </a>
+        <button type="button" class="flyer-btn flyer-btn-primary flyer-save-phone" data-flyer-save
+                data-download="{{ url_for('download_flyer', share_id=share_id) }}"
+                data-image="{{ flyer_image_url }}"
+                data-filename="{{ share_id }}-flyer.jpg">
+            <i class="fas fa-image"></i> Save to Photos
+        </button>
         {% endif %}
         {% if can_remake %}
         <button type="button" class="flyer-btn" id="flyer-remake-toggle">
@@ -263,6 +275,7 @@
 {% endif %}
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/flyer_save.js') }}"></script>
 <script>
 (function () {
     var remakePanel = document.getElementById('flyer-remake-panel');

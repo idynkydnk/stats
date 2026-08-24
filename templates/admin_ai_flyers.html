@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}AI Flyers - Admin{% endblock %}
 {% block extra_css %}
+{% include 'partials/flyer_save_css.html' %}
 <style>
 .adm-flyer-list { display: flex; flex-direction: column; gap: 12px; }
 .adm-flyer-card {
@@ -88,6 +89,7 @@
     color: #ef4444;
 }
 .adm-flyer-actions .adm-btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+.adm-flyer-actions button.adm-btn { font: inherit; }
 .adm-flyer-details { margin-top: 10px; }
 .adm-flyer-details > summary {
     cursor: pointer;
@@ -254,9 +256,15 @@ details[open] > summary .adm-flyer-chevron { transform: rotate(90deg); }
                             <i class="fas fa-external-link-alt"></i> Open
                         </a>
                         {% if e.flyer_image_url %}
-                        <a class="adm-btn" href="{{ url_for('download_flyer', share_id=e.share_id) }}">
+                        <a class="adm-btn flyer-save-desktop" href="{{ url_for('download_flyer', share_id=e.share_id) }}">
                             <i class="fas fa-download"></i> Download picture
                         </a>
+                        <button type="button" class="adm-btn flyer-save-phone" data-flyer-save
+                                data-download="{{ url_for('download_flyer', share_id=e.share_id) }}"
+                                data-image="{{ e.flyer_image_url }}"
+                                data-filename="{{ e.share_id }}-flyer.jpg">
+                            <i class="fas fa-image"></i> Save to Photos
+                        </button>
                         {% endif %}
                         <form method="POST" action="{{ url_for('admin_ai_flyers_delete') }}" style="display:inline;margin:0;">
                             <input type="hidden" name="share_id" value="{{ e.share_id }}">
@@ -347,6 +355,7 @@ details[open] > summary .adm-flyer-chevron { transform: rotate(90deg); }
 </div>
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/flyer_save.js') }}"></script>
 <script>
 document.querySelectorAll('[data-copy-url]').forEach(function (btn) {
     btn.addEventListener('click', function () {

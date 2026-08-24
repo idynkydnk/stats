@@ -2447,7 +2447,7 @@ def flyer_job_status(job_id):
 
 @app.route('/flyer/<share_id>/')
 def view_flyer(share_id):
-    """Flyer page for the creator to download the picture and remake it."""
+    """Flyer page for the creator to save or download the picture and remake it."""
     import flyer_functions as flyerfx
     from email_content import (
         build_flyer_scene_prompt,

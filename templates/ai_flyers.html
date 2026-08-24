@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}Flyers - Stats{% endblock %}
 {% block extra_css %}
+{% include 'partials/flyer_save_css.html' %}
 <style>
 .adm-flyer-list { display: flex; flex-direction: column; gap: 12px; }
 .adm-flyer-card {
@@ -91,6 +92,7 @@
     color: #ef4444;
 }
 .adm-flyer-actions .adm-btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+.adm-flyer-actions button.adm-btn { font: inherit; }
 .adm-pagination {
     display: flex;
     gap: 8px;
@@ -125,9 +127,11 @@
 </header>
 
 <div class="adm-section">
-    <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
-        Your flyer pictures. Download the image and share that — Instagram, group chat, wherever.
-        Don’t send a website link.
+    <p class="flyer-help-desktop" style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+        Your flyer pictures. Download the image and share that file — don’t send a website link.
+    </p>
+    <p class="flyer-help-phone" style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+        Your flyer pictures. Save them to Photos, then share from there — don’t send a website link.
     </p>
     {% if entries %}
     <div class="adm-flyer-list">
@@ -159,9 +163,15 @@
                 <div class="adm-flyer-sub">{{ e.created_at_fmt or e.created_at or '—' }}</div>
                 <div class="adm-flyer-actions">
                     {% if e.download_url %}
-                    <a class="adm-btn adm-btn-primary" href="{{ e.download_url }}">
+                    <a class="adm-btn adm-btn-primary flyer-save-desktop" href="{{ e.download_url }}">
                         <i class="fas fa-download"></i> Download picture
                     </a>
+                    <button type="button" class="adm-btn adm-btn-primary flyer-save-phone" data-flyer-save
+                            data-download="{{ e.download_url }}"
+                            data-image="{{ e.flyer_image_url }}"
+                            data-filename="{{ e.share_id }}-flyer.jpg">
+                        <i class="fas fa-image"></i> Save to Photos
+                    </button>
                     {% endif %}
                     <a class="adm-btn" href="{{ url_for('view_flyer', share_id=e.share_id) }}">
                         <i class="fas fa-eye"></i> Open
@@ -195,4 +205,7 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/flyer_save.js') }}"></script>
 {% endblock %}
