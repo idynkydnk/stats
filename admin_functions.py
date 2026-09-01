@@ -559,6 +559,157 @@ def most_recent_game():
     return {'kind': kind, 'game_date': game_date, 'summary': summary}
 
 
+def _format_recent_doubles(row):
+    summary = (
+        f"{row.get('winner1')} & {row.get('winner2')} beat "
+        f"{row.get('loser1')} & {row.get('loser2')} "
+        f"{row.get('winner_score')}-{row.get('loser_score')}"
+    )
+    return {
+        'kind': 'doubles',
+        'id': row.get('id'),
+        'game_date': row.get('game_date'),
+        'summary': summary,
+        'winner1': row.get('winner1'),
+        'winner2': row.get('winner2'),
+        'loser1': row.get('loser1'),
+        'loser2': row.get('loser2'),
+        'winner_score': row.get('winner_score'),
+        'loser_score': row.get('loser_score'),
+        'updated_at': row.get('updated_at'),
+        'entered_by': row.get('updated_by') or row.get('entered_by') or '',
+    }
+
+
+def _format_recent_vollis(row):
+    summary = (
+        f"{row.get('winner')} beat {row.get('loser')} "
+        f"{row.get('winner_score')}-{row.get('loser_score')}"
+    )
+    return {
+        'kind': 'vollis',
+        'id': row.get('id'),
+        'game_date': row.get('game_date'),
+        'summary': summary,
+        'winner': row.get('winner'),
+        'loser': row.get('loser'),
+        'winner_score': row.get('winner_score'),
+        'loser_score': row.get('loser_score'),
+        'updated_at': row.get('updated_at'),
+        'entered_by': '',
+    }
+
+
+def _format_recent_other(row):
+    summary = f"{row.get('game_name')}: {row.get('winner1')} beat {row.get('loser1')}"
+    return {
+        'kind': 'other',
+        'id': row.get('id'),
+        'game_date': row.get('game_date'),
+        'summary': summary,
+        'game_name': row.get('game_name'),
+        'winner1': row.get('winner1'),
+        'loser1': row.get('loser1'),
+        'winner_score': row.get('winner_score'),
+        'loser_score': row.get('loser_score'),
+        'updated_at': row.get('updated_at'),
+        'entered_by': row.get('entered_by') or '',
+    }
+
+
+def list_recent_games(page=1, per_page=40, kind=None):
+    """Recent games across doubles, vollis, and other tables, newest first.
+
+    Missing tables are skipped so a fresh local DB still returns an empty page.
+    """
+    page = max(int(page or 1), 1)
+    per_page = min(max(int(per_page or 40), 1), 100)
+    fetch_n = page * per_page
+    kind = (kind or '').strip().lower() or None
+    if kind == 'all':
+        kind = None
+
+    conn = _connect()
+    items = []
+    total = 0
+
+    def add_kind(label, count_sql, select_sql, formatter):
+        nonlocal total
+        if kind and kind != label:
+            return
+        try:
+            total += conn.execute(count_sql).fetchone()[0]
+            for row in conn.execute(select_sql, (fetch_n,)).fetchall():
+                items.append(formatter(dict(row)))
+        except sqlite3.OperationalError:
+            pass
+
+    add_kind(
+        'doubles',
+        'SELECT COUNT(*) FROM games',
+        '''SELECT id, game_date, winner1, winner2, loser1, loser2,
+                  winner_score, loser_score, updated_at
+           FROM games ORDER BY game_date DESC, id DESC LIMIT ?''',
+        _format_recent_doubles,
+    )
+    add_kind(
+        'vollis',
+        'SELECT COUNT(*) FROM vollis_games',
+        '''SELECT id, game_date, winner, loser, winner_score, loser_score, updated_at
+           FROM vollis_games ORDER BY game_date DESC, id DESC LIMIT ?''',
+        _format_recent_vollis,
+    )
+    other_select = '''SELECT id, game_date, game_name, winner1, loser1,
+                             winner_score, loser_score, updated_at, entered_by
+                      FROM other_games ORDER BY game_date DESC, id DESC LIMIT ?'''
+    other_select_fallback = '''SELECT id, game_date, game_name, winner1, loser1,
+                                      winner_score, loser_score, updated_at
+                               FROM other_games ORDER BY game_date DESC, id DESC LIMIT ?'''
+    if not kind or kind == 'other':
+        try:
+            total += conn.execute('SELECT COUNT(*) FROM other_games').fetchone()[0]
+            try:
+                other_rows = conn.execute(other_select, (fetch_n,)).fetchall()
+            except sqlite3.OperationalError:
+                other_rows = conn.execute(other_select_fallback, (fetch_n,)).fetchall()
+            for row in other_rows:
+                items.append(_format_recent_other(dict(row)))
+        except sqlite3.OperationalError:
+            pass
+    conn.close()
+
+    items.sort(key=lambda g: (str(g.get('game_date') or ''), int(g.get('id') or 0)), reverse=True)
+    offset = (page - 1) * per_page
+    return items[offset:offset + per_page], total
+
+
+def serialize_login_entry(row):
+    """Activity row for a login, plus source (web/iphone) and IP from the summary."""
+    d = serialize_activity_entry(row)
+    summary = (d.get('summary') or '')
+    lower = summary.lower()
+    if 'iphone' in lower or 'app login' in lower:
+        source = 'iphone'
+    elif 'web login' in lower:
+        source = 'web'
+    else:
+        source = 'unknown'
+    ip = ''
+    marker = ' from '
+    if marker in summary:
+        ip = summary.rsplit(marker, 1)[-1].strip()
+    d['source'] = source
+    d['ip'] = ip
+    return d
+
+
+def list_logins(page=1, per_page=40, username=None):
+    """Recent successful logins from the activity log (web + iPhone app)."""
+    return get_activity_page(
+        page=page, per_page=per_page, username=username, action='Logged in',
+    )
+
+
 # --- AI prompt log (saved summary generations for admin review) ---
 
 def init_ai_prompt_log_db():

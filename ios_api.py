@@ -236,6 +236,93 @@ def _card_stats(card):
     }
 
 
+ADMIN_TOPICS = (
+    {
+        'id': 'everything',
+        'label': 'Everything',
+        'description': 'Full activity log of every action on the site',
+        'path': '/api/admin/activity',
+    },
+    {
+        'id': 'games',
+        'label': 'Recent games',
+        'description': 'Doubles, vollis, and other games, newest first',
+        'path': '/api/admin/games',
+    },
+    {
+        'id': 'logins',
+        'label': 'Logins',
+        'description': 'Who signed in on the website or iPhone app',
+        'path': '/api/admin/logins',
+    },
+    {
+        'id': 'summaries',
+        'label': 'AI summary links',
+        'description': 'Published recap pages with shareable URLs',
+        'path': '/api/admin/recaps',
+    },
+    {
+        'id': 'flyers',
+        'label': 'Flyers',
+        'description': 'Generated flyer pages and download links',
+        'path': '/api/admin/flyers',
+    },
+    {
+        'id': 'jobs',
+        'label': 'AI jobs',
+        'description': 'Recap, flyer, and player-image jobs',
+        'path': '/api/admin/jobs',
+    },
+    {
+        'id': 'users',
+        'label': 'Users',
+        'description': 'Site accounts, last login, and last seen',
+        'path': '/api/admin/users',
+    },
+    {
+        'id': 'overview',
+        'label': 'Overview',
+        'description': 'Counts, latest game, and recent shares',
+        'path': '/api/admin/overview',
+    },
+)
+
+
+def admin_topic_catalog():
+    """Menu of Kyle-only activity topics the client can ask for."""
+    return {
+        'ask': 'What do you want to see?',
+        'topics': [dict(topic) for topic in ADMIN_TOPICS],
+        'hint': (
+            'Pass topic=games, topic=logins, topic=summaries, or topic=everything '
+            'to fetch that list in this response.'
+        ),
+    }
+
+
+def _page_args(default_per_page=40, max_per_page=100):
+    try:
+        page = int(request.args.get('page', 1) or 1)
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = int(request.args.get('per_page', default_per_page) or default_per_page)
+    except (TypeError, ValueError):
+        per_page = default_per_page
+    return max(page, 1), min(max(per_page, 1), max_per_page)
+
+
+def _paged(entries, total, page, per_page, key):
+    total_pages = max((total + per_page - 1) // per_page, 1) if total else 1
+    return {
+        key: entries,
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'total_pages': total_pages,
+    }
+
+
 def _normalize_game_date(game_date):
     game_date = (game_date or '').strip()
     if not game_date:
@@ -1143,25 +1230,105 @@ def register_ios_api(app):
             'last_login': u.get('last_login'),
         }
 
-    @app.route('/api/admin/overview')
-    @api_admin_required
-    def api_admin_overview():
+    def _admin_activity_payload():
+        S = _S()
+        page, per_page = _page_args(40)
+        q = (request.args.get('q') or '').strip() or None
+        username = (request.args.get('username') or '').strip() or None
+        action = (request.args.get('action') or '').strip() or None
+        entries, total = S.adminfx.get_activity_page(
+            page=page, per_page=per_page, username=username, q=q, action=action,
+        )
+        return _paged(
+            [S.adminfx.serialize_activity_entry(e) for e in entries],
+            total, page, per_page, 'entries',
+        )
+
+    def _admin_games_payload():
+        S = _S()
+        page, per_page = _page_args(40)
+        kind = (request.args.get('kind') or '').strip() or None
+        games, total = S.adminfx.list_recent_games(page=page, per_page=per_page, kind=kind)
+        payload = _paged(games, total, page, per_page, 'games')
+        payload['kind'] = kind or 'all'
+        return payload
+
+    def _admin_logins_payload():
+        S = _S()
+        page, per_page = _page_args(40)
+        username = (request.args.get('username') or '').strip() or None
+        entries, total = S.adminfx.list_logins(page=page, per_page=per_page, username=username)
+        return _paged(
+            [S.adminfx.serialize_login_entry(e) for e in entries],
+            total, page, per_page, 'logins',
+        )
+
+    def _admin_recaps_payload():
+        S = _S()
+        page, per_page = _page_args(25)
+        username = (request.args.get('username') or '').strip() or None
+        entries, total = S.adminfx.list_ai_recap_pages(
+            page=page, per_page=per_page, username=username,
+        )
+        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
+        payload = _paged(
+            [S.serialize_recap_list_entry(entry, site_base) for entry in entries],
+            total, page, per_page, 'recaps',
+        )
+        payload['showing_all'] = username is None
+        return payload
+
+    def _admin_flyers_payload():
+        S = _S()
+        import flyer_functions as flyerfx
+        page, per_page = _page_args(25)
+        username = (request.args.get('username') or '').strip() or None
+        entries, total = flyerfx.list_flyer_pages(
+            page=page, per_page=per_page, username=username,
+        )
+        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
+        payload = _paged(
+            [S.serialize_flyer_list_entry(entry, site_base) for entry in entries],
+            total, page, per_page, 'flyers',
+        )
+        payload['showing_all'] = username is None
+        return payload
+
+    def _admin_jobs_payload():
+        S = _S()
+        page, per_page = _page_args(25)
+        job_type = (request.args.get('job_type') or '').strip() or None
+        username = (request.args.get('username') or '').strip() or None
+        status = (request.args.get('status') or '').strip() or None
+        jobs, total = S.ai_jobs.list_jobs(
+            page=page, per_page=per_page, job_type=job_type,
+            username=username, status=status,
+        )
+        return _paged(jobs, total, page, per_page, 'jobs')
+
+    def _admin_users_payload():
+        S = _S()
+        return {'users': [_admin_user_payload(u) for u in S.adminfx.list_site_users()]}
+
+    def _admin_overview_payload():
         S = _S()
         today = date.today()
         counts = S.adminfx.games_counts(today.strftime('%Y-%m-%d'), (today - timedelta(days=6)).strftime('%Y-%m-%d'))
         recent = S.adminfx.most_recent_game()
-        users = S.adminfx.list_site_users()
         activity = S.adminfx.activity_overview()
         shares = S._admin_share_previews()
         try:
             db_size_mb = round(os.path.getsize(S.adminfx.stats_db_path()) / (1024 * 1024), 1)
         except OSError:
             db_size_mb = None
-        return jsonify({
+        catalog = admin_topic_catalog()
+        return {
+            'ask': catalog['ask'],
+            'topics': catalog['topics'],
             'counts': counts,
             'recent_game': recent,
             'db_size_mb': db_size_mb,
-            'users': [_admin_user_payload(u) for u in users],
+            'users': _admin_users_payload()['users'],
             'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
             'activity': activity,
             'recent_recaps': shares['recent_recaps'],
@@ -1170,100 +1337,83 @@ def register_ios_api(app):
             'flyer_count': shares['flyer_total'],
             'recent_jobs': shares['recent_jobs'],
             'job_count': shares['job_total'],
-        })
+        }
+
+    def _admin_topic_payload(topic):
+        builders = {
+            'everything': _admin_activity_payload,
+            'activity': _admin_activity_payload,
+            'games': _admin_games_payload,
+            'logins': _admin_logins_payload,
+            'summaries': _admin_recaps_payload,
+            'recaps': _admin_recaps_payload,
+            'flyers': _admin_flyers_payload,
+            'jobs': _admin_jobs_payload,
+            'users': _admin_users_payload,
+            'overview': _admin_overview_payload,
+        }
+        builder = builders.get(topic)
+        if not builder:
+            return None
+        return builder()
+
+    @app.route('/api/admin')
+    @app.route('/api/admin/')
+    @api_admin_required
+    def api_admin_index():
+        catalog = admin_topic_catalog()
+        topic = (request.args.get('topic') or '').strip().lower()
+        if not topic:
+            return jsonify(catalog)
+        payload = _admin_topic_payload(topic)
+        if payload is None:
+            known = [t['id'] for t in catalog['topics']]
+            return jsonify({
+                **catalog,
+                'error': f'Unknown topic "{topic}"',
+                'known_topics': known,
+            }), 400
+        return jsonify({**catalog, 'topic': topic, **payload})
+
+    @app.route('/api/admin/overview')
+    @api_admin_required
+    def api_admin_overview():
+        return jsonify(_admin_overview_payload())
+
+    @app.route('/api/admin/games')
+    @api_admin_required
+    def api_admin_games():
+        return jsonify(_admin_games_payload())
+
+    @app.route('/api/admin/logins')
+    @api_admin_required
+    def api_admin_logins():
+        return jsonify(_admin_logins_payload())
+
+    @app.route('/api/admin/users', methods=['GET'])
+    @api_admin_required
+    def api_admin_list_users():
+        return jsonify(_admin_users_payload())
 
     @app.route('/api/admin/activity')
     @api_admin_required
     def api_admin_activity():
-        S = _S()
-        page = max(int(request.args.get('page', 1) or 1), 1)
-        try:
-            per_page = int(request.args.get('per_page', 40) or 40)
-        except (TypeError, ValueError):
-            per_page = 40
-        per_page = min(max(per_page, 1), 100)
-        q = (request.args.get('q') or '').strip() or None
-        username = (request.args.get('username') or '').strip() or None
-        action = (request.args.get('action') or '').strip() or None
-        entries, total = S.adminfx.get_activity_page(
-            page=page, per_page=per_page, username=username, q=q, action=action,
-        )
-        total_pages = max((total + per_page - 1) // per_page, 1)
-        return jsonify({
-            'entries': [S.adminfx.serialize_activity_entry(e) for e in entries],
-            'page': page,
-            'per_page': per_page,
-            'total': total,
-            'total_pages': total_pages,
-        })
+        return jsonify(_admin_activity_payload())
 
     @app.route('/api/admin/recaps')
     @api_admin_required
     def api_admin_recaps():
-        S = _S()
-        page = max(int(request.args.get('page', 1) or 1), 1)
-        try:
-            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
-        except (TypeError, ValueError):
-            per_page = 25
-        username = (request.args.get('username') or '').strip() or None
-        entries, total = S.adminfx.list_ai_recap_pages(
-            page=page, per_page=per_page, username=username,
-        )
-        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
-        return jsonify({
-            'recaps': [S.serialize_recap_list_entry(entry, site_base) for entry in entries],
-            'page': page,
-            'per_page': per_page,
-            'total': total,
-            'showing_all': username is None,
-        })
+        return jsonify(_admin_recaps_payload())
 
     @app.route('/api/admin/flyers')
     @api_admin_required
     def api_admin_flyers():
-        S = _S()
-        import flyer_functions as flyerfx
-        page = max(int(request.args.get('page', 1) or 1), 1)
-        try:
-            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
-        except (TypeError, ValueError):
-            per_page = 25
-        username = (request.args.get('username') or '').strip() or None
-        entries, total = flyerfx.list_flyer_pages(
-            page=page, per_page=per_page, username=username,
-        )
-        site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
-        return jsonify({
-            'flyers': [S.serialize_flyer_list_entry(entry, site_base) for entry in entries],
-            'page': page,
-            'per_page': per_page,
-            'total': total,
-            'showing_all': username is None,
-        })
+        return jsonify(_admin_flyers_payload())
 
     @app.route('/api/admin/jobs')
     @api_admin_required
     def api_admin_jobs():
-        S = _S()
-        page = max(int(request.args.get('page', 1) or 1), 1)
-        try:
-            per_page = min(max(int(request.args.get('per_page', 25) or 25), 1), 100)
-        except (TypeError, ValueError):
-            per_page = 25
-        job_type = (request.args.get('job_type') or '').strip() or None
-        username = (request.args.get('username') or '').strip() or None
-        status = (request.args.get('status') or '').strip() or None
-        jobs, total = S.ai_jobs.list_jobs(
-            page=page, per_page=per_page, job_type=job_type,
-            username=username, status=status,
-        )
-        return jsonify({
-            'jobs': jobs,
-            'page': page,
-            'per_page': per_page,
-            'total': total,
-        })
+        return jsonify(_admin_jobs_payload())
 
     @app.route('/api/admin/activity/<int:log_id>')
     @api_admin_required
