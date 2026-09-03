@@ -1180,7 +1180,10 @@ def build_scene_image_prompt(
     setting = _scene_setting_line(game_type, game_name)
     identity = _group_identity_rules(player_count)
     royalty = _session_beach_royalty_lock(players, player_stats)
-    sections = [identity, BODY_SIDE_CONVENTION, royalty, roster_block]
+    performance = _session_performance_staging_lock(players, player_stats)
+    sections = [
+        identity, BODY_SIDE_CONVENTION, royalty, performance, roster_block,
+    ]
     if details:
         sections.append(details)
     if (location or '').strip():
@@ -1369,6 +1372,100 @@ def _append_session_beach_royalty_lock(prompt, players, player_stats):
     lock = _session_beach_royalty_lock(players, player_stats)
     prompt = (prompt or '').strip()
     if not lock or lock in prompt:
+        return prompt
+    return f'{prompt}\n\n{lock}' if prompt else lock
+
+
+def _valid_session_performance_rows(players, player_stats):
+    """Return usable illustration stats for selected players, preserving stats order."""
+    player_keys = {
+        (name or '').strip().casefold()
+        for name in _dedupe_players_preserve_order(players)
+    }
+    rows = []
+    for row in player_stats or []:
+        if not row or len(row) < 5:
+            continue
+        name = (row[0] or '').strip()
+        if not name or name.casefold() not in player_keys:
+            continue
+        try:
+            wins = int(row[1] or 0)
+            losses = int(row[2] or 0)
+            win_pct = float(row[3] or 0)
+            differential = int(row[4] or 0)
+        except (TypeError, ValueError):
+            continue
+        rows.append((name, wins, losses, win_pct, differential))
+    return rows
+
+
+def _session_performance_staging_lock(players, player_stats):
+    """Translate every selected player's session stats into comic visual acting."""
+    rows = _valid_session_performance_rows(players, player_stats)
+    if not rows:
+        return ''
+
+    best_rank = max((row[3], row[4]) for row in rows)
+    worst_rank = min((row[3], row[4]) for row in rows)
+    has_clear_loser = len(rows) > 1 and worst_rank != best_rank
+
+    lines = [
+        'PERFORMANCE STAGING LOCK — the statistics control every player\'s pose, '
+        'body language, and facial expression. Make the contrast immediate, exaggerated, '
+        'and funny. Preserve each person\'s actual facial identity; change their expression, '
+        'not whose face they have.',
+    ]
+    for name, wins, losses, win_pct, differential in rows:
+        record = f'{wins}-{losses}, {win_pct:.0%}, {differential:+d} point differential'
+        rank = (win_pct, differential)
+        if rank == best_rank:
+            direction = (
+                'the session leader: upright in front, ecstatic and triumphant, with a huge '
+                'proud smile and celebratory winner body language. If designated king or queen, '
+                'wear the royal crown and clearly enjoy it'
+            )
+        elif has_clear_loser and rank == worst_rank:
+            direction = (
+                'the clear session loser: down on the ground in comically bad shape, sprawled '
+                'or crumpled on the playing surface, totally spent and defeated, with a dazed, '
+                'miserable, embarrassed expression and funny slapstick defeat details such as '
+                'sand on their clothes or cartoon dizziness. Keep it non-graphic: no blood, '
+                'gore, open wounds, or realistic serious injury'
+            )
+        elif win_pct > 0.5 or (win_pct == 0.5 and differential > 0):
+            direction = (
+                'a strong positive performance: standing tall, energized and confident, smiling '
+                'and celebrating, but visibly less dominant than the session leader'
+            )
+        elif win_pct < 0.5 or differential < 0:
+            direction = (
+                'a poor performance: lower and more collapsed in the composition, hunched, '
+                'wobbly or slumped, with an exhausted, frustrated, sheepish expression; make the '
+                'pose look worse as the record and point differential get worse'
+            )
+        else:
+            direction = (
+                'an even performance: middle-height neutral pose, catching their breath, with a '
+                'mixed relieved-and-sheepish expression rather than looking like a champion or '
+                'the session loser'
+            )
+        lines.append(f'{name} ({record}) — {direction}.')
+    closing = (
+        'Do not give everyone the same generic standing pose or smile. '
+        'The leader must look happiest.'
+    )
+    if has_clear_loser:
+        closing += ' The worst performer must be on the ground.'
+    lines.append(closing)
+    return '\n'.join(lines)
+
+
+def _append_session_performance_staging_lock(prompt, players, player_stats):
+    """Keep stats-driven acting in both default and custom scene prompts."""
+    lock = _session_performance_staging_lock(players, player_stats)
+    prompt = (prompt or '').strip()
+    if not lock or 'PERFORMANCE STAGING LOCK' in prompt:
         return prompt
     return f'{prompt}\n\n{lock}' if prompt else lock
 
@@ -3644,6 +3741,9 @@ def generate_email_hero_image(
     )
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
     api_prompt = _append_session_beach_royalty_lock(
+        api_prompt, scene_players, player_stats,
+    )
+    api_prompt = _append_session_performance_staging_lock(
         api_prompt, scene_players, player_stats,
     )
     api_prompt = _append_volleyball_ball_lock(
