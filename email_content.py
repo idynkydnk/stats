@@ -1117,7 +1117,8 @@ def build_scene_image_prompt(
     details = (image_details or '').strip()
     setting = _scene_setting_line(game_type, game_name)
     identity = _group_identity_rules(player_count)
-    sections = [identity, roster_block]
+    royalty = _session_beach_royalty_lock(players, player_stats)
+    sections = [identity, royalty, roster_block]
     if details:
         sections.append(details)
     sections.append(_name_stats_label_rule())
@@ -1190,6 +1191,14 @@ def _beach_royalty_phrases(full_name):
     return [dress, 'taller than everyone', 'in front of everyone']
 
 
+_BEACH_ROYALTY_PHRASES = frozenset({
+    'dressed like a king',
+    'dressed like a queen',
+    'taller than everyone',
+    'in front of everyone',
+})
+
+
 def _session_beach_royalty_names(player_stats):
     """Names tied for best win% and differential in this session."""
     rows = []
@@ -1213,10 +1222,55 @@ def _session_beach_royalty_names(player_stats):
     return [row[0] for row in at_pct if row[2] == best_diff]
 
 
+def _session_beach_royalty_lock(players, player_stats):
+    """Explicitly bind royalty props to the win-percentage leader(s)."""
+    players = _dedupe_players_preserve_order(players)
+    player_keys = {(name or '').strip().casefold() for name in players}
+    leaders = [
+        name for name in _session_beach_royalty_names(player_stats)
+        if name.casefold() in player_keys
+    ]
+    if not leaders:
+        return ''
+
+    leader_keys = {name.casefold() for name in leaders}
+    nonleaders = [name for name in players if name.casefold() not in leader_keys]
+    leader_text = ', '.join(leaders)
+    role_text = ', '.join(
+        f'{name} is the only {"queen" if _player_is_female_for_beach_title(name) else "king"}'
+        for name in leaders
+    )
+    lines = [
+        'ROYALTY IDENTITY LOCK — follow this literally and do not infer royalty '
+        'from point differential, label size, reference-image clothing, or prompt order.',
+        f'{role_text}. The session royalty is determined by best win percentage; '
+        f'attach every crown, royal cape, throne, or other royalty prop only to {leader_text}.',
+    ]
+    if nonleaders:
+        lines.append(
+            f'All other players ({", ".join(nonleaders)}) are not royalty and must have '
+            'no crown, tiara, royal cape, throne, scepter, or royal clothing. If a '
+            'nonleader reference image contains a royalty item, remove or ignore it.'
+        )
+    return '\n'.join(lines)
+
+
+def _append_session_beach_royalty_lock(prompt, players, player_stats):
+    """Keep the royalty lock in both default and custom scene prompts."""
+    lock = _session_beach_royalty_lock(players, player_stats)
+    prompt = (prompt or '').strip()
+    if not lock or lock in prompt:
+        return prompt
+    return f'{prompt}\n\n{lock}' if prompt else lock
+
+
 def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
     """Append king/queen staging looks to session leaders' signature-look lists."""
     merged = {
-        name: list(phrases or [])
+        name: [
+            phrase for phrase in (phrases or [])
+            if (phrase or '').strip().casefold() not in _BEACH_ROYALTY_PHRASES
+        ]
         for name, phrases in (phrases_by_name or {}).items()
     }
     leaders = set(_session_beach_royalty_names(player_stats))
@@ -1323,6 +1377,22 @@ def _session_stats_by_name(player_stats):
         if name:
             by_name[name] = row
     return by_name
+
+
+def _players_in_session_rank_order(players, player_stats):
+    """Order image identities exactly like the authoritative session stats table."""
+    players = _dedupe_players_preserve_order(players)
+    stats_order = {
+        (row[0] or '').strip().casefold(): index
+        for index, row in enumerate(player_stats or [])
+        if row and (row[0] or '').strip()
+    }
+    return sorted(
+        players,
+        key=lambda name: stats_order.get(
+            (name or '').strip().casefold(), len(stats_order),
+        ),
+    )
 
 
 def _format_session_stat_bits(stat_row):
@@ -3434,6 +3504,11 @@ def generate_email_hero_image(
     if player_stats is None and games:
         player_stats = session_stats_for_illustration(game_type, games)
 
+    # Callers sometimes pass a set of names. Put players in the same authoritative
+    # order as the stats table so the win-percentage leader is the first identity
+    # the image model sees rather than whichever set item happens to come first.
+    all_players = _players_in_session_rank_order(all_players, player_stats)
+
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
         all_players, labels_by_name=labels_by_name, player_stats=player_stats,
@@ -3446,6 +3521,9 @@ def generate_email_hero_image(
             labels_by_name=labels_by_name, player_stats=player_stats,
         )
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
+    api_prompt = _append_session_beach_royalty_lock(
+        api_prompt, scene_players, player_stats,
+    )
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
         raw, mime = _generate_image_bytes(
