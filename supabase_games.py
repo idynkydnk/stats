@@ -6,7 +6,7 @@ not configured, all functions no-op.
 Expects Supabase table `games` with: id (uuid), db_id (uuid, FK to public.databases
 = which game set e.g. KT), game_date, winner1, winner2, winner_score, loser1,
 loser2, loser_score, comments, updated_at, entered_timezone, updated_by,
-editor_db_id (uuid, optional).
+location, editor_db_id (uuid, optional).
 
 Row identity: id = deterministic UUID from SQLite game_id (for update/delete).
 db_id = which game set (e.g. KT). Games are written to the set given by
@@ -96,6 +96,7 @@ def write_game(game_id, game_dict):
             'updated_at': row.get('updated_at'),
             'entered_timezone': row.get('entered_timezone'),
             'updated_by': row.get('updated_by'),
+            'location': row.get('location') or None,
         }
         tbl.insert(payload).execute()
         return True
@@ -122,6 +123,7 @@ def update_game(game_id, game_dict):
             'updated_at': row.get('updated_at'),
             'entered_timezone': row.get('entered_timezone'),
             'updated_by': row.get('updated_by'),
+            'location': row.get('location') or None,
         }
         tbl.update(payload).eq('id', _id_for_sqlite_game(game_id)).execute()
         return True

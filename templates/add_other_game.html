@@ -215,6 +215,7 @@
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 <datalist id="game_names">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
+                <datalist id="locations">{% for location in locations %}<option value="{{ location }}">{% endfor %}</datalist>
                 
                 <div class="autocomplete has-clear empty" id="game_name-wrap">
                     <input type="text" name="game_name" id="game_name" placeholder="Game Name" autocomplete="off">
@@ -298,6 +299,10 @@
                 <div class="autocomplete has-clear empty" id="comment-wrap">
                     <input type="text" name="comment" id="comment" placeholder="Comment (optional)">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear comment"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="autocomplete has-clear{% if not last_location %} empty{% endif %}" id="location-wrap">
+                    <input type="text" name="location" id="location" value="{{ last_location }}" placeholder="Location (optional)" list="locations" autocomplete="off" maxlength="160">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear location"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn">Submit</button>

@@ -13,7 +13,7 @@ BASE_INSERT_COLUMNS = (
     + ["winner_score"]
     + LOSER_FIELDS
     + LOSER_SCORE_FIELDS
-    + ["loser_score", "comment", "updated_at", "entered_timezone", "entered_by"]
+    + ["loser_score", "comment", "updated_at", "entered_timezone", "entered_by", "location"]
 )
 
 BASE_UPDATE_COLUMNS = (
@@ -62,6 +62,9 @@ def create_table(conn, create_table_sql):
 
 
 def create_other_game(conn, game):
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(other_games)').fetchall()}
+    if 'location' not in columns:
+        conn.execute('ALTER TABLE other_games ADD COLUMN location TEXT')
     placeholders = ",".join(["?"] * len(BASE_INSERT_COLUMNS))
     sql = f"""INSERT INTO other_games({', '.join(BASE_INSERT_COLUMNS)})
               VALUES({placeholders})"""
@@ -102,7 +105,8 @@ def main():
                                     comment text,
                                     updated_at DATETIME NOT NULL,
                                     entered_timezone text,
-                                    entered_by text
+                                    entered_by text,
+                                    location text
                                 );"""
 
     # create a database connection

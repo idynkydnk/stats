@@ -87,22 +87,24 @@ def set_cur():
 
 def add_vollis_stats(game):
     tz = game[6] if len(game) > 6 else None
-    new_vollis_game(game[0], game[1], game[3], game[2], game[4], game[5], tz)
+    location = game[7] if len(game) > 7 else ''
+    new_vollis_game(game[0], game[1], game[3], game[2], game[4], game[5], tz, location)
 
 def enter_data_into_database(games_data):
     for x in games_data:
         new_vollis_game(x[4], x[2], 0, x[3], 0, x[4])
 
-def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated_at, entered_timezone=None):
+def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated_at, entered_timezone=None, location=''):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
     with conn:
-        game = (game_date, winner, winner_score, loser, loser_score, updated_at)
-        if entered_timezone:
-            game = game + (entered_timezone,)
+        game = (
+            game_date, winner, winner_score, loser, loser_score, updated_at,
+            entered_timezone, (location or '').strip(),
+        )
         create_vollis_game(conn, game)
 
 def find_vollis_game(game_id):
@@ -297,7 +299,6 @@ def convert_vollis_ampm(games):
 def vollis_losing_scores():
     scores = [19,9,13]
     return scores
-
 
 
 

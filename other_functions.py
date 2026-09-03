@@ -118,7 +118,8 @@ def _normalize_players(players, scores):
 
 def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
                     losers, loser_scores, comment, updated_at,
-                    team_winner_score=None, team_loser_score=None, entered_timezone=None, entered_by=None):
+                    team_winner_score=None, team_loser_score=None, entered_timezone=None,
+                    entered_by=None, location=''):
     """Insert an other-game record with per-player scores or team scores.
     
     If team_winner_score/team_loser_score are provided, they are used as the
@@ -159,7 +160,8 @@ def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
             + [aggregate_winner_score]
             + losers_normalized
             + loser_scores_normalized
-            + [aggregate_loser_score, comment, updated_at, entered_timezone, entered_by or '']
+            + [aggregate_loser_score, comment, updated_at, entered_timezone,
+               entered_by or '', (location or '').strip()]
         )
         create_other_game(conn, tuple(values))
 
@@ -190,6 +192,7 @@ def _build_other_game_display(game, include_time=False):
         'game_time': game_time if include_time else '',
         'game_type': record.get('game_type'),
         'game_name': record.get('game_name'),
+        'location': record.get('location') or '',
         'comment': record.get('comment') or '',
         'updated_at': updated_dt.strftime("%m/%d/%y %I:%M %p") if updated_dt else (record.get('updated_at') or '')
     }
@@ -1073,5 +1076,3 @@ def game_name_stats(game_name):
             if game["game_name"] == game_name:
                 game_name_games.append(game)
     return game_name_games
-
-

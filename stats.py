@@ -562,7 +562,8 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
 
 
 def _load_games_and_players_for_recap(game_type, game_ids):
-    """Load selected games and player names for regenerating a recap illustration."""
+    """Load selected games, players, game name, and location for a recap image."""
+    from email_content import _summary_location_from_rows
     ids = [int(gid) for gid in game_ids]
     if not ids:
         raise ValueError('No games saved for this recap.')
@@ -577,14 +578,17 @@ def _load_games_and_players_for_recap(game_type, game_ids):
             f'SELECT * FROM vollis_games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
             ids,
         )
-        games = convert_vollis_ampm(cur.fetchall())
+        column_names = [column[0] for column in (cur.description or [])]
+        raw_games = cur.fetchall()
+        location = _summary_location_from_rows(raw_games, column_names)
+        games = convert_vollis_ampm(raw_games)
         conn.close()
         players = set()
         for game in games:
             for name in (game[2], game[4]):
                 if name and str(name).strip():
                     players.add(name)
-        return games, players, None
+        return games, players, None, location
 
     if game_type == 'other':
         from other_functions import readable_games_data, _is_valid_player_name
@@ -597,7 +601,9 @@ def _load_games_and_players_for_recap(game_type, game_ids):
             f'SELECT * FROM other_games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
             ids,
         )
-        games = readable_games_data(cur.fetchall())
+        raw_games = cur.fetchall()
+        location = _summary_location_from_rows(raw_games)
+        games = readable_games_data(raw_games)
         conn.close()
         players = set()
         game_names = set()
@@ -610,7 +616,7 @@ def _load_games_and_players_for_recap(game_type, game_ids):
                     if name and _is_valid_player_name(name):
                         players.add(name)
         game_name = ', '.join(sorted(game_names)) if game_names else 'Other'
-        return games, players, game_name
+        return games, players, game_name, location
 
     from stat_functions import convert_ampm
     cur = set_cur()
@@ -618,13 +624,16 @@ def _load_games_and_players_for_recap(game_type, game_ids):
         f'SELECT * FROM games WHERE id IN ({placeholders}) ORDER BY game_date DESC',
         ids,
     )
-    games = convert_ampm(cur.fetchall())
+    column_names = [column[0] for column in (cur.description or [])]
+    raw_games = cur.fetchall()
+    location = _summary_location_from_rows(raw_games, column_names)
+    games = convert_ampm(raw_games)
     players = set()
     for game in games:
         for name in (game[2], game[3], game[5], game[6]):
             if name and str(name).strip():
                 players.add(name)
-    return games, players, None
+    return games, players, None, location
 
 
 def _send_ai_summary_payload(payload, username='unknown'):
@@ -1264,8 +1273,26 @@ adminfx.init_ai_prompt_log_db()
 adminfx.init_ai_recap_pages_db()
 ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
+init_game_location_columns()
 from player_functions import init_players_photo_column
 init_players_photo_column()
+
+
+def _game_location_form_context():
+    """Location suggestions plus the signed-in user's last-used value."""
+    last_location = adminfx.get_user_last_location(session.get('username'))
+    locations = saved_game_locations()
+    if last_location:
+        locations = [last_location] + [
+            item for item in locations if item.casefold() != last_location.casefold()
+        ]
+    return {'last_location': last_location, 'locations': locations}
+
+
+def _remember_game_location(location):
+    location = (location or '').strip()
+    if location:
+        adminfx.remember_user_location(session.get('username'), location)
 
 
 def player_photo_url_for(name):
@@ -1545,7 +1572,7 @@ def _api_game_row_to_dict(row):
     if hasattr(row, 'keys'):
         d = dict(row)
     else:
-        cols = ['id', 'game_date', 'winner1', 'winner2', 'winner_score', 'loser1', 'loser2', 'loser_score', 'updated_at', 'comments', 'entered_timezone', 'updated_by']
+        cols = ['id', 'game_date', 'winner1', 'winner2', 'winner_score', 'loser1', 'loser2', 'loser_score', 'updated_at', 'comments', 'entered_timezone', 'updated_by', 'location']
         d = {}
         for i, k in enumerate(cols):
             if i < len(row):
@@ -2092,7 +2119,7 @@ def _roster_players_for_games(game_ids, game_type):
     """Alphabetical unique player names for the selected games."""
     from email_content import _ordered_email_image_players
     try:
-        _games, players, _game_name = _load_games_and_players_for_recap(game_type, game_ids)
+        _games, players, _game_name, _location = _load_games_and_players_for_recap(game_type, game_ids)
     except Exception:
         return []
     return _ordered_email_image_players(players)
@@ -2856,6 +2883,7 @@ def view_ai_recap(share_id):
         from email_content import build_scene_image_prompt
 
         game_name = None
+        recap_location = ''
         players = []
         games_for_prompt = []
         try:
@@ -2864,11 +2892,11 @@ def view_ai_recap(share_id):
             game_ids = []
         if game_ids:
             try:
-                games_for_prompt, players, game_name = _load_games_and_players_for_recap(
+                games_for_prompt, players, game_name, recap_location = _load_games_and_players_for_recap(
                     game_type, game_ids,
                 )
             except Exception:
-                games_for_prompt, players, game_name = [], [], None
+                games_for_prompt, players, game_name, recap_location = [], [], None, ''
 
         remake_scene_prompt = (row.get('scene_prompt') or '').strip()
         if not remake_scene_prompt and players:
@@ -2881,6 +2909,7 @@ def view_ai_recap(share_id):
                 player_stats=session_stats_for_illustration(
                     game_type, games_for_prompt,
                 ),
+                location=recap_location,
             )
 
     from email_content import ensure_recap_og_image
@@ -3210,7 +3239,7 @@ def remake_ai_recap_image(share_id):
     legacy_solos = filter_existing_solo_images(old_solos)
 
     try:
-        games, players, game_name = _load_games_and_players_for_recap(game_type, game_ids)
+        games, players, game_name, recap_location = _load_games_and_players_for_recap(game_type, game_ids)
         if not games:
             raise ValueError('None of the saved games were found.')
         if not players:
@@ -3233,6 +3262,7 @@ def remake_ai_recap_image(share_id):
                 game_type, illustration_players, game_name=game_name,
                 image_details=image_details, labels_by_name=labels,
                 player_stats=player_stats,
+                location=recap_location,
             )
 
         new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
@@ -3247,6 +3277,7 @@ def remake_ai_recap_image(share_id):
                 custom_scene_prompt=scene_prompt,
                 selected_players=illustration_players,
                 player_stats=player_stats,
+                location=recap_location,
             )
         )
     except Exception as e:
@@ -3530,6 +3561,7 @@ def _add_doubles_game_view(redirect_to):
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
         comments = request.form.get('comments', '').strip()
+        location = request.form.get('location', '').strip()
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
@@ -3556,7 +3588,8 @@ def _add_doubles_game_view(redirect_to):
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
             supabase_ok = add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
-                winner_score, loser_score, game_dt, comments, tz], updated_by=session.get('username'))
+                winner_score, loser_score, game_dt, comments, tz, location], updated_by=session.get('username'))
+            _remember_game_location(location)
             clear_stats_cache()
             user = session.get('username', 'unknown')
             details = f"Winners: {winner1} & {winner2}; Losers: {loser1} & {loser2}; Score: {winner_score}-{loser_score}"
@@ -3580,7 +3613,8 @@ def _add_doubles_game_view(redirect_to):
     deleted = request.args.get('deleted')
     return render_template('add_game.html', players=players, games=games, year=year,
         l_scores=l_scores, todays_stats=todays_stats_data, form_action=url_for(redirect_to),
-        is_voice_page=is_voice_page, added=added, saved=saved, deleted=deleted)
+        is_voice_page=is_voice_page, added=added, saved=saved, deleted=deleted,
+        **_game_location_form_context())
 
 
 @app.route('/add_game/', methods=['GET', 'POST'])
@@ -3697,6 +3731,7 @@ def add_vollis_game():
         loser = request.form['loser'].strip()
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
+        location = request.form.get('location', '').strip()
 
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
@@ -3711,7 +3746,8 @@ def add_vollis_game():
                     return redirect(url_for('add_vollis_game'))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
-            add_vollis_stats([game_dt, winner, loser, winner_score, loser_score, game_dt, tz])
+            add_vollis_stats([game_dt, winner, loser, winner_score, loser_score, game_dt, tz, location])
+            _remember_game_location(location)
             user = session.get('username', 'unknown')
             details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"
             log_user_action(user, 'Added vollis game', details)
@@ -3729,7 +3765,8 @@ def add_vollis_game():
     winning_scores = list(range(11, 27))
     losing_scores = list(range(0, 26))
     return render_template('add_vollis_game.html', players=players, games=games, year=year,
-        winning_scores=winning_scores, losing_scores=losing_scores, todays_stats=todays_stats_data)
+        winning_scores=winning_scores, losing_scores=losing_scores, todays_stats=todays_stats_data,
+        **_game_location_form_context())
 
 @app.route('/add_other_game/', methods=['GET', 'POST'])
 @login_required
@@ -3775,6 +3812,7 @@ def add_other_game():
             team_loser_score = None
 
         comment = request.form.get('comment', '')
+        location = request.form.get('location', '').strip()
 
         # Games that have had scores before (by game_name) must have scores on this entry too (unless user chose "No Scores")
         from other_functions import game_name_requires_scores
@@ -3814,8 +3852,9 @@ def add_other_game():
                 game_dt, game_type, game_name, winners, winner_scores,
                 losers, loser_scores, comment, game_dt,
                 team_winner_score, team_loser_score, tz,
-                entered_by=session.get('username', '')
+                entered_by=session.get('username', ''), location=location,
             )
+            _remember_game_location(location)
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
             log_user_action(user, 'Added other game', details)
@@ -3835,7 +3874,8 @@ def add_other_game():
     game_names_requiring_scores = [n for n in game_names if game_name_requires_scores(n)]
     return render_template('add_other_game.html', players=players, games=games, year=year,
         game_names=game_names, game_types=game_types, todays_stats=todays_stats_data,
-        game_names_requiring_scores=game_names_requiring_scores)
+        game_names_requiring_scores=game_names_requiring_scores,
+        **_game_location_form_context())
 
 
 # ============================================
@@ -4776,7 +4816,7 @@ def api_doubles_get(game_id):
 @app.route('/api/doubles/games', methods=['POST'])
 @api_login_required
 def api_doubles_create():
-    """Create a doubles game. JSON: game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, comments?, entered_timezone?."""
+    """Create a doubles game, including an optional location."""
     data = request.get_json(force=True, silent=True) or {}
     game_date = (data.get('game_date') or '').strip()
     winner1 = (data.get('winner1') or '').strip()
@@ -4790,6 +4830,7 @@ def api_doubles_create():
         return jsonify({'error': 'winner_score and loser_score must be integers'}), 400
     comments = (data.get('comments') or '').strip()
     entered_timezone = (data.get('entered_timezone') or '').strip() or None
+    location = (data.get('location') or '').strip()
     if not all([game_date, winner1, winner2, loser1, loser2]):
         return jsonify({'error': 'game_date, winner1, winner2, loser1, loser2 required'}), 400
     if winner_score <= loser_score:
@@ -4809,7 +4850,8 @@ def api_doubles_create():
     except (ValueError, TypeError):
         pass
     updated_by = session.get('username', 'unknown')
-    add_game_stats([game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, game_date, comments, entered_timezone], updated_by=updated_by)
+    add_game_stats([game_date, winner1, winner2, loser1, loser2, winner_score, loser_score, game_date, comments, entered_timezone, location], updated_by=updated_by)
+    _remember_game_location(location)
     clear_stats_cache()
     update_kobs()
     # Return the created game (we don't have id easily; fetch last inserted or by unique key)
@@ -4830,7 +4872,7 @@ def api_doubles_create():
 @app.route('/api/doubles/games/<int:game_id>', methods=['PUT'])
 @api_login_required
 def api_doubles_update(game_id):
-    """Update a doubles game. JSON: game_date?, winner1?, winner2?, loser1?, loser2?, winner_score?, loser_score?, comments?."""
+    """Update a doubles game, including its optional location."""
     x = find_game(game_id)
     if not x or not x[0]:
         return jsonify({'error': 'Game not found'}), 404
@@ -4847,6 +4889,7 @@ def api_doubles_update(game_id):
     winner_score = int(data.get('winner_score', get(4)))
     loser_score = int(data.get('loser_score', get(7)))
     comments = (data.get('comments') or get(9)).strip() if data.get('comments') is not None else str(get(9)).strip()
+    location = (data.get('location') or '').strip() if data.get('location') is not None else str(get(12)).strip()
     if winner_score <= loser_score:
         return jsonify({'error': "winner_score must be greater than loser_score"}), 400
     if winner1 == winner2 or winner1 == loser1 or winner1 == loser2 or winner2 == loser1 or winner2 == loser2 or loser1 == loser2:
@@ -4861,7 +4904,12 @@ def api_doubles_update(game_id):
     updated_at = get_user_now()
     updated_by = session.get('username', 'unknown')
     before_row = adminfx.snapshot_row('doubles_game', game_id)
+    conn = sqlite3.connect(_api_get_db())
+    conn.execute('UPDATE games SET location = ? WHERE id = ?', (location, game_id))
+    conn.commit()
+    conn.close()
     update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id, updated_by=updated_by)
+    _remember_game_location(location)
     clear_stats_cache()
     update_kobs()
     log_activity('Edited doubles game (iPhone)', target='doubles_game', target_id=game_id,

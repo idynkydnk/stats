@@ -121,6 +121,7 @@
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
+                <datalist id="locations">{% for location in locations %}<option value="{{ location }}">{% endfor %}</datalist>
                 
                 <div class="autocomplete has-clear empty">
                     <input type="text" name="winner" id="winner" placeholder="Winner" autocomplete="off">
@@ -141,6 +142,10 @@
                     <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser's Score" autocomplete="off">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="loser_scoreList"></div>
+                </div>
+                <div class="autocomplete has-clear{% if not last_location %} empty{% endif %}">
+                    <input type="text" name="location" id="location" value="{{ last_location }}" placeholder="Location (optional)" list="locations" autocomplete="off" maxlength="160">
+                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear location"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn">Submit</button>

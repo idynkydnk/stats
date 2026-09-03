@@ -34,15 +34,22 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_vollis_game(conn, game):
-    if len(game) >= 7 and game[6] is not None:
-        sql = ''' INSERT INTO vollis_games(game_date, winner, winner_score, loser, loser_score, updated_at, entered_timezone)
-                  VALUES(?,?,?,?,?,?,?) '''
-    else:
-        sql = ''' INSERT INTO vollis_games(game_date, winner, winner_score, loser, loser_score, updated_at)
-                  VALUES(?,?,?,?,?,?) '''
-        game = game[:6]
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(vollis_games)').fetchall()}
+    if 'location' not in columns:
+        conn.execute('ALTER TABLE vollis_games ADD COLUMN location TEXT')
+        columns.add('location')
+    fields = [
+        ('game_date', game[0]), ('winner', game[1]), ('winner_score', game[2]),
+        ('loser', game[3]), ('loser_score', game[4]), ('updated_at', game[5]),
+        ('entered_timezone', game[6] if len(game) > 6 else None),
+        ('location', game[7] if len(game) > 7 else ''),
+    ]
+    fields = [(name, value) for name, value in fields if name in columns]
+    names = ', '.join(name for name, _ in fields)
+    placeholders = ','.join('?' for _ in fields)
+    sql = f'INSERT INTO vollis_games({names}) VALUES({placeholders})'
     cur = conn.cursor()
-    cur.execute(sql, game)
+    cur.execute(sql, tuple(value for _, value in fields))
     conn.commit()
 
 def database_update_vollis_game(conn, game):
@@ -75,7 +82,8 @@ def main():
                                     winner_score integer NOT NULL,
                                     loser text NOT NULL,
                                     loser_score integer NOT NULL,
-                                    updated_at DATETIME NOT NULL
+                                    updated_at DATETIME NOT NULL,
+                                    location text
                                 );"""
 
     # create a database connection

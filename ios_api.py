@@ -201,7 +201,7 @@ def _doubles_game_dict(row):
 
 
 def _vollis_game_dict(row):
-    cols = ['id', 'game_date', 'winner', 'winner_score', 'loser', 'loser_score', 'updated_at', 'entered_timezone']
+    cols = ['id', 'game_date', 'winner', 'winner_score', 'loser', 'loser_score', 'updated_at', 'entered_timezone', 'location']
     if hasattr(row, 'keys'):
         d = {k: _json_val(row[k]) for k in row.keys()}
     else:
@@ -504,7 +504,9 @@ def register_ios_api(app):
             return jsonify({'error': 'winner_score must be greater than loser_score'}), 400
         game_date = _normalize_game_date(data.get('game_date'))
         tz = (data.get('entered_timezone') or '').strip() or session.get('timezone') or None
-        add_vollis_stats([game_date, winner, loser, winner_score, loser_score, game_date, tz])
+        location = (data.get('location') or '').strip()
+        add_vollis_stats([game_date, winner, loser, winner_score, loser_score, game_date, tz, location])
+        S._remember_game_location(location)
         S.clear_stats_cache()
         new_row = S.adminfx.snapshot_last_row('vollis_game')
         S.log_activity(
@@ -539,10 +541,16 @@ def register_ios_api(app):
         winner_score = int(data.get('winner_score', col(3)))
         loser = (data.get('loser') or col(4)).strip()
         loser_score = int(data.get('loser_score', col(5)))
+        location = (data.get('location') or '').strip() if data.get('location') is not None else str(col(8)).strip()
         if winner_score <= loser_score:
             return jsonify({'error': 'winner_score must be greater than loser_score'}), 400
         before = S.adminfx.snapshot_row('vollis_game', game_id)
         edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, S.get_user_now(), game_id)
+        conn = sqlite3.connect(S._api_get_db())
+        conn.execute('UPDATE vollis_games SET location = ? WHERE id = ?', (location, game_id))
+        conn.commit()
+        conn.close()
+        S._remember_game_location(location)
         S.clear_stats_cache()
         S.log_activity(
             'Edited vollis game (iPhone)',
@@ -745,6 +753,7 @@ def register_ios_api(app):
             'team_loser_score': team_loser_score,
             'game_date': _normalize_game_date(data.get('game_date')),
             'entered_timezone': (data.get('entered_timezone') or '').strip() or session.get('timezone') or None,
+            'location': (data.get('location') or '').strip(),
         }
 
     @app.route('/api/other/games', methods=['POST'])
@@ -760,8 +769,9 @@ def register_ios_api(app):
             p['game_date'], p['game_type'], p['game_name'], p['winners'], p['winner_scores'],
             p['losers'], p['loser_scores'], p['comment'], p['game_date'],
             p['team_winner_score'], p['team_loser_score'], p['entered_timezone'],
-            entered_by=session.get('username', ''),
+            entered_by=session.get('username', ''), location=p['location'],
         )
+        S._remember_game_location(p['location'])
         S.clear_stats_cache()
         new_row = S.adminfx.snapshot_last_row('other_game')
         S.log_activity(
@@ -816,6 +826,8 @@ def register_ios_api(app):
                 + [aggregate_loser_score, p['comment'], S.get_user_now(), game_id]
             )
             database_update_other_game(conn, game_data)
+            conn.execute('UPDATE other_games SET location = ? WHERE id = ?', (p['location'], game_id))
+        S._remember_game_location(p['location'])
         S.clear_stats_cache()
         S.log_activity(
             'Edited other game (iPhone)',

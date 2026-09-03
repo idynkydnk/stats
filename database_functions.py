@@ -5,6 +5,54 @@ from bs4 import BeautifulSoup
 from create_games_database import *
 
 
+def init_game_location_columns():
+	"""Add the optional location column to every game table when needed."""
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		conn = create_connection(r'stats.db')
+	if conn is None:
+		return
+	with conn:
+		for table in ('games', 'vollis_games', 'other_games'):
+			try:
+				columns = {row[1] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()}
+				if columns and 'location' not in columns:
+					conn.execute(f'ALTER TABLE {table} ADD COLUMN location TEXT')
+			except sqlite3.OperationalError:
+				pass
+
+
+def saved_game_locations(limit=30):
+	"""Return previously used locations, most recently used first."""
+	database = '/home/Idynkydnk/stats/stats.db'
+	conn = create_connection(database)
+	if conn is None:
+		conn = create_connection(r'stats.db')
+	if conn is None:
+		return []
+	locations = []
+	seen = set()
+	try:
+		for table in ('games', 'vollis_games', 'other_games'):
+			columns = {row[1] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()}
+			if 'location' not in columns:
+				continue
+			rows = conn.execute(
+				f"SELECT location FROM {table} WHERE TRIM(COALESCE(location, '')) != '' "
+				"ORDER BY game_date DESC"
+			).fetchall()
+			for row in rows:
+				location = (row[0] or '').strip()
+				key = location.casefold()
+				if location and key not in seen:
+					seen.add(key)
+					locations.append(location)
+	finally:
+		conn.close()
+	return locations[:limit]
+
+
 def scrape_database():
 
 	URL = "https://speed-sheets.herokuapp.com/games"
@@ -74,24 +122,23 @@ def enter_data_into_database(games_data):
 	for x in games_data:
 		comments = x[8] if len(x) > 8 else ''
 		timezone = x[9] if len(x) > 9 else None
-		updated_by = x[10] if len(x) > 10 else None
-		supabase_ok = new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments, timezone, updated_by)
+		location = x[10] if len(x) > 10 else ''
+		updated_by = x[11] if len(x) > 11 else None
+		supabase_ok = new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments, timezone, updated_by, location)
 	return supabase_ok
 
-def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments='', entered_timezone=None, updated_by=None):
+def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments='', entered_timezone=None, updated_by=None, location=''):
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)
 	if conn is None:
 		database = r'stats.db'
 		conn = create_connection(database)
 	with conn:
-		game = (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
-		if entered_timezone is not None:
-			game = game + (entered_timezone,)
-		else:
-			game = game + (None,)
-		if updated_by is not None:
-			game = game + (updated_by,)
+		game = (
+			game_date, winner1, winner2, winner_score, loser1, loser2,
+			loser_score, updated_at, comments, entered_timezone, updated_by,
+			(location or '').strip(),
+		)
 		result = create_game(conn, game)
 		return result[1] if isinstance(result, tuple) else None
 
@@ -438,6 +485,5 @@ init_trueskill_table()
 
 if __name__ == '__main__':
     main()
-
 
 

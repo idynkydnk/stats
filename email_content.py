@@ -816,6 +816,23 @@ def _name_stats_label_rule():
     )
 
 
+BODY_SIDE_CONVENTION = (
+    'BODY-SIDE CONVENTION — left and right body parts always mean the depicted '
+    "person's own anatomical left or right, never the viewer's or image's side. "
+    "For example, a person's left leg is their own left leg; when they face the "
+    "viewer, it appears on the viewer's right. Only explicit terms such as "
+    "viewer-left, viewer-right, image-left, or image-right refer to picture position."
+)
+
+
+def _append_body_side_convention(prompt):
+    """Make body-side language unambiguous for every image provider."""
+    prompt = (prompt or '').strip()
+    if BODY_SIDE_CONVENTION in prompt:
+        return prompt
+    return f'{prompt}\n\n{BODY_SIDE_CONVENTION}' if prompt else BODY_SIDE_CONVENTION
+
+
 def _group_identity_rules(player_count):
     """Hard identity lock for group scenes — models otherwise swap faces."""
     n = int(player_count or 0)
@@ -1049,6 +1066,38 @@ def _scene_setting_line(game_type, game_name=None):
     )
 
 
+def _volleyball_ball_lock(game_type, game_name=None, summary_image=False):
+    """Require the house volleyball design and limit recap images to one ball."""
+    sport = _sport_desc_for_image(game_type, game_name)
+    if 'volleyball' not in (sport or '').casefold():
+        return ''
+
+    lines = [
+        'VOLLEYBALL EQUIPMENT LOCK — every volleyball shown must be a '
+        'yellow-and-black Wilson beach volleyball. Do not use a white ball, a '
+        'multicolor ball, another brand, or another volleyball design.',
+    ]
+    if summary_image:
+        lines.append(
+            'This is a summary image: show exactly ONE volleyball total in the '
+            'entire image. Do not add spare, background, duplicate, or decorative balls.'
+        )
+    return '\n'.join(lines)
+
+
+def _append_volleyball_ball_lock(
+    prompt, game_type, game_name=None, summary_image=False,
+):
+    """Apply the volleyball lock to default and user-edited scene prompts once."""
+    lock = _volleyball_ball_lock(
+        game_type, game_name, summary_image=summary_image,
+    )
+    prompt = (prompt or '').strip()
+    if not lock or lock in prompt:
+        return prompt
+    return f'{prompt}\n\n{lock}' if prompt else lock
+
+
 def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
     from player_functions import player_display_name
 
@@ -1060,11 +1109,12 @@ def _build_solo_player_prompt(name, trait_phrases, has_reference_photos):
         full_name=name,
         has_picture=has_reference_photos,
     )
-    return f"""Draw exactly ONE person.
+    prompt = f"""Draw exactly ONE person.
 {line}
 Use the attached face photo when provided. {_signature_look_visual_instructions()}
 {_signature_looks_must_appear_block(trait_phrases)}
 Simple background except for objects the signature looks require."""
+    return _append_body_side_convention(prompt)
 
 
 def build_flyer_solo_prompt(player_name):
@@ -1091,6 +1141,7 @@ def build_flyer_scene_prompt(
     sections = [
         'Create a bold promotional Instagram flyer for an upcoming game.',
         identity,
+        BODY_SIDE_CONVENTION,
         f'Event: {title}',
         f'When: {when_line}',
         f'Where: {where_line}',
@@ -1099,6 +1150,7 @@ def build_flyer_scene_prompt(
     if details:
         sections.append(details)
     sections.append(setting)
+    sections.append(_volleyball_ball_lock(game_type, game_name))
     sections.append(_clean_prompt_format_rules(player_count, flyer=True))
     sections.append(
         'Energetic, fun, poster-quality illustration — not a plain photo collage.'
@@ -1108,7 +1160,7 @@ def build_flyer_scene_prompt(
 
 def build_scene_image_prompt(
     game_type, players, game_name=None, image_details='', labels_by_name=None,
-    player_stats=None,
+    player_stats=None, location='',
 ):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
     roster_block, player_count, players = _clean_player_lines_block(
@@ -1118,13 +1170,60 @@ def build_scene_image_prompt(
     setting = _scene_setting_line(game_type, game_name)
     identity = _group_identity_rules(player_count)
     royalty = _session_beach_royalty_lock(players, player_stats)
-    sections = [identity, royalty, roster_block]
+    sections = [identity, BODY_SIDE_CONVENTION, royalty, roster_block]
     if details:
         sections.append(details)
+    if (location or '').strip():
+        sections.append(_location_context_block(location))
     sections.append(_name_stats_label_rule())
     sections.append(setting)
+    sections.append(_volleyball_ball_lock(
+        game_type, game_name, summary_image=True,
+    ))
     sections.append(_clean_prompt_format_rules(player_count))
     return '\n\n'.join(section for section in sections if section)
+
+
+def _location_context_block(location):
+    """Strong location direction shared by default and edited recap prompts."""
+    location = (location or '').strip()
+    if not location:
+        return ''
+    return (
+        'LOCATION CONTEXT\n'
+        f'These games took place at: {location}.\n'
+        'Make the environment, background, and atmosphere visibly appropriate for '
+        'that location. Do not print the location as a caption unless requested.'
+    )
+
+
+def _append_location_context(prompt, location):
+    block = _location_context_block(location)
+    if not block or 'LOCATION CONTEXT' in (prompt or ''):
+        return prompt
+    return f'{prompt}\n\n{block}' if prompt else block
+
+
+def _summary_location_from_rows(rows, column_names=None):
+    """Return ordered, unique locations from selected raw database rows."""
+    names = list(column_names or [])
+    location_index = names.index('location') if 'location' in names else None
+    values = []
+    seen = set()
+    for row in rows or []:
+        value = ''
+        if hasattr(row, 'keys') and 'location' in row.keys():
+            value = row['location'] or ''
+        elif isinstance(row, dict):
+            value = row.get('location') or ''
+        elif location_index is not None and location_index < len(row):
+            value = row[location_index] or ''
+        value = str(value).strip()
+        key = value.casefold()
+        if value and key not in seen:
+            seen.add(key)
+            values.append(value)
+    return ', '.join(values)
 
 
 # First names treated as female for "dressed like a queen" titles (no gender column).
@@ -1660,11 +1759,11 @@ def _image_roster_block(players, labels_by_name=None):
 
 def _build_scene_image_prompt(
     game_type, players, game_name=None, image_details='', labels_by_name=None,
-    player_stats=None,
+    player_stats=None, location='',
 ):
     return build_scene_image_prompt(
         game_type, players, game_name=game_name, image_details=image_details,
-        labels_by_name=labels_by_name, player_stats=player_stats,
+        labels_by_name=labels_by_name, player_stats=player_stats, location=location,
     )
 
 
@@ -2071,6 +2170,7 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
 
 def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
+    prompt = _append_body_side_convention(prompt)
     provider = active_ai_provider()
     if provider == 'openai':
         # Prefer the live OpenAI key even if a Gemini key was passed by callers.
@@ -3220,6 +3320,7 @@ def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=Non
 
 def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
     """Serialize the full text sent to the image model (reference labels + prompt)."""
+    prompt = _append_body_side_convention(prompt)
     lines = []
     next_index = 1
     for part in reference_parts or []:
@@ -3317,6 +3418,9 @@ def generate_flyer_image(
             image_details=image_details,
             labels_by_name=labels_by_name,
         )
+    scene_prompt = _append_volleyball_ball_lock(
+        scene_prompt, game_type, game_name,
+    )
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
@@ -3405,6 +3509,7 @@ def build_player_character_sheet_prompt(player_name):
     sections = [
         'Create this person in portrait size.',
         PLAYER_CHARACTER_SHEET_STYLE,
+        BODY_SIDE_CONVENTION,
     ]
     if looks:
         bullets = '\n'.join(f'- {look}' for look in looks)
@@ -3476,7 +3581,7 @@ def generate_player_character_sheet(api_key, player_name):
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
-    selected_players=None, player_stats=None,
+    selected_players=None, player_stats=None, location='',
 ):
     """Generate one group hero image from saved AI characters and/or face photos.
 
@@ -3518,8 +3623,12 @@ def generate_email_hero_image(
     else:
         scene_prompt = _build_scene_image_prompt(
             game_type, scene_players, game_name=game_name, image_details=image_details,
-            labels_by_name=labels_by_name, player_stats=player_stats,
+            labels_by_name=labels_by_name, player_stats=player_stats, location=location,
         )
+    scene_prompt = _append_location_context(scene_prompt, location)
+    scene_prompt = _append_volleyball_ball_lock(
+        scene_prompt, game_type, game_name, summary_image=True,
+    )
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
     api_prompt = _append_session_beach_royalty_lock(
         api_prompt, scene_players, player_stats,
@@ -3543,7 +3652,7 @@ def generate_email_hero_image(
 def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
     image_details='', existing_solo_images=None, reuse_existing_solos=False,
-    custom_scene_prompt=None, selected_players=None, player_stats=None,
+    custom_scene_prompt=None, selected_players=None, player_stats=None, location='',
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -3561,6 +3670,7 @@ def _try_generate_email_hero_image(
             custom_scene_prompt=custom_scene_prompt,
             selected_players=selected_players,
             player_stats=player_stats,
+            location=location,
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
@@ -4114,12 +4224,14 @@ def build_doubles_email_payload(
     placeholders = ','.join('?' * len(selected_game_ids))
     cur.execute(f"SELECT * FROM games WHERE id IN ({placeholders}) ORDER BY game_date DESC", 
                 [int(gid) for gid in selected_game_ids])
+    game_columns = [column[0] for column in (cur.description or [])]
     raw_games = cur.fetchall()
     
     if not raw_games:
         raise ValueError('None of the selected games were found.')
     
     games = convert_ampm(raw_games)
+    summary_location = _summary_location_from_rows(raw_games, game_columns)
     stats = calculate_stats_from_games(games)
 
     all_streaks = get_current_streaks_last_365_days()
@@ -4318,6 +4430,7 @@ def build_doubles_email_payload(
             image_details=image_details,
             selected_players=illustration_players,
             player_stats=stats,
+            location=summary_location,
         )
     )
     html_body = create_doubles_email_html(
@@ -4716,12 +4829,14 @@ def build_vollis_email_payload(
     placeholders = ','.join('?' * len(selected_game_ids))
     cur.execute(f"SELECT * FROM vollis_games WHERE id IN ({placeholders}) ORDER BY game_date DESC",
                 [int(gid) for gid in selected_game_ids])
+    game_columns = [column[0] for column in (cur.description or [])]
     raw_games = cur.fetchall()
 
     if not raw_games:
         raise ValueError('None of the selected games were found.')
 
     games = convert_vollis_ampm(raw_games)
+    summary_location = _summary_location_from_rows(raw_games, game_columns)
 
     # Calculate simple stats from selected vollis games
     player_stats = {}
@@ -4816,6 +4931,7 @@ def build_vollis_email_payload(
             image_details=image_details,
             selected_players=illustration_players,
             player_stats=stats,
+            location=summary_location,
         )
     )
     html_body = create_vollis_email_html(
@@ -4883,6 +4999,7 @@ def build_other_email_payload(
         raise ValueError('None of the selected games were found.')
 
     games = readable_games_data(raw_games)
+    summary_location = _summary_location_from_rows(raw_games)
 
     # Calculate stats from the selected games
     player_stats = {}
@@ -4994,6 +5111,7 @@ def build_other_email_payload(
             image_details=image_details,
             selected_players=illustration_players,
             player_stats=stats,
+            location=summary_location,
         )
     )
     html_body = create_other_email_html(

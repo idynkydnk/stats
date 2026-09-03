@@ -40,8 +40,8 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def _game_tuple_to_dict(game, game_id=None):
-    """Build a dict for Supabase from game tuple (after insert: 9–11 elements)."""
-    # game: (game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone?, updated_by?)
+    """Build a dict for Supabase from a game tuple."""
+    # Optional tail: entered_timezone, updated_by, location.
     d = {
         'game_date': game[0],
         'winner1': game[1],
@@ -54,34 +54,34 @@ def _game_tuple_to_dict(game, game_id=None):
         'comments': game[8] if len(game) > 8 else '',
         'entered_timezone': game[9] if len(game) > 9 else None,
         'updated_by': game[10] if len(game) > 10 else None,
+        'location': game[11] if len(game) > 11 else '',
     }
     if game_id is not None:
         d['id'] = game_id
     return d
 
 def create_game(conn, game):
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(games)').fetchall()}
+    if 'location' not in columns:
+        conn.execute('ALTER TABLE games ADD COLUMN location TEXT')
+        columns.add('location')
     cur = conn.cursor()
-    if len(game) >= 11 and game[10] is not None:
-        sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone, updated_by)
-                  VALUES(?,?,?,?,?,?,?,?,?,?,?) '''
-        try:
-            cur.execute(sql, game)
-        except sqlite3.OperationalError as e:
-            if 'updated_by' in str(e) or 'no such column' in str(e).lower():
-                # Production DB may not have migration run yet: insert without updated_by
-                sql_fallback = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone)
-                                  VALUES(?,?,?,?,?,?,?,?,?,?) '''
-                cur.execute(sql_fallback, game[:10])
-            else:
-                raise
-    elif len(game) >= 10 and game[9] is not None:
-        sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone)
-                  VALUES(?,?,?,?,?,?,?,?,?,?) '''
-        cur.execute(sql, game[:10])
-    else:
-        sql = ''' INSERT INTO games(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments)
-                  VALUES(?,?,?,?,?,?,?,?,?) '''
-        cur.execute(sql, game[:9])
+    field_values = [
+        ('game_date', game[0]), ('winner1', game[1]), ('winner2', game[2]),
+        ('winner_score', game[3]), ('loser1', game[4]), ('loser2', game[5]),
+        ('loser_score', game[6]), ('updated_at', game[7]),
+        ('comments', game[8] if len(game) > 8 else ''),
+        ('entered_timezone', game[9] if len(game) > 9 else None),
+        ('updated_by', game[10] if len(game) > 10 else None),
+        ('location', game[11] if len(game) > 11 else ''),
+    ]
+    insert_fields = [(name, value) for name, value in field_values if name in columns]
+    names = ', '.join(name for name, _ in insert_fields)
+    placeholders = ','.join('?' for _ in insert_fields)
+    cur.execute(
+        f'INSERT INTO games({names}) VALUES({placeholders})',
+        tuple(value for _, value in insert_fields),
+    )
     new_id = cur.lastrowid
     conn.commit()
     _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
@@ -121,6 +121,11 @@ def database_update_game(conn, game):
         fd = {'id': game_id, 'game_date': game[1], 'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
               'loser1': game[5], 'loser2': game[6], 'loser_score': game[7], 'updated_at': game[8], 'comments': game[9],
               'entered_timezone': None, 'updated_by': game[10] if len(game) >= 12 else None}
+        try:
+            row = conn.execute('SELECT location FROM games WHERE id = ?', (game_id,)).fetchone()
+            fd['location'] = row[0] if row else ''
+        except sqlite3.OperationalError:
+            fd['location'] = ''
         supabase_ok = supabase_update_game(game_id, fd)
     return supabase_ok
 
@@ -160,7 +165,8 @@ def main():
                                     loser1 text NOT NULL,
                                     loser2 text NOT NULL,
                                     loser_score integer NOT NULL,
-                                    updated_at DATETIME NOT NULL
+                                    updated_at DATETIME NOT NULL,
+                                    location text
                                 );"""
 
     # create a database connection

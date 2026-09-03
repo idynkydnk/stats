@@ -436,6 +436,9 @@ def init_users_db(seed_users=None, seed_admins=None):
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)').fetchall()}
+    if 'last_location' not in columns:
+        conn.execute('ALTER TABLE site_users ADD COLUMN last_location TEXT')
     count = conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0]
     if count == 0 and seed_users:
         admins = {a.lower() for a in (seed_admins or set())}
@@ -446,6 +449,36 @@ def init_users_db(seed_users=None, seed_admins=None):
             )
     conn.commit()
     conn.close()
+
+
+def get_user_last_location(username):
+    """Return the most recently entered game location for a site user."""
+    if not (username or '').strip():
+        return ''
+    conn = _connect()
+    row = conn.execute(
+        'SELECT last_location FROM site_users WHERE lower(username) = lower(?)',
+        ((username or '').strip(),),
+    ).fetchone()
+    conn.close()
+    return (row['last_location'] if row and row['last_location'] else '').strip()
+
+
+def remember_user_location(username, location):
+    """Save a non-empty location as a user's default for their next game."""
+    username = (username or '').strip()
+    location = (location or '').strip()
+    if not username or not location:
+        return False
+    conn = _connect()
+    cur = conn.execute(
+        'UPDATE site_users SET last_location = ? WHERE lower(username) = lower(?)',
+        (location, username),
+    )
+    conn.commit()
+    changed = cur.rowcount > 0
+    conn.close()
+    return changed
 
 
 def get_site_user(username):

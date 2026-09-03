@@ -58,7 +58,8 @@ Response (200):
       "updated_at": "2025-03-07 14:35:00",
       "comments": "",
       "entered_timezone": "America/Los_Angeles",
-      "updated_by": "iosapp"
+      "updated_by": "iosapp",
+      "location": "Mission Beach"
     }
   ]
 }
@@ -95,14 +96,15 @@ Authorization: Bearer <token>
   "winner_score": 21,
   "loser_score": 15,
   "comments": "",
-  "entered_timezone": "America/Los_Angeles"
+  "entered_timezone": "America/Los_Angeles",
+  "location": "Mission Beach"
 }
 ```
 
 - **game_date** – required; use `YYYY-MM-DD HH:MM:SS` or ISO8601.
 - **winner1, winner2, loser1, loser2** – required; all four must be unique.
 - **winner_score, loser_score** – required integers; winner_score must be &gt; loser_score.
-- **comments**, **entered_timezone** – optional.
+- **comments**, **entered_timezone**, **location** – optional.
 
 Response (201): full game object including `id` and `updated_by` (set to the authenticated user).
 
@@ -123,7 +125,8 @@ Authorization: Bearer <token>
   "loser2": "Dan",
   "winner_score": 21,
   "loser_score": 15,
-  "comments": "optional"
+  "comments": "optional",
+  "location": "Mission Beach"
 }
 ```
 

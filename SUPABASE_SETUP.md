@@ -15,7 +15,13 @@ Optional:
 
 ## 2. Table in Supabase
 
-The app writes to a table named **`games`** by default. It expects columns: `id` (uuid), `db_id` (uuid), `game_date`, `winner1`, `winner2`, `winner_score`, `loser1`, `loser2`, `loser_score`, `comments`, `updated_at`, `entered_timezone`, `updated_by`, and optionally `editor_db_id`. On **insert** the app generates a new UUID for `id` and a deterministic UUID from the SQLite game id for `db_id` (so it can find the row on **update** and **delete**).
+The app writes to a table named **`games`** by default. It expects columns: `id` (uuid), `db_id` (uuid), `game_date`, `winner1`, `winner2`, `winner_score`, `loser1`, `loser2`, `loser_score`, `comments`, `updated_at`, `entered_timezone`, `updated_by`, `location`, and optionally `editor_db_id`. On **insert** the app generates a new UUID for `id` and a deterministic UUID from the SQLite game id for `db_id` (so it can find the row on **update** and **delete**).
+
+For an existing Supabase table, run this once in the SQL editor:
+
+```sql
+alter table public.games add column if not exists location text;
+```
 
 ## 3. If Supabase isn’t configured
 

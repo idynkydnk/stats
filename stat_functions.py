@@ -83,6 +83,8 @@ def add_game_stats(game, updated_by=None):
         full_game.append(game[9])
     else:
         full_game.append(None)
+    # Location (index 10) is stored on the game; updated_by follows it internally.
+    full_game.append(game[10] if len(game) > 10 else '')
     full_game.append(updated_by)
     all_games.append(full_game)
     return enter_data_into_database(all_games)
