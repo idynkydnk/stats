@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from vollis_functions import *
 from other_functions import *
 from kob_functions import update_kobs
+from player_identity import unique_player_names
 from email_content import (
     active_ai_provider,
     ai_api_key_error_message,
@@ -2394,6 +2395,13 @@ def _flyer_form_template_kwargs(all_players, payload):
     }
 
 
+def _flyer_player_names(player_rows):
+    """Return one canonical search suggestion per visible player name."""
+    return unique_player_names(
+        row[1] for row in (player_rows or []) if row and len(row) > 1
+    )
+
+
 def _validate_flyer_payload(payload):
     """Return an error message if the flyer form payload is incomplete."""
     if not payload.get('players'):
@@ -2412,7 +2420,7 @@ def create_flyer():
     from player_functions import get_all_players
 
     # Keep get_all_players() order (games played desc) for search suggestions.
-    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    all_players = _flyer_player_names(get_all_players())
 
     if request.method == 'GET':
         return render_template(
@@ -2439,7 +2447,7 @@ def create_flyer_roster():
     """Review each player's face photo and signature look before generating."""
     from player_functions import get_all_players
 
-    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    all_players = _flyer_player_names(get_all_players())
     payload = _parse_flyer_form()
     form_kwargs = _flyer_form_template_kwargs(all_players, payload)
     error = _validate_flyer_payload(payload)
@@ -2462,7 +2470,7 @@ def create_flyer_generate():
     from player_functions import get_all_players
     import flyer_functions as flyerfx
 
-    all_players = [row[1] for row in get_all_players() if row and row[1]]
+    all_players = _flyer_player_names(get_all_players())
     payload = _parse_flyer_form()
     form_kwargs = _flyer_form_template_kwargs(all_players, payload)
     error = _validate_flyer_payload(payload)

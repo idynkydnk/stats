@@ -14,6 +14,17 @@ class PlayerIdentityTests(unittest.TestCase):
             ['Dhruva Jagasia'],
         )
 
+    def test_search_names_dedupe_invisible_unicode_and_case_variants(self):
+        self.assertEqual(
+            unique_player_names([
+                'Dhruva Jagasia',
+                'dhruva  jagasia',
+                'Dhruva\u00a0Jagasia',
+                'Ｄｈｒｕｖａ Jagasia',
+            ]),
+            ['Dhruva Jagasia'],
+        )
+
     def test_migration_preserves_games_and_combines_last_played_identity(self):
         conn = sqlite3.connect(':memory:')
         conn.executescript('''
