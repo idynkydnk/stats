@@ -1073,14 +1073,20 @@ def _volleyball_ball_lock(game_type, game_name=None, summary_image=False):
         return ''
 
     lines = [
-        'VOLLEYBALL EQUIPMENT LOCK — every volleyball shown must be a '
-        'yellow-and-black Wilson beach volleyball. Do not use a white ball, a '
-        'multicolor ball, another brand, or another volleyball design.',
+        'CRITICAL VOLLEYBALL EQUIPMENT LOCK — every volleyball must be the '
+        'official Wilson OPTX AVP beach-volleyball design: optic yellow panels, '
+        'bold black panels and accents, and recognizable black Wilson branding. '
+        'It must read visually as a yellow-and-black Wilson beach volleyball. '
+        'Do not use a white, blue, red, multicolor, generic, or other-brand ball.',
     ]
     if summary_image:
         lines.append(
-            'This is a summary image: show exactly ONE volleyball total in the '
-            'entire image. Do not add spare, background, duplicate, or decorative balls.'
+            'CRITICAL SINGLE-BALL COMPOSITION — TOTAL BALL COUNT = 1. Show exactly '
+            'ONE physical volleyball in the entire summary image. Every player '
+            'interacts with or poses around that same shared ball; nobody holds a '
+            'second ball. Count partial, distant, background, spare, duplicate, logo, '
+            'and decorative balls too: the final total must still equal one. Remove '
+            'every additional ball before completing the image.'
         )
     return '\n'.join(lines)
 
@@ -1093,8 +1099,12 @@ def _append_volleyball_ball_lock(
         game_type, game_name, summary_image=summary_image,
     )
     prompt = (prompt or '').strip()
-    if not lock or lock in prompt:
+    if not lock:
         return prompt
+    # Move an existing copy to the end, where image models tend to follow it
+    # more reliably after identity, styling, and custom-scene instructions.
+    if lock in prompt:
+        prompt = prompt.replace(lock, '').strip()
     return f'{prompt}\n\n{lock}' if prompt else lock
 
 
@@ -3422,6 +3432,9 @@ def generate_flyer_image(
         scene_prompt, game_type, game_name,
     )
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
+    api_prompt = _append_volleyball_ball_lock(
+        api_prompt, game_type, game_name,
+    )
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
         raw, mime = _generate_image_bytes(
@@ -3632,6 +3645,9 @@ def generate_email_hero_image(
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
     api_prompt = _append_session_beach_royalty_lock(
         api_prompt, scene_players, player_stats,
+    )
+    api_prompt = _append_volleyball_ball_lock(
+        api_prompt, game_type, game_name, summary_image=True,
     )
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:

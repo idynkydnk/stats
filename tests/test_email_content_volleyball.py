@@ -16,13 +16,13 @@ class VolleyballImagePromptTests(unittest.TestCase):
         prompt = build_scene_image_prompt('doubles', [])
 
         self.assertIn('yellow-and-black Wilson beach volleyball', prompt)
-        self.assertIn('show exactly ONE volleyball total', prompt)
+        self.assertIn('TOTAL BALL COUNT = 1', prompt)
 
     def test_flyer_uses_wilson_ball_without_summary_limit(self):
         prompt = build_flyer_scene_prompt([], 'doubles')
 
         self.assertIn('yellow-and-black Wilson beach volleyball', prompt)
-        self.assertNotIn('show exactly ONE volleyball total', prompt)
+        self.assertNotIn('TOTAL BALL COUNT = 1', prompt)
 
     def test_custom_summary_prompt_receives_lock_once(self):
         prompt = _append_volleyball_ball_lock(
@@ -33,7 +33,8 @@ class VolleyballImagePromptTests(unittest.TestCase):
         )
 
         self.assertEqual(prompt.count('VOLLEYBALL EQUIPMENT LOCK'), 1)
-        self.assertIn('show exactly ONE volleyball total', prompt)
+        self.assertIn('TOTAL BALL COUNT = 1', prompt)
+        self.assertTrue(prompt.endswith('completing the image.'))
 
     def test_non_volleyball_image_does_not_receive_ball_rule(self):
         self.assertEqual(_volleyball_ball_lock('other', 'Gin Rummy', True), '')
