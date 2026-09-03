@@ -153,7 +153,8 @@ def all_years_vollis_player(name):
 
 def all_vollis_games_by_player(name):
     cur = set_cur()
-    cur.execute("SELECT * FROM vollis_games WHERE (winner=? OR loser=?)", (name, name))
+    name = (name or '').strip()
+    cur.execute("SELECT * FROM vollis_games WHERE (TRIM(winner)=? OR TRIM(loser)=?)", (name, name))
     row = cur.fetchall()
     return row
 
@@ -165,10 +166,11 @@ def all_vollis_games():
 
 def games_from_vollis_player_by_year(year, name):
     cur = set_cur()
+    name = (name or '').strip()
     if year == 'All years':
-        cur.execute("SELECT * FROM vollis_games WHERE winner=? OR loser=?", (name, name))
+        cur.execute("SELECT * FROM vollis_games WHERE TRIM(winner)=? OR TRIM(loser)=?", (name, name))
     else:
-        cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=? AND (winner=? OR loser=?)", (year, name, name))
+        cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=? AND (TRIM(winner)=? OR TRIM(loser)=?)", (year, name, name))
     row = cur.fetchall()
     return row
 
@@ -299,7 +301,6 @@ def convert_vollis_ampm(games):
 def vollis_losing_scores():
     scores = [19,9,13]
     return scores
-
 
 
 

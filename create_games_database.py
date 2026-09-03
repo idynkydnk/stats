@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from sqlite3 import Error
+from player_identity import canonical_player_name
 
 try:
     from supabase_games import write_game as supabase_write_game, update_game as supabase_update_game, delete_game as supabase_delete_game
@@ -44,11 +45,11 @@ def _game_tuple_to_dict(game, game_id=None):
     # Optional tail: entered_timezone, updated_by, location.
     d = {
         'game_date': game[0],
-        'winner1': game[1],
-        'winner2': game[2],
+        'winner1': canonical_player_name(game[1]),
+        'winner2': canonical_player_name(game[2]),
         'winner_score': game[3],
-        'loser1': game[4],
-        'loser2': game[5],
+        'loser1': canonical_player_name(game[4]),
+        'loser2': canonical_player_name(game[5]),
         'loser_score': game[6],
         'updated_at': game[7],
         'comments': game[8] if len(game) > 8 else '',
@@ -67,13 +68,19 @@ def create_game(conn, game):
         columns.add('location')
     cur = conn.cursor()
     field_values = [
-        ('game_date', game[0]), ('winner1', game[1]), ('winner2', game[2]),
+        ('game_date', game[0]),
+        ('winner1', canonical_player_name(game[1])),
+        ('winner2', canonical_player_name(game[2])),
         ('winner_score', game[3]), ('loser1', game[4]), ('loser2', game[5]),
         ('loser_score', game[6]), ('updated_at', game[7]),
         ('comments', game[8] if len(game) > 8 else ''),
         ('entered_timezone', game[9] if len(game) > 9 else None),
         ('updated_by', game[10] if len(game) > 10 else None),
         ('location', game[11] if len(game) > 11 else ''),
+    ]
+    field_values = [
+        (name, canonical_player_name(value) if name in {'loser1', 'loser2'} else value)
+        for name, value in field_values
     ]
     insert_fields = [(name, value) for name, value in field_values if name in columns]
     names = ', '.join(name for name, _ in insert_fields)
@@ -93,6 +100,10 @@ def create_game(conn, game):
 def database_update_game(conn, game):
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
     #   or: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2) when len==11
+    game = list(game)
+    for index in (2, 3, 5, 6):
+        game[index] = canonical_player_name(game[index])
+    game = tuple(game)
     cur = conn.cursor()
     game_id = game[11] if len(game) >= 12 else game[10]
     if len(game) >= 12:

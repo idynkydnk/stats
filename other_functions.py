@@ -771,13 +771,14 @@ def all_years_other_player(name):
 
 def all_other_games_by_player(name):
     cur = set_cur()
+    name = (name or '').strip()
     # Query across all winner and loser columns (winner1-15, loser1-15)
     where_clauses = []
     params = []
     for i in range(1, 16):
-        where_clauses.append(f"winner{i}=?")
+        where_clauses.append(f"TRIM(winner{i})=?")
         params.append(name)
-        where_clauses.append(f"loser{i}=?")
+        where_clauses.append(f"TRIM(loser{i})=?")
         params.append(name)
     
     sql = f"SELECT * FROM other_games WHERE {' OR '.join(where_clauses)}"
@@ -794,6 +795,7 @@ def all_other_games():
 
 def games_from_other_player_by_year(year, name):
     cur = set_cur()
+    name = (name or '').strip()
     # Query across all winner and loser columns (winner1-15, loser1-15)
     where_clauses = []
     params = []
@@ -805,9 +807,9 @@ def games_from_other_player_by_year(year, name):
         year_clause = ""
     
     for i in range(1, 16):
-        where_clauses.append(f"winner{i}=?")
+        where_clauses.append(f"TRIM(winner{i})=?")
         params.append(name)
-        where_clauses.append(f"loser{i}=?")
+        where_clauses.append(f"TRIM(loser{i})=?")
         params.append(name)
     
     if year != 'All years':

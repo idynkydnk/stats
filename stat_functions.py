@@ -768,7 +768,11 @@ def all_years_player(name):
 
 def all_games_player(name):
 	cur = set_cur()
-	cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
+	name = (name or '').strip()
+	cur.execute(
+		"SELECT * FROM games WHERE (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?)",
+		(name, name, name, name),
+	)
 	row = cur.fetchall()
 	return row
 
@@ -780,10 +784,11 @@ def find_game(id):
 
 def games_from_player_by_year(year, name):
 	cur = set_cur()
+	name = (name or '').strip()
 	if year == 'All years':
-		cur.execute("SELECT * FROM games WHERE (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (name, name, name, name))
+		cur.execute("SELECT * FROM games WHERE (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?)", (name, name, name, name))
 	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (winner1=? OR winner2=? OR loser1=? OR loser2=?)", (year, name, name, name, name))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?)", (year, name, name, name, name))
 	row = cur.fetchall()
 	row = convert_ampm(row)
 	return row

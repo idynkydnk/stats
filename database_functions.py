@@ -3,6 +3,7 @@ import sqlite3
 from datetime import date, datetime
 from bs4 import BeautifulSoup
 from create_games_database import *
+from player_identity import unique_player_names
 
 
 def init_game_location_columns():
@@ -323,9 +324,9 @@ def get_all_unique_players():
     
     conn.close()
     
-    # Remove None values and sort
-    all_players = [p for p in all_players if p is not None]
-    return sorted(all_players)
+    # Whitespace around a name is not part of the player's identity. Legacy
+    # rows may still contain it, so canonicalize before returning search data.
+    return sorted(unique_player_names(all_players))
 
 def init_trueskill_table():
     """Create the trueskill_rankings table if it doesn't exist"""
@@ -485,5 +486,4 @@ init_trueskill_table()
 
 if __name__ == '__main__':
     main()
-
 
