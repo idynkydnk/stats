@@ -1274,6 +1274,7 @@ adminfx.init_ai_prompt_log_db()
 adminfx.init_ai_recap_pages_db()
 ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
+adminfx.init_site_update_sends_db()
 init_game_location_columns()
 from player_functions import init_players_photo_column
 init_players_photo_column()
@@ -1325,6 +1326,31 @@ def player_ai_image_url_for(name):
     """Static URL for a player's saved AI character sheet, or None."""
     from player_functions import get_player_ai_image_path
     return _cache_busted_static_url(get_player_ai_image_path(name))
+
+
+def _player_ai_image_api_payload(name):
+    """JSON for the current AI character, plus version history for admins."""
+    from player_functions import get_player_by_name, list_player_ai_image_versions
+
+    payload = {
+        'success': True,
+        'ai_image_url': player_ai_image_url_for(name),
+        'can_delete': bool(is_admin()),
+    }
+    if not is_admin():
+        return payload
+    player = get_player_by_name(name)
+    versions = []
+    if player and player[0]:
+        for item in list_player_ai_image_versions(player[0]):
+            versions.append({
+                'path': item['path'],
+                'url': _cache_busted_static_url(item['path']),
+                'current': bool(item.get('current')),
+                'mtime': item.get('mtime') or 0,
+            })
+    payload['versions'] = versions
+    return payload
 
 
 # Square face crop size for link previews (og:image); iMessage/WhatsApp
@@ -5455,21 +5481,26 @@ def api_save_player_ai_image_traits(name):
         return jsonify({'success': False, 'error': f'Save failed: {e}'}), 500
 
 
-@app.route('/api/player_ai_image/<path:name>/', methods=['POST'])
+@app.route('/api/player_ai_image/<path:name>/', methods=['GET', 'POST'])
 @api_login_required
 def api_generate_player_ai_image(name):
-    """Upload, remove, or generate the saved AI character sheet for a player."""
+    """Upload, restore, remove, or generate the saved AI character sheet for a player."""
     from email_content import ImageGenerationError, ai_api_key_error_message
     from player_functions import (
+        activate_player_ai_image,
+        clear_player_ai_image,
+        delete_player_ai_image_version,
         get_player_ai_image_traits,
         get_player_photo_path,
-        remove_player_ai_image,
         save_player_ai_image_upload,
     )
 
     name = name.strip()
     if not name:
         return jsonify({'success': False, 'error': 'Player name is required.'}), 400
+
+    if request.method == 'GET':
+        return jsonify(_player_ai_image_api_payload(name))
 
     player = _ensure_player_record(name)
     if not player or not player[0]:
@@ -5478,12 +5509,57 @@ def api_generate_player_ai_image(name):
     player_id = player[0]
     username = session.get('username', 'unknown')
 
+    data = request.get_json(silent=True) or {}
+
+    def _flag(key):
+        form_val = request.form.get(key)
+        if form_val in ('1', 'true', 'True', 'on'):
+            return True
+        val = data.get(key) if isinstance(data, dict) else None
+        return val in (1, '1', True, 'true', 'True')
+
+    def _text(key):
+        form_val = (request.form.get(key) or '').strip()
+        if form_val:
+            return form_val
+        val = data.get(key) if isinstance(data, dict) else None
+        return str(val).strip() if val else ''
+
     try:
-        if request.form.get('remove') == '1':
-            remove_player_ai_image(player_id)
-            log_activity('Updated AI character', summary=f'Removed AI character for {name}', username=username)
+        restore_path = _text('restore_path')
+        delete_path = _text('delete_path')
+        if restore_path or delete_path or _flag('remove'):
+            if not is_admin():
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        'Only Kyle can delete or restore AI character pictures. '
+                        'You can upload a new one; the previous picture is kept.'
+                    ),
+                }), 403
+            if restore_path:
+                activate_player_ai_image(player_id, restore_path)
+                log_activity(
+                    'Restored AI character',
+                    summary=f'Restored a previous AI character for {name}',
+                    username=username,
+                )
+            elif delete_path:
+                delete_player_ai_image_version(player_id, delete_path)
+                log_activity(
+                    'Deleted AI character',
+                    summary=f'Deleted an AI character picture for {name}',
+                    username=username,
+                )
+            else:
+                clear_player_ai_image(player_id)
+                log_activity(
+                    'Updated AI character',
+                    summary=f'Removed AI character for {name} (files kept)',
+                    username=username,
+                )
             clear_stats_cache()
-            return jsonify({'success': True, 'ai_image_url': None})
+            return jsonify(_player_ai_image_api_payload(name))
 
         file_storage = request.files.get('photo')
         if file_storage and file_storage.filename:
@@ -5491,10 +5567,7 @@ def api_generate_player_ai_image(name):
             log_user_action(username, 'Uploaded AI character', name)
             log_activity('Updated AI character', summary=f'Uploaded AI character for {name}', username=username)
             clear_stats_cache()
-            return jsonify({
-                'success': True,
-                'ai_image_url': player_ai_image_url_for(name),
-            })
+            return jsonify(_player_ai_image_api_payload(name))
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
@@ -5519,6 +5592,7 @@ def api_generate_player_ai_image(name):
             'success': True,
             'job_id': job_id,
             'worker_alive': True,
+            'can_delete': bool(is_admin()),
         })
 
     try:
@@ -5532,11 +5606,11 @@ def api_generate_player_ai_image(name):
     if not result.get('success'):
         err = result.get('error') or ai_api_key_error_message()
         return jsonify({'success': False, 'error': err}), 500
-    return jsonify({
-        'success': True,
-        'ai_image_url': result.get('ai_image_url'),
-        'worker_alive': False,
-    })
+    payload = _player_ai_image_api_payload(name)
+    payload['worker_alive'] = False
+    if result.get('ai_image_url'):
+        payload['ai_image_url'] = result.get('ai_image_url')
+    return jsonify(payload)
 
 
 @app.route('/benchmarks')
@@ -6781,6 +6855,130 @@ def admin_backup():
     except Exception as e:
         flash(f'Backup failed: {e}', 'error')
     return redirect(url_for('admin_dashboard'))
+
+
+def send_site_update_email(subject, bullets, usernames, shas=None, sent_by=None):
+    """Email selected site users about chosen website changes.
+
+    Returns (sent_count, errors, chosen_recipients).
+    """
+    subject = (subject or "What's new on the stats site").strip() or "What's new on the stats site"
+    lines = [str(item).strip() for item in (bullets or []) if str(item).strip()]
+    if not lines:
+        return 0, ['Pick at least one change, or write a note to send.'], []
+    if not (app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')):
+        return 0, ['Email is not configured on the server.'], []
+    chosen = adminfx.resolve_site_update_recipients(usernames)
+    if not chosen:
+        return 0, ['Pick at least one user who has an email on their player profile.'], []
+    site_url = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
+    html_body = adminfx.site_update_html_body(lines, site_url=site_url)
+    plain_body = adminfx.site_update_plain_body(lines)
+    messages = []
+    for person in chosen:
+        msg = Message(subject=subject, recipients=[person['email']])
+        msg.body = plain_body
+        msg.html = html_body
+        messages.append(msg)
+    sent, errors = send_messages_with_retry(messages)
+    if sent:
+        adminfx.record_site_update_send(
+            sent_by or session.get('username') or 'kyle',
+            subject,
+            shas or [],
+            chosen,
+            '\n'.join(lines),
+        )
+    names = ', '.join(person['username'] for person in chosen)
+    if errors:
+        log_activity(
+            'Site update email failed',
+            summary=f'Sent {sent} of {len(chosen)} ({names}): {"; ".join(errors)[:200]}',
+            username=sent_by,
+        )
+    else:
+        log_activity(
+            'Sent site update',
+            summary=f'{subject} to {sent} user(s): {names}',
+            username=sent_by,
+        )
+    return sent, errors, chosen
+
+
+def _site_update_payload(selected_shas=None, extra_notes='', usernames=None, subject=None, body=None):
+    changes, git_error = adminfx.list_recent_site_changes()
+    by_sha = {item['sha']: item for item in changes}
+    selected = [by_sha[sha] for sha in (selected_shas or []) if sha in by_sha]
+    bullets = adminfx.site_update_bullets(selected, extra_notes)
+    default_body = '\n'.join(bullets)
+    return {
+        'changes': changes,
+        'git_error': git_error,
+        'selected_shas': [item['sha'] for item in selected],
+        'extra_notes': extra_notes or '',
+        'recipients': adminfx.list_site_update_recipients(),
+        'selected_usernames': usernames or [],
+        'subject': (subject or "What's new on the stats site").strip(),
+        'body': body if body is not None else default_body,
+        'email_configured': bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')),
+    }
+
+
+@app.route('/admin/site-updates', methods=['GET', 'POST'])
+@admin_required
+def admin_site_updates():
+    """Kyle picks site changes, then chooses which users to email."""
+    step = 'changes'
+    form_error = None
+    ctx = _site_update_payload()
+
+    if request.method == 'POST':
+        selected_shas = request.form.getlist('sha')
+        extra_notes = (request.form.get('extra_notes') or '').strip()
+        subject = (request.form.get('subject') or "What's new on the stats site").strip()
+        body = request.form.get('body')
+        usernames = request.form.getlist('username')
+        action = (request.form.get('action') or '').strip()
+        ctx = _site_update_payload(
+            selected_shas=selected_shas,
+            extra_notes=extra_notes,
+            usernames=usernames,
+            subject=subject,
+            body=body,
+        )
+        bullets = [line.strip() for line in (ctx['body'] or '').splitlines() if line.strip()]
+        if action == 'send':
+            sent, errors, chosen = send_site_update_email(
+                subject, bullets, usernames, shas=ctx['selected_shas'],
+            )
+            if not chosen:
+                form_error = errors[0] if errors else 'Could not send that update.'
+                step = 'users'
+            else:
+                names = ', '.join(person['username'] for person in chosen)
+                if errors:
+                    flash(
+                        f'Sent {sent} update email(s), but {len(errors)} failed: {"; ".join(errors)[:200]}',
+                        'error',
+                    )
+                else:
+                    flash(f'Sent site update to {sent} user(s): {names}.', 'success')
+                return redirect(url_for('admin_site_updates'))
+        elif action == 'changes':
+            step = 'changes'
+        else:
+            if not ctx['selected_shas'] and not extra_notes:
+                form_error = 'Select at least one change, or add a custom note.'
+                step = 'changes'
+            else:
+                step = 'users'
+
+    return render_template(
+        'admin_site_updates.html',
+        step=step,
+        form_error=form_error,
+        **ctx,
+    )
 
 
 @app.route('/admin/clear_cache', methods=['POST'])

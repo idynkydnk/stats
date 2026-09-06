@@ -1,5 +1,5 @@
 {% if session.logged_in %}
-<div class="sr-photo-modal" id="player-photo-modal" hidden>
+<div class="sr-photo-modal" id="player-photo-modal" data-is-admin="{{ '1' if is_admin_user else '0' }}" hidden>
     <div class="sr-photo-modal-backdrop" data-close-photo-modal></div>
     <div class="sr-photo-modal-dialog" role="dialog" aria-labelledby="player-photo-title">
         <h3 id="player-photo-title"><span id="player-photo-title-name">Player</span></h3>
@@ -76,7 +76,7 @@
 
         <section class="sr-photo-section">
             <h4>AI character</h4>
-            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can start another player while this one is working, or leave this page after you tap Create. If they don’t have a character yet, group pictures use their face photo. Players with no photo, signature look, or character are left out of group pictures.</p>
+            <p class="sr-traits-hint">A full-body person with this face and every signature look, including props (a motorhome look means a motorhome in the picture). Recaps and flyers add the sport. Generate one, or upload your own picture. Takes about a minute to generate — you can start another player while this one is working, or leave this page after you tap Create. Replacing a picture keeps the previous one so Kyle can switch it back. If they don’t have a character yet, group pictures use their face photo. Players with no photo, signature look, or character are left out of group pictures.</p>
             <div class="sr-ai-character-row">
                 <div class="sr-ai-character-preview-wrap">
                     <img src="" alt="AI character" class="sr-ai-character-preview" id="modal-ai-image-preview" hidden>
@@ -90,10 +90,19 @@
                         <i class="fas fa-upload"></i> Upload character
                         <input type="file" id="player-ai-image-upload" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
                     </label>
-                    <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="player-ai-image-remove-btn" hidden>Remove character</button>
+                    {% if is_admin_user %}
+                    <button type="button" class="sr-photo-action-btn sr-photo-action-danger" id="player-ai-image-remove-btn" hidden>Stop using character</button>
+                    {% endif %}
                     <p class="sr-ai-character-status" id="player-ai-image-status" hidden></p>
                 </div>
             </div>
+            {% if is_admin_user %}
+            <div class="sr-ai-character-versions" id="player-ai-image-versions" hidden>
+                <h5>Previous pictures</h5>
+                <p class="sr-traits-hint">Switch back to an older picture, or delete one for good. Other people can replace pictures but cannot delete them.</p>
+                <div class="sr-ai-character-version-grid" id="player-ai-image-version-grid"></div>
+            </div>
+            {% endif %}
         </section>
 
         <div class="sr-photo-modal-footer">
@@ -335,6 +344,58 @@
 }
 .sr-ai-character-status[hidden] { display: none !important; }
 .sr-ai-character-status.is-error { color: #f85149; }
+.sr-ai-character-versions {
+    margin-top: 14px;
+}
+.sr-ai-character-versions[hidden] { display: none !important; }
+.sr-ai-character-versions h5 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--sr-muted);
+}
+.sr-ai-character-version-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.sr-ai-character-version {
+    width: 92px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.sr-ai-character-version img {
+    width: 92px;
+    height: 122px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 8px;
+    border: 2px solid var(--sr-line);
+    background: #000;
+    display: block;
+}
+.sr-ai-character-version.is-current img {
+    border-color: var(--sr-accent);
+}
+.sr-ai-character-version-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sr-ai-character-version-actions button {
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--sr-line);
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    cursor: pointer;
+}
+.sr-ai-character-version-actions button.sr-photo-action-danger {
+    color: #f85149;
+}
 .sr-roster-ai-thumb {
     width: 36px;
     height: 48px;
@@ -624,6 +685,9 @@ window.PlayerPhotoManager = (function() {
     var aiImageUploadLabel = document.getElementById('player-ai-image-upload-label');
     var aiImageRemoveBtn = document.getElementById('player-ai-image-remove-btn');
     var aiImageStatus = document.getElementById('player-ai-image-status');
+    var aiImageVersionsWrap = document.getElementById('player-ai-image-versions');
+    var aiImageVersionGrid = document.getElementById('player-ai-image-version-grid');
+    var isAdmin = !!(modal && modal.getAttribute('data-is-admin') === '1');
     var currentAiImageUrl = '';
     var aiImageJobs = {};
     var detailSaveCloseBtn = document.getElementById('player-detail-save-close');
@@ -1262,6 +1326,7 @@ window.PlayerPhotoManager = (function() {
         setAiImagePreview(cfg.aiImageUrl || '');
         refreshAiImageBusyUi();
         renderTraits();
+        loadAiImageVersions();
     }
 
     function savePlayerDetails(opts) {
@@ -1582,7 +1647,7 @@ window.PlayerPhotoManager = (function() {
         if (aiImageBtnLabel) {
             aiImageBtnLabel.textContent = currentAiImageUrl ? 'Remake AI character' : 'Create AI character';
         }
-        if (aiImageRemoveBtn) aiImageRemoveBtn.hidden = !currentAiImageUrl;
+        if (aiImageRemoveBtn) aiImageRemoveBtn.hidden = !isAdmin || !currentAiImageUrl;
         if (currentAiImageUrl) {
             if (aiImagePreview) {
                 aiImagePreview.hidden = false;
@@ -1624,6 +1689,11 @@ window.PlayerPhotoManager = (function() {
         if (aiImageUpload) aiImageUpload.disabled = busy;
         if (aiImageRemoveBtn) aiImageRemoveBtn.disabled = busy;
         if (aiImageUploadLabel) aiImageUploadLabel.style.opacity = busy ? '0.55' : '';
+        if (aiImageVersionGrid) {
+            aiImageVersionGrid.querySelectorAll('button').forEach(function(btn) {
+                if (!btn.dataset.keepDisabled) btn.disabled = busy;
+            });
+        }
         if (!aiImageStatus) return;
         if (!job.message) {
             aiImageStatus.hidden = true;
@@ -1650,7 +1720,7 @@ window.PlayerPhotoManager = (function() {
         }));
     }
 
-    function applySavedAiImage(url, forName) {
+    function applySavedAiImage(url, forName, versions) {
         var name = forName || playerName;
         if (!url || !name) return;
         if (name === playerName) setAiImagePreview(url);
@@ -1659,6 +1729,118 @@ window.PlayerPhotoManager = (function() {
         document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
             detail: { url: url, name: name },
         }));
+        if (name === playerName && versions) {
+            renderAiImageVersions(versions);
+        } else if (name === playerName) {
+            loadAiImageVersions();
+        }
+    }
+
+    function renderAiImageVersions(versions) {
+        if (!isAdmin || !aiImageVersionGrid) return;
+        var items = Array.isArray(versions) ? versions : [];
+        aiImageVersionGrid.textContent = '';
+        if (aiImageVersionsWrap) aiImageVersionsWrap.hidden = items.length === 0;
+        items.forEach(function(item) {
+            var wrap = document.createElement('div');
+            wrap.className = 'sr-ai-character-version' + (item.current ? ' is-current' : '');
+            var img = document.createElement('img');
+            img.src = item.url || '';
+            img.alt = item.current ? 'Current AI character' : 'Previous AI character';
+            var actions = document.createElement('div');
+            actions.className = 'sr-ai-character-version-actions';
+            if (item.current) {
+                var currentLabel = document.createElement('button');
+                currentLabel.type = 'button';
+                currentLabel.disabled = true;
+                currentLabel.dataset.keepDisabled = '1';
+                currentLabel.textContent = 'In use';
+                actions.appendChild(currentLabel);
+            } else {
+                var useBtn = document.createElement('button');
+                useBtn.type = 'button';
+                useBtn.textContent = 'Use this';
+                useBtn.addEventListener('click', function() {
+                    postAiImageAction({ restore_path: item.path });
+                });
+                actions.appendChild(useBtn);
+            }
+            var delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'sr-photo-action-danger';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', function() {
+                if (!window.confirm('Delete this AI character picture for good?')) return;
+                postAiImageAction({ delete_path: item.path });
+            });
+            actions.appendChild(delBtn);
+            wrap.appendChild(img);
+            wrap.appendChild(actions);
+            aiImageVersionGrid.appendChild(wrap);
+        });
+    }
+
+    function loadAiImageVersions() {
+        if (!isAdmin || !playerName) {
+            renderAiImageVersions([]);
+            return;
+        }
+        fetch('/api/player_ai_image/' + encodeURIComponent(playerName) + '/', {
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.success !== false) {
+                renderAiImageVersions(data.versions || []);
+            }
+        })
+        .catch(function() {});
+    }
+
+    function applyAiImagePayload(data, name) {
+        var url = data && data.ai_image_url;
+        if (url) {
+            applySavedAiImage(url, name, data.versions);
+            return;
+        }
+        if (name === playerName) setAiImagePreview(null);
+        updatePlayerCardProfile(name, { aiImageUrl: null });
+        document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
+            detail: { url: '', name: name },
+        }));
+        if (data && data.versions) renderAiImageVersions(data.versions);
+        else loadAiImageVersions();
+    }
+
+    function postAiImageAction(fields) {
+        var name = playerName;
+        if (!name || isPlayerAiBusy(name)) return;
+        setAiImageBusy(true, 'Updating…', false, name);
+        var fd = new FormData();
+        Object.keys(fields || {}).forEach(function(key) {
+            fd.append(key, fields[key]);
+        });
+        fetch('/api/player_ai_image/' + encodeURIComponent(name) + '/', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        })
+        .then(function(r) {
+            return r.json().then(function(data) {
+                return { ok: r.ok, data: data || {} };
+            }).catch(function() {
+                return { ok: false, data: {} };
+            });
+        })
+        .then(function(res) {
+            if (!res.ok || res.data.success === false) {
+                setAiImageBusy(false, (res.data && res.data.error) || 'Update failed.', true, name);
+                return;
+            }
+            setAiImageBusy(false, '', false, name);
+            applyAiImagePayload(res.data, name);
+        })
+        .catch(function() {
+            setAiImageBusy(false, 'Update failed.', true, name);
+        });
     }
 
     function pollAiImageJob(jobId, attempt, forName) {
@@ -1730,7 +1912,7 @@ window.PlayerPhotoManager = (function() {
                 return;
             }
             if (res.data.ai_image_url) {
-                applySavedAiImage(res.data.ai_image_url, name);
+                applySavedAiImage(res.data.ai_image_url, name, res.data.versions);
                 return;
             }
             if (res.data.job_id) {
@@ -1769,7 +1951,7 @@ window.PlayerPhotoManager = (function() {
                 return;
             }
             if (res.data.ai_image_url) {
-                applySavedAiImage(res.data.ai_image_url, name);
+                applySavedAiImage(res.data.ai_image_url, name, res.data.versions);
                 return;
             }
             setAiImageBusy(false, 'Uploaded, but the image URL was missing. Refresh the page.', true, name);
@@ -1780,30 +1962,8 @@ window.PlayerPhotoManager = (function() {
     }
 
     function removePlayerAiImage() {
-        var name = playerName;
-        if (!name || isPlayerAiBusy(name)) return;
-        setAiImageBusy(true, 'Removing…', false, name);
-        var fd = new FormData();
-        fd.append('remove', '1');
-        fetch('/api/player_ai_image/' + encodeURIComponent(name) + '/', {
-            method: 'POST', body: fd, credentials: 'same-origin'
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.success) {
-                setAiImageBusy(false, data.error || 'Remove failed.', true, name);
-                return;
-            }
-            if (name === playerName) setAiImagePreview(null);
-            setAiImageBusy(false, 'Removed.', false, name);
-            updatePlayerCardProfile(name, { aiImageUrl: null });
-            document.dispatchEvent(new CustomEvent('player-ai-image-updated', {
-                detail: { url: '', name: name },
-            }));
-        })
-        .catch(function() {
-            setAiImageBusy(false, 'Remove failed.', true, name);
-        });
+        if (!isAdmin) return;
+        postAiImageAction({ remove: '1' });
     }
 
     function uploadFace(file) {

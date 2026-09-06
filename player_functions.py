@@ -715,8 +715,128 @@ def set_player_ai_image_path(player_id, ai_image_path):
         conn.commit()
 
 
+def _ai_image_filename_for_player(filename, player_id):
+    """True if filename is this player's AI character file (current or archived)."""
+    name = os.path.basename(filename or '')
+    stem, ext = os.path.splitext(name)
+    ext = ext.lower()
+    if ext == '.jpeg':
+        ext = '.jpg'
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        return False
+    try:
+        pid = str(int(player_id))
+    except (TypeError, ValueError):
+        return False
+    if stem == f'ai_{pid}':
+        return True
+    prefix = f'ai_{pid}_'
+    return stem.startswith(prefix) and len(stem) > len(prefix)
+
+
+def _normalize_player_photo_rel_path(rel_path):
+    """Return player_photos/<file> or None if the path is not a stored photo."""
+    rel = (rel_path or '').replace('\\', '/').strip()
+    if not rel:
+        return None
+    rel = rel.split('?', 1)[0]
+    if rel.startswith('/static/'):
+        rel = rel[len('/static/'):]
+    elif rel.startswith('static/'):
+        rel = rel[len('static/'):]
+    rel = rel.lstrip('/')
+    parts = [part for part in rel.split('/') if part]
+    if '..' in parts or len(parts) != 2 or parts[0] != 'player_photos':
+        return None
+    return f'player_photos/{parts[1]}'
+
+
+def _new_ai_image_filename(player_id, ext):
+    ext = (ext or 'png').lower().lstrip('.')
+    if ext == 'jpeg':
+        ext = 'jpg'
+    if f'.{ext}' not in ALLOWED_PHOTO_EXTENSIONS:
+        ext = 'png'
+    stamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    token = uuid.uuid4().hex[:8]
+    return f'ai_{player_id}_{stamp}_{token}.{ext}'
+
+
+def list_player_ai_image_versions(player_id):
+    """Stored AI character files for a player, newest after the current one."""
+    dest_dir = player_photos_dir()
+    current = _normalize_player_photo_rel_path(get_player_ai_image_path_by_id(player_id))
+    versions = []
+    try:
+        names = os.listdir(dest_dir)
+    except OSError:
+        names = []
+    for name in names:
+        if not _ai_image_filename_for_player(name, player_id):
+            continue
+        abs_path = os.path.join(dest_dir, name)
+        if not os.path.isfile(abs_path):
+            continue
+        rel_path = f'player_photos/{name}'
+        try:
+            mtime = os.path.getmtime(abs_path)
+        except OSError:
+            mtime = 0
+        versions.append({
+            'path': rel_path,
+            'current': bool(current and rel_path == current),
+            'mtime': mtime,
+        })
+    versions.sort(key=lambda item: (not item['current'], -item.get('mtime', 0)))
+    return versions
+
+
+def activate_player_ai_image(player_id, rel_path):
+    """Point this player at an already-stored AI character file."""
+    rel = _normalize_player_photo_rel_path(rel_path)
+    if not rel or not _ai_image_filename_for_player(os.path.basename(rel), player_id):
+        raise ValueError('That picture does not belong to this player.')
+    abs_path = os.path.join(player_photos_dir(), os.path.basename(rel))
+    if not os.path.isfile(abs_path):
+        raise ValueError('That picture is no longer on the server.')
+    set_player_ai_image_path(player_id, rel)
+    return rel
+
+
+def delete_player_ai_image_version(player_id, rel_path):
+    """Permanently delete one stored AI character file."""
+    rel = _normalize_player_photo_rel_path(rel_path)
+    if not rel or not _ai_image_filename_for_player(os.path.basename(rel), player_id):
+        raise ValueError('That picture does not belong to this player.')
+    current = _normalize_player_photo_rel_path(get_player_ai_image_path_by_id(player_id))
+    abs_path = os.path.join(player_photos_dir(), os.path.basename(rel))
+    if os.path.isfile(abs_path):
+        os.remove(abs_path)
+    if current == rel:
+        set_player_ai_image_path(player_id, None)
+    return rel
+
+
+def clear_player_ai_image(player_id):
+    """Stop using the current AI character; keep stored files for later restore."""
+    set_player_ai_image_path(player_id, None)
+
+
+def delete_all_player_ai_images(player_id):
+    """Delete every stored AI character file for this player."""
+    dest_dir = player_photos_dir()
+    for item in list_player_ai_image_versions(player_id):
+        abs_path = os.path.join(dest_dir, os.path.basename(item['path']))
+        if os.path.isfile(abs_path):
+            os.remove(abs_path)
+    set_player_ai_image_path(player_id, None)
+
+
 def save_player_ai_image_bytes(player_id, image_bytes, ext='png'):
-    """Save generated AI character-sheet bytes and attach them to the player."""
+    """Save generated AI character-sheet bytes and attach them to the player.
+
+    Previous pictures stay on disk so an admin can switch back.
+    """
     if not image_bytes:
         raise ValueError('Empty AI image.')
     ext = (ext or 'png').lower().lstrip('.')
@@ -726,18 +846,10 @@ def save_player_ai_image_bytes(player_id, image_bytes, ext='png'):
         ext = 'png'
 
     dest_dir = player_photos_dir()
-    prefix = f'ai_{player_id}.'
-    for name in os.listdir(dest_dir):
-        if name.startswith(prefix):
-            try:
-                os.remove(os.path.join(dest_dir, name))
-            except OSError:
-                pass
-
     data, stored_ext = _compress_image_bytes_under_limit(image_bytes, f'.{ext}')
     if stored_ext == '.jpeg':
         stored_ext = '.jpg'
-    filename = f'ai_{player_id}{stored_ext}'
+    filename = _new_ai_image_filename(player_id, stored_ext.lstrip('.'))
     abs_path = os.path.join(dest_dir, filename)
     _write_photo_bytes(abs_path, data)
     rel_path = f'player_photos/{filename}'
@@ -755,11 +867,8 @@ def save_player_ai_image_upload(player_id, file_storage):
 
 
 def remove_player_ai_image(player_id):
-    """Delete the saved AI character sheet and clear ai_image_path."""
-    rel_path = get_player_ai_image_path_by_id(player_id)
-    if rel_path:
-        _remove_stored_photo(rel_path)
-    set_player_ai_image_path(player_id, None)
+    """Unpublish the current AI character without deleting archived files."""
+    clear_player_ai_image(player_id)
 
 
 def set_player_photo_path(player_id, photo_path):
@@ -1674,7 +1783,7 @@ def remove_player(player_id):
     except Exception:
         pass
     try:
-        remove_player_ai_image(player_id)
+        delete_all_player_ai_images(player_id)
     except Exception:
         pass
     database = '/home/Idynkydnk/stats/stats.db'

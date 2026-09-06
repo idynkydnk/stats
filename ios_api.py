@@ -1405,3 +1405,43 @@ def register_ios_api(app):
         S.mail.send(msg)
         S.log_activity('Sent email', summary=f'Test email to {to_addr}')
         return jsonify({'ok': True, 'to': to_addr})
+
+    @app.route('/api/admin/site-updates', methods=['GET', 'POST'])
+    @api_admin_required
+    def api_admin_site_updates():
+        S = _S()
+        if request.method == 'GET':
+            changes, git_error = S.adminfx.list_recent_site_changes()
+            return jsonify({
+                'changes': changes,
+                'git_error': git_error,
+                'recipients': S.adminfx.list_site_update_recipients(),
+                'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
+                'default_subject': "What's new on the stats site",
+            })
+        data = request.get_json(silent=True) or {}
+        shas = [str(sha) for sha in (data.get('shas') or []) if sha]
+        extra_notes = (data.get('extra_notes') or '').strip()
+        usernames = [str(name) for name in (data.get('usernames') or []) if name]
+        subject = data.get('subject')
+        body = data.get('body')
+        changes, _err = S.adminfx.list_recent_site_changes()
+        by_sha = {item['sha']: item for item in changes}
+        selected = [by_sha[sha] for sha in shas if sha in by_sha]
+        if body is None:
+            bullets = S.adminfx.site_update_bullets(selected, extra_notes)
+        else:
+            bullets = [line.strip() for line in str(body).splitlines() if line.strip()]
+        sent, errors, chosen = S.send_site_update_email(
+            subject, bullets, usernames, shas=shas,
+            sent_by=session.get('username'),
+        )
+        if not chosen:
+            return jsonify({'success': False, 'error': (errors or ['Could not send that update.'])[0]}), 400
+        names = [person['username'] for person in chosen]
+        return jsonify({
+            'success': True,
+            'sent': sent,
+            'errors': errors,
+            'usernames': names,
+        })

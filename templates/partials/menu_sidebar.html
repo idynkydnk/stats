@@ -28,6 +28,7 @@
     {% if is_admin_user %}
     <li class="menu-section-label">Admin</li>
     <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin Dashboard</a></li>
+    <li><a href="{{ url_for('admin_site_updates') }}"><i class="fas fa-bullhorn"></i> Site updates</a></li>
     <li><a href="{{ url_for('admin_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('admin_ai_flyers') }}"><i class="fas fa-scroll"></i> AI Flyers</a></li>
     <li><a href="{{ url_for('admin_ai_prompts') }}"><i class="fas fa-robot"></i> AI Prompts</a></li>

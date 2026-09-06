@@ -1,0 +1,200 @@
+{% extends base_template %}
+{% block title %}Site updates{% endblock %}
+{% block extra_css %}
+<style>
+.adm-section { margin-bottom: 28px; }
+.adm-section h2 { font-size: 16px; color: var(--sr-text); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.adm-section h2 i { color: var(--sr-accent); font-size: 14px; }
+.adm-meta { font-size: 13px; color: var(--sr-muted); margin: 0 0 14px; line-height: 1.45; }
+.adm-error { color: #ef4444; font-size: 14px; margin: 0 0 14px; }
+.adm-btn { background: var(--sr-accent-dim); border: 1px solid var(--sr-accent); color: var(--sr-accent); border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.adm-btn:hover { background: rgba(110, 231, 255, 0.25); }
+.adm-btn-ghost { background: transparent; border-color: var(--sr-line); color: var(--sr-text); }
+.adm-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+.adm-input, .adm-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0f1620;
+    border: 1px solid var(--sr-line);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--sr-text);
+    font-family: inherit;
+}
+.adm-textarea { min-height: 160px; resize: vertical; line-height: 1.45; }
+.adm-input:focus, .adm-textarea:focus { outline: none; border-color: var(--sr-accent); }
+.adm-label { display: block; font-size: 12px; color: var(--sr-muted); margin: 0 0 6px; }
+.adm-pick-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    border-bottom: 1px solid var(--sr-line);
+    cursor: pointer;
+}
+.adm-pick-row:last-child { border-bottom: none; }
+.adm-pick-row.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.adm-pick-main { flex: 1; min-width: 0; }
+.adm-pick-title { font-size: 14px; font-weight: 600; color: var(--sr-text); }
+.adm-pick-meta { font-size: 12px; color: var(--sr-muted); margin-top: 3px; }
+.adm-pick-body { font-size: 13px; color: var(--sr-muted); margin-top: 6px; white-space: pre-wrap; }
+.adm-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.adm-badge-shared { background: var(--sr-accent-dim); color: var(--sr-accent); }
+.adm-badge-missing { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.adm-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.adm-toolbar button { background: none; border: 0; color: var(--sr-accent); font-size: 13px; cursor: pointer; padding: 0; }
+.adm-check { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--sr-accent); flex-shrink: 0; }
+.adm-steps { display: flex; gap: 8px; font-size: 12px; color: var(--sr-muted); margin: 0 0 18px; }
+.adm-steps .is-current { color: var(--sr-accent); font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">Site updates</h1>
+    <div class="sr-header-actions">
+        <a href="{{ url_for('admin_dashboard') }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Admin</a>
+        {% set header_custom_nav = true %}
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+
+<p class="adm-steps">
+    <span class="{% if step != 'users' %}is-current{% endif %}">1. Choose changes</span>
+    <span>→</span>
+    <span class="{% if step == 'users' %}is-current{% endif %}">2. Choose users</span>
+</p>
+
+{% if form_error %}
+<p class="adm-error">{{ form_error }}</p>
+{% endif %}
+
+{% if not email_configured %}
+<p class="adm-error">Email is not configured, so nothing can be sent yet.</p>
+{% endif %}
+
+<form method="POST" action="{{ url_for('admin_site_updates') }}" id="site-updates-form">
+    {% if step == 'users' %}
+    {% for sha in selected_shas %}
+    <input type="hidden" name="sha" value="{{ sha }}">
+    {% endfor %}
+    <input type="hidden" name="extra_notes" value="{{ extra_notes }}">
+
+    <div class="adm-section">
+        <h2><i class="fas fa-list"></i> Message</h2>
+        <p class="adm-meta">Edit the wording if you want. Each line becomes a bullet in the email.</p>
+        <label class="adm-label" for="update-subject">Subject</label>
+        <input class="adm-input" id="update-subject" name="subject" value="{{ subject }}" required>
+        <label class="adm-label" for="update-body" style="margin-top:12px;">Changes to include</label>
+        <textarea class="adm-textarea" id="update-body" name="body" required>{{ body }}</textarea>
+    </div>
+
+    <div class="adm-section">
+        <h2><i class="fas fa-users"></i> Send to</h2>
+        <p class="adm-meta">Emails come from each user’s matching player profile. Users without an email can’t be selected.</p>
+        <div class="adm-toolbar">
+            <button type="button" data-select="users" data-mode="all">Select everyone with email</button>
+            <button type="button" data-select="users" data-mode="none">Select none</button>
+        </div>
+        <div class="sr-card sr-card-compact">
+            {% for user in recipients %}
+            <label class="adm-pick-row{% if not user.can_email %} is-disabled{% endif %}">
+                <input class="adm-check" type="checkbox" name="username" value="{{ user.username }}"
+                       data-group="users"
+                       {% if user.can_email and (not selected_usernames or user.username in selected_usernames) %}checked{% endif %}
+                       {% if not user.can_email %}disabled{% endif %}>
+                <div class="adm-pick-main">
+                    <div class="adm-pick-title">
+                        {{ user.username }}
+                        {% if not user.active %}<span class="adm-badge adm-badge-missing">inactive</span>{% endif %}
+                        {% if not user.can_email %}<span class="adm-badge adm-badge-missing">no email</span>{% endif %}
+                    </div>
+                    <div class="adm-pick-meta">
+                        {% if user.email %}
+                            {{ user.email }}{% if user.player_name %} · {{ user.player_name }}{% endif %}
+                        {% else %}
+                            Add an email on their player profile to include them.
+                        {% endif %}
+                    </div>
+                </div>
+            </label>
+            {% endfor %}
+            {% if not recipients %}
+            <p class="adm-meta" style="padding:16px;">No site users found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="adm-actions">
+        <button type="submit" class="adm-btn" name="action" value="send" {% if not email_configured %}disabled{% endif %}>
+            <i class="fas fa-paper-plane"></i> Send update
+        </button>
+        <button type="submit" class="adm-btn adm-btn-ghost" name="action" value="changes">Back to changes</button>
+    </div>
+
+    {% else %}
+    <div class="adm-section">
+        <h2><i class="fas fa-code-branch"></i> What changed</h2>
+        <p class="adm-meta">These are recent website updates. Pick the ones worth telling people about. You can rewrite them on the next screen.</p>
+        {% if git_error %}
+        <p class="adm-error">Could not read git history: {{ git_error }}</p>
+        {% endif %}
+        <div class="adm-toolbar">
+            <button type="button" data-select="changes" data-mode="new">Select new changes</button>
+            <button type="button" data-select="changes" data-mode="all">Select all</button>
+            <button type="button" data-select="changes" data-mode="none">Select none</button>
+        </div>
+        <div class="sr-card sr-card-compact">
+            {% for change in changes %}
+            <label class="adm-pick-row">
+                <input class="adm-check" type="checkbox" name="sha" value="{{ change.sha }}"
+                       data-group="changes"
+                       data-shared="{{ '1' if change.already_shared else '0' }}"
+                       {% if change.sha in selected_shas %}checked{% endif %}>
+                <div class="adm-pick-main">
+                    <div class="adm-pick-title">
+                        {{ change.subject }}
+                        {% if change.already_shared %}<span class="adm-badge adm-badge-shared">already shared</span>{% endif %}
+                    </div>
+                    <div class="adm-pick-meta">{{ change.date }} · {{ change.short_sha }}</div>
+                    {% if change.body %}
+                    <div class="adm-pick-body">{{ change.body }}</div>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+            {% if not changes and not git_error %}
+            <p class="adm-meta" style="padding:16px;">No git changes found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="adm-section">
+        <h2><i class="fas fa-pen"></i> Extra note</h2>
+        <p class="adm-meta">Optional. Add anything that is not in the list above, one idea per line.</p>
+        <textarea class="adm-textarea" name="extra_notes" placeholder="e.g. The iPhone app now keeps old AI character pictures for Kyle.">{{ extra_notes }}</textarea>
+    </div>
+
+    <div class="adm-actions">
+        <button type="submit" class="adm-btn" name="action" value="users"><i class="fas fa-arrow-right"></i> Choose users</button>
+    </div>
+    {% endif %}
+</form>
+
+<script>
+(function() {
+    document.querySelectorAll('[data-select]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var group = btn.getAttribute('data-select');
+            var mode = btn.getAttribute('data-mode');
+            document.querySelectorAll('input[data-group="' + group + '"]').forEach(function(box) {
+                if (box.disabled) return;
+                if (mode === 'all') box.checked = true;
+                else if (mode === 'none') box.checked = false;
+                else if (mode === 'new') box.checked = box.getAttribute('data-shared') !== '1';
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

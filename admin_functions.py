@@ -7,6 +7,7 @@ store full before/after row snapshots as JSON so an admin can undo them.
 import json
 import os
 import sqlite3
+import subprocess
 from datetime import datetime, timezone
 
 
@@ -1234,3 +1235,248 @@ def delete_ai_email_images(filenames, allow_in_use=True):
         except OSError:
             missing.append(name)
     return deleted, missing, blocked
+
+
+SKIP_SITE_UPDATE_USERNAMES = {'iosapp', 'api_key'}
+SITE_UPDATE_GIT_LIMIT = 80
+
+
+def init_site_update_sends_db():
+    """Log of site-update emails Kyle sends to users."""
+    conn = _connect()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS site_update_sends (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sent_by TEXT,
+            subject TEXT,
+            shas TEXT,
+            recipients TEXT,
+            body TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def record_site_update_send(sent_by, subject, shas, recipients, body):
+    init_site_update_sends_db()
+    conn = _connect()
+    conn.execute(
+        '''INSERT INTO site_update_sends (sent_by, subject, shas, recipients, body)
+           VALUES (?, ?, ?, ?, ?)''',
+        (
+            sent_by,
+            subject,
+            json.dumps(list(shas or [])),
+            json.dumps(list(recipients or [])),
+            body or '',
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def shared_update_shas():
+    """Commit SHAs that have already been included in a site-update email."""
+    init_site_update_sends_db()
+    conn = _connect()
+    rows = conn.execute('SELECT shas FROM site_update_sends').fetchall()
+    conn.close()
+    found = set()
+    for row in rows:
+        try:
+            items = json.loads(row['shas'] or '[]')
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        for sha in items:
+            if sha:
+                found.add(str(sha))
+    return found
+
+
+def parse_git_log_output(raw, shared_shas=None):
+    """Parse `git log --pretty=format:%H%x1f%ad%x1f%s%x1f%b%x1e` into change dicts."""
+    shared = set(shared_shas or [])
+    changes = []
+    for rec in (raw or '').split('\x1e'):
+        rec = rec.strip('\n')
+        if not rec.strip():
+            continue
+        parts = rec.split('\x1f', 3)
+        if len(parts) < 3:
+            continue
+        sha = (parts[0] or '').strip()
+        date = (parts[1] or '').strip()
+        subject = (parts[2] or '').strip()
+        body = (parts[3] or '').strip() if len(parts) > 3 else ''
+        if not sha or not subject:
+            continue
+        changes.append({
+            'sha': sha,
+            'short_sha': sha[:7],
+            'date': date,
+            'subject': subject,
+            'body': body,
+            'already_shared': sha in shared,
+        })
+    return changes
+
+
+def list_recent_site_changes(limit=SITE_UPDATE_GIT_LIMIT):
+    """Recent website git commits Kyle can pick for a user-facing update email."""
+    repo = os.path.dirname(os.path.abspath(__file__))
+    try:
+        proc = subprocess.run(
+            [
+                'git', '-C', repo, 'log',
+                '--no-merges', f'-{int(limit)}',
+                '--pretty=format:%H%x1f%ad%x1f%s%x1f%b%x1e',
+                '--date=short',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return [], str(e)
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or 'Could not read git history.').strip()
+        return [], err
+    return parse_git_log_output(proc.stdout, shared_update_shas()), None
+
+
+def site_update_bullets(changes, extra_notes=''):
+    """One user-facing line per selected change, plus optional custom notes."""
+    lines = []
+    for raw in (extra_notes or '').splitlines():
+        line = raw.strip().lstrip('-*').strip()
+        if line:
+            lines.append(line)
+    for change in changes or []:
+        subject = (change.get('subject') or '').strip()
+        if subject:
+            lines.append(subject)
+    return lines
+
+
+def site_update_plain_body(bullets, intro=None):
+    intro_text = (intro or "A few updates on the stats site:").strip()
+    lines = [intro_text, '']
+    for bullet in bullets or []:
+        lines.append(f'• {bullet}')
+    lines.extend(['', 'Open the site: https://idynkydnk.pythonanywhere.com/'])
+    return '\n'.join(lines).strip() + '\n'
+
+
+def site_update_html_body(bullets, intro=None, site_url=None):
+    import html as html_lib
+
+    intro_text = html_lib.escape((intro or "A few updates on the stats site:").strip())
+    url = (site_url or 'https://idynkydnk.pythonanywhere.com').rstrip('/')
+    items = ''.join(
+        f'<li style="margin:0 0 8px;">{html_lib.escape(bullet)}</li>'
+        for bullet in bullets or []
+        if (bullet or '').strip()
+    )
+    return f'''<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;max-width:560px;color:#111827;line-height:1.5;font-size:16px;">
+  <h1 style="font-size:22px;margin:0 0 12px;">What's new</h1>
+  <p style="margin:0 0 16px;">{intro_text}</p>
+  <ul style="margin:0 0 20px;padding-left:20px;">{items}</ul>
+  <p style="margin:0;"><a href="{html_lib.escape(url)}/" style="color:#0e7490;">Open the stats site</a></p>
+</div>'''
+
+
+def _player_email_index():
+    """Players with emails, keyed by first name and nickname (lowercase)."""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            '''SELECT full_name, email, nickname FROM players
+               WHERE email IS NOT NULL AND TRIM(email) != '' '''
+        ).fetchall()
+    except sqlite3.OperationalError:
+        try:
+            rows = conn.execute(
+                '''SELECT full_name, email FROM players
+                   WHERE email IS NOT NULL AND TRIM(email) != '' '''
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+    finally:
+        conn.close()
+
+    by_first = {}
+    by_nickname = {}
+    for row in rows:
+        name = (row['full_name'] or '').strip()
+        email = (row['email'] or '').strip()
+        nickname = (row['nickname'] or '').strip() if 'nickname' in row.keys() else ''
+        if not name or not email or '@' not in email:
+            continue
+        entry = {'player_name': name, 'email': email}
+        first = name.split()[0].lower()
+        by_first.setdefault(first, []).append(entry)
+        if nickname:
+            by_nickname.setdefault(nickname.lower(), []).append(entry)
+    return by_first, by_nickname
+
+
+def _pick_player_email(username, by_first, by_nickname):
+    key = (username or '').strip().lower()
+    if not key:
+        return None
+    nick_matches = by_nickname.get(key) or []
+    if len(nick_matches) == 1:
+        return nick_matches[0]
+    first_matches = by_first.get(key) or []
+    if not first_matches:
+        return nick_matches[0] if nick_matches else None
+    if len(first_matches) == 1:
+        return first_matches[0]
+    first_matches = sorted(first_matches, key=lambda item: item['player_name'].lower())
+    return first_matches[0]
+
+
+def list_site_update_recipients():
+    """Active site users with a best-effort player email, for Kyle to pick from."""
+    by_first, by_nickname = _player_email_index()
+    recipients = []
+    for user in list_site_users():
+        username = (user.get('username') or '').strip()
+        if not username or username.lower() in SKIP_SITE_UPDATE_USERNAMES:
+            continue
+        match = _pick_player_email(username, by_first, by_nickname) if user.get('active') else None
+        recipients.append({
+            'username': username,
+            'active': bool(user.get('active')),
+            'is_admin': bool(user.get('is_admin')),
+            'last_login': user.get('last_login'),
+            'email': (match or {}).get('email'),
+            'player_name': (match or {}).get('player_name'),
+            'can_email': bool(user.get('active') and match and match.get('email')),
+        })
+    recipients.sort(key=lambda item: (not item['can_email'], item['username'].lower()))
+    return recipients
+
+
+def resolve_site_update_recipients(usernames):
+    """Return emailable recipients for the selected usernames."""
+    wanted = {(name or '').strip().lower() for name in (usernames or []) if (name or '').strip()}
+    chosen = []
+    seen_emails = set()
+    for row in list_site_update_recipients():
+        if row['username'].lower() not in wanted:
+            continue
+        if not row.get('can_email'):
+            continue
+        email = row['email'].lower()
+        if email in seen_emails:
+            continue
+        seen_emails.add(email)
+        chosen.append({
+            'username': row['username'],
+            'email': row['email'],
+            'player_name': row.get('player_name'),
+        })
+    return chosen
