@@ -1362,6 +1362,19 @@ def register_ios_api(app):
         )
         return jsonify({'ok': True})
 
+    @app.route('/api/admin/users/player', methods=['POST'])
+    @api_admin_required
+    def api_admin_set_user_player():
+        S = _S()
+        data = request.get_json(force=True, silent=True) or {}
+        username = (data.get('username') or '').strip()
+        player_name = (data.get('player_name') or '').strip()
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        if not S.adminfx.set_site_user_player(username, player_name):
+            return jsonify({'error': f'User "{username}" not found'}), 404
+        return jsonify({'ok': True, 'username': username, 'player_name': player_name})
+
     @app.route('/api/admin/backup', methods=['POST'])
     @api_admin_required
     def api_admin_backup():
@@ -1410,6 +1423,7 @@ def register_ios_api(app):
                 'changes': changes,
                 'git_error': git_error,
                 'recipients': S.adminfx.list_site_update_recipients(),
+                'players': S.adminfx.list_players_for_site_updates(),
                 'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
                 'default_subject': "What's new on the stats site",
             })
@@ -1419,6 +1433,11 @@ def register_ios_api(app):
         usernames = [str(name) for name in (data.get('usernames') or []) if name]
         subject = data.get('subject')
         body = data.get('body')
+        player_names = {
+            str(name).strip(): str(player or '').strip()
+            for name, player in (data.get('player_names') or {}).items()
+            if str(name).strip()
+        }
         changes, _err = S.adminfx.list_recent_site_changes()
         by_sha = {item['sha']: item for item in changes}
         selected = [by_sha[sha] for sha in shas if sha in by_sha]
@@ -1429,6 +1448,7 @@ def register_ios_api(app):
         sent, errors, chosen = S.send_site_update_email(
             subject, bullets, usernames, shas=shas,
             sent_by=session.get('username'),
+            player_names=player_names,
         )
         if not chosen:
             return jsonify({'success': False, 'error': (errors or ['Could not send that update.'])[0]}), 400

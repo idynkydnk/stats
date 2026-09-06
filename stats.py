@@ -6876,7 +6876,7 @@ def admin_backup():
     return redirect(url_for('admin_dashboard'))
 
 
-def send_site_update_email(subject, bullets, usernames, shas=None, sent_by=None):
+def send_site_update_email(subject, bullets, usernames, shas=None, sent_by=None, player_names=None):
     """Email selected site users about chosen website changes.
 
     Returns (sent_count, errors, chosen_recipients).
@@ -6887,7 +6887,14 @@ def send_site_update_email(subject, bullets, usernames, shas=None, sent_by=None)
         return 0, ['Pick at least one change, or write a note to send.'], []
     if not (app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')):
         return 0, ['Email is not configured on the server.'], []
-    chosen = adminfx.resolve_site_update_recipients(usernames)
+    for username, player_name in (player_names or {}).items():
+        adminfx.set_site_user_player(username, player_name)
+    chosen = adminfx.resolve_site_update_recipients(usernames, player_names)
+    wanted = [(name or '').strip() for name in (usernames or []) if (name or '').strip()]
+    chosen_keys = {person['username'].lower() for person in chosen}
+    missing = [name for name in wanted if name.lower() not in chosen_keys]
+    if missing:
+        return 0, [f'Pick a player with an email for: {", ".join(missing)}'], []
     if not chosen:
         return 0, ['Pick at least one user who has an email on their player profile.'], []
     site_url = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
@@ -6936,6 +6943,7 @@ def _site_update_payload(selected_shas=None, extra_notes='', usernames=None, sub
         'selected_shas': [item['sha'] for item in selected],
         'extra_notes': extra_notes or '',
         'recipients': adminfx.list_site_update_recipients(),
+        'players': adminfx.list_players_for_site_updates(),
         'selected_usernames': usernames or [],
         'subject': (subject or "What's new on the stats site").strip(),
         'body': body if body is not None else default_body,
@@ -6958,6 +6966,11 @@ def admin_site_updates():
         body = request.form.get('body')
         usernames = request.form.getlist('username')
         action = (request.form.get('action') or '').strip()
+        player_names = {}
+        prefix = 'player_for__'
+        for key in request.form:
+            if key.startswith(prefix):
+                player_names[key[len(prefix):]] = (request.form.get(key) or '').strip()
         ctx = _site_update_payload(
             selected_shas=selected_shas,
             extra_notes=extra_notes,
@@ -6969,6 +6982,7 @@ def admin_site_updates():
         if action == 'send':
             sent, errors, chosen = send_site_update_email(
                 subject, bullets, usernames, shas=ctx['selected_shas'],
+                player_names=player_names,
             )
             if not chosen:
                 form_error = errors[0] if errors else 'Could not send that update.'
@@ -6986,8 +7000,8 @@ def admin_site_updates():
         elif action == 'changes':
             step = 'changes'
         else:
-            if not ctx['selected_shas'] and not extra_notes:
-                form_error = 'Select at least one change, or add a custom note.'
+            if not ctx['selected_shas']:
+                form_error = 'Select at least one change.'
                 step = 'changes'
             else:
                 step = 'users'

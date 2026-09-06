@@ -1,4 +1,8 @@
+import os
+import sqlite3
+import tempfile
 import unittest
+from unittest import mock
 
 from admin_functions import (
     _pick_player_email,
@@ -8,6 +12,7 @@ from admin_functions import (
     site_update_html_body,
     site_update_plain_body,
 )
+import admin_functions as adminfx
 
 
 class SiteUpdateHelperTests(unittest.TestCase):
@@ -117,7 +122,7 @@ class SiteUpdateHelperTests(unittest.TestCase):
         self.assertIn('https://example.test/', html)
         self.assertNotIn('<script>', html)
 
-    def test_pick_player_email_prefers_unique_nickname_then_first_name(self):
+    def test_pick_player_email_only_matches_unique_names(self):
         by_first = {
             'dan': [
                 {'player_name': 'Dan Ferris', 'email': 'danf@example.com'},
@@ -136,11 +141,64 @@ class SiteUpdateHelperTests(unittest.TestCase):
             _pick_player_email('troy', by_first, by_nickname)['email'],
             'troy@example.com',
         )
-        self.assertEqual(
-            _pick_player_email('dan', by_first, by_nickname)['player_name'],
-            'Dan Ferris',
-        )
+        self.assertIsNone(_pick_player_email('dan', by_first, by_nickname))
         self.assertIsNone(_pick_player_email('iosapp', by_first, by_nickname))
+
+
+class SiteUserPlayerLinkTests(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.db_path = os.path.join(self.tmpdir.name, 'stats.db')
+        self.patcher = mock.patch('admin_functions.stats_db_path', return_value=self.db_path)
+        self.patcher.start()
+        adminfx.init_activity_log_db()
+        adminfx.init_users_db()
+        self.assertTrue(adminfx.create_site_user('dan', 'hash'))
+        self.assertTrue(adminfx.create_site_user('kyle', 'hash'))
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            '''CREATE TABLE players (
+                id INTEGER PRIMARY KEY,
+                full_name TEXT,
+                email TEXT,
+                nickname TEXT
+            )'''
+        )
+        conn.executemany(
+            'INSERT INTO players (full_name, email, nickname) VALUES (?, ?, ?)',
+            [
+                ('Dan Ferris', 'danf@example.com', ''),
+                ('Dan Smith', 'dans@example.com', ''),
+                ('Kyle Wodzinski', 'kyle@example.com', ''),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+    def tearDown(self):
+        self.patcher.stop()
+        self.tmpdir.cleanup()
+
+    def test_ambiguous_first_name_is_not_guessed(self):
+        by_name = {row['username']: row for row in adminfx.list_site_update_recipients()}
+        self.assertEqual(by_name['dan']['suggested_players'][0]['name'], 'Dan Ferris')
+        self.assertEqual(len(by_name['dan']['suggested_players']), 2)
+        self.assertEqual(by_name['dan']['player_name'], '')
+        self.assertFalse(by_name['dan']['can_email'])
+        self.assertEqual(by_name['kyle']['player_name'], 'Kyle Wodzinski')
+        self.assertTrue(by_name['kyle']['can_email'])
+
+    def test_saved_player_link_wins_over_shared_first_name(self):
+        self.assertTrue(adminfx.set_site_user_player('dan', 'Dan Smith'))
+        by_name = {row['username']: row for row in adminfx.list_site_update_recipients()}
+        self.assertEqual(by_name['dan']['player_name'], 'Dan Smith')
+        self.assertEqual(by_name['dan']['email'], 'dans@example.com')
+        self.assertTrue(by_name['dan']['can_email'])
+        chosen = adminfx.resolve_site_update_recipients(
+            ['dan'], {'dan': 'Dan Ferris'},
+        )
+        self.assertEqual(chosen[0]['email'], 'danf@example.com')
+        self.assertEqual(chosen[0]['player_name'], 'Dan Ferris')
 
 
 if __name__ == '__main__':

@@ -441,6 +441,7 @@ def init_users_db(seed_users=None, seed_admins=None):
     columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)').fetchall()}
     if 'last_location' not in columns:
         conn.execute('ALTER TABLE site_users ADD COLUMN last_location TEXT')
+    _ensure_user_player_column(conn)
     _ensure_user_presence_columns(conn)
     count = conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0]
     if count == 0 and seed_users:
@@ -482,6 +483,13 @@ def remember_user_location(username, location):
     changed = cur.rowcount > 0
     conn.close()
     return changed
+
+
+def _ensure_user_player_column(conn):
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)').fetchall()}
+    if 'player_name' not in columns:
+        conn.execute('ALTER TABLE site_users ADD COLUMN player_name TEXT')
+        conn.commit()
 
 
 def _ensure_user_presence_columns(conn):
@@ -577,6 +585,7 @@ def list_site_users():
     timestamps from authenticated app/site use that does not write the log.
     """
     conn = _connect()
+    _ensure_user_player_column(conn)
     _ensure_user_presence_columns(conn)
     has_tokens = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='auth_tokens'"
@@ -587,7 +596,7 @@ def list_site_users():
     )
     rows = conn.execute(f'''
         SELECT u.id, u.username, u.is_admin, u.active, u.created_at,
-               u.last_seen_at, u.last_login_at,
+               u.last_seen_at, u.last_login_at, u.player_name,
                (SELECT MAX(created_at) FROM activity_log a
                 WHERE lower(a.username) = lower(u.username)) AS activity_seen,
                (SELECT MAX(created_at) FROM activity_log a
@@ -614,6 +623,24 @@ def list_site_users():
     users.sort(key=lambda item: item.get('username') or '')
     users.sort(key=lambda item: item.get('last_seen') or '', reverse=True)
     return users
+
+
+def set_site_user_player(username, player_name):
+    """Remember which player profile a site login belongs to."""
+    username = (username or '').strip()
+    player_name = (player_name or '').strip()
+    if not username:
+        return False
+    conn = _connect()
+    _ensure_user_player_column(conn)
+    cur = conn.execute(
+        'UPDATE site_users SET player_name = ? WHERE lower(username) = lower(?)',
+        (player_name or None, username),
+    )
+    conn.commit()
+    changed = cur.rowcount > 0
+    conn.close()
+    return changed
 
 
 def create_site_user(username, password_hash, is_admin=False):
@@ -1716,42 +1743,67 @@ def site_update_html_body(bullets, intro=None, site_url=None):
 </div>'''
 
 
-def _player_email_index():
-    """Players with emails, keyed by first name and nickname (lowercase)."""
+def list_players_for_site_updates():
+    """Roster players Kyle can attach to a site login, with emails when present."""
     conn = _connect()
+    rows = []
     try:
-        rows = conn.execute(
-            '''SELECT full_name, email, nickname FROM players
-               WHERE email IS NOT NULL AND TRIM(email) != '' '''
-        ).fetchall()
-    except sqlite3.OperationalError:
         try:
             rows = conn.execute(
-                '''SELECT full_name, email FROM players
-                   WHERE email IS NOT NULL AND TRIM(email) != '' '''
+                '''SELECT full_name, email, nickname FROM players
+                   WHERE TRIM(COALESCE(full_name, '')) != ''
+                   ORDER BY full_name COLLATE NOCASE'''
             ).fetchall()
         except sqlite3.OperationalError:
-            rows = []
+            rows = conn.execute(
+                '''SELECT full_name, email FROM players
+                   WHERE TRIM(COALESCE(full_name, '')) != ''
+                   ORDER BY full_name COLLATE NOCASE'''
+            ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
     finally:
         conn.close()
-
-    by_first = {}
-    by_nickname = {}
+    players = []
+    seen = set()
     for row in rows:
         name = (row['full_name'] or '').strip()
+        key = name.casefold()
+        if not name or key in seen:
+            continue
+        seen.add(key)
         email = (row['email'] or '').strip()
-        nickname = (row['nickname'] or '').strip() if 'nickname' in row.keys() else ''
+        nickname = ''
+        if 'nickname' in row.keys():
+            nickname = (row['nickname'] or '').strip()
+        players.append({
+            'name': name,
+            'email': email if email and '@' in email else '',
+            'nickname': nickname,
+        })
+    return players
+
+
+def _player_email_index(players=None):
+    """Players with emails, keyed by first name and nickname (lowercase)."""
+    by_first = {}
+    by_nickname = {}
+    for player in players or list_players_for_site_updates():
+        email = (player.get('email') or '').strip()
+        name = (player.get('name') or player.get('player_name') or '').strip()
         if not name or not email or '@' not in email:
             continue
-        entry = {'player_name': name, 'email': email}
+        entry = {'player_name': name, 'email': email, 'nickname': player.get('nickname') or ''}
         first = name.split()[0].lower()
         by_first.setdefault(first, []).append(entry)
+        nickname = (player.get('nickname') or '').strip()
         if nickname:
             by_nickname.setdefault(nickname.lower(), []).append(entry)
     return by_first, by_nickname
 
 
 def _pick_player_email(username, by_first, by_nickname):
+    """Return a unique first-name or nickname match, otherwise None."""
     key = (username or '').strip().lower()
     if not key:
         return None
@@ -1759,53 +1811,109 @@ def _pick_player_email(username, by_first, by_nickname):
     if len(nick_matches) == 1:
         return nick_matches[0]
     first_matches = by_first.get(key) or []
-    if not first_matches:
-        return nick_matches[0] if nick_matches else None
     if len(first_matches) == 1:
         return first_matches[0]
-    first_matches = sorted(first_matches, key=lambda item: item['player_name'].lower())
-    return first_matches[0]
+    return None
+
+
+def suggested_players_for_username(username, players=None):
+    """Players whose first name or nickname matches this login, for the picker."""
+    key = (username or '').strip().lower()
+    if not key:
+        return []
+    matches = []
+    seen = set()
+    for player in players or list_players_for_site_updates():
+        name = (player.get('name') or '').strip()
+        if not name:
+            continue
+        first = name.split()[0].lower()
+        nick = (player.get('nickname') or '').strip().lower()
+        if first != key and nick != key:
+            continue
+        fold = name.casefold()
+        if fold in seen:
+            continue
+        seen.add(fold)
+        matches.append(player)
+    return matches
 
 
 def list_site_update_recipients():
-    """Active site users with a best-effort player email, for Kyle to pick from."""
-    by_first, by_nickname = _player_email_index()
+    """Site users with a saved or uniquely matched player, for Kyle to email."""
+    players = list_players_for_site_updates()
+    by_name = {(player['name'] or '').casefold(): player for player in players}
+    by_first, by_nickname = _player_email_index(players)
     recipients = []
     for user in list_site_users():
         username = (user.get('username') or '').strip()
         if not username or username.lower() in SKIP_SITE_UPDATE_USERNAMES:
             continue
-        match = _pick_player_email(username, by_first, by_nickname) if user.get('active') else None
+        suggested = suggested_players_for_username(username, players)
+        stored = (user.get('player_name') or '').strip()
+        chosen = by_name.get(stored.casefold()) if stored else None
+        guessed = False
+        if not chosen:
+            unique = _pick_player_email(username, by_first, by_nickname)
+            if unique:
+                chosen = by_name.get((unique.get('player_name') or '').casefold())
+                guessed = bool(chosen)
+        email = ((chosen or {}).get('email') or '').strip()
+        player_name = (chosen or {}).get('name') or stored
         recipients.append({
             'username': username,
             'active': bool(user.get('active')),
             'is_admin': bool(user.get('is_admin')),
             'last_login': user.get('last_login'),
-            'email': (match or {}).get('email'),
-            'player_name': (match or {}).get('player_name'),
-            'can_email': bool(user.get('active') and match and match.get('email')),
+            'email': email or None,
+            'player_name': player_name or '',
+            'player_guessed': guessed,
+            'suggested_players': [
+                {
+                    'name': item['name'],
+                    'email': item.get('email') or '',
+                    'nickname': item.get('nickname') or '',
+                }
+                for item in suggested
+            ],
+            'can_email': bool(user.get('active') and email and '@' in email),
         })
     recipients.sort(key=lambda item: (not item['can_email'], item['username'].lower()))
     return recipients
 
 
-def resolve_site_update_recipients(usernames):
+def resolve_site_update_recipients(usernames, player_by_user=None):
     """Return emailable recipients for the selected usernames."""
     wanted = {(name or '').strip().lower() for name in (usernames or []) if (name or '').strip()}
+    overrides = {
+        (name or '').strip().lower(): (player or '').strip()
+        for name, player in (player_by_user or {}).items()
+        if (name or '').strip()
+    }
+    players = {(item['name'] or '').casefold(): item for item in list_players_for_site_updates()}
     chosen = []
     seen_emails = set()
     for row in list_site_update_recipients():
-        if row['username'].lower() not in wanted:
+        key = row['username'].lower()
+        if key not in wanted:
             continue
-        if not row.get('can_email'):
+        if key in overrides:
+            override = overrides[key]
+            player = players.get(override.casefold()) if override else None
+            email = ((player or {}).get('email') or '').strip()
+            player_name = (player or {}).get('name') or override
+        else:
+            email = (row.get('email') or '').strip()
+            player_name = row.get('player_name') or ''
+        if not email or '@' not in email:
             continue
-        email = row['email'].lower()
-        if email in seen_emails:
+        email_key = email.lower()
+        if email_key in seen_emails:
             continue
-        seen_emails.add(email)
+        seen_emails.add(email_key)
         chosen.append({
             'username': row['username'],
-            'email': row['email'],
-            'player_name': row.get('player_name'),
+            'email': email,
+            'player_name': player_name,
         })
     return chosen
