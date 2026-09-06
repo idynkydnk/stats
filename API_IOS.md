@@ -44,13 +44,37 @@ Send `Authorization: Bearer <token>` on write endpoints. Session cookies still w
 - AI: `POST /api/ai/summary`, `GET /api/ai/recaps`, `GET /api/ai/jobs/<id>`, `GET /api/flyers`, `POST /api/flyers`, `DELETE /api/flyers/<share_id>`
 - Existing `/api/parse_voice_doubles`, `/api/generate_and_send_ai_summary/`
 
-## Admin (Bearer + is_admin)
+## Admin (Bearer + Kyle / is_admin)
 
-- `GET /api/admin/overview`
-- `GET /api/admin/activity?page=&q=&username=`
-- `GET /api/admin/recaps?page=&username=`
+Kyle-only. Login as `kyle`, then send `Authorization: Bearer <token>`.
+
+`GET /api/admin` asks what you want to see and returns a topic menu:
+
+```json
+{
+  "ask": "What do you want to see?",
+  "topics": [
+    {"id": "everything", "label": "Everything", "path": "/api/admin/activity"},
+    {"id": "games", "label": "Recent games", "path": "/api/admin/games"},
+    {"id": "logins", "label": "Logins", "path": "/api/admin/logins"},
+    {"id": "summaries", "label": "AI summary links", "path": "/api/admin/recaps"}
+  ],
+  "hint": "Pass topic=games, topic=logins, topic=summaries, or topic=everything to fetch that list in this response."
+}
+```
+
+Add `?topic=games` (or `logins`, `summaries`, `everything`, `flyers`, `jobs`, `users`, `overview`) to get that list in the same response.
+
+- `GET /api/admin` — topic menu (`?topic=` fetches one)
+- `GET /api/admin/overview` — counts, latest game, users, recent shares (also includes the topic menu)
+- `GET /api/admin/games?page=&kind=` — recent doubles / vollis / other games (`kind=doubles|vollis|other`)
+- `GET /api/admin/logins?page=&username=` — web and iPhone sign-ins (`source`, `ip`)
+- `GET /api/admin/activity?page=&q=&username=&action=` — every logged action
+- `GET /api/admin/activity/<id>` — one activity row with before/after snapshots
+- `GET /api/admin/recaps?page=&username=` — AI summary / recap share links (`share_url`)
 - `GET /api/admin/flyers?page=&username=`
 - `GET /api/admin/jobs?page=&job_type=&username=&status=`
+- `GET /api/admin/users` — site accounts, last login, last seen
 - `POST /api/admin/undo/<id>`
 - `POST /api/admin/users`
 - `POST /api/admin/users/reset_password`
