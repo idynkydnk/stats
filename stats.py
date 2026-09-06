@@ -1164,13 +1164,14 @@ def create_auth_token(username):
     token = generate_auth_token()
     token_hash = hash_token(token)
     expires_at = datetime.now() + timedelta(days=90)  # Token expires in 90 days
-    
+    stored_username = adminfx.canonical_username(username) or username
+
     conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO auth_tokens (username, token_hash, expires_at)
         VALUES (?, ?, ?)
-    ''', (username, token_hash, expires_at))
+    ''', (stored_username, token_hash, expires_at))
     conn.commit()
     conn.close()
     
@@ -1191,8 +1192,9 @@ def validate_auth_token(token):
     
     result = cur.fetchone()
     conn.close()
-    
-    return result[0] if result else None
+    if not result:
+        return None
+    return adminfx.canonical_username(result[0]) or result[0]
 
 def revoke_auth_token(token):
     """Revoke a specific authentication token"""
@@ -1210,7 +1212,7 @@ def revoke_all_user_tokens(username):
     """Revoke all authentication tokens for a user"""
     conn = sqlite3.connect(_stats_db_path())
     cur = conn.cursor()
-    cur.execute('DELETE FROM auth_tokens WHERE username = ?', (username,))
+    cur.execute('DELETE FROM auth_tokens WHERE lower(username) = lower(?)', (username,))
     conn.commit()
     conn.close()
 
@@ -1487,9 +1489,32 @@ def log_activity(action, target=None, target_id=None, summary=None, before=None,
     not break the action being logged."""
     try:
         user = username or session.get('username') or 'unknown'
-        adminfx.insert_activity(user, action, target, target_id, summary, before, after)
+        stored = adminfx.canonical_username(user)
+        adminfx.insert_activity(stored or user, action, target, target_id, summary, before, after)
     except Exception:
         app.logger.exception('Failed to write activity log')
+
+
+def establish_user_session(username, login=False):
+    """Bind the Flask session to a site user and record last login/activity."""
+    name = adminfx.canonical_username(username) or (username or '').strip()
+    if not name:
+        return None
+    session['logged_in'] = True
+    session['username'] = name
+    try:
+        adminfx.touch_site_user(name, login=login)
+    except Exception:
+        app.logger.exception('Failed to record user presence')
+    return name
+
+
+def note_user_presence(username, login=False):
+    """Best-effort last-seen update for an already-authenticated request."""
+    try:
+        adminfx.touch_site_user(username, login=login)
+    except Exception:
+        app.logger.exception('Failed to record user presence')
 
 
 def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username=None):
@@ -1535,6 +1560,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         # Check if user is logged in via session
         if session.get('logged_in'):
+            note_user_presence(session.get('username'))
             return f(*args, **kwargs)
         
         # Check if user is logged in via remember me cookie
@@ -1542,9 +1568,7 @@ def login_required(f):
         if auth_token:
             username = validate_auth_token(auth_token)
             if username:
-                # Auto-login the user
-                session['logged_in'] = True
-                session['username'] = username
+                establish_user_session(username)
                 flash(f'Welcome back, {username}!', 'success')
                 return f(*args, **kwargs)
             else:
@@ -1564,9 +1588,7 @@ def api_login_required(f):
         username = None
         api_key = request.headers.get('X-API-Key')
         if api_key and os.environ.get('STATS_API_TOKEN') and secrets.compare_digest(api_key, os.environ.get('STATS_API_TOKEN', '')):
-            username = 'api_key'
-            session['logged_in'] = True
-            session['username'] = username
+            username = establish_user_session('api_key')
         if not username:
             auth_header = request.headers.get('Authorization')
             if auth_header and auth_header.startswith('Bearer '):
@@ -1574,17 +1596,16 @@ def api_login_required(f):
                 if token:
                     username = validate_auth_token(token)
                     if username:
-                        session['logged_in'] = True
-                        session['username'] = username
+                        username = establish_user_session(username)
         if not username and session.get('logged_in'):
             username = session.get('username')
+            note_user_presence(username)
         if not username:
             auth_token = request.cookies.get('remember_token')
             if auth_token:
                 username = validate_auth_token(auth_token)
                 if username:
-                    session['logged_in'] = True
-                    session['username'] = username
+                    username = establish_user_session(username)
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
@@ -4713,9 +4734,7 @@ def login():
         if auth_token:
             username = validate_auth_token(auth_token)
             if username:
-                # Auto-login the user
-                session['logged_in'] = True
-                session['username'] = username
+                establish_user_session(username)
                 flash(f'Welcome back, {username}!', 'success')
                 # Redirect to next_url if provided, otherwise index
                 return redirect(next_url if next_url else url_for('index'))
@@ -4734,8 +4753,7 @@ def login():
         if verify_password(username, password):
             clear_login_failures(ip)
             session.permanent = True  # Use PERMANENT_SESSION_LIFETIME so session cookie persists
-            session['logged_in'] = True
-            session['username'] = username
+            username = establish_user_session(username, login=True)
             log_activity('Logged in', summary=f'Web login from {ip}', username=username)
             flash(f'Successfully logged in as {username}!', 'success')
             
@@ -4800,6 +4818,7 @@ def api_login():
         record_login_failure(ip)
         return jsonify({'error': 'Invalid username or password'}), 401
     clear_login_failures(ip)
+    username = establish_user_session(username, login=True)
     token = create_auth_token(username)
     log_activity('Logged in', summary=f'iPhone app login from {ip}', username=username)
     return jsonify({'token': token, 'username': username})

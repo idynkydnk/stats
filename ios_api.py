@@ -52,9 +52,7 @@ def api_login_required(f):
         api_key = request.headers.get('X-API-Key')
         expected = os.environ.get('STATS_API_TOKEN', '')
         if api_key and expected and __import__('secrets').compare_digest(api_key, expected):
-            username = 'api_key'
-            session['logged_in'] = True
-            session['username'] = username
+            username = S.establish_user_session('api_key')
         if not username:
             auth_header = request.headers.get('Authorization')
             if auth_header and auth_header.startswith('Bearer '):
@@ -62,17 +60,16 @@ def api_login_required(f):
                 if token:
                     username = S.validate_auth_token(token)
                     if username:
-                        session['logged_in'] = True
-                        session['username'] = username
+                        username = S.establish_user_session(username)
         if not username and session.get('logged_in'):
             username = session.get('username')
+            S.note_user_presence(username)
         if not username:
             auth_token = request.cookies.get('remember_token')
             if auth_token:
                 username = S.validate_auth_token(auth_token)
                 if username:
-                    session['logged_in'] = True
-                    session['username'] = username
+                    username = S.establish_user_session(username)
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
@@ -97,9 +94,7 @@ def api_admin_required(f):
         api_key = request.headers.get('X-API-Key')
         expected = os.environ.get('STATS_API_TOKEN', '')
         if api_key and expected and __import__('secrets').compare_digest(api_key, expected):
-            username = 'api_key'
-            session['logged_in'] = True
-            session['username'] = username
+            username = S.establish_user_session('api_key')
         if not username:
             auth_header = request.headers.get('Authorization')
             if auth_header and auth_header.startswith('Bearer '):
@@ -107,17 +102,16 @@ def api_admin_required(f):
                 if token:
                     username = S.validate_auth_token(token)
                     if username:
-                        session['logged_in'] = True
-                        session['username'] = username
+                        username = S.establish_user_session(username)
         if not username and session.get('logged_in'):
             username = session.get('username')
+            S.note_user_presence(username)
         if not username:
             auth_token = request.cookies.get('remember_token')
             if auth_token:
                 username = S.validate_auth_token(auth_token)
                 if username:
-                    session['logged_in'] = True
-                    session['username'] = username
+                    username = S.establish_user_session(username)
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         if not S.is_admin():

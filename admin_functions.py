@@ -6,6 +6,7 @@ store full before/after row snapshots as JSON so an admin can undo them.
 """
 import json
 import os
+import re
 import sqlite3
 import subprocess
 from datetime import datetime, timezone
@@ -440,6 +441,7 @@ def init_users_db(seed_users=None, seed_admins=None):
     columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)').fetchall()}
     if 'last_location' not in columns:
         conn.execute('ALTER TABLE site_users ADD COLUMN last_location TEXT')
+    _ensure_user_presence_columns(conn)
     count = conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0]
     if count == 0 and seed_users:
         admins = {a.lower() for a in (seed_admins or set())}
@@ -482,6 +484,40 @@ def remember_user_location(username, location):
     return changed
 
 
+def _ensure_user_presence_columns(conn):
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)').fetchall()}
+    changed = False
+    if 'last_seen_at' not in columns:
+        conn.execute('ALTER TABLE site_users ADD COLUMN last_seen_at DATETIME')
+        changed = True
+    if 'last_login_at' not in columns:
+        conn.execute('ALTER TABLE site_users ADD COLUMN last_login_at DATETIME')
+        changed = True
+    if changed:
+        conn.commit()
+
+
+def _latest_timestamp(*values):
+    latest = None
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip().replace('T', ' ', 1)
+        if not text:
+            continue
+        if latest is None or text > latest:
+            latest = text
+    return latest
+
+
+def canonical_username(username):
+    """Return the stored site_users username, preserving its canonical casing."""
+    user = get_site_user(username)
+    if not user:
+        return (username or '').strip() or None
+    return user.get('username') or (username or '').strip() or None
+
+
 def get_site_user(username):
     conn = _connect()
     row = conn.execute(
@@ -491,18 +527,93 @@ def get_site_user(username):
     return dict(row) if row else None
 
 
-def list_site_users():
-    """All users with their last activity timestamp (from the activity log)."""
+def touch_site_user(username, login=False, min_interval_seconds=300):
+    """Record that a site user is present. Password logins update last_login_at;
+    other authenticated requests only refresh last_seen_at, at most every
+    `min_interval_seconds` (so iPhone app traffic does not write on every call)."""
+    username = (username or '').strip()
+    if not username:
+        return False
+    user = get_site_user(username)
+    if not user:
+        return False
+    now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    stored = user.get('username') or username
+    sets, params = [], []
+    if login:
+        sets.append('last_login_at = ?')
+        params.append(now)
+        sets.append('last_seen_at = ?')
+        params.append(now)
+    else:
+        previous = user.get('last_seen_at')
+        if previous and min_interval_seconds > 0:
+            try:
+                prev = datetime.strptime(str(previous).split('.')[0].replace('T', ' ', 1)[:19], '%Y-%m-%d %H:%M:%S')
+                if (datetime.now(timezone.utc).replace(tzinfo=None) - prev).total_seconds() < min_interval_seconds:
+                    return False
+            except (TypeError, ValueError):
+                pass
+        sets.append('last_seen_at = ?')
+        params.append(now)
+    params.append(stored)
     conn = _connect()
-    rows = conn.execute('''
+    _ensure_user_presence_columns(conn)
+    conn.execute(
+        f"UPDATE site_users SET {', '.join(sets)} WHERE lower(username) = lower(?)",
+        params,
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def list_site_users():
+    """All users with last login and last activity.
+
+    Usernames are matched case-insensitively so a login typed as "Tyler" still
+    counts for the stored account "tyler". Last login also falls back to auth
+    token creation (iPhone / remember-me), and last activity includes presence
+    timestamps from authenticated app/site use that does not write the log.
+    """
+    conn = _connect()
+    _ensure_user_presence_columns(conn)
+    has_tokens = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='auth_tokens'"
+    ).fetchone()
+    token_select = (
+        "(SELECT MAX(created_at) FROM auth_tokens t WHERE lower(t.username) = lower(u.username))"
+        if has_tokens else "NULL"
+    )
+    rows = conn.execute(f'''
         SELECT u.id, u.username, u.is_admin, u.active, u.created_at,
-               (SELECT MAX(created_at) FROM activity_log a WHERE a.username = u.username) AS last_seen,
+               u.last_seen_at, u.last_login_at,
                (SELECT MAX(created_at) FROM activity_log a
-                WHERE a.username = u.username AND a.action LIKE 'Logged in%') AS last_login
-        FROM site_users u ORDER BY last_seen DESC, u.username
+                WHERE lower(a.username) = lower(u.username)) AS activity_seen,
+               (SELECT MAX(created_at) FROM activity_log a
+                WHERE lower(a.username) = lower(u.username)
+                  AND a.action LIKE 'Logged in%') AS activity_login,
+               {token_select} AS token_login
+        FROM site_users u
     ''').fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    users = []
+    for row in rows:
+        item = dict(row)
+        last_login = _latest_timestamp(
+            item.get('activity_login'), item.get('token_login'), item.get('last_login_at'),
+        )
+        last_seen = _latest_timestamp(
+            item.get('activity_seen'), item.get('last_seen_at'), last_login,
+        )
+        item['last_login'] = last_login
+        item['last_seen'] = last_seen
+        for extra in ('last_seen_at', 'last_login_at', 'activity_seen', 'activity_login', 'token_login'):
+            item.pop(extra, None)
+        users.append(item)
+    users.sort(key=lambda item: item.get('username') or '')
+    users.sort(key=lambda item: item.get('last_seen') or '', reverse=True)
+    return users
 
 
 def create_site_user(username, password_hash, is_admin=False):
@@ -1295,23 +1406,233 @@ def shared_update_shas():
     return found
 
 
+_SKIP_SITE_UPDATE_DETAIL_PATH = re.compile(r'(^|/)(tests/|output/|\.cursor/)')
+_TRIPLE_STRING = re.compile(r'(?:"""|\'\'\')(.*?)(?:"""|\'\'\')', re.DOTALL)
+_LOCK_DETAIL = re.compile(r'LOCK\s+[—-]\s+(.{20,280})', re.IGNORECASE | re.DOTALL)
+_PLACEHOLDER_DETAIL = re.compile(
+    r'\b(?:placeholder|aria-label)="([^"]{8,80})"',
+    re.IGNORECASE,
+)
+
+
+def _normalize_site_update_snippet(text):
+    text = (text or '').replace('\\n', ' ').replace("\\'", "'").replace('\\"', '"')
+    text = ' '.join(text.split()).strip(" \t'\"")
+    return text.strip()
+
+
+def _is_weak_site_update_snippet(text):
+    if not text or len(text) < 20:
+        return True
+    lowered = text.casefold()
+    if lowered.startswith((
+        'def ', 'class ', 'import ', 'from ', 'return changed', 'build a dict',
+        'same db', 'parse ', 'create table', 'insert into', 'select ',
+        'alter table', 'delete from',
+    )):
+        return True
+    if 'integer primary key' in lowered or 'datetime default' in lowered:
+        return True
+    if lowered in {'comments (optional)'}:
+        return True
+    if '{' in text or '}' in text:
+        return True
+    if '<' in text and ('div' in lowered or 'style=' in lowered or '</' in lowered):
+        return True
+    return False
+
+
+def _snippet_sort_key(text):
+    lowered = text.casefold()
+    weak_start = lowered.startswith(('return ', 'parse ', 'build a '))
+    return (weak_start, -len(text))
+
+
+def _added_patch_blocks(patch):
+    """Yield (path, added_source) for each file hunk in a unified diff."""
+    current = None
+    added = []
+
+    def flush():
+        if current is not None and added:
+            yield current, '\n'.join(added)
+
+    for line in (patch or '').splitlines():
+        if line.startswith('diff --git '):
+            yield from flush()
+            parts = line.split()
+            path = ''
+            if len(parts) >= 4:
+                path = parts[3][2:] if parts[3].startswith('b/') else parts[3]
+            current = path
+            added = []
+        elif line.startswith('@@'):
+            yield from flush()
+            added = []
+        elif line.startswith('+') and not line.startswith('+++'):
+            added.append(line[1:])
+    yield from flush()
+
+
+def _glue_python_strings(block):
+    glued = re.sub(r"'\s+'", '', ' '.join((block or '').split()))
+    return re.sub(r'"\s+"', '', glued)
+
+
+def site_update_detail_from_patch(patch, subject=''):
+    """Build a short explanation from added comments, copy, and file names."""
+    snippets = []
+    files = []
+    for path, block in _added_patch_blocks(patch):
+        if not path:
+            continue
+        files.append(path)
+        if _SKIP_SITE_UPDATE_DETAIL_PATH.search(path):
+            continue
+        glued = _glue_python_strings(block)
+        for match in _TRIPLE_STRING.finditer(block):
+            snippet = _normalize_site_update_snippet(match.group(1))
+            if snippet:
+                snippets.append(snippet)
+        for match in _LOCK_DETAIL.finditer(glued):
+            snippet = _normalize_site_update_snippet(match.group(1))
+            snippet = re.split(r'[.!?]', snippet, maxsplit=1)[0]
+            snippet = re.split(r'["\']\s*,', snippet, maxsplit=1)[0]
+            snippet = snippet.strip(" ,;:'\"")
+            if snippet:
+                snippets.append(snippet)
+        if path.endswith(('.html', '.js')):
+            for match in _PLACEHOLDER_DETAIL.finditer(block):
+                snippet = _normalize_site_update_snippet(match.group(1))
+                if snippet:
+                    snippets.append(snippet)
+        comment_bits = []
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped.startswith('# ') and not stripped.startswith('# noqa'):
+                comment_bits.append(stripped[2:].strip())
+                continue
+            if comment_bits:
+                merged = _normalize_site_update_snippet(' '.join(comment_bits))
+                if len(merged) >= 40:
+                    snippets.append(merged)
+                comment_bits = []
+        if comment_bits:
+            merged = _normalize_site_update_snippet(' '.join(comment_bits))
+            if len(merged) >= 40:
+                snippets.append(merged)
+
+    subject_key = (subject or '').strip().casefold()
+    unique = []
+    seen = set()
+    for snippet in snippets:
+        if _is_weak_site_update_snippet(snippet):
+            continue
+        key = snippet.casefold()
+        if key in seen or key == subject_key:
+            continue
+        seen.add(key)
+        unique.append(snippet)
+    unique.sort(key=_snippet_sort_key)
+    if unique:
+        chosen = unique[:1] if len(unique[0]) > 110 else unique[:2]
+        sentences = []
+        for item in chosen:
+            item = item.split('\n\n', 1)[0]
+            item = ' '.join(item.split())
+            item = item[0].upper() + item[1:]
+            if item[-1] not in '.!?':
+                item += '.'
+            sentences.append(item)
+        text = ' '.join(sentences)
+        if len(text) > 420:
+            text = text[:417].rsplit(' ', 1)[0] + '…'
+        return text
+    return _site_update_file_fallback(files)
+
+
+def _site_update_file_fallback(files):
+    labels = []
+    seen = set()
+    for path in files or []:
+        if not path or _SKIP_SITE_UPDATE_DETAIL_PATH.search(path):
+            continue
+        name = path.rsplit('/', 1)[-1]
+        if name.endswith('.py'):
+            label = name[:-3].replace('_', ' ')
+        elif name.endswith('.html'):
+            label = name[:-5].replace('_', ' ') + ' page'
+        else:
+            continue
+        key = label.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        labels.append(label)
+        if len(labels) == 3:
+            break
+    if not labels:
+        return ''
+    if len(labels) == 1:
+        return f'Updates {labels[0]}.'
+    if len(labels) == 2:
+        return f'Updates {labels[0]} and {labels[1]}.'
+    return f'Updates {labels[0]}, {labels[1]}, and {labels[2]}.'
+
+
+_GIT_BODY_TRAILER = re.compile(
+    r'^(?:co-authored-by|signed-off-by|made-with|change-id):',
+    re.IGNORECASE,
+)
+
+
+def clean_site_update_commit_body(body):
+    """Keep the written explanation, drop git trailers such as Co-authored-by."""
+    lines = []
+    for line in (body or '').splitlines():
+        if _GIT_BODY_TRAILER.match(line.strip()):
+            continue
+        lines.append(line)
+    return '\n'.join(lines).strip()
+
+
+def _site_update_bullet_line(change):
+    subject = (change.get('subject') or '').strip()
+    detail = (change.get('body') or '').strip()
+    if not subject:
+        return ''
+    if not detail:
+        return subject
+    first = ' '.join(detail.split())
+    if first.casefold() == subject.casefold():
+        return subject
+    return f'{subject} — {first}'
+
+
 def parse_git_log_output(raw, shared_shas=None):
-    """Parse `git log --pretty=format:%H%x1f%ad%x1f%s%x1f%b%x1e` into change dicts."""
+    """Parse git log records, filling empty bodies from the commit patch."""
     shared = set(shared_shas or [])
     changes = []
     for rec in (raw or '').split('\x1e'):
         rec = rec.strip('\n')
         if not rec.strip():
             continue
+        patch = ''
+        split_at = rec.find('\ndiff --git ')
+        if split_at >= 0:
+            patch = rec[split_at + 1:]
+            rec = rec[:split_at]
         parts = rec.split('\x1f', 3)
         if len(parts) < 3:
             continue
         sha = (parts[0] or '').strip()
         date = (parts[1] or '').strip()
         subject = (parts[2] or '').strip()
-        body = (parts[3] or '').strip() if len(parts) > 3 else ''
+        body = clean_site_update_commit_body(parts[3] if len(parts) > 3 else '')
         if not sha or not subject:
             continue
+        if not body:
+            body = site_update_detail_from_patch(patch, subject)
         changes.append({
             'sha': sha,
             'short_sha': sha[:7],
@@ -1326,17 +1647,25 @@ def parse_git_log_output(raw, shared_shas=None):
 def list_recent_site_changes(limit=SITE_UPDATE_GIT_LIMIT):
     """Recent website git commits Kyle can pick for a user-facing update email."""
     repo = os.path.dirname(os.path.abspath(__file__))
+    env = os.environ.copy()
+    env['GIT_PAGER'] = 'cat'
+    env['GIT_TERMINAL_PROMPT'] = '0'
     try:
         proc = subprocess.run(
             [
                 'git', '-C', repo, 'log',
                 '--no-merges', f'-{int(limit)}',
-                '--pretty=format:%H%x1f%ad%x1f%s%x1f%b%x1e',
+                '--pretty=format:%x1e%H%x1f%ad%x1f%s%x1f%b',
                 '--date=short',
+                '--no-color',
+                '-U0',
             ],
             capture_output=True,
             text=True,
-            timeout=15,
+            encoding='utf-8',
+            errors='replace',
+            timeout=30,
+            env=env,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return [], str(e)
@@ -1354,9 +1683,9 @@ def site_update_bullets(changes, extra_notes=''):
         if line:
             lines.append(line)
     for change in changes or []:
-        subject = (change.get('subject') or '').strip()
-        if subject:
-            lines.append(subject)
+        line = _site_update_bullet_line(change)
+        if line:
+            lines.append(line)
     return lines
 
 
