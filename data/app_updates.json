@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ios-2026-09-07-save-confirmation",
+    "date": "2026-09-07",
+    "subject": "iPhone: move on to the next game after saving",
+    "body": "Prepared for the next app update: confirmed saves clear the player and score fields for the next game. If confirmation is lost, Doubles and Vollis check whether the game was saved without submitting it again. If the result is still uncertain, your entries stay in place with a clearer message."
+  },
+  {
+    "id": "ios-2026-09-07-hide-keyboard",
+    "date": "2026-09-07",
+    "subject": "iPhone: hide the keyboard more easily",
+    "body": "Prepared for the next app update: tap Done at the bottom right of the text keyboard to hide it. When entering scores, use the hide-keyboard button on the right above the number keys."
+  },
+  {
+    "id": "ios-2026-09-07-player-suggestions",
+    "date": "2026-09-07",
+    "subject": "iPhone: more room to choose players",
+    "body": "Prepared for the next app update: the field you are filling in moves toward the top, scrolling the Add heading and shortcut buttons out of the way. This leaves more room for player suggestions in Doubles, Vollis, and Other games."
+  }
+]

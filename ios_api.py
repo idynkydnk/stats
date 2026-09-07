@@ -1425,7 +1425,7 @@ def register_ios_api(app):
                 'recipients': S.adminfx.list_site_update_recipients(),
                 'players': S.adminfx.list_players_for_site_updates(),
                 'email_configured': bool(S.app.config.get('MAIL_USERNAME') and S.app.config.get('MAIL_PASSWORD')),
-                'default_subject': "What's new on the stats site",
+                'default_subject': "What's new on the stats site and iPhone app",
             })
         data = request.get_json(silent=True) or {}
         shas = [str(sha) for sha in (data.get('shas') or []) if sha]

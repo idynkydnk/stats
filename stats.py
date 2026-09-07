@@ -6881,7 +6881,7 @@ def send_site_update_email(subject, bullets, usernames, shas=None, sent_by=None,
 
     Returns (sent_count, errors, chosen_recipients).
     """
-    subject = (subject or "What's new on the stats site").strip() or "What's new on the stats site"
+    subject = (subject or "What's new on the stats site and iPhone app").strip() or "What's new on the stats site and iPhone app"
     lines = [str(item).strip() for item in (bullets or []) if str(item).strip()]
     if not lines:
         return 0, ['Pick at least one change, or write a note to send.'], []
@@ -6945,7 +6945,7 @@ def _site_update_payload(selected_shas=None, extra_notes='', usernames=None, sub
         'recipients': adminfx.list_site_update_recipients(),
         'players': adminfx.list_players_for_site_updates(),
         'selected_usernames': usernames or [],
-        'subject': (subject or "What's new on the stats site").strip(),
+        'subject': (subject or "What's new on the stats site and iPhone app").strip(),
         'body': body if body is not None else default_body,
         'email_configured': bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')),
     }
@@ -6962,7 +6962,7 @@ def admin_site_updates():
     if request.method == 'POST':
         selected_shas = request.form.getlist('sha')
         extra_notes = (request.form.get('extra_notes') or '').strip()
-        subject = (request.form.get('subject') or "What's new on the stats site").strip()
+        subject = (request.form.get('subject') or "What's new on the stats site and iPhone app").strip()
         body = request.form.get('body')
         usernames = request.form.getlist('username')
         action = (request.form.get('action') or '').strip()

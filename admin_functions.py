@@ -1513,8 +1513,27 @@ def parse_git_log_output(raw, shared_shas=None):
     return changes
 
 
+def _app_update_changes(shared_shas):
+    """App notes travel with the website; the server needs no iOS checkout."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'data', 'app_updates.json')
+    with open(path, encoding='utf-8') as source:
+        notes = json.load(source)
+    return [{
+        # Keep the existing web/iOS selection and email-history field names.
+        'sha': note['id'],
+        'short_sha': 'iPhone app',
+        'date': note['date'],
+        'subject': note['subject'],
+        'body': note['body'],
+        'already_shared': note['id'] in shared_shas,
+    } for note in notes]
+
+
 def list_recent_site_changes(limit=SITE_UPDATE_GIT_LIMIT):
-    """Recent website git commits Kyle can pick for a user-facing update email."""
+    """Website and iPhone changes Kyle can pick for an update email."""
+    shared = shared_update_shas()
+    app_changes = _app_update_changes(shared)
     repo = os.path.dirname(os.path.abspath(__file__))
     env = os.environ.copy()
     env['GIT_PAGER'] = 'cat'
@@ -1536,11 +1555,13 @@ def list_recent_site_changes(limit=SITE_UPDATE_GIT_LIMIT):
             env=env,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
-        return [], str(e)
+        return app_changes[:limit], str(e)
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or 'Could not read git history.').strip()
-        return [], err
-    return parse_git_log_output(proc.stdout, shared_update_shas()), None
+        return app_changes[:limit], err
+    changes = app_changes + parse_git_log_output(proc.stdout, shared)
+    changes.sort(key=lambda change: change['date'], reverse=True)
+    return changes[:limit], None
 
 
 def site_update_bullets(changes, extra_notes=''):
@@ -1558,7 +1579,7 @@ def site_update_bullets(changes, extra_notes=''):
 
 
 def site_update_plain_body(bullets, intro=None):
-    intro_text = (intro or "A few updates on the stats site:").strip()
+    intro_text = (intro or "A few updates for the stats site and iPhone app:").strip()
     lines = [intro_text, '']
     for bullet in bullets or []:
         lines.append(f'• {bullet}')
@@ -1569,7 +1590,7 @@ def site_update_plain_body(bullets, intro=None):
 def site_update_html_body(bullets, intro=None, site_url=None):
     import html as html_lib
 
-    intro_text = html_lib.escape((intro or "A few updates on the stats site:").strip())
+    intro_text = html_lib.escape((intro or "A few updates for the stats site and iPhone app:").strip())
     url = (site_url or 'https://idynkydnk.pythonanywhere.com').rstrip('/')
     items = ''.join(
         f'<li style="margin:0 0 8px;">{html_lib.escape(bullet)}</li>'
