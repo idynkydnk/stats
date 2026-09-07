@@ -18,7 +18,7 @@ This page covers both the website and the iPhone app. Whenever work includes
 `/Users/mila/stats ios`, also add noteworthy app changes to this website's
 `data/app_updates.json` in the same task. See `docs/site-updates.md` for the
 entry format. Do not rely on website commit history to discover app changes.
-Record completed local changes as prepared for the next app update until actual
-release is verified. Keep stable note IDs when updating release status so email
-sharing history survives. Include the notes in the website push when pushing
+Describe what changed directly, without release-status prefaces such as
+"prepared for the next app update." Keep stable note IDs when editing wording
+so email sharing history survives. Include the notes in the website push when pushing
 these updates; do not commit unrelated iOS work just to publish a note.

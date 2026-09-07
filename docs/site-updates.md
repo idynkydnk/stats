@@ -51,7 +51,7 @@ stable ID such as `ios-2026-09-07-player-suggestions` and start the subject with
 editing wording; they track which updates Kyle has already shared.
 
 Add entries during app work, even when that work has not been committed yet.
-Label local work as prepared for the next app update; only say it is available
-once a release is verified. Publish these notes with the website. An app-only
+Describe the changes directly without release-status prefaces. Do not add
+"prepared for the next app update" to descriptions. Publish these notes with the website. An app-only
 push cannot update the website's files, so app push tasks must also push the
 corresponding website notes. Both projects' AGENTS.md files record this rule.

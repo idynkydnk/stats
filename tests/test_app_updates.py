@@ -31,7 +31,7 @@ class AppUpdateTests(unittest.TestCase):
         selected = [item for item in changes if item['sha'] == shared]
         email = adminfx.site_update_plain_body(adminfx.site_update_bullets(selected))
         self.assertIn('iPhone: move on to the next game after saving', email)
-        self.assertIn('Prepared for the next app update', email)
+        self.assertIn('Confirmed saves clear the player and score fields', email)
 
     def test_app_notes_survive_unavailable_website_history(self):
         with patch.object(adminfx, 'shared_update_shas', return_value=set()), \
