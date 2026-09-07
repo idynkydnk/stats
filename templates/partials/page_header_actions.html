@@ -57,6 +57,18 @@
         </select>
     </div>
     {% endif %}
+    {% if all_years is defined %}
+    <div class="sr-year-select-wrap">
+        <select class="sr-year-select" aria-label="Locations" onchange="window.location.href=this.value">
+            <option value="{{ url_for('locations_page', year=yr or 'All years') }}">Locations</option>
+            <option value="{{ url_for('locations_page', year=yr or 'All years') }}">All locations</option>
+            <option value="{{ url_for('locations_page', year=yr or 'All years', missing=1) }}">No location yet</option>
+            {% for place in navigation_locations %}
+            <option value="{{ url_for('locations_page', year=yr or 'All years', location=place) }}">{{ place }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
 {% endif %}
 
 {% if session.logged_in %}

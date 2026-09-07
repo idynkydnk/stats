@@ -1107,6 +1107,7 @@ def inject_base_template():
     """Inject base template and admin flag for shared navigation."""
     return {
         'base_template': 'base.html',
+        'navigation_locations': saved_game_locations(limit=None),
         'is_admin_user': is_admin() if session.get('logged_in') else False,
     }
 
@@ -1278,6 +1279,10 @@ ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 adminfx.init_site_update_sends_db()
 init_game_location_columns()
+from location_functions import backfill_2011, location_games, assign_locations
+with sqlite3.connect(adminfx.stats_db_path()) as location_conn:
+    backfill_2011(location_conn)
+location_conn.close()
 from player_functions import init_players_photo_column
 init_players_photo_column()
 
@@ -1734,6 +1739,40 @@ def player_network(year):
         all_years=all_years,
         network_data=network_data,
     )
+
+
+@app.route('/locations/', methods=['GET', 'POST'])
+def locations_page():
+    year = request.args.get('year', 'All years')
+    selected_location = request.args.get('location', '').strip()
+    missing = request.args.get('missing') == '1'
+    if request.method == 'POST':
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        location = request.form.get('location', '').strip()
+        try:
+            with sqlite3.connect(adminfx.stats_db_path()) as conn:
+                count, doubles = assign_locations(conn, request.form.getlist('games'), location, session.get('username'))
+            conn.close()
+        except ValueError as exc:
+            flash(str(exc), 'error')
+        else:
+            from supabase_games import update_game as sync_location_game
+            sync_failed = any(result is False for result in [sync_location_game(row['id'], row) for row in doubles])
+            clear_stats_cache()
+            log_activity('Updated game locations', summary=f'{count} games: {location or "Location cleared"}')
+            flash(f'Updated locations for {count} games.' + (' Supabase sync needs retrying.' if sync_failed else ''), 'success')
+        return redirect(url_for('locations_page', year=year, location=selected_location, missing='1' if missing else None))
+    with sqlite3.connect(adminfx.stats_db_path()) as conn:
+        rows = location_games(conn, year, selected_location, missing)
+        years = sorted({str(r[0]) for table in ('games', 'vollis_games', 'other_games') for r in conn.execute(f"SELECT DISTINCT strftime('%Y', game_date) FROM {table}") if r[0]}, reverse=True)
+    conn.close()
+    page = max(1, request.args.get('page', 1, type=int))
+    total_pages = max(1, (len(rows) + 99) // 100)
+    page = min(page, total_pages)
+    return render_template('locations.html', games=rows[(page-1)*100:page*100], total_games=len(rows),
+                           year=year, all_years=['All years'] + years, selected_location=selected_location,
+                           missing=missing, page=page, total_pages=total_pages)
 
 
 @app.route('/games/')

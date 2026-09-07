@@ -1,0 +1,68 @@
+{% extends base_template %}
+{% block title %}Locations{% endblock %}
+{% block extra_css %}
+<style>
+.location-filters, .location-editor { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
+.location-filters select, .location-editor input { padding:10px; border:1px solid var(--sr-line); border-radius:8px; background:var(--sr-panel); color:var(--sr-text); max-width:100%; font:inherit; }
+.location-game { display:flex; gap:14px; align-items:center; padding:16px; margin-bottom:8px; border:1px solid var(--sr-line); border-radius:10px; background:var(--sr-panel); }
+.location-game input { width:20px; height:20px; flex-shrink:0; }
+.location-game small { display:block; color:var(--sr-muted); margin-bottom:5px; }
+.location-game p { margin:6px 0 0; color:var(--sr-accent); }
+.location-pagination { display:flex; gap:20px; align-items:center; margin:20px 0; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">Locations</h1>
+    <div class="sr-header-actions">
+        {% set header_custom_nav = true %}{% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+<p class="sr-muted">Browse where games were played. Select past games to add or change their location.</p>
+<form method="get" class="location-filters">
+    <label>Year <select name="year" onchange="this.form.submit()">
+        {% for option in all_years %}<option {% if year == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select></label>
+    <label>Location <select name="location" onchange="this.form.elements.missing.checked=false; this.form.submit()">
+        <option value="">All locations</option>
+        {% for place in navigation_locations %}<option value="{{ place }}" {% if selected_location == place %}selected{% endif %}>{{ place }}</option>{% endfor %}
+    </select></label>
+    <label><input type="checkbox" name="missing" value="1" {% if missing %}checked{% endif %} onchange="this.form.submit()"> No location yet</label>
+    <noscript><button class="sr-link-btn" type="submit">Filter games</button></noscript>
+</form>
+<p>{{ total_games }} games{% if year != 'All years' %} in {{ year }}{% endif %}</p>
+<form method="post">
+    {% if session.logged_in and games %}
+    <div class="location-editor">
+        <label><input type="checkbox" id="select-page"> Select this page</label>
+        <label>Location <input name="location" list="saved-locations" maxlength="160" placeholder="Enter a location"></label>
+        <datalist id="saved-locations">{% for place in navigation_locations %}<option value="{{ place }}">{% endfor %}</datalist>
+        <button type="submit" class="sr-link-btn sr-link-btn-accent">Save selected games</button>
+        <small class="sr-muted">Leave blank to clear the selected games’ locations.</small>
+    </div>
+    {% elif not session.logged_in %}
+    <p><a class="sr-link-btn" href="{{ url_for('login') }}">Sign in</a> to update locations.</p>
+    {% endif %}
+    {% for game in games %}
+    <label class="location-game">
+        {% if session.logged_in %}<input type="checkbox" name="games" value="{{ game.key }}" aria-label="Select {{ game.game_date }} {{ game.teams }}">{% endif %}
+        <div><small>{{ game.game_date[:10] }} · {{ game.game_name or game.kind|title }}</small>
+        <strong>{{ game.teams }}</strong> · {{ game.winner_score }}–{{ game.loser_score }}
+        <p><i class="fas fa-map-marker-alt"></i> {{ game.location or 'No location yet' }}</p></div>
+    </label>
+    {% else %}<p class="sr-muted">No games match these filters.</p>{% endfor %}
+</form>
+<div class="location-pagination">
+    {% if page > 1 %}<a class="sr-link-btn" href="{{ url_for('locations_page', year=year, location=selected_location, missing=1 if missing else none, page=page-1) }}">Previous</a>{% endif %}
+    <span>Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}<a class="sr-link-btn" href="{{ url_for('locations_page', year=year, location=selected_location, missing=1 if missing else none, page=page+1) }}">Next</a>{% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const selectPage = document.getElementById('select-page');
+if (selectPage) selectPage.addEventListener('change', () => {
+    document.querySelectorAll('input[name="games"]').forEach(box => { box.checked = selectPage.checked; });
+});
+</script>
+{% endblock %}
