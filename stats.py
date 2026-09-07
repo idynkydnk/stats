@@ -35,6 +35,7 @@ from email_content import (
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
+from stats_location_filter import STATS_ENDPOINTS, active_location_filter
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
 import os
@@ -1108,8 +1109,31 @@ def inject_base_template():
     return {
         'base_template': 'base.html',
         'navigation_locations': saved_game_locations(limit=None),
+        'stats_location': active_location_filter()[0],
+        'stats_missing_location': active_location_filter()[1],
+        'stats_location_url': stats_location_url,
         'is_admin_user': is_admin() if session.get('logged_in') else False,
     }
+
+
+@app.url_defaults
+def preserve_stats_location(endpoint, values):
+    if endpoint in STATS_ENDPOINTS:
+        location, missing = active_location_filter()
+        if location:
+            values.setdefault('location', location)
+        if missing:
+            values.setdefault('missing', '1')
+
+
+def stats_location_url(location='', missing=False):
+    """Change location on the current stats page while retaining its year."""
+    endpoint = request.endpoint if request.endpoint in STATS_ENDPOINTS else 'stats'
+    values = dict(request.view_args or {}) if endpoint == request.endpoint else {'year': request.view_args.get('year', 'All years')}
+    values.update({key: value for key, value in request.args.items() if key not in ('page', 'location', 'missing')})
+    # Explicit None overrides url_defaults when clearing either filter.
+    values.update(location=location or None, missing='1' if missing else None)
+    return url_for(endpoint, **values)
 
 
 @app.template_filter('game_year')
@@ -1677,7 +1701,7 @@ def stats(year):
     stats = stats_per_year(year, minimum_games)
     
     # If no stats for current year, fall back to previous year
-    if not stats and year == current_year and all_years:
+    if not stats and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years:
             games = year_games(previous_year)
@@ -1723,7 +1747,7 @@ def player_network(year):
 
     all_years = grab_all_years()
     games = year_games(year)
-    if not games and year == current_year and all_years:
+    if not games and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years and year_games(previous_year):
             display_year = previous_year
@@ -1840,7 +1864,7 @@ def vollis_stats(year):
     stats = vollis_stats_per_year(year, 0)
     
     # If no stats for current year, fall back to previous year
-    if not stats and year == current_year and all_years:
+    if not stats and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years:
             stats = vollis_stats_per_year(previous_year, 0)
@@ -1892,7 +1916,7 @@ def other_stats(year):
     stats = other_stats_per_year(year, minimum_games)
     
     # If no stats for current year, fall back to previous year
-    if not stats and year == current_year and all_years:
+    if not stats and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years:
             games = other_year_games(previous_year)

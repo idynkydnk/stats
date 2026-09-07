@@ -1,3 +1,4 @@
+from stats_location_filter import active_location_filter, filter_stats_connection
 from create_other_database import *
 from datetime import datetime, date
 import sqlite3
@@ -496,6 +497,7 @@ def set_cur():
         database = r'stats.db'
         conn = create_connection(database)
     conn.row_factory = sqlite3.Row
+    filter_stats_connection(conn, 'other_games')
     cur = conn.cursor()
     return cur  
 
@@ -754,7 +756,7 @@ def remove_other_game(game_id):
 
 def all_other_years():
     cur = set_cur()
-    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM other_games ORDER BY game_date DESC")
+    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM main.other_games ORDER BY game_date DESC")
     years = [row[0] for row in cur.fetchall()]
     years.append('All years')
     return years

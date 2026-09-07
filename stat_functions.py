@@ -1,3 +1,4 @@
+from stats_location_filter import active_location_filter, filter_stats_connection
 from database_functions import *
 from datetime import datetime, date
 from functools import lru_cache
@@ -15,7 +16,7 @@ def cached(ttl=CACHE_TTL):
     def decorator(func):
         def wrapper(*args, **kwargs):
             # Create cache key from function name and arguments
-            key = (func.__name__, args, tuple(sorted(kwargs.items())))
+            key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter())
             current_time = time.time()
             
             # Check if cached and not expired
@@ -175,6 +176,7 @@ def set_cur():
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    filter_stats_connection(conn, 'games')
     cur = conn.cursor()
     return cur
 
@@ -750,7 +752,7 @@ def current_year_games():
 def grab_all_years():
 	"""Return list of years that have games (newest first), plus 'All years'. Lightweight: one query, no full table load."""
 	cur = set_cur()
-	cur.execute("SELECT DISTINCT strftime('%Y', game_date) AS y FROM games ORDER BY y DESC")
+	cur.execute("SELECT DISTINCT strftime('%Y', game_date) AS y FROM main.games ORDER BY y DESC")
 	years = [row[0] for row in cur.fetchall()]
 	years.append('All years')
 	return years
@@ -1775,6 +1777,9 @@ def calculate_trueskill_rankings(year=None):
 	"""Calculate TrueSkill rankings - uses database cache when available"""
 	from database_functions import get_trueskill_from_db, save_trueskill_to_db, get_trueskill_last_updated, get_last_game_date
 	
+	if any(active_location_filter()):
+		return _calculate_trueskill_rankings_fresh(year)
+
 	# Check if we have cached rankings in the database
 	db_rankings = get_trueskill_from_db(year)
 	if db_rankings:

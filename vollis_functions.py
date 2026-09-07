@@ -1,3 +1,4 @@
+from stats_location_filter import active_location_filter, filter_stats_connection
 from create_vollis_database import *
 from datetime import datetime, date
 
@@ -82,6 +83,7 @@ def set_cur():
     if conn is None:
         database = r'stats.db'
         conn = create_connection(database)
+    filter_stats_connection(conn, 'vollis_games')
     cur = conn.cursor()
     return cur  
 
@@ -133,13 +135,10 @@ def remove_vollis_game(game_id):
         database_delete_vollis_game(conn, game_id)
 
 def all_vollis_years():
-    games = all_vollis_games()
-    years = []
-    for game in games:
-        if game[1][0:4] not in years:
-            years.append(game[1][0:4])
-    years.append('All years')
-    return years
+    cur = set_cur()
+    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM main.vollis_games ORDER BY game_date DESC")
+    return [row[0] for row in cur.fetchall()] + ['All years']
+
 
 def all_years_vollis_player(name):
     years = []
