@@ -8,7 +8,6 @@ from admin_functions import (
     _pick_player_email,
     parse_git_log_output,
     site_update_bullets,
-    site_update_detail_from_patch,
     site_update_html_body,
     site_update_plain_body,
 )
@@ -18,8 +17,8 @@ import admin_functions as adminfx
 class SiteUpdateHelperTests(unittest.TestCase):
     def test_parse_git_log_marks_already_shared_commits(self):
         raw = (
-            'abc123\x1f2026-09-06\x1fKeep old AI pictures\x1fUsers can replace them.\x1e'
-            'def456\x1f2026-09-05\x1fFix login timeout\x1f\x1e'
+            'abc123\x1f2026-09-06\x1fKeep old AI pictures\x1fSite-Update: Keep old AI pictures\nUsers can replace them.\x1e'
+            'def456\x1f2026-09-05\x1fFix login timeout\x1fSite-Update: Fix login timeout\x1e'
         )
         changes = parse_git_log_output(raw, shared_shas={'def456'})
         self.assertEqual(len(changes), 2)
@@ -28,7 +27,7 @@ class SiteUpdateHelperTests(unittest.TestCase):
         self.assertFalse(changes[0]['already_shared'])
         self.assertTrue(changes[1]['already_shared'])
 
-    def test_empty_commit_body_is_filled_from_patch(self):
+    def test_source_comments_are_not_used_as_descriptions(self):
         raw = (
             'abc123\x1f2026-09-03\x1fDeduplicate flyer player suggestions\x1f'
             '\ndiff --git a/player_identity.py b/player_identity.py\n'
@@ -39,14 +38,11 @@ class SiteUpdateHelperTests(unittest.TestCase):
             '\x1e'
         )
         changes = parse_git_log_output(raw)
-        self.assertEqual(
-            changes[0]['body'],
-            'Return a comparison key for names that render as the same person.',
-        )
+        self.assertEqual(changes, [])
 
     def test_written_commit_body_is_kept(self):
         raw = (
-            'abc123\x1f2026-09-06\x1fKeep old AI pictures\x1fUsers can replace them.\n'
+            'abc123\x1f2026-09-06\x1fKeep old AI pictures\x1fSite-Update: Keep old AI pictures\nUsers can replace them.\n'
             'diff --git a/stats.py b/stats.py\n'
             '@@ -1,0 +1,1 @@\n'
             '+"""Some other note."""\n'
@@ -58,38 +54,26 @@ class SiteUpdateHelperTests(unittest.TestCase):
     def test_co_authored_by_is_stripped_from_commit_body(self):
         raw = (
             'abc123\x1f2026-08-23\x1fShow every user recap\x1f'
-            'Admin was only seeing Kyle\'s own recaps.\n'
+            'Site-Update: Show every user recap\nAdmin was only seeing Kyle\'s own recaps.\n'
             '\n'
             'Co-authored-by: Cursor <cursoragent@cursor.com>\x1e'
         )
         changes = parse_git_log_output(raw)
         self.assertEqual(changes[0]['body'], "Admin was only seeing Kyle's own recaps.")
 
-    def test_html_templates_are_not_used_as_details(self):
-        patch = (
-            'diff --git a/admin_functions.py b/admin_functions.py\n'
-            '@@ -1,0 +1,3 @@\n'
-            '+HTML = """<div style="font-family:sans-serif"><h1>What\'s new</h1></div>"""\n'
-            '+def send_update():\n'
-            '+    """Email selected site users about chosen website changes."""\n'
-        )
-        detail = site_update_detail_from_patch(patch, 'Let Kyle email site updates')
-        self.assertEqual(
-            detail,
-            'Email selected site users about chosen website changes.',
-        )
-
-    def test_detail_prefers_lock_text_over_return_docstrings(self):
-        patch = (
-            'diff --git a/email_content.py b/email_content.py\n'
-            '@@ -1,0 +1,4 @@\n'
-            '+def _valid_session_performance_rows(players, player_stats):\n'
-            '+    """Return usable illustration stats for selected players."""\n'
-            "+    lines = ['PERFORMANCE STAGING LOCK — the statistics control every "
-            "player's pose, body language, and facial expression.']\n"
-        )
-        detail = site_update_detail_from_patch(patch, 'Make recap images reflect player performance')
-        self.assertIn('statistics control every player\'s pose', detail)
+    def test_reviewed_copy_reaches_email_and_preserves_sharing_history(self):
+        reviewed = adminfx._load_site_update_copy()
+        sha = next(key for key in reviewed if key.startswith('0fa3b73'))
+        raw = f'{sha}\x1f2026-09-03\x1fDeduplicate flyer player suggestions\x1fInternal details\x1e'
+        changes = parse_git_log_output(raw, shared_shas={sha})
+        self.assertEqual(changes[0]['subject'], 'Cleaner player suggestions for flyers')
+        self.assertEqual(changes[0]['body'], reviewed[sha]['body'])
+        self.assertEqual(changes[0]['sha'], sha)
+        self.assertTrue(changes[0]['already_shared'])
+        bullets = site_update_bullets(changes)
+        self.assertIn(reviewed[sha]['body'], bullets[0])
+        self.assertNotIn('Internal details', site_update_plain_body(bullets))
+        self.assertIn('Cleaner player suggestions for flyers', site_update_html_body(bullets))
 
     def test_bullets_include_custom_notes_then_selected_subjects(self):
         bullets = site_update_bullets(

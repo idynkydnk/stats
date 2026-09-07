@@ -12,6 +12,14 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check site update descriptions
+      env:
+        BEFORE_SHA: ${{ github.event.before }}
+        AFTER_SHA: ${{ github.sha }}
+      run: python3 scripts/check_site_updates.py "$BEFORE_SHA" "$AFTER_SHA"
       
     - name: Deploy to PythonAnywhere
       run: |

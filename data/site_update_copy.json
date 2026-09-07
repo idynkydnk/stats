@@ -1,0 +1,322 @@
+{
+  "7c9a9c155dbf6545985c18f084b2f08c4bb3a8be": {
+    "subject": "Choose who receives each update",
+    "body": "Kyle can match each site login to the right player and email address before sending an update."
+  },
+  "56eb9960c33742a64196059cc54d05fd9272dd65": {
+    "subject": "More detail for Kyle",
+    "body": "Site updates have space for an explanation, and Kyle can see when people last signed in or used the site."
+  },
+  "bbb6a438016c7be82fa15d39ca29bcf71fef60da": {
+    "subject": "Keep older character pictures and share site news",
+    "body": "Replacing a player's AI character keeps the previous picture so Kyle can restore it. Kyle can also choose site updates to email to players."
+  },
+  "0fa3b733a715e0bc0adca4a30e1300bac20ee05d": {
+    "subject": "Cleaner player suggestions for flyers",
+    "body": "The same player no longer appears more than once in flyer search results because of extra spaces in their name."
+  },
+  "dc8a21009258d8c21d9034ec673e07a78069806d": {
+    "subject": "Recap pictures reflect the results",
+    "body": "AI pictures are asked to show players' expressions and poses based on how they performed."
+  },
+  "0e2f7d730a3833f88fb96c5b7f55f306bcdfd6f8": {
+    "subject": "More believable volleyball pictures",
+    "body": "Volleyball pictures get clearer instructions about the court, net, and players in action."
+  },
+  "384c8b8a74ce9bbdf7d8511539fd940dd24f6046": {
+    "subject": "Keep each player's results together",
+    "body": "Names with extra spaces are treated as the same player, helping prevent duplicate players and split stats."
+  },
+  "3ac02a2cb813ecc0e89125c512837a8551c7ffc9": {
+    "subject": "Record where you played",
+    "body": "You can add a location when entering a game. Recaps can use it to describe where the games took place."
+  },
+  "a5fde00aa081bb6df1c272c489b32c49cb7c5055": {
+    "subject": "Give the recap crown to the right player",
+    "body": "The player with the best win percentage gets the crown in recap pictures."
+  },
+  "e249a2d36425a7b19e46e34f616b6b64fe8b4ea1": {
+    "subject": "Kyle can see everyone's recaps and flyers",
+    "body": "The admin page shows all users' recaps, flyers, and picture requests, making it easier to check progress and find problems."
+  },
+  "3c8a92bb622d7f8f5360e67c3c2c5c5ad698baab": {
+    "subject": "Save flyers to your phone or computer",
+    "body": "Use the flyer save button to open sharing options on your phone or download the picture on a computer."
+  },
+  "6d7491bdeb866199a99cfe51cefc506db5acea12": {
+    "subject": "Find your flyers in the menu",
+    "body": "Open Flyers to browse saved flyers and download a picture to share."
+  },
+  "8326a2dcc309acfb701503911106b4e3cc84da1d": {
+    "subject": "More realistic character pictures",
+    "body": "New AI character pictures are asked to look like photos rather than cartoons."
+  },
+  "2d769d1440e362cf38b1d6a13babdcb31600ff41": {
+    "subject": "Character pictures use your face photo",
+    "body": "The picture generator uses the player's face photo as a reference for a full-body character."
+  },
+  "d9053bfc5cd0fc07cfae5805bd04163c39e88fce": {
+    "subject": "See the whole character picture",
+    "body": "Uploaded character pictures fit inside the preview, including wide photos, without cropping the edges."
+  },
+  "49c936cb6fd5c21974ed5541aa8d0a301d060c97": {
+    "subject": "Recap pictures fit on desktop screens",
+    "body": "The left edge of recap pictures stays visible when you view them on a computer."
+  },
+  "b35521950bab2095ae6eca578e7c292050d5e60b": {
+    "subject": "Avoid made-up faces in group pictures",
+    "body": "Players without a photo, signature look, or saved character are left out of group AI pictures."
+  },
+  "47774044725512b4cda93c6316aa559b01cd5487": {
+    "subject": "Start another character while one is being made",
+    "body": "You can create a picture for another player or leave the page while the first picture finishes."
+  },
+  "f3fd2e9a73009c6f00d3bef59fc9a3a7aacac246": {
+    "subject": "Recap pictures fit better on a Mac",
+    "body": "Recap pictures stay within the visible page so the left edge is not cut off."
+  },
+  "db9f5507e9728ef4d05603554b391615b47e54ab": {
+    "subject": "Upload your own character picture",
+    "body": "You can upload or remove a player's AI character picture for use in recaps and flyers."
+  },
+  "f8941058d3b5e4396810f7c1d0fda1177b2b9d3e": {
+    "subject": "Include each player's signature look",
+    "body": "Character pictures are asked to include all of a player's signature details, including props such as a motorhome."
+  },
+  "1c3a472af5a4f2982924fbc9c7c4e634f34c34ea": {
+    "subject": "Player search keeps up with your typing",
+    "body": "Search results follow the name you are currently typing instead of switching back to an earlier search."
+  },
+  "c8ad8067d878a49036334cd470e9cbb952299571": {
+    "subject": "Help group pictures match the right faces",
+    "body": "Named photo references help the AI keep each player's face with the right person. The iPhone app can also retrieve the roster for photo review."
+  },
+  "8ab09245d45b67bee1799a670ae1f2d8c2c76b4b": {
+    "subject": "Keep faces distinct in group pictures",
+    "body": "Each player's reference photo is linked to their name, with instructions to give players different poses."
+  },
+  "c57477bc085a4412d766ce031d71cb699a6d6b4b": {
+    "subject": "Keep browsing while pictures are made",
+    "body": "Recaps and flyers keep generating after you leave the page. The progress message now explains this."
+  },
+  "a1ba06c8d929f3b0b7e9a82639611b93e8aa6c2a": {
+    "subject": "One clear button to edit a player",
+    "body": "A single Edit button next to the player's name opens their details."
+  },
+  "d162d56d5d69d08f7e3ff2fea50005f305be172c": {
+    "subject": "Reuse a player's character in different scenes",
+    "body": "Saved characters focus on the player's appearance and signature look, with scene details added in group pictures."
+  },
+  "4acc019d3469e1abb26760ac82a1c13540a49dcb": {
+    "subject": "Fix character picture creation",
+    "body": "Character pictures use a supported picture size to avoid size-related generation errors."
+  },
+  "1e3cd342b4751fb9de43e8201c4f1bea8a61974f": {
+    "subject": "Keep photos when renaming a player",
+    "body": "Changing a player's name keeps their photo and signature look attached to them."
+  },
+  "902bd4c59d0a559a3e500dbdf1f421d874b7270b": {
+    "subject": "Save a character for each player",
+    "body": "Players can have a reusable AI character for recaps and flyers. Signed-in users can edit players from player pages."
+  },
+  "a14961fc0711d9408ad741f73648deb7ed198fc7": {
+    "subject": "Player suggestions for iPhone Vollis entry",
+    "body": "The iPhone app can get the same recently played player list used by the website."
+  },
+  "1243f8fa1f0b618476a62f4a20855d7099a57c0e": {
+    "subject": "Connect the iPhone app to site data",
+    "body": "The iPhone app can read stats and games and save changes to the same data used by the website."
+  },
+  "a04dbf5c14f84f6195843745b31c23c88a1fcb72": {
+    "subject": "More action in recap pictures",
+    "body": "AI pictures are asked to show players playing the sport instead of just standing on the court."
+  },
+  "1f76807a1461a178d59c49022464f422efea7169": {
+    "subject": "Create recap headlines with the story",
+    "body": "The headline and recap are written together, and the headline becomes the recap page title."
+  },
+  "39fe5930ace71fba660f8f937301b463fdbf6aaa": {
+    "subject": "Find your recaps in the menu",
+    "body": "Open AI Recaps to browse your saved recaps. Error pages also give clearer ways to get back to the site."
+  },
+  "28df1a165031d0e030f75c27408518ea205efab9": {
+    "subject": "Make session leaders stand out",
+    "body": "Recap pictures are asked to place the leaders at the front, dressed like royalty."
+  },
+  "88e574b31e33854a382e8c0bbf280d2a2a19a5d2": {
+    "subject": "Celebrate leaders in recap pictures",
+    "body": "AI pictures are asked to dress session leaders like a king or queen."
+  },
+  "4b1e754691edc8b144e4d9ec9d8db49986f9f0c6": {
+    "subject": "Clearer progress when remaking pictures",
+    "body": "A progress message appears when creating or remaking a recap or flyer, and picture instructions better preserve players' signature looks."
+  },
+  "156aa9ca1ee289dd884ccd7698b023a5ab4c350c": {
+    "subject": "Coed pictures match beach volleyball",
+    "body": "Coed recap pictures are asked to show coed beach volleyball."
+  },
+  "19826a738187015910f12264b7cd62d537d48e74": {
+    "subject": "Kyle can remove players from the player list",
+    "body": "An admin-only delete option is available on the Player List."
+  },
+  "3ca094fc1b37bd42d7a905e4e147e058ee21922b": {
+    "subject": "Celebrate the king or queen of the beach",
+    "body": "Recap picture instructions give session leaders a beach royalty title."
+  },
+  "193e20adc31bcd34e735407fd832bdf7bb16c5b4": {
+    "subject": "Keep signature look descriptions intact",
+    "body": "Picture instructions preserve punctuation in each player's signature look."
+  },
+  "40f70048b2c954275612940b97c2f4d2c29653da": {
+    "subject": "Start recaps with the latest day's games",
+    "body": "The latest day is selected by default, with that day's full game list shown first."
+  },
+  "9dd57f1e3f4f4dc7b61804ffb2aef815dc6f51d4": {
+    "subject": "Keep the Add menu visible on phones",
+    "body": "The Add menu stays on-screen when there is not enough room beside the button."
+  },
+  "f61efb7b8acbfeb8a96f3fbe8693897ef2d26fc4": {
+    "subject": "Show picture progress promptly on phones",
+    "body": "The generating message appears before the phone moves to the next page."
+  },
+  "4cf29a21cbd8643ea16e2d75e269dab68d8cc1fe": {
+    "subject": "Label players in recap pictures",
+    "body": "AI pictures are asked to include each player's name and stats. Starting generation no longer needs an extra confirmation popup."
+  },
+  "be20a6aa58fde3b4e5433d7a4dd369c7c9e5e905": {
+    "subject": "Show signature looks as picture details",
+    "body": "Picture instructions describe signature looks as things to draw. At this stage, mobile users were also shown a reminder to wait."
+  },
+  "a5e10ef56170a8098c41bad0ab858c32311af1bc": {
+    "subject": "Keep extra words out of AI pictures",
+    "body": "Picture instructions ask for names and stats as text, with other details shown visually."
+  },
+  "0e76b306b718b23420cb6a05a89358dd47c755e2": {
+    "subject": "Create group recap pictures in one step",
+    "body": "Recaps request one group picture without making separate portraits first."
+  },
+  "fe243d4543ebfdc73b4bcbcddeec35d0ac53e9a6": {
+    "subject": "Draw signature looks instead of quoting them",
+    "body": "Signature look descriptions are presented as picture instructions rather than text to print on the image."
+  },
+  "89ab7fb524df05c4a33d16b9ebe164a7fec2da62": {
+    "subject": "Clearer instructions for player pictures",
+    "body": "Face references, stats, and signature looks are described separately to help the AI follow them."
+  },
+  "3ab240bc065efbb7d3cd7ae595bffbba82c689a0": {
+    "subject": "Recover interrupted picture requests",
+    "body": "Background picture requests can be picked up again after the service restarts."
+  },
+  "f1942e62cf0a5b2920c8729a9971f9d6164c48f8": {
+    "subject": "Explain the wait while pictures are made",
+    "body": "An earlier progress message asked users to keep the page open while pictures finished."
+  },
+  "82bcb381e037908422116479aa4599266edf7579": {
+    "subject": "Make signature looks visual",
+    "body": "AI pictures are asked to draw signature details rather than write them on the picture."
+  },
+  "5855c4c7110509455269117b717749cf7a3c1642": {
+    "subject": "Find roster players when adding a game",
+    "body": "Player suggestions include people on the roster."
+  },
+  "1ef1123963745cb506aedbd5b11ade4184bfd357": {
+    "subject": "Save player details and close the window",
+    "body": "The player editor has a clearer Save and close button."
+  },
+  "f4b1e1a13660a2fc5325b26181d3771a5c1c4b5b": {
+    "subject": "Nicknames save correctly",
+    "body": "A nickname entered in the player editor is kept after saving."
+  },
+  "172a59e4794ae1f0fc60aaf9c204d6ad483390a4": {
+    "subject": "Edit nicknames with player photos",
+    "body": "The player photo editor includes a nickname field."
+  },
+  "7321bd309ccc03f258aaa6d70d9e25cf85fd4205": {
+    "subject": "Use nicknames in recap pictures",
+    "body": "AI pictures are asked to label players with their nickname and session stats."
+  },
+  "c87ad4d8ca67b25cfa8ff3618b6a9126aa9b9ca7": {
+    "subject": "Give slow picture requests more time",
+    "body": "Picture creation waits longer and retries temporary failures."
+  },
+  "a8272658fee44ead173c281cfab98fd49aa80974": {
+    "subject": "Use signature looks without a face photo",
+    "body": "Players with a signature look can be included in individual AI pictures even without a photo."
+  },
+  "451b18240f79a408894a5904eb4d55ec8a274d8c": {
+    "subject": "Skip separate portraits when making a recap",
+    "body": "Recaps make one group picture, removing the wait for individual player pictures first."
+  },
+  "4cfccd709dcb1e6da37689599600c14925ce2fe7": {
+    "subject": "Help diagnose background service problems",
+    "body": "Startup logging makes it easier to check why automatic recap processing has not started."
+  },
+  "5672384ef272681cf168bef467a0c6537c1b3d03": {
+    "subject": "Fix automatic recap service startup",
+    "body": "The background service can find its files when the hosting account name uses capital letters."
+  },
+  "c0c6256ce19987c3255af3aacda009b6d59de5b4": {
+    "subject": "Help background picture work start reliably",
+    "body": "The service uses the full location of its startup file so it can be found reliably."
+  },
+  "cbf629d812e95da818de925f9277ec6141a86be0": {
+    "subject": "Fix background service getting stuck at startup",
+    "body": "The automatic picture service can get past its Starting state."
+  },
+  "e09041ad97f024568ad625e927fa871a5e1ddf92": {
+    "subject": "Review players before making a recap or flyer",
+    "body": "Check player photos and signature looks before starting generation."
+  },
+  "e83c7966dd4d91f49b9a9cedc4a66f329788d9ee": {
+    "subject": "Fix automatic recap startup and sharing links",
+    "body": "The background recap service starts correctly, and shared links use the site's address."
+  },
+  "a8ce4af5157c01295fd366e62e3b526465739b2d": {
+    "subject": "Reduce the wait for flyers",
+    "body": "Flyers use uploaded face photos directly instead of creating a separate character for every player first."
+  },
+  "b2ac3cf0d8bbcc2728a9bb3deba6b5c134aa1619": {
+    "subject": "Use the configured AI service for recaps",
+    "body": "When OpenAI is set up, it is the preferred service for recap writing and pictures."
+  },
+  "a90963e87832d2c77b81e10715aa0bb04a270cd6": {
+    "subject": "See point differences in more recaps",
+    "body": "Vollis and other-game recaps show how many more or fewer points each player scored than their opponents."
+  },
+  "fc0ba8c8f6c71156a6f78cf808b5139fda48b5c8": {
+    "subject": "Show a player's photo when sharing their page",
+    "body": "Shared player links can include the player's face photo in the preview."
+  },
+  "40b2a0555ad814b7da7649177fc84b34f1e2dc09": {
+    "subject": "See everyone in today's stats",
+    "body": "Today's stats tables show all players instead of hiding everyone after the first five."
+  },
+  "5e41f89002f914aed04e99795e7e23a6cd10ec8e": {
+    "subject": "Kyle can browse all AI flyers",
+    "body": "The admin flyer page lists flyers with their pictures and the instructions used to create them."
+  },
+  "a441a454aacb72a8d991cd660126725887bd23f6": {
+    "subject": "Skip pictures without a player reference",
+    "body": "Players with neither a face photo nor a signature look are left out of AI illustrations."
+  },
+  "7354b0d6b4661336698d7c0b1d065dfd2747267b": {
+    "subject": "Simpler doubles game entry",
+    "body": "Game-day photo uploads were removed from the doubles score form."
+  },
+  "a97c3a96420e382f4428178b8eadf37586511782": {
+    "subject": "Guidance for future picture changes",
+    "body": "Development guidance asks for players' signature looks to stand out in AI pictures."
+  },
+  "db039cd44e54a200b2ea16f5a003ad58323219f2": {
+    "subject": "Upload larger player photos",
+    "body": "Photo uploads can be up to 10 MB, with stored pictures compressed to save space."
+  },
+  "9e8336a36e816cf1881df23a40afc3833ee67ee5": {
+    "subject": "Choose game-day photos from your library",
+    "body": "The game-day photo picker allowed choosing an existing photo from your library."
+  },
+  "f8323c916d718fb16ec6da440072f122a897951a": {
+    "subject": "Add game-day photos beside player names",
+    "body": "Game-day photo controls were placed beside names in Today's Stats."
+  }
+}

@@ -39,7 +39,7 @@
 .adm-pick-main { flex: 1; min-width: 0; }
 .adm-pick-title { font-size: 14px; font-weight: 600; color: var(--sr-text); }
 .adm-pick-meta { font-size: 12px; color: var(--sr-muted); margin-top: 3px; }
-.adm-pick-body { font-size: 13px; color: var(--sr-muted); margin-top: 6px; white-space: pre-wrap; }
+.adm-pick-body { font-size: 13px; color: var(--sr-muted); margin-top: 6px; white-space: pre-wrap; line-height: 1.55; }
 .adm-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 6px; }
 .adm-badge-shared { background: var(--sr-accent-dim); color: var(--sr-accent); }
 .adm-badge-missing { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
@@ -61,9 +61,9 @@
 </header>
 
 <p class="adm-steps">
-    <span class="{% if step != 'users' %}is-current{% endif %}">1. Choose changes</span>
+    <span class="{% if step != 'users' %}is-current{% endif %}">1. Choose updates</span>
     <span>→</span>
-    <span class="{% if step == 'users' %}is-current{% endif %}">2. Choose users</span>
+    <span class="{% if step == 'users' %}is-current{% endif %}">2. Choose recipients</span>
 </p>
 
 {% if form_error %}
@@ -91,7 +91,7 @@
 
     <div class="adm-section">
         <h2><i class="fas fa-users"></i> Send to</h2>
-        <p class="adm-meta">Pick the player profile for each login. Emails are not guessed when more than one player shares that name.</p>
+        <p class="adm-meta">Match each account to the right player, then choose who should get the email.</p>
         <div class="adm-toolbar">
             <button type="button" data-select="users" data-mode="email">Select everyone with email</button>
             <button type="button" data-select="users" data-mode="none">Select none</button>
@@ -157,18 +157,18 @@
         <button type="submit" class="adm-btn" name="action" value="send" {% if not email_configured %}disabled{% endif %}>
             <i class="fas fa-paper-plane"></i> Send update
         </button>
-        <button type="submit" class="adm-btn adm-btn-ghost" name="action" value="changes">Back to changes</button>
+        <button type="submit" class="adm-btn adm-btn-ghost" name="action" value="changes">Back to updates</button>
     </div>
 
     {% else %}
     <div class="adm-actions" style="margin-top:0;margin-bottom:18px;">
-        <button type="submit" class="adm-btn" name="action" value="users"><i class="fas fa-arrow-right"></i> Choose users</button>
+        <button type="submit" class="adm-btn" name="action" value="users"><i class="fas fa-arrow-right"></i> Choose recipients</button>
     </div>
     <div class="adm-section">
         <h2><i class="fas fa-code-branch"></i> What changed</h2>
-        <p class="adm-meta">These are recent website updates. Pick the ones worth telling people about. You can rewrite them on the next screen.</p>
+        <p class="adm-meta">Pick the updates you want to share. On the next screen, you can edit the message and choose who receives it.</p>
         {% if git_error %}
-        <p class="adm-error">Could not read git history: {{ git_error }}</p>
+        <p class="adm-error">Recent updates could not be loaded. Please try again.</p>
         {% endif %}
         <div class="adm-toolbar">
             <button type="button" data-select="changes" data-mode="new">Select new changes</button>
@@ -187,7 +187,7 @@
                         {{ change.subject }}
                         {% if change.already_shared %}<span class="adm-badge adm-badge-shared">already shared</span>{% endif %}
                     </div>
-                    <div class="adm-pick-meta">{{ change.date }} · {{ change.short_sha }}</div>
+                    <div class="adm-pick-meta">{{ change.date }}</div>
                     {% if change.body %}
                     <div class="adm-pick-body">{{ change.body }}</div>
                     {% endif %}
@@ -195,7 +195,7 @@
             </label>
             {% endfor %}
             {% if not changes and not git_error %}
-            <p class="adm-meta" style="padding:16px;">No git changes found.</p>
+            <p class="adm-meta" style="padding:16px;">No recent updates found.</p>
             {% endif %}
         </div>
     </div>

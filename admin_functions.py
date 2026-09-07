@@ -10,6 +10,7 @@ import re
 import sqlite3
 import subprocess
 from datetime import datetime, timezone
+from site_update_notes import parse_site_update_note
 
 
 def stats_db_path():
@@ -1433,178 +1434,12 @@ def shared_update_shas():
     return found
 
 
-_SKIP_SITE_UPDATE_DETAIL_PATH = re.compile(r'(^|/)(tests/|output/|\.cursor/)')
-_TRIPLE_STRING = re.compile(r'(?:"""|\'\'\')(.*?)(?:"""|\'\'\')', re.DOTALL)
-_LOCK_DETAIL = re.compile(r'LOCK\s+[—-]\s+(.{20,280})', re.IGNORECASE | re.DOTALL)
-_PLACEHOLDER_DETAIL = re.compile(
-    r'\b(?:placeholder|aria-label)="([^"]{8,80})"',
-    re.IGNORECASE,
-)
-
-
-def _normalize_site_update_snippet(text):
-    text = (text or '').replace('\\n', ' ').replace("\\'", "'").replace('\\"', '"')
-    text = ' '.join(text.split()).strip(" \t'\"")
-    return text.strip()
-
-
-def _is_weak_site_update_snippet(text):
-    if not text or len(text) < 20:
-        return True
-    lowered = text.casefold()
-    if lowered.startswith((
-        'def ', 'class ', 'import ', 'from ', 'return changed', 'build a dict',
-        'same db', 'parse ', 'create table', 'insert into', 'select ',
-        'alter table', 'delete from',
-    )):
-        return True
-    if 'integer primary key' in lowered or 'datetime default' in lowered:
-        return True
-    if lowered in {'comments (optional)'}:
-        return True
-    if '{' in text or '}' in text:
-        return True
-    if '<' in text and ('div' in lowered or 'style=' in lowered or '</' in lowered):
-        return True
-    return False
-
-
-def _snippet_sort_key(text):
-    lowered = text.casefold()
-    weak_start = lowered.startswith(('return ', 'parse ', 'build a '))
-    return (weak_start, -len(text))
-
-
-def _added_patch_blocks(patch):
-    """Yield (path, added_source) for each file hunk in a unified diff."""
-    current = None
-    added = []
-
-    def flush():
-        if current is not None and added:
-            yield current, '\n'.join(added)
-
-    for line in (patch or '').splitlines():
-        if line.startswith('diff --git '):
-            yield from flush()
-            parts = line.split()
-            path = ''
-            if len(parts) >= 4:
-                path = parts[3][2:] if parts[3].startswith('b/') else parts[3]
-            current = path
-            added = []
-        elif line.startswith('@@'):
-            yield from flush()
-            added = []
-        elif line.startswith('+') and not line.startswith('+++'):
-            added.append(line[1:])
-    yield from flush()
-
-
-def _glue_python_strings(block):
-    glued = re.sub(r"'\s+'", '', ' '.join((block or '').split()))
-    return re.sub(r'"\s+"', '', glued)
-
-
-def site_update_detail_from_patch(patch, subject=''):
-    """Build a short explanation from added comments, copy, and file names."""
-    snippets = []
-    files = []
-    for path, block in _added_patch_blocks(patch):
-        if not path:
-            continue
-        files.append(path)
-        if _SKIP_SITE_UPDATE_DETAIL_PATH.search(path):
-            continue
-        glued = _glue_python_strings(block)
-        for match in _TRIPLE_STRING.finditer(block):
-            snippet = _normalize_site_update_snippet(match.group(1))
-            if snippet:
-                snippets.append(snippet)
-        for match in _LOCK_DETAIL.finditer(glued):
-            snippet = _normalize_site_update_snippet(match.group(1))
-            snippet = re.split(r'[.!?]', snippet, maxsplit=1)[0]
-            snippet = re.split(r'["\']\s*,', snippet, maxsplit=1)[0]
-            snippet = snippet.strip(" ,;:'\"")
-            if snippet:
-                snippets.append(snippet)
-        if path.endswith(('.html', '.js')):
-            for match in _PLACEHOLDER_DETAIL.finditer(block):
-                snippet = _normalize_site_update_snippet(match.group(1))
-                if snippet:
-                    snippets.append(snippet)
-        comment_bits = []
-        for line in block.splitlines():
-            stripped = line.strip()
-            if stripped.startswith('# ') and not stripped.startswith('# noqa'):
-                comment_bits.append(stripped[2:].strip())
-                continue
-            if comment_bits:
-                merged = _normalize_site_update_snippet(' '.join(comment_bits))
-                if len(merged) >= 40:
-                    snippets.append(merged)
-                comment_bits = []
-        if comment_bits:
-            merged = _normalize_site_update_snippet(' '.join(comment_bits))
-            if len(merged) >= 40:
-                snippets.append(merged)
-
-    subject_key = (subject or '').strip().casefold()
-    unique = []
-    seen = set()
-    for snippet in snippets:
-        if _is_weak_site_update_snippet(snippet):
-            continue
-        key = snippet.casefold()
-        if key in seen or key == subject_key:
-            continue
-        seen.add(key)
-        unique.append(snippet)
-    unique.sort(key=_snippet_sort_key)
-    if unique:
-        chosen = unique[:1] if len(unique[0]) > 110 else unique[:2]
-        sentences = []
-        for item in chosen:
-            item = item.split('\n\n', 1)[0]
-            item = ' '.join(item.split())
-            item = item[0].upper() + item[1:]
-            if item[-1] not in '.!?':
-                item += '.'
-            sentences.append(item)
-        text = ' '.join(sentences)
-        if len(text) > 420:
-            text = text[:417].rsplit(' ', 1)[0] + '…'
-        return text
-    return _site_update_file_fallback(files)
-
-
-def _site_update_file_fallback(files):
-    labels = []
-    seen = set()
-    for path in files or []:
-        if not path or _SKIP_SITE_UPDATE_DETAIL_PATH.search(path):
-            continue
-        name = path.rsplit('/', 1)[-1]
-        if name.endswith('.py'):
-            label = name[:-3].replace('_', ' ')
-        elif name.endswith('.html'):
-            label = name[:-5].replace('_', ' ') + ' page'
-        else:
-            continue
-        key = label.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        labels.append(label)
-        if len(labels) == 3:
-            break
-    if not labels:
-        return ''
-    if len(labels) == 1:
-        return f'Updates {labels[0]}.'
-    if len(labels) == 2:
-        return f'Updates {labels[0]} and {labels[1]}.'
-    return f'Updates {labels[0]}, {labels[1]}, and {labels[2]}.'
+def _load_site_update_copy():
+    """Reviewed wording, keyed by full commit ID to preserve sharing history."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'data', 'site_update_copy.json')
+    with open(path, encoding='utf-8') as source:
+        return json.load(source)
 
 
 _GIT_BODY_TRAILER = re.compile(
@@ -1637,17 +1472,16 @@ def _site_update_bullet_line(change):
 
 
 def parse_git_log_output(raw, shared_shas=None):
-    """Parse git log records, filling empty bodies from the commit patch."""
+    """Use reviewed descriptions; never turn source code into update copy."""
     shared = set(shared_shas or [])
+    reviewed = _load_site_update_copy()
     changes = []
     for rec in (raw or '').split('\x1e'):
         rec = rec.strip('\n')
         if not rec.strip():
             continue
-        patch = ''
         split_at = rec.find('\ndiff --git ')
         if split_at >= 0:
-            patch = rec[split_at + 1:]
             rec = rec[:split_at]
         parts = rec.split('\x1f', 3)
         if len(parts) < 3:
@@ -1658,8 +1492,16 @@ def parse_git_log_output(raw, shared_shas=None):
         body = clean_site_update_commit_body(parts[3] if len(parts) > 3 else '')
         if not sha or not subject:
             continue
-        if not body:
-            body = site_update_detail_from_patch(patch, subject)
+        copy = reviewed.get(sha)
+        if not copy:
+            try:
+                copy = parse_site_update_note(body)
+            except ValueError:
+                copy = None
+        if not copy:
+            continue
+        subject = copy['subject']
+        body = copy['body']
         changes.append({
             'sha': sha,
             'short_sha': sha[:7],
@@ -1685,7 +1527,6 @@ def list_recent_site_changes(limit=SITE_UPDATE_GIT_LIMIT):
                 '--pretty=format:%x1e%H%x1f%ad%x1f%s%x1f%b',
                 '--date=short',
                 '--no-color',
-                '-U0',
             ],
             capture_output=True,
             text=True,
