@@ -10,13 +10,28 @@
             menuSidebar.classList.add('active');
             menuToggle.classList.add('active');
             menuToggle.setAttribute('aria-expanded', 'true');
+            if (menuClose) menuClose.focus();
         }
         function closeMenu() {
             menuOverlay.classList.remove('active');
             menuSidebar.classList.remove('active');
             menuToggle.classList.remove('active');
             menuToggle.setAttribute('aria-expanded', 'false');
+            menuToggle.focus();
         }
+        document.addEventListener('keydown', function(event) {
+            if (!menuSidebar.classList.contains('active')) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeMenu();
+            }
+            if (event.key === 'Tab') {
+                var items = Array.from(menuSidebar.querySelectorAll('a[href], button, input, select, [tabindex="0"]')).filter(function(item) { return !item.disabled && item.getClientRects().length; });
+                var first = items[0], last = items[items.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+        });
         menuToggle.addEventListener('click', function() {
             if (menuSidebar.classList.contains('active')) closeMenu();
             else openMenu();

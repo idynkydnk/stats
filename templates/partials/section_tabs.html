@@ -1,6 +1,6 @@
 {# Cross-section tabs: set active_tab to 'doubles', 'vollis' or 'other' before including #}
 <nav class="sr-section-tabs" aria-label="Game type">
-    <a href="{{ url_for('stats_default') }}" class="sr-section-tab {% if active_tab == 'doubles' %}active{% endif %}"><i class="fas fa-chart-bar"></i> Doubles</a>
-    <a href="{{ url_for('vollis_stats_default') }}" class="sr-section-tab {% if active_tab == 'vollis' %}active{% endif %}"><i class="fas fa-volleyball-ball"></i> Vollis</a>
-    <a href="{{ url_for('other_stats_default') }}" class="sr-section-tab {% if active_tab == 'other' %}active{% endif %}"><i class="fas fa-dice"></i> Other</a>
+    <a href="{{ url_for('stats', year=display_year|default(year)) if (display_year|default(year)|default(none)) else url_for('stats_default') }}" class="sr-section-tab {% if active_tab == 'doubles' %}active{% endif %}" {% if active_tab == 'doubles' %}aria-current="page"{% endif %}><i class="fas fa-chart-bar"></i> Doubles</a>
+    <a href="{{ url_for('vollis_stats', year=display_year|default(year)) if (display_year|default(year)|default(none)) else url_for('vollis_stats_default') }}" class="sr-section-tab {% if active_tab == 'vollis' %}active{% endif %}" {% if active_tab == 'vollis' %}aria-current="page"{% endif %}><i class="fas fa-volleyball-ball"></i> Vollis</a>
+    <a href="{{ url_for('other_stats', year=display_year|default(year)) if (display_year|default(year)|default(none)) else url_for('other_stats_default') }}" class="sr-section-tab {% if active_tab == 'other' %}active{% endif %}" {% if active_tab == 'other' %}aria-current="page"{% endif %}><i class="fas fa-dice"></i> Other</a>
 </nav>

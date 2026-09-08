@@ -21,7 +21,7 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260815b') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260907-header') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block extra_css %}{% endblock %}
@@ -46,7 +46,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/menu.js', v='20260907') }}"></script>
     <script src="{{ url_for('static', filename='js/search-filter.js', v='20260716') }}"></script>
     <script src="{{ url_for('static', filename='js/mobile-keyboard.js', v='20260716b') }}"></script>
     {% block extra_js %}{% endblock %}

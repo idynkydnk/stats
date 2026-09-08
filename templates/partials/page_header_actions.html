@@ -28,6 +28,7 @@
 {% endif %}
 
 {% if not custom_nav %}
+<div class="sr-header-filters">
     {% if header_back_url is defined and header_back_url %}
     <a href="{{ header_back_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> {{ back_label }}</a>
     {% elif header_mode|default('stats') == 'games' and stats_url is defined %}
@@ -37,7 +38,9 @@
     {% endif %}
 
     {% if not hide_year and all_years is defined and year_base is defined and yr is not none %}
-    <div class="sr-year-select-wrap">
+    <label class="sr-header-field sr-header-year">
+        <span class="sr-header-label">Season</span>
+        <span class="sr-year-select-wrap">
         <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
             {% for yr_option in all_years %}
             {% if header_mode|default('stats') == 'games' %}
@@ -55,10 +58,13 @@
             {% endif %}
             {% endfor %}
         </select>
-    </div>
+        </span>
+    </label>
     {% endif %}
     {% if all_years is defined %}
-    <div class="sr-year-select-wrap">
+    <label class="sr-header-field sr-header-location">
+        <span class="sr-header-label">Location</span>
+        <span class="sr-year-select-wrap">
         <select class="sr-year-select" aria-label="Locations" onchange="window.location.href=this.value">
             <option value="{{ stats_location_url() }}" {% if not stats_location and not stats_missing_location %}selected{% endif %}>All locations</option>
             <option value="{{ stats_location_url(missing=true) }}" {% if stats_missing_location %}selected{% endif %}>No location yet</option>
@@ -66,10 +72,13 @@
             <option value="{{ stats_location_url(location=place) }}" {% if not stats_missing_location and stats_location|lower == place|lower %}selected{% endif %}>{{ place }}</option>
             {% endfor %}
         </select>
-    </div>
+        </span>
+    </label>
     {% endif %}
+</div>
 {% endif %}
 
+<div class="sr-header-tools">
 {% if session.logged_in %}
 <div class="sr-dropdown">
     <button type="button" class="sr-dropdown-btn sr-link-btn-accent" aria-haspopup="true" aria-expanded="false">
@@ -87,4 +96,6 @@
 </div>
 {% endif %}
 
-<button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu"><i class="fas fa-bars"></i> Menu</button>
+<button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="menu-sidebar" aria-expanded="false"><i class="fas fa-bars"></i> Menu</button>
+
+</div>
