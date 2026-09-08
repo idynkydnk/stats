@@ -1,6 +1,6 @@
 import sqlite3
 import unittest
-from location_functions import backfill_2011, location_games, assign_locations
+from location_functions import backfill_2011, location_games, assign_locations, location_players
 
 
 class LocationBrowsingTests(unittest.TestCase):
@@ -36,6 +36,23 @@ class LocationBrowsingTests(unittest.TestCase):
         self.assertEqual(len(location_games(self.conn, '2012', missing=True)), 3)
         assign_locations(self.conn, ['doubles:1'], '', 'tester')
         self.assertEqual(len(location_games(self.conn, 'All years', 'Beach')), 1)
+
+    def test_player_filter_matches_exact_identity_on_either_team(self):
+        self.conn.execute("UPDATE games SET winner1='Ａlice ', loser1='Bob' WHERE id=1")
+        self.conn.execute("UPDATE vollis_games SET loser1='alice' WHERE id=2")
+        self.conn.execute("UPDATE other_games SET winner1='Alice Junior' WHERE id=3")
+        rows = location_games(self.conn, 'All years', player=' ALICE ')
+        self.assertEqual({r['key'] for r in rows}, {'doubles:1', 'vollis:2'})
+        self.assertEqual(len(location_players(self.conn)), 5)
+        self.assertIn('Alice Junior', location_players(self.conn))
+
+    def test_combined_filters_and_bulk_selection(self):
+        rows = location_games(self.conn, 'All years', missing=True, player='B',
+                              kind='other', start='2012-01-01', end='2012-01-01')
+        self.assertEqual([r['key'] for r in rows], ['other:3'])
+        assign_locations(self.conn, [r['key'] for r in rows], 'Beach', 'tester')
+        self.assertEqual(len(location_games(self.conn, 'All years', 'Beach')), 1)
+        self.assertEqual(location_games(self.conn, 'All years', player='Unknown'), [])
 
     def test_invalid_selection_does_not_write(self):
         for keys in ([], ['games:1'], ['doubles:1', 'other:999']):

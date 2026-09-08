@@ -1303,7 +1303,7 @@ ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 adminfx.init_site_update_sends_db()
 init_game_location_columns()
-from location_functions import backfill_2011, location_games, assign_locations
+from location_functions import backfill_2011, location_games, assign_locations, location_players
 with sqlite3.connect(adminfx.stats_db_path()) as location_conn:
     backfill_2011(location_conn)
 location_conn.close()
@@ -1767,6 +1767,11 @@ def player_network(year):
 
 @app.route('/locations/', methods=['GET', 'POST'])
 def locations_page():
+    from itsdangerous import URLSafeTimedSerializer, BadSignature
+    signer = URLSafeTimedSerializer(app.secret_key, salt='location-selection')
+    admin_editor = request.endpoint == 'admin_game_locations'
+    endpoint = request.endpoint
+    filters = {name: request.args.get(name, '').strip() for name in ('player', 'kind', 'start', 'end')}
     year = request.args.get('year', 'All years')
     selected_location = request.args.get('location', '').strip()
     missing = request.args.get('missing') == '1'
@@ -1776,7 +1781,13 @@ def locations_page():
         location = request.form.get('location', '').strip()
         try:
             with sqlite3.connect(adminfx.stats_db_path()) as conn:
-                count, doubles = assign_locations(conn, request.form.getlist('games'), location, session.get('username'))
+                keys = request.form.getlist('games')
+                if request.form.get('selection_scope') == 'all':
+                    try:
+                        keys = signer.loads(request.form.get('selection_token', ''), max_age=3600)
+                    except BadSignature:
+                        raise ValueError('Your selection expired. Reload the games and select them again.')
+                count, doubles = assign_locations(conn, keys, location, session.get('username'))
             conn.close()
         except ValueError as exc:
             flash(str(exc), 'error')
@@ -1786,9 +1797,10 @@ def locations_page():
             clear_stats_cache()
             log_activity('Updated game locations', summary=f'{count} games: {location or "Location cleared"}')
             flash(f'Updated locations for {count} games.' + (' Supabase sync needs retrying.' if sync_failed else ''), 'success')
-        return redirect(url_for('locations_page', year=year, location=selected_location, missing='1' if missing else None))
+        return redirect(url_for(endpoint, year=year, location=selected_location, missing='1' if missing else None, **filters))
     with sqlite3.connect(adminfx.stats_db_path()) as conn:
-        rows = location_games(conn, year, selected_location, missing)
+        rows = location_games(conn, year, selected_location, missing, **filters)
+        players = location_players(conn)
         years = sorted({str(r[0]) for table in ('games', 'vollis_games', 'other_games') for r in conn.execute(f"SELECT DISTINCT strftime('%Y', game_date) FROM {table}") if r[0]}, reverse=True)
     conn.close()
     page = max(1, request.args.get('page', 1, type=int))
@@ -1796,7 +1808,15 @@ def locations_page():
     page = min(page, total_pages)
     return render_template('locations.html', games=rows[(page-1)*100:page*100], total_games=len(rows),
                            year=year, all_years=['All years'] + years, selected_location=selected_location,
-                           missing=missing, page=page, total_pages=total_pages)
+                           missing=missing, page=page, total_pages=total_pages, players=players,
+                           filters=filters, endpoint=endpoint, admin_editor=admin_editor,
+                           selection_token=signer.dumps([row['key'] for row in rows]))
+
+
+@app.route('/admin/game-locations/', methods=['GET', 'POST'])
+@admin_required
+def admin_game_locations():
+    return locations_page()
 
 
 @app.route('/games/')

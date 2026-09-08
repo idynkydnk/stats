@@ -7,7 +7,14 @@
 .adm-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--sr-muted); margin-bottom: 6px; }
 .adm-card-value { font-size: 24px; font-weight: 700; color: var(--sr-text); }
 .adm-card-sub { font-size: 12px; color: var(--sr-muted); margin-top: 4px; }
-.adm-section { margin-bottom: 28px; }
+.adm-section { margin-bottom: 14px; }
+details.adm-section { border:1px solid var(--sr-line); border-radius:10px; background:var(--sr-panel); }
+details.adm-section > summary { padding:12px 16px; cursor:pointer; font-weight:650; color:var(--sr-text); }
+.adm-fold-content { padding:0 16px 16px; }
+.adm-quick-actions form { margin:0; }
+.adm-quick-actions .adm-btn { min-height:42px; box-sizing:border-box; }
+.adm-user-card > summary { cursor:pointer; color:var(--sr-accent); font-weight:650; }
+.adm-user-card > summary + .adm-user-top { margin-top:12px; }
 .adm-section h2 { font-size: 16px; color: var(--sr-text); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .adm-section h2 i { color: var(--sr-accent); font-size: 14px; }
 .adm-section-link { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--sr-accent); text-decoration: none; }
@@ -130,8 +137,37 @@
     </div>
 </header>
 
-<!-- Overview cards -->
+<!-- Quick actions -->
 <div class="adm-section">
+    <h2><i class="fas fa-bolt"></i> Quick actions</h2>
+    <div class="adm-quick-actions">
+        <a href="{{ url_for('admin_game_locations') }}" class="adm-btn"><i class="fas fa-map-marker-alt"></i> Game locations</a>
+        <a href="#users" class="adm-btn" onclick="document.getElementById('users').open=true">Site users</a>
+        <a href="{{ url_for('admin_site_updates') }}" class="adm-btn"><i class="fas fa-bullhorn"></i> Site updates</a>
+        <a href="{{ url_for('admin_activity') }}" class="adm-btn"><i class="fas fa-stream"></i> All activity</a>
+        <form method="POST" action="{{ url_for('admin_clear_cache') }}">
+            <button type="submit" class="adm-btn"><i class="fas fa-sync"></i> Clear stats cache</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_backup') }}">
+            <button type="submit" class="adm-btn"><i class="fas fa-database"></i> Back up database</button>
+        </form>
+        {% if email_configured %}
+        <form method="POST" action="{{ url_for('admin_test_email') }}">
+            <button type="submit" class="adm-btn"><i class="fas fa-envelope"></i> Send test email</button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('edit_stats') }}" class="adm-btn"><i class="fas fa-edit"></i> Edit stats</a>
+        <a href="{{ url_for('player_list') }}" class="adm-btn"><i class="fas fa-users"></i> Players</a>
+        <a href="{{ url_for('benchmarks') }}" class="adm-btn"><i class="fas fa-tachometer-alt"></i> Benchmarks</a>
+        <a href="{{ url_for('admin_ai_recaps') }}" class="adm-btn"><i class="fas fa-share-alt"></i> AI Recaps</a>
+        <a href="{{ url_for('admin_ai_flyers') }}" class="adm-btn"><i class="fas fa-scroll"></i> AI Flyers</a>
+        <a href="{{ url_for('admin_ai_prompts') }}" class="adm-btn"><i class="fas fa-robot"></i> AI Prompts</a>
+        <a href="{{ url_for('admin_ai_images') }}" class="adm-btn"><i class="fas fa-images"></i> AI Images</a>
+    </div>
+</div>
+
+<!-- Overview cards -->
+<details class="adm-section"><summary>Game overview</summary><div class="adm-fold-content">
     <div class="adm-grid">
         <div class="adm-card">
             <div class="adm-card-label">Doubles games</div>
@@ -161,9 +197,9 @@
         <div class="adm-card-sub">{{ recent_game.game_date }}</div>
     </div>
     {% endif %}
-</div>
+</div></details>
 
-<div class="adm-section">
+<details class="adm-section"><summary>AI Recaps</summary><div class="adm-fold-content">
     <h2>
         <i class="fas fa-share-alt"></i> AI Recaps
         <a class="adm-section-link" href="{{ url_for('admin_ai_recaps') }}">See all ({{ recap_total }}) →</a>
@@ -189,9 +225,9 @@
     {% else %}
     <p class="adm-empty">No published recaps yet.</p>
     {% endif %}
-</div>
+</div></details>
 
-<div class="adm-section">
+<details class="adm-section"><summary>AI Flyers</summary><div class="adm-fold-content">
     <h2>
         <i class="fas fa-scroll"></i> AI Flyers
         <a class="adm-section-link" href="{{ url_for('admin_ai_flyers') }}">See all ({{ flyer_total }}) →</a>
@@ -217,9 +253,9 @@
     {% else %}
     <p class="adm-empty">No published flyers yet.</p>
     {% endif %}
-</div>
+</div></details>
 
-<div class="adm-section">
+<details class="adm-section"><summary>Recent AI jobs</summary><div class="adm-fold-content">
     <h2>
         <i class="fas fa-tasks"></i> Recent AI jobs
         <span class="adm-section-link" style="font-weight: 500;">{{ job_total }} total</span>
@@ -245,37 +281,10 @@
     {% else %}
     <p class="adm-empty">No AI jobs logged yet.</p>
     {% endif %}
-</div>
-
-<!-- Quick actions -->
-<div class="adm-section">
-    <h2><i class="fas fa-bolt"></i> Quick actions</h2>
-    <div class="adm-quick-actions">
-        <a href="{{ url_for('admin_site_updates') }}" class="adm-btn"><i class="fas fa-bullhorn"></i> Site updates</a>
-        <a href="{{ url_for('admin_activity') }}" class="adm-btn"><i class="fas fa-stream"></i> All activity</a>
-        <form method="POST" action="{{ url_for('admin_clear_cache') }}">
-            <button type="submit" class="adm-btn"><i class="fas fa-sync"></i> Clear stats cache</button>
-        </form>
-        <form method="POST" action="{{ url_for('admin_backup') }}">
-            <button type="submit" class="adm-btn"><i class="fas fa-database"></i> Back up database</button>
-        </form>
-        {% if email_configured %}
-        <form method="POST" action="{{ url_for('admin_test_email') }}">
-            <button type="submit" class="adm-btn"><i class="fas fa-envelope"></i> Send test email</button>
-        </form>
-        {% endif %}
-        <a href="{{ url_for('edit_stats') }}" class="adm-btn"><i class="fas fa-edit"></i> Edit stats</a>
-        <a href="{{ url_for('player_list') }}" class="adm-btn"><i class="fas fa-users"></i> Players</a>
-        <a href="{{ url_for('benchmarks') }}" class="adm-btn"><i class="fas fa-tachometer-alt"></i> Benchmarks</a>
-        <a href="{{ url_for('admin_ai_recaps') }}" class="adm-btn"><i class="fas fa-share-alt"></i> AI Recaps</a>
-        <a href="{{ url_for('admin_ai_flyers') }}" class="adm-btn"><i class="fas fa-scroll"></i> AI Flyers</a>
-        <a href="{{ url_for('admin_ai_prompts') }}" class="adm-btn"><i class="fas fa-robot"></i> AI Prompts</a>
-        <a href="{{ url_for('admin_ai_images') }}" class="adm-btn"><i class="fas fa-images"></i> AI Images</a>
-    </div>
-</div>
+</div></details>
 
 <!-- Activity feed -->
-<div class="adm-section" id="activity">
+<details class="adm-section" id="activity" {% if page > 1 %}open{% endif %}><summary>Recent activity</summary><div class="adm-fold-content">
     <h2>
         <i class="fas fa-stream"></i> Recent activity
         <a class="adm-section-link" href="{{ url_for('admin_activity') }}">See everything ({{ total_entries }}) →</a>
@@ -285,15 +294,16 @@
         {% include 'partials/admin_activity_feed.html' %}
         {% endwith %}
     </div>
-</div>
+</div></details>
 
 <!-- User management -->
-<div class="adm-section" id="users">
+<details class="adm-section" id="users"><summary>Site users</summary><div class="adm-fold-content">
     <h2><i class="fas fa-user-shield"></i> Site users</h2>
     <div class="sr-card sr-card-compact">
-        <div class="adm-user-list">
+        <label>Find a user <input class="adm-input" type="search" id="admin-user-search" placeholder="Username"></label>
+        <div class="adm-user-list" style="margin-top:12px;">
             {% for u in users %}
-            <div class="adm-user-card{% if not u.active %} is-inactive{% endif %}">
+            <details data-username="{{ u.username|lower }}" class="adm-user-card{% if not u.active %} is-inactive{% endif %}"><summary>{{ u.username }} · {{ 'Admin' if u.is_admin else 'User' }}{% if not u.active %} · Deactivated{% endif %}</summary>
                 <div class="adm-user-top">
                     <a class="adm-user-name" href="{{ url_for('admin_user_activity', username=u.username) }}">{{ u.username }}</a>
                     {% if u.is_admin %}<span class="adm-badge adm-badge-admin">admin</span>{% endif %}
@@ -331,7 +341,7 @@
                     </form>
                     {% endif %}
                 </div>
-            </div>
+            </details>
             {% endfor %}
         </div>
         <form class="adm-add-user-form" method="POST" action="{{ url_for('admin_add_user') }}">
@@ -343,5 +353,16 @@
             <button type="submit" class="adm-btn"><i class="fas fa-user-plus"></i> Add user</button>
         </form>
     </div>
-</div>
+</div></details>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('admin-user-search').addEventListener('input', event => {
+    const query = event.target.value.trim().toLowerCase();
+    document.querySelectorAll('[data-username]').forEach(user => {
+        user.hidden = !user.dataset.username.includes(query);
+    });
+});
+</script>
 {% endblock %}
