@@ -6556,8 +6556,11 @@ def admin_dashboard():
     shares = _admin_share_previews()
 
     page = max(int(request.args.get('page', 1) or 1), 1)
+    filter_username = (request.args.get('username') or '').strip()
     per_page = 25
-    entries, total_entries = adminfx.get_activity_page(page=page, per_page=per_page)
+    entries, total_entries = adminfx.get_activity_page(
+        page=page, per_page=per_page, username=filter_username or None)
+    total_activity_entries = adminfx.get_activity_page(per_page=0)[1] if filter_username else total_entries
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     entries = _format_activity_times(entries)
 
@@ -6573,6 +6576,8 @@ def admin_dashboard():
     return render_template('admin.html',
         counts=counts, recent_game=recent_game,
         entries=entries, page=page, total_pages=total_pages, total_entries=total_entries,
+        filter_username=filter_username,
+        total_activity_entries=total_activity_entries,
         users=users, db_size_mb=db_size_mb,
         email_configured=bool(app.config.get('MAIL_USERNAME') and app.config.get('MAIL_PASSWORD')),
         recent_recaps=shares['recent_recaps'], recap_total=shares['recap_total'],
