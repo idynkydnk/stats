@@ -21,6 +21,7 @@
     </div>
 </header>
 {% if admin_editor %}<p><a class="sr-link-btn" href="{{ url_for('admin_dashboard') }}">← Admin dashboard</a></p>{% endif %}
+{% if admin_editor %}<p><a class="sr-link-btn sr-link-btn-accent" href="{{ url_for('admin_location_days') }}">Review doubles locations by day →</a></p>{% endif %}
 <p class="sr-muted">Know a player who only played at one location? Find their games below, review the matches, then set the location together. Use “No location yet” to fill gaps without replacing existing locations.</p>
 <form method="get" class="location-filters">
     <label>Player <input name="player" list="location-players" value="{{ filters.player }}" placeholder="Type a player’s name" autocomplete="off"></label>

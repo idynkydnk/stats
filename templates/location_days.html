@@ -1,0 +1,71 @@
+{% extends base_template %}
+{% block title %}Review locations by day{% endblock %}
+{% block extra_css %}
+<style>
+.day-filters, .day-save, .day-pages { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:18px 0; }
+.day-review { padding:20px; margin:20px 0; border:1px solid var(--sr-line); border-radius:12px; background:var(--sr-panel); }
+.day-review h2 { margin-top:0; }
+.day-game { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--sr-line); overflow-wrap:anywhere; }
+.day-game input { width:20px; height:20px; flex-shrink:0; }
+.day-filters select, .day-save input { padding:10px; max-width:100%; border:1px solid var(--sr-line); border-radius:8px; background:var(--sr-panel); color:var(--sr-text); font:inherit; }
+.day-save label { min-width:0; }
+.day-review summary { cursor:pointer; padding:12px 0; }
+</style>
+{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact"><h1 class="sr-title">Review locations by day</h1></header>
+<a class="sr-link-btn" href="{{ url_for('admin_game_locations') }}">← Game locations</a>
+<p>Fill in missing doubles locations using other games on the same day. A same-day location is a clue—check the games before saving. Games with a location are kept as they are.</p>
+<form method="get" class="day-filters">
+<label>Year <select name="year"><option>All years</option>{% for y in years %}<option {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
+<label>Show <select name="status">
+{% for value, label in [('suggested', 'One known location'), ('mixed', 'Multiple locations'), ('unknown', 'No clues yet'), ('all', 'All unfinished days')] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}{% if value != 'all' %} ({{ counts[value] }}){% endif %}</option>{% endfor %}
+</select></label><button class="sr-link-btn" type="submit">Show days</button>
+</form>
+<p>{{ total_days }} days to review</p>
+<datalist id="day-locations">{% for place in navigation_locations %}<option value="{{ place }}">{% endfor %}</datalist>
+{% for day in days %}
+<section class="day-review">
+<h2>{{ day.day }}</h2>
+<p>{{ day.missing|length }} games missing a location · {{ day.known|length }} already located</p>
+{% if day.status == 'suggested' %}<p><strong>Suggested: {{ day.suggestion }}</strong> · All located games this day use this location.</p>
+{% elif day.status == 'mixed' %}<p><strong>Multiple locations this day.</strong> Choose a location and select only the games that belong there.</p>
+{% else %}<p>No location clues yet. Enter a location if you recognize these games.</p>{% endif %}
+{% if day.known %}
+<p>{% for place in day.locations %}{{ place.name }} ({{ place.count }}){% if not loop.last %} · {% endif %}{% endfor %}</p>
+<details><summary>See {{ day.known|length }} games with known locations</summary>
+{% for game in day.known %}<div class="day-game"><div>{{ game.game_date }} · {{ game.teams }} · {{ game.winner_score }}–{{ game.loser_score }}<br><strong>{{ game.location }}</strong></div></div>{% endfor %}
+</details>
+{% endif %}
+<form method="post" class="day-form">
+<input type="hidden" name="selection_token" value="{{ day.token }}">
+<p><button class="sr-link-btn day-select" type="button">Select all missing games</button> <button class="sr-link-btn day-clear" type="button">Clear selection</button></p>
+{% for game in day.missing %}
+<label class="day-game"><input type="checkbox" name="games" value="{{ game.key }}" {% if day.suggestion %}checked{% endif %}><span>{{ game.game_date }} · {{ game.teams }} · {{ game.winner_score }}–{{ game.loser_score }}</span></label>
+{% endfor %}
+<div class="day-save"><label>Location <input name="location" value="{{ day.suggestion }}" list="day-locations" maxlength="160" required placeholder="Choose or enter a location"></label><button type="submit" class="sr-link-btn sr-link-btn-accent">Save selected games</button><span class="day-count" aria-live="polite"></span></div>
+</form>
+</section>
+{% else %}<p>No unfinished days in this view. Try another category or year.</p>{% endfor %}
+<nav class="day-pages" aria-label="Review pages">
+{% if page > 1 %}<a class="sr-link-btn" href="{{ url_for('admin_location_days', year=year, status=status, page=page-1) }}">Previous</a>{% endif %}
+<span>Page {{ page }} of {{ total_pages }}</span>
+{% if page < total_pages %}<a class="sr-link-btn" href="{{ url_for('admin_location_days', year=year, status=status, page=page+1) }}">Next</a>{% endif %}
+</nav><p class="sr-muted">Save each day before moving to another page or changing filters.</p>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.day-form').forEach(form => {
+    const boxes = [...form.querySelectorAll('[name="games"]')];
+    const count = form.querySelector('.day-count');
+    const update = () => { count.textContent = `${boxes.filter(b => b.checked).length} selected`; };
+    form.querySelector('.day-select').addEventListener('click', () => { boxes.forEach(b => b.checked = true); update(); });
+    form.querySelector('.day-clear').addEventListener('click', () => { boxes.forEach(b => b.checked = false); update(); });
+    boxes.forEach(b => b.addEventListener('change', update));
+    form.addEventListener('submit', event => {
+        if (!boxes.some(b => b.checked)) { event.preventDefault(); count.textContent = 'Select at least one game.'; }
+    });
+    update();
+});
+</script>
+{% endblock %}

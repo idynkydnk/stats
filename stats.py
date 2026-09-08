@@ -1809,6 +1809,52 @@ def admin_game_locations():
     return locations_page()
 
 
+@app.route('/admin/game-locations/by-day/', methods=['GET', 'POST'])
+@admin_required
+def admin_location_days():
+    from contextlib import closing
+    from itsdangerous import URLSafeTimedSerializer, BadSignature
+    from location_functions import location_review_days, assign_missing_day_locations
+    signer = URLSafeTimedSerializer(app.secret_key, salt='location-day-review')
+    year = request.args.get('year', 'All years')
+    status = request.args.get('status', 'suggested')
+    if status not in ('all', 'suggested', 'mixed', 'unknown'):
+        status = 'suggested'
+    page = max(1, request.args.get('page', 1, type=int))
+    if request.method == 'POST':
+        try:
+            try:
+                reviewed = signer.loads(request.form.get('selection_token', ''), max_age=3600)
+            except BadSignature:
+                raise ValueError('Your review expired. Review the day again.')
+            keys = request.form.getlist('games')
+            if not set(keys).issubset(reviewed['keys']):
+                raise ValueError('Select games from the reviewed day.')
+            location = request.form.get('location', '').strip()
+            with closing(sqlite3.connect(adminfx.stats_db_path())) as conn:
+                count = assign_missing_day_locations(conn, keys, location, session.get('username'), reviewed['day'])
+        except ValueError as exc:
+            flash(str(exc), 'error')
+        else:
+            clear_stats_cache()
+            log_activity('Updated game locations', summary=f'{count} games: {location}')
+            flash(f'Updated locations for {count} games.', 'success')
+        return redirect(url_for('admin_location_days', year=year, status=status, page=page))
+    with closing(sqlite3.connect(adminfx.stats_db_path())) as conn:
+        days = location_review_days(conn, year)
+        years = [r[0] for r in conn.execute("SELECT DISTINCT strftime('%Y', game_date) FROM games ORDER BY 1 DESC") if r[0]]
+    counts = {value: sum(d['status'] == value for d in days) for value in ('suggested', 'mixed', 'unknown')}
+    filtered = [d for d in days if status == 'all' or d['status'] == status]
+    total_days = len(filtered)
+    total_pages = max(1, (total_days + 9) // 10)
+    page = min(page, total_pages)
+    shown = filtered[(page-1)*10:page*10]
+    for day in shown:
+        day['token'] = signer.dumps(dict(day=day['day'], keys=[g['key'] for g in day['missing']]))
+    return render_template('location_days.html', days=shown, year=year, years=years,
+                           status=status, counts=counts, total_days=total_days, page=page, total_pages=total_pages)
+
+
 @app.route('/games/')
 def games_default():
     return redirect(url_for('games', year=str(date.today().year)))

@@ -44,7 +44,7 @@ class AdminLocationTests(unittest.TestCase):
                          adminfx=types.SimpleNamespace(stats_db_path=lambda: self.database),
                          clear_stats_cache=Mock(), log_activity=Mock())
         tree = ast.parse((ROOT / 'stats.py').read_text())
-        for name in ('admin_required', 'locations_page', 'admin_game_locations'):
+        for name in ('admin_required', 'locations_page', 'admin_game_locations', 'admin_location_days'):
             node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
             exec(compile(ast.Module(body=[node], type_ignores=[]), str(ROOT / 'stats.py'), 'exec'), namespace)
         self.client = self.app.test_client()
@@ -83,6 +83,60 @@ class AdminLocationTests(unittest.TestCase):
         self.client.post('/admin/game-locations/', data={'games': ['doubles:1', 'doubles:3'], 'location': 'Beach'})
         with sqlite3.connect(self.database) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM games WHERE location='Beach'").fetchone()[0], 2)
+
+    def test_day_review_suggestion_and_save(self):
+        import re
+        with sqlite3.connect(self.database) as conn:
+            conn.execute("UPDATE games SET location='Beach' WHERE id=1")
+        html = self.client.get('/admin/game-locations/by-day/').get_data(as_text=True)
+        self.assertIn('Suggested: Beach', html)
+        self.assertIn('104 games missing', html)
+        token = re.search(r'name="selection_token" value="([^"]+)"', html).group(1)
+        response = self.client.post('/admin/game-locations/by-day/', data={
+            'selection_token': token, 'games': ['doubles:2', 'doubles:3'], 'location': 'Beach'})
+        self.assertEqual(response.status_code, 302)
+        with sqlite3.connect(self.database) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM games WHERE location='Beach'").fetchone()[0], 3)
+            self.assertIsNone(conn.execute('SELECT location FROM games WHERE id=4').fetchone()[0])
+        # A stale selection must not overwrite newly located games or partially save.
+        self.client.post('/admin/game-locations/by-day/', data={
+            'selection_token': token, 'games': ['doubles:2', 'doubles:4'], 'location': 'Park'})
+        with sqlite3.connect(self.database) as conn:
+            self.assertEqual(conn.execute('SELECT location FROM games WHERE id=2').fetchone()[0], 'Beach')
+            self.assertIsNone(conn.execute('SELECT location FROM games WHERE id=4').fetchone()[0])
+
+    def test_day_review_categories_and_authorization(self):
+        with sqlite3.connect(self.database) as conn:
+            conn.execute("UPDATE games SET location='Beach' WHERE id=1")
+            conn.execute("UPDATE games SET location='Park' WHERE id=2")
+            conn.execute("UPDATE games SET game_date='2026-08-31' WHERE id=3")
+        html = self.client.get('/admin/game-locations/by-day/?status=mixed').get_data(as_text=True)
+        self.assertIn('Multiple locations this day.', html)
+        self.assertNotRegex(html, r'<input[^>]* checked')
+        html = self.client.get('/admin/game-locations/by-day/?status=unknown').get_data(as_text=True)
+        self.assertIn('2026-08-31', html)
+        self.assertNotIn('2026-09-01', html)
+        self.client.post('/admin/game-locations/by-day/', data={'selection_token': 'invalid', 'games': 'doubles:3', 'location': 'Beach'})
+        with sqlite3.connect(self.database) as conn:
+            self.assertIsNone(conn.execute('SELECT location FROM games WHERE id=3').fetchone()[0])
+        with self.client.session_transaction() as state:
+            state['is_admin'] = False
+        self.assertEqual(self.client.get('/admin/game-locations/by-day/').status_code, 302)
+        self.assertEqual(self.client.post('/admin/game-locations/by-day/').status_code, 302)
+
+    def test_review_groups_times_and_excludes_finished_days(self):
+        from location_functions import location_review_days
+        with sqlite3.connect(self.database) as conn:
+            conn.execute("UPDATE games SET location='Beach' WHERE id=1")
+            conn.execute("UPDATE games SET location=' beach ', game_date='2026-09-01 19:30:00' WHERE id=2")
+            conn.execute("UPDATE games SET location='Park', game_date='2025-08-01' WHERE id=3")
+            conn.execute("INSERT INTO vollis_games VALUES (1, '2026-09-01', 'Elsewhere', NULL, NULL, 'Alice', 'Bob', 11, 5)")
+            days = location_review_days(conn, '2026')
+        self.assertEqual(len(days), 1)
+        self.assertEqual(days[0]['status'], 'suggested')
+        self.assertEqual(days[0]['suggestion'].casefold(), 'beach')
+        self.assertEqual(days[0]['locations'][0]['count'], 2)
+        self.assertEqual(len(days[0]['missing']), 102)
 
 
 if __name__ == '__main__':

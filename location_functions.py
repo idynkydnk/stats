@@ -99,3 +99,43 @@ def assign_locations(conn, keys, location, username):
             params = [location, username, game_id] if kind == 'doubles' else [location, game_id]
             conn.execute(f"UPDATE {table} SET location=?, updated_at=datetime('now'){extra} WHERE id=?", params)
     return len(selection)
+
+
+def location_review_days(conn, year='All years'):
+    """Group doubles by their recorded calendar day, including all location evidence."""
+    days = {}
+    for game in location_games(conn, year, kind='doubles'):
+        day = str(game['game_date'])[:10]
+        group = days.setdefault(day, dict(day=day, missing=[], known=[], locations={}))
+        place = (game.get('location') or '').strip()
+        if place:
+            group['known'].append(game)
+            entry = group['locations'].setdefault(place.casefold(), dict(name=place, count=0))
+            entry['count'] += 1
+        else:
+            group['missing'].append(game)
+    result = []
+    for group in days.values():
+        if not group['missing']:
+            continue
+        group['locations'] = list(group['locations'].values())
+        group['suggestion'] = group['locations'][0]['name'] if len(group['locations']) == 1 else ''
+        group['status'] = 'suggested' if group['suggestion'] else ('mixed' if group['locations'] else 'unknown')
+        result.append(group)
+    return result
+
+
+def assign_missing_day_locations(conn, keys, location, username, day):
+    """Reject stale reviews atomically, preserving locations assigned since review."""
+    if not location or len(location) > 160:
+        raise ValueError('Enter a location of 1 to 160 characters.')
+    with conn:
+        conn.execute('BEGIN IMMEDIATE')
+        for key in set(keys):
+            kind, _, raw_id = key.partition(':')
+            if kind != 'doubles' or not raw_id.isdigit():
+                raise ValueError('Invalid game selection.')
+            row = conn.execute('SELECT game_date, location FROM games WHERE id=?', (int(raw_id),)).fetchone()
+            if not row or str(row[0])[:10] != day or (row[1] or '').strip():
+                raise ValueError('A selected game changed since your review. Review the day again.')
+        return assign_locations(conn, keys, location, username)
