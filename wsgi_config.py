@@ -41,8 +41,6 @@ from stats import app as application
 #      os.environ['OPENAI_API_KEY'] = 'sk-...'
 #      # os.environ['GEMINI_API_KEY'] = 'your_gemini_api_key_here'
 #
-#      os.environ['SUPABASE_URL'] = 'https://your-project.supabase.co'
-#      os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'your_service_role_key_here'
 #
 #      # Flask session signing key - generate with:
 #      #   python3 -c "import secrets; print(secrets.token_hex(32))"

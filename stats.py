@@ -979,14 +979,6 @@ def _generate_and_publish_flyer(username, payload):
         )
 
 
-def _supabase_flash_suffix(supabase_ok):
-    """Return flash message suffix for Supabase sync status (True/False/None)."""
-    if supabase_ok is True:
-        return ' Synced to Supabase.'
-    if supabase_ok is False:
-        return ' Supabase sync failed.'
-    return ' (Supabase not configured.)'
-
 # Legacy seed users - only used to populate the site_users DB table on first run.
 # After that, users live in the database and are managed from the /admin page.
 # Passwords are werkzeug pbkdf2 hashes, never plaintext.
@@ -1787,16 +1779,14 @@ def locations_page():
                         keys = signer.loads(request.form.get('selection_token', ''), max_age=3600)
                     except BadSignature:
                         raise ValueError('Your selection expired. Reload the games and select them again.')
-                count, doubles = assign_locations(conn, keys, location, session.get('username'))
+                count = assign_locations(conn, keys, location, session.get('username'))
             conn.close()
         except ValueError as exc:
             flash(str(exc), 'error')
         else:
-            from supabase_games import update_game as sync_location_game
-            sync_failed = any(result is False for result in [sync_location_game(row['id'], row) for row in doubles])
             clear_stats_cache()
             log_activity('Updated game locations', summary=f'{count} games: {location or "Location cleared"}')
-            flash(f'Updated locations for {count} games.' + (' Supabase sync needs retrying.' if sync_failed else ''), 'success')
+            flash(f'Updated locations for {count} games.', 'success')
         return redirect(url_for(endpoint, year=year, location=selected_location, missing='1' if missing else None, **filters))
     with sqlite3.connect(adminfx.stats_db_path()) as conn:
         rows = location_games(conn, year, selected_location, missing, **filters)
@@ -3725,7 +3715,7 @@ def _add_doubles_game_view(redirect_to):
                     return redirect(url_for(redirect_to))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
-            supabase_ok = add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
+            add_game_stats([game_dt, winner1.strip(), winner2.strip(), loser1.strip(), loser2.strip(),
                 winner_score, loser_score, game_dt, comments, tz, location], updated_by=session.get('username'))
             _remember_game_location(location)
             clear_stats_cache()
@@ -3737,7 +3727,7 @@ def _add_doubles_game_view(redirect_to):
                          target_id=new_row['id'] if new_row else None,
                          summary=details, after=new_row)
             update_kobs()
-            flash('Game saved to database.' + _supabase_flash_suffix(supabase_ok), 'success')
+            flash('Game saved to database.', 'success')
         return redirect(url_for(redirect_to))
     
     current_user = session.get('username')
@@ -4205,7 +4195,7 @@ def update(id):
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
             before_row = adminfx.snapshot_row('doubles_game', game_id)
-            supabase_ok = update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
             
             # Clear stats cache after editing a game
             clear_stats_cache()
@@ -4220,7 +4210,7 @@ def update(id):
             
             # Update KOBs after editing game
             update_kobs()
-            flash('Game updated in database.' + _supabase_flash_suffix(supabase_ok), 'success')
+            flash('Game updated in database.', 'success')
             
             # Check if user came from add game page
             from_add_game = request.form.get('from_add_game')
@@ -4249,7 +4239,7 @@ def delete_game(id):
             details = f"Game ID {game_id}: {game_data[2]}/{game_data[3]} vs {game_data[5]}/{game_data[6]} ({game_data[4]}-{game_data[7]})"
             log_user_action(user, 'Deleted doubles game', details)
         before_row = adminfx.snapshot_row('doubles_game', game_id)
-        supabase_ok = remove_game(game_id)
+        remove_game(game_id)
         log_activity('Deleted doubles game', target='doubles_game', target_id=game_id,
                      summary=details, before=before_row)
         
@@ -4258,7 +4248,7 @@ def delete_game(id):
         
         # Update KOBs after deleting game
         update_kobs()
-        flash('Game deleted from database.' + _supabase_flash_suffix(supabase_ok), 'success')
+        flash('Game deleted from database.', 'success')
         
         # Redirect back to appropriate page
         if request.form.get('from_redesign') == 'true':

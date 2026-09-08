@@ -38,3 +38,9 @@ def unique_player_names(values):
         seen.add(key)
         names.append(name)
     return names
+
+
+def is_unknown_player(value):
+    """Recognize question-mark placeholders, including spacing variations."""
+    name = player_name_identity_key(value)
+    return isinstance(name, str) and bool(name) and set(name.replace(' ', '')) == {'?'}

@@ -95,28 +95,10 @@ def _backup(path):
     return backup
 
 
-def _sync_doubles_rows(conn, game_ids):
-    if not game_ids:
-        return {'updated': 0, 'failed': 0, 'not_configured': 0}
-    try:
-        from supabase_games import update_game
-    except ImportError:
-        return {'updated': 0, 'failed': 0, 'not_configured': len(game_ids)}
-    conn.row_factory = sqlite3.Row
-    report = {'updated': 0, 'failed': 0, 'not_configured': 0}
-    for game_id in game_ids:
-        row = conn.execute('SELECT * FROM games WHERE id = ?', (game_id,)).fetchone()
-        result = update_game(game_id, dict(row))
-        key = 'updated' if result is True else 'failed' if result is False else 'not_configured'
-        report[key] += 1
-    return report
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--database', help='SQLite database path')
     parser.add_argument('--no-backup', action='store_true')
-    parser.add_argument('--no-supabase', action='store_true')
     args = parser.parse_args()
 
     path = _database_path(args.database)
@@ -126,19 +108,12 @@ def main():
     conn = sqlite3.connect(path)
     try:
         changed = normalize_player_names(conn)
-        sync = (
-            {'updated': 0, 'failed': 0, 'not_configured': 0}
-            if args.no_supabase
-            else _sync_doubles_rows(conn, changed['games'])
-        )
     finally:
         conn.close()
 
     if backup:
         print(f'Backup: {backup}')
     print('Changed rows: ' + ', '.join(f'{table}={len(ids)}' for table, ids in changed.items()))
-    if not args.no_supabase:
-        print('Supabase: ' + ', '.join(f'{key}={value}' for key, value in sync.items()))
 
 
 if __name__ == '__main__':

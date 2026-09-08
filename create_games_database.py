@@ -3,11 +3,6 @@ import sqlite3
 from sqlite3 import Error
 from player_identity import canonical_player_name
 
-try:
-    from supabase_games import write_game as supabase_write_game, update_game as supabase_update_game, delete_game as supabase_delete_game
-except ImportError:
-    supabase_write_game = supabase_update_game = supabase_delete_game = None
-
 def create_connection(db_file):
     """ create a database connection to the SQLite database
         specified by db_file
@@ -40,27 +35,6 @@ def create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
-def _game_tuple_to_dict(game, game_id=None):
-    """Build a dict for Supabase from a game tuple."""
-    # Optional tail: entered_timezone, updated_by, location.
-    d = {
-        'game_date': game[0],
-        'winner1': canonical_player_name(game[1]),
-        'winner2': canonical_player_name(game[2]),
-        'winner_score': game[3],
-        'loser1': canonical_player_name(game[4]),
-        'loser2': canonical_player_name(game[5]),
-        'loser_score': game[6],
-        'updated_at': game[7],
-        'comments': game[8] if len(game) > 8 else '',
-        'entered_timezone': game[9] if len(game) > 9 else None,
-        'updated_by': game[10] if len(game) > 10 else None,
-        'location': game[11] if len(game) > 11 else '',
-    }
-    if game_id is not None:
-        d['id'] = game_id
-    return d
-
 def create_game(conn, game):
     columns = {row[1] for row in conn.execute('PRAGMA table_info(games)').fetchall()}
     if 'location' not in columns:
@@ -92,10 +66,7 @@ def create_game(conn, game):
     new_id = cur.lastrowid
     conn.commit()
     _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
-    supabase_ok = None
-    if supabase_write_game and new_id is not None:
-        supabase_ok = supabase_write_game(new_id, _game_tuple_to_dict(game, game_id=new_id))
-    return (new_id, supabase_ok)
+    return new_id
 
 def database_update_game(conn, game):
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
@@ -105,7 +76,6 @@ def database_update_game(conn, game):
         game[index] = canonical_player_name(game[index])
     game = tuple(game)
     cur = conn.cursor()
-    game_id = game[11] if len(game) >= 12 else game[10]
     if len(game) >= 12:
         sql = ''' UPDATE games
                   SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?, updated_by = ?
@@ -127,18 +97,6 @@ def database_update_game(conn, game):
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
     conn.commit()
     _update_player_last_played(conn, game[1], game[2], game[3], game[5], game[6])
-    supabase_ok = None
-    if supabase_update_game:
-        fd = {'id': game_id, 'game_date': game[1], 'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
-              'loser1': game[5], 'loser2': game[6], 'loser_score': game[7], 'updated_at': game[8], 'comments': game[9],
-              'entered_timezone': None, 'updated_by': game[10] if len(game) >= 12 else None}
-        try:
-            row = conn.execute('SELECT location FROM games WHERE id = ?', (game_id,)).fetchone()
-            fd['location'] = row[0] if row else ''
-        except sqlite3.OperationalError:
-            fd['location'] = ''
-        supabase_ok = supabase_update_game(game_id, fd)
-    return supabase_ok
 
 def _update_player_last_played(conn, game_date, winner1, winner2, loser1, loser2):
     """Update doubles_player_last_played for the four players (add/edit). Table may not exist yet."""
@@ -159,10 +117,6 @@ def database_delete_game(conn, game_id):
     cur = conn.cursor()
     cur.execute(sql, (game_id,))
     conn.commit()
-    supabase_ok = None
-    if supabase_delete_game:
-        supabase_ok = supabase_delete_game(game_id)
-    return supabase_ok
 
 def main():
     database = r"stats.db"

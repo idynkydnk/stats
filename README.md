@@ -11,7 +11,7 @@ navigation, sharing/downloads, uploads, and speech recognition for voice entry.
 ## Tech stack
 
 - **Backend:** Python 3 / Flask, Jinja2 templates
-- **Database:** SQLite (`stats.db`), with optional dual-write to Supabase
+- **Database:** SQLite (`stats.db`)
 - **Email:** Flask-Mail via Gmail SMTP
 - **AI summaries / illustrations:** OpenAI (preferred, `OPENAI_API_KEY`) or Google Gemini fallback (`GEMINI_API_KEY`)
 - **Hosting:** PythonAnywhere, auto-deployed from GitHub Actions on push to `main`
@@ -22,11 +22,11 @@ navigation, sharing/downloads, uploads, and speech recognition for voice entry.
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in email/OpenAI or Gemini/Supabase values as needed
+cp .env.example .env   # fill in email/OpenAI or Gemini values as needed
 python local.py        # serves on http://127.0.0.1:5000
 ```
 
-The app works without `.env` — email, AI, and Supabase features just stay disabled.
+The app works without `.env` — email and AI features just stay disabled.
 
 ## Project layout
 
@@ -37,7 +37,6 @@ The app works without `.env` — email, AI, and Supabase features just stay disa
 | `vollis_functions.py`, `other_functions.py`, `player_functions.py`, `kob_functions.py` | Domain logic per game type |
 | `database_functions.py` | Core DB operations |
 | `email_content.py` | HTML email bodies + AI summary payload builders |
-| `supabase_games.py` | Optional Supabase sync |
 | `templates/`, `static/` | Jinja2 templates and CSS/JS |
 | `create_*_database.py` | One-off schema setup scripts |
 | `migrations/` | One-off data migration scripts |
@@ -52,5 +51,4 @@ Pushing to `main` triggers `.github/workflows/deploy-to-pythonanywhere.yml`, whi
 - `API_DOUBLES.md` — iPhone app REST API
 - `EMAIL_SETUP.md` / `PYTHONANYWHERE_EMAIL_SETUP.md` — email configuration
 - `GEMINI_SETUP.md` — AI summary setup (OpenAI preferred; Gemini fallback)
-- `SUPABASE_SETUP.md` — Supabase sync
 - `GITHUB_ACTIONS_SETUP.md` — deploy pipeline

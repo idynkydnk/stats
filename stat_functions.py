@@ -1,3 +1,4 @@
+from player_identity import is_unknown_player
 from stats_location_filter import active_location_filter, filter_stats_connection
 from database_functions import *
 from datetime import datetime, date
@@ -159,16 +160,14 @@ def remove_game(game_id):
         database = r'stats.db'
         conn = create_connection(database)
     players = []
-    supabase_ok = None
     with conn:
         cur = conn.cursor()
         row = cur.execute("SELECT winner1, winner2, loser1, loser2 FROM games WHERE id = ?", (game_id,)).fetchone()
         if row:
             players = [row[0], row[1], row[2], row[3]]
-        supabase_ok = database_delete_game(conn, game_id)
+        database_delete_game(conn, game_id)
     if players:
         recompute_players_after_delete(players)
-    return supabase_ok
 
 def set_cur():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -909,13 +908,15 @@ def sort_by_winpct_with_minimum(stats, min_games, preview_limit=10):
 	"""Rank by win% in three sample-size bands.
 
 	1) meets min_games, 2) below min but more than 3 games, 3) 1–3 games.
-	Within each band: win% then games. Preview shows the top N overall.
+	Within each band: win% then games. Unknown players always come last.
+	Preview shows the top N overall.
 	"""
 	for stat in stats:
 		games = stat.get('total_games', 0) or 0
 		stat['meets_min'] = games >= min_games
 		stat['sample_tier'] = matchup_sample_tier(games, min_games)
 	stats.sort(key=lambda x: (
+		is_unknown_player(x.get('partner', x.get('opponent'))),
 		x['sample_tier'],
 		-x['win_percentage'],
 		-x['total_games'],

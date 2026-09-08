@@ -276,6 +276,13 @@ function initTableSorting(table) {
         });
     });
 
+    // Preserve server ordering while moving unknown players below named players.
+    const playerColumn = playerNameColumnIndex(table);
+    const rows = table.querySelectorAll('tbody tr');
+    if (Array.from(rows).some(row => rowIsUnknownPlayer(row, playerColumn))) {
+        sortTable(table, -1, 'asc', false);
+    }
+
     // Show the default-sort indicator without reordering (keeps server order)
     const defaultKey = table.dataset.defaultSort;
     if (defaultKey) {
@@ -311,6 +318,21 @@ function findSortColumnIndex(table, sortKey) {
         if (headers[i].dataset.sort === sortKey) return headers[i].cellIndex;
     }
     return -1;
+}
+
+function playerNameColumnIndex(table) {
+    for (const key of ['partner', 'opponent', 'player', 'name']) {
+        const index = findSortColumnIndex(table, key);
+        if (index >= 0) return index;
+    }
+    return -1;
+}
+
+function rowIsUnknownPlayer(row, playerColumn) {
+    const cell = row.cells[playerColumn];
+    if (!cell) return false;
+    const name = cell.querySelector('a') || cell;
+    return /^\?+$/.test(name.textContent.normalize('NFKC').replace(/\s/g, ''));
 }
 
 function rowGamesPlayed(table, row) {
@@ -376,7 +398,11 @@ function sortTable(table, columnIndex, direction, isNumeric) {
     const sortKey = sortHeader ? sortHeader.dataset.sort : '';
     const winPctMinGames = winPctMinGamesForTable(table, dataRows);
 
+    const playerColumn = playerNameColumnIndex(table);
     dataRows.sort((a, b) => {
+        const unknownOrder = Number(rowIsUnknownPlayer(a, playerColumn))
+            - Number(rowIsUnknownPlayer(b, playerColumn));
+        if (unknownOrder) return unknownOrder;
         const aCell = a.cells[columnIndex];
         const bCell = b.cells[columnIndex];
         if (!aCell || !bCell) return 0;

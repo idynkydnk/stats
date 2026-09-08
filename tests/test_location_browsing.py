@@ -28,10 +28,10 @@ class LocationBrowsingTests(unittest.TestCase):
         self.assertEqual(len(location_games(self.conn, '2011', 'Updated place')), 1)
 
     def test_edit_selection_preserves_scores_and_unselected_rows(self):
-        count, rows = assign_locations(self.conn, ['doubles:1', 'vollis:2'], 'Beach', 'tester')
+        count = assign_locations(self.conn, ['doubles:1', 'vollis:2'], 'Beach', 'tester')
         self.assertEqual(count, 2)
-        self.assertEqual(rows[0]['winner1'], 'A')
-        self.assertEqual(rows[0]['updated_by'], 'tester')
+        row = self.conn.execute('SELECT winner1, updated_by FROM games WHERE id=1').fetchone()
+        self.assertEqual(tuple(row), ('A', 'tester'))
         self.assertEqual(len(location_games(self.conn, 'All years', 'beach')), 2)
         self.assertEqual(len(location_games(self.conn, '2012', missing=True)), 3)
         assign_locations(self.conn, ['doubles:1'], '', 'tester')

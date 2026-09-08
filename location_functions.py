@@ -79,7 +79,7 @@ def location_players(conn):
 
 
 def assign_locations(conn, keys, location, username):
-    """Validate the whole selection before updating; return doubles rows for sync."""
+    """Validate the whole selection before updating; return the number of updated games."""
     if len(location) > 160:
         raise ValueError('Use a location of 160 characters or fewer.')
     selection = []
@@ -90,8 +90,6 @@ def assign_locations(conn, keys, location, username):
         selection.append((kind, int(raw_id)))
     if not selection:
         raise ValueError('Select at least one game.')
-    conn.row_factory = sqlite3.Row
-    doubles = []
     with conn:
         for kind, game_id in selection:
             table = TABLES[kind]
@@ -100,6 +98,4 @@ def assign_locations(conn, keys, location, username):
             extra = ', updated_by=?' if kind == 'doubles' else ''
             params = [location, username, game_id] if kind == 'doubles' else [location, game_id]
             conn.execute(f"UPDATE {table} SET location=?, updated_at=datetime('now'){extra} WHERE id=?", params)
-            if kind == 'doubles':
-                doubles.append(dict(conn.execute('SELECT * FROM games WHERE id=?', (game_id,)).fetchone()))
-    return len(selection), doubles
+    return len(selection)

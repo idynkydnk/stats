@@ -119,14 +119,12 @@ def scrape_database():
 	return all_games
 
 def enter_data_into_database(games_data):
-	supabase_ok = None
 	for x in games_data:
 		comments = x[8] if len(x) > 8 else ''
 		timezone = x[9] if len(x) > 9 else None
 		location = x[10] if len(x) > 10 else ''
 		updated_by = x[11] if len(x) > 11 else None
-		supabase_ok = new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments, timezone, updated_by, location)
-	return supabase_ok
+		new_game(x[0], x[1], x[2], x[5], x[3], x[4], x[6], x[7], comments, timezone, updated_by, location)
 
 def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments='', entered_timezone=None, updated_by=None, location=''):
 	database = '/home/Idynkydnk/stats/stats.db'
@@ -140,8 +138,7 @@ def new_game(game_date, winner1, winner2, winner_score, loser1, loser2, loser_sc
 			loser_score, updated_at, comments, entered_timezone, updated_by,
 			(location or '').strip(),
 		)
-		result = create_game(conn, game)
-		return result[1] if isinstance(result, tuple) else None
+		return create_game(conn, game)
 
 
 def main():

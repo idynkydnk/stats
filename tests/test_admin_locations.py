@@ -5,7 +5,7 @@ import sqlite3
 import tempfile
 import types
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from jinja2 import ChoiceLoader, DictLoader
@@ -50,10 +50,6 @@ class AdminLocationTests(unittest.TestCase):
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(logged_in=True, is_admin=True, username='tester')
-        self.sync = Mock(return_value=True)
-        self.patcher = patch.dict('sys.modules', {'supabase_games': types.SimpleNamespace(update_game=self.sync)})
-        self.patcher.start()
-        self.addCleanup(self.patcher.stop)
 
     def test_admin_access(self):
         with self.client.session_transaction() as state:
@@ -77,11 +73,13 @@ class AdminLocationTests(unittest.TestCase):
         with sqlite3.connect(self.database) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM games WHERE location='Beach'").fetchone()[0], 105)
             self.assertIsNone(conn.execute('SELECT location FROM games WHERE id=106').fetchone()[0])
-        self.assertEqual(self.sync.call_count, 105)
+        with self.client.session_transaction() as state:
+            self.assertEqual(state['_flashes'], [('success', 'Updated locations for 105 games.')])
 
     def test_invalid_bulk_token_and_manual_selection(self):
         self.client.post('/admin/game-locations/', data={'selection_scope': 'all', 'selection_token': 'invalid', 'location': 'Beach'})
-        self.assertEqual(self.sync.call_count, 0)
+        with sqlite3.connect(self.database) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM games WHERE location IS NOT NULL').fetchone()[0], 0)
         self.client.post('/admin/game-locations/', data={'games': ['doubles:1', 'doubles:3'], 'location': 'Beach'})
         with sqlite3.connect(self.database) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM games WHERE location='Beach'").fetchone()[0], 2)

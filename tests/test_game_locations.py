@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from create_games_database import create_game
+from create_games_database import create_game, database_update_game, database_delete_game
 from create_other_database import BASE_INSERT_COLUMNS, create_other_game
 from create_vollis_database import create_vollis_game
 from email_content import (
@@ -36,12 +36,22 @@ class GameLocationTests(unittest.TestCase):
             'Mission Beach',
         )
 
-        create_game(conn, game)
+        game_id = create_game(conn, game)
 
         self.assertEqual(
             conn.execute('SELECT location FROM games').fetchone()[0],
             'Mission Beach',
         )
+        database_update_game(conn, (
+            game_id, game[0], 'A', 'B', 22, 'C', 'D', 20,
+            game[7], 'Updated score', 'tester', game_id,
+        ))
+        self.assertEqual(
+            conn.execute('SELECT winner_score, loser_score, location, updated_by FROM games WHERE id=?', (game_id,)).fetchone(),
+            (22, 20, 'Mission Beach', 'tester'),
+        )
+        database_delete_game(conn, game_id)
+        self.assertEqual(conn.execute('SELECT COUNT(*) FROM games').fetchone()[0], 0)
         conn.close()
 
     def test_vollis_insert_adds_and_saves_location_column(self):
