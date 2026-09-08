@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-07-games-player-back",
+    "date": "2026-09-07",
+    "subject": "iPhone: Back from a player returns to Games",
+    "body": "On Games, after you open a player, Back takes you to the games you were looking at instead of another player."
+  },
+  {
     "id": "ios-2026-09-07-save-confirmation",
     "date": "2026-09-07",
     "subject": "iPhone: move on to the next game after saving",
