@@ -1295,6 +1295,11 @@ ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 adminfx.init_site_update_sends_db()
 init_game_location_columns()
+from game_entry_ownership import ensure_game_entry_owner
+with sqlite3.connect(_stats_db_path()) as ownership_conn:
+    for game_table in ('games', 'vollis_games'):
+        ensure_game_entry_owner(ownership_conn, game_table)
+ownership_conn.close()
 from location_functions import backfill_2011, location_games, assign_locations, location_players
 with sqlite3.connect(adminfx.stats_db_path()) as location_conn:
     backfill_2011(location_conn)
@@ -2094,9 +2099,13 @@ def edit_other_games(year):
 @login_required
 def ai_summary():
     """AI summary page for selecting games to summarize."""
-    doubles_games = recent_games(50)
-    vollis_games = recent_vollis_games(50)
-    other_games = recent_other_games(50)
+    from ai_summary_games import load_ai_summary_games
+    with sqlite3.connect(_stats_db_path()) as conn:
+        conn.row_factory = sqlite3.Row
+        games = {kind: load_ai_summary_games(conn, kind, session.get('username', ''))
+                 for kind in ('doubles', 'vollis', 'other')}
+    conn.close()
+    doubles_games, vollis_games, other_games = (games[kind] for kind in ('doubles', 'vollis', 'other'))
     return render_template('ai_summary.html',
                            doubles_games=doubles_games,
                            vollis_games=vollis_games,
@@ -2255,10 +2264,8 @@ def _serialize_ai_summary_game(game_type, game):
 @app.route('/api/ai_summary_game_search/')
 @api_login_required
 def api_ai_summary_game_search():
-    """Search all historical games for the AI summary picker."""
-    from stat_functions import search_doubles_games
-    from vollis_functions import search_vollis_games
-    from other_functions import search_other_games
+    """Search the signed-in user’s historical entries for the AI summary picker."""
+    from ai_summary_games import load_ai_summary_games
 
     q = (request.args.get('q') or '').strip()
     game_type = (request.args.get('game_type') or 'doubles').strip().lower()
@@ -2267,13 +2274,12 @@ def api_ai_summary_game_search():
     if not q:
         return jsonify({'success': True, 'games': [], 'query': '', 'game_type': game_type})
 
-    if game_type == 'vollis':
-        games = search_vollis_games(q, limit=limit)
-    elif game_type == 'other':
-        games = search_other_games(q, limit=limit)
-    else:
+    if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
-        games = search_doubles_games(q, limit=limit)
+    with sqlite3.connect(_stats_db_path()) as conn:
+        conn.row_factory = sqlite3.Row
+        games = load_ai_summary_games(conn, game_type, session.get('username', ''), q, limit)
+    conn.close()
 
     return jsonify({
         'success': True,
@@ -3920,7 +3926,7 @@ def add_vollis_game():
                     return redirect(url_for('add_vollis_game'))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
-            add_vollis_stats([game_dt, winner, loser, winner_score, loser_score, game_dt, tz, location])
+            add_vollis_stats([game_dt, winner, loser, winner_score, loser_score, game_dt, tz, location], entered_by=session.get('username', ''))
             _remember_game_location(location)
             user = session.get('username', 'unknown')
             details = f"Winner: {winner}; Loser: {loser}; Score: {winner_score}-{loser_score}"

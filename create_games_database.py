@@ -36,6 +36,8 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_game(conn, game):
+    from game_entry_ownership import ensure_game_entry_owner
+    ensure_game_entry_owner(conn, 'games')
     columns = {row[1] for row in conn.execute('PRAGMA table_info(games)').fetchall()}
     if 'location' not in columns:
         conn.execute('ALTER TABLE games ADD COLUMN location TEXT')
@@ -50,6 +52,7 @@ def create_game(conn, game):
         ('comments', game[8] if len(game) > 8 else ''),
         ('entered_timezone', game[9] if len(game) > 9 else None),
         ('updated_by', game[10] if len(game) > 10 else None),
+        ('entered_by', game[10] if len(game) > 10 else None),
         ('location', game[11] if len(game) > 11 else ''),
     ]
     field_values = [
@@ -69,6 +72,8 @@ def create_game(conn, game):
     return new_id
 
 def database_update_game(conn, game):
+    from game_entry_ownership import ensure_game_entry_owner
+    ensure_game_entry_owner(conn, 'games')
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
     #   or: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2) when len==11
     game = list(game)

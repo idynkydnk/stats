@@ -245,7 +245,7 @@
         <div class="sr-card">
             <div class="sr-card-header">
                 <h2 class="sr-card-title">Select Games for AI Summary</h2>
-                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select games for an AI recap page you can share in group text. Browse recent games below, or search all years to find older games like gin rummy.</p>
+                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select games for an AI recap page you can share in group text. Your latest game day is shown below. Select All picks every game you entered that day. Search your entries across all years to find older games.</p>
             </div>
 
             <div class="sr-game-search-wrap">
@@ -317,7 +317,7 @@
                     {% endif %}
                     {% endfor %}
                     {% if not doubles_games %}
-                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No doubles games entered by you yet.</p>
                     {% endif %}
                     </div>
                 </div>
@@ -363,7 +363,7 @@
                     {% endif %}
                     {% endfor %}
                     {% if not vollis_games %}
-                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No vollis games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No Vollis games attributed to you yet.</p>
                     {% endif %}
                     </div>
                 </div>
@@ -422,7 +422,7 @@
                     {% endif %}
                     {% endfor %}
                     {% if not other_games %}
-                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games found.</p>
+                    <p class="sr-browse-only" style="color: var(--sr-muted); font-size: 14px; text-align: center; padding: 20px 0;">No other games entered by you yet.</p>
                     {% endif %}
                     </div>
                 </div>
@@ -739,14 +739,14 @@ let currentTab = 'doubles';
                 return;
             }
 
-            // Browse mode: select every game from the most recent day.
+            // Browse mode: select only this user’s latest game day.
             var day = firstBrowseDay(activeTab);
             activeTab.querySelectorAll('.sr-browse-card').forEach(function(card) {
-                if ((card.dataset.gameDay || '') !== day) return;
-                card.classList.remove('sr-hidden-game');
+                var selected = (card.dataset.gameDay || '') === day;
+                if (selected) card.classList.remove('sr-hidden-game');
                 var checkbox = card.querySelector('.sr-game-checkbox');
-                checkbox.checked = true;
-                card.classList.add('selected');
+                checkbox.checked = selected;
+                card.classList.toggle('selected', selected);
             });
             updateSelectedCount();
         }

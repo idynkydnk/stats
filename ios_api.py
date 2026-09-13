@@ -499,7 +499,7 @@ def register_ios_api(app):
         game_date = _normalize_game_date(data.get('game_date'))
         tz = (data.get('entered_timezone') or '').strip() or session.get('timezone') or None
         location = (data.get('location') or '').strip()
-        add_vollis_stats([game_date, winner, loser, winner_score, loser_score, game_date, tz, location])
+        add_vollis_stats([game_date, winner, loser, winner_score, loser_score, game_date, tz, location], entered_by=session.get('username', ''))
         S._remember_game_location(location)
         S.clear_stats_cache()
         new_row = S.adminfx.snapshot_last_row('vollis_game')

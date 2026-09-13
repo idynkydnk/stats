@@ -34,6 +34,8 @@ def create_table(conn, create_table_sql):
         print(e)
 
 def create_vollis_game(conn, game):
+    from game_entry_ownership import ensure_game_entry_owner
+    ensure_game_entry_owner(conn, 'vollis_games')
     columns = {row[1] for row in conn.execute('PRAGMA table_info(vollis_games)').fetchall()}
     if 'location' not in columns:
         conn.execute('ALTER TABLE vollis_games ADD COLUMN location TEXT')
@@ -43,6 +45,7 @@ def create_vollis_game(conn, game):
         ('loser', game[3]), ('loser_score', game[4]), ('updated_at', game[5]),
         ('entered_timezone', game[6] if len(game) > 6 else None),
         ('location', game[7] if len(game) > 7 else ''),
+        ('entered_by', game[8] if len(game) > 8 else None),
     ]
     fields = [(name, value) for name, value in fields if name in columns]
     names = ', '.join(name for name, _ in fields)
