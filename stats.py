@@ -3624,7 +3624,7 @@ def remake_ai_recap_summary(share_id):
     if custom_prompt:
         prompt_style = 'custom'
     else:
-        # Empty prompt → standard factual recap from the game data.
+        # Empty prompt → standard funny recap from comments and player traits.
         prompt_style = 'default'
 
     try:
@@ -3634,7 +3634,7 @@ def remake_ai_recap_summary(share_id):
             prompt_style,
             custom_prompt,
             image_mode='none',
-            image_details='',
+            image_details=row.get('image_details') or '',
         )
     except Exception as e:
         app.logger.exception('AI recap remake summary failed')
