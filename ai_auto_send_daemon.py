@@ -28,6 +28,9 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} daemon cwd={os.getcwd()}', flush=True)
 
+from ai_worker_reload import source_version, restart_if_source_changed
+_LOADED_SOURCE_VERSION = source_version(ROOT)
+
 try:
     from dotenv import load_dotenv
     load_dotenv(os.path.join(ROOT, '.env'))
@@ -224,6 +227,13 @@ def main():
 
     idle_loops = 0
     while True:
+        # Only restart between jobs; never interrupt generation or duplicate a claim.
+        if restart_if_source_changed(
+            ROOT, _LOADED_SOURCE_VERSION,
+            lambda: os.execv(sys.executable, [sys.executable, '-u', os.path.abspath(__file__)]),
+            _log,
+        ):
+            return
         jobs.touch_daemon_heartbeat()
         try:
             # Safety net if a job hangs without killing the process.
