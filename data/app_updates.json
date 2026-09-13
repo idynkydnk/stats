@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-12-open-finished-recap",
+    "date": "2026-09-12",
+    "subject": "iPhone: Finished AI summaries open automatically",
+    "body": "When your AI summary finishes while you are on the creation screen, the recap opens automatically in the app. This works for both text-only summaries and summaries with illustrations."
+  },
+  {
     "id": "ios-2026-09-07-games-player-back",
     "date": "2026-09-07",
     "subject": "iPhone: Back from a player returns to Games",

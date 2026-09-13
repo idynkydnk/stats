@@ -25,10 +25,10 @@ class AppUpdateTests(unittest.TestCase):
              patch.object(adminfx.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, raw, '')):
             changes, error = adminfx.list_recent_site_changes()
         self.assertIsNone(error)
-        self.assertEqual(changes[0]['sha'], shared)
-        self.assertTrue(changes[0]['already_shared'])
         self.assertEqual(changes[-1]['sha'], 'web')
         selected = [item for item in changes if item['sha'] == shared]
+        self.assertEqual(len(selected), 1)
+        self.assertTrue(selected[0]['already_shared'])
         email = adminfx.site_update_plain_body(adminfx.site_update_bullets(selected))
         self.assertIn('iPhone: move on to the next game after saving', email)
         self.assertIn('Confirmed saves clear the player and score fields', email)
