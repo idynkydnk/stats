@@ -170,7 +170,7 @@
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
+                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ "%.2f"|format(player[4]) }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
@@ -227,7 +227,7 @@
                             <tr>
                                 <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
-                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ player[4] }}</td>
+                                <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ "%.2f"|format(player[4]) }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>

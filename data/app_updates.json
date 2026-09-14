@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-14-connected-section-cards",
+    "date": "2026-09-14",
+    "subject": "iPhone: Connected headers and a consistent look",
+    "body": "Stats headers and their rows now share one rounded card. Games, player details, game entry, More, and admin sections use the same connected layout, and ratings show two decimal places."
+  },
+  {
     "id": "ios-2026-09-13-rounded-stats-ui",
     "date": "2026-09-13",
     "subject": "iPhone: A refreshed look for standings and games",

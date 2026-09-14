@@ -205,7 +205,7 @@
             </div>
             {% if player_rating is not none %}
             <div class="sr-stat-card">
-                <div class="sr-stat-value" style="color: var(--sr-accent);">{{ player_rating }}</div>
+                <div class="sr-stat-value" style="color: var(--sr-accent);">{{ "%.2f"|format(player_rating) }}</div>
                 <div class="sr-stat-label">Rating</div>
                 {% if player_rank %}<div class="sr-stat-sub">#{{ player_rank }} of {{ total_ranked }}</div>{% endif %}
             </div>
