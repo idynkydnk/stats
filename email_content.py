@@ -1149,6 +1149,63 @@ def build_flyer_solo_prompt(player_name):
     return build_solo_caricature_prompt(player_name)
 
 
+def _flyer_current_year_stats_block(players, labels_by_name=None):
+    """Read fresh doubles records, with no ranking threshold or prior-year fallback."""
+    from stat_functions import set_cur as doubles_cursor
+
+    players = _dedupe_players_preserve_order(players)
+    if not players:
+        return ''
+    today = datetime.now().date()
+    records = {name.casefold(): [0, 0] for name in players}
+    cur = doubles_cursor()
+    try:
+        rows = cur.execute(
+            "SELECT winner1, winner2, loser1, loser2 FROM games "
+            "WHERE date(game_date) >= ? AND date(game_date) <= ?",
+            (f'{today.year}-01-01', today.isoformat()),
+        ).fetchall()
+        for row in rows:
+            for side, names in enumerate((row[:2], row[2:])):
+                for key in {(name or '').strip().casefold() for name in names}:
+                    if key in records:
+                        records[key][side] += 1
+    finally:
+        cur.connection.close()
+    labels_by_name = labels_by_name or {}
+    lines = [
+        '[CURRENT-YEAR DOUBLES STATS]',
+        f'Display heading: {today.year} DOUBLES STATS · through {today.isoformat()}.',
+        'Put each exact record immediately beneath its own player portrait and name. '
+        'Use clean, high-contrast, easily readable type for stats. '
+        'These are year-to-date doubles records across all locations, not event results. '
+        'Do not invent statistics, rankings, or substitute lifetime records.',
+    ]
+    for name in players:
+        wins, losses = records[name.casefold()]
+        played = wins + losses
+        label = labels_by_name.get(name) or name
+        record = (
+            f'{played} GP · {wins} W · {losses} L · {100 * wins / played:.0f}% WIN'
+            if played else '0 GP · 0 W · 0 L · WIN — · No games this year'
+        )
+        lines.append(f'{name} (display name: {label}): {record}')
+    lines.append('[/CURRENT-YEAR DOUBLES STATS]')
+    return '\n'.join(lines)
+
+
+def _refresh_flyer_current_year_stats(prompt, players, labels_by_name=None):
+    """Replace preview/saved records so edited and remade flyers use fresh stats."""
+    import re
+
+    prompt = re.sub(
+        r'\[CURRENT-YEAR DOUBLES STATS\].*?\[/CURRENT-YEAR DOUBLES STATS\]',
+        '', prompt, flags=re.DOTALL,
+    ).strip()
+    block = _flyer_current_year_stats_block(players, labels_by_name)
+    return '\n\n'.join(part for part in (prompt, block) if part)
+
+
 def build_flyer_scene_prompt(
     players, game_type, event_date='', event_time='', location='',
     game_name=None, image_details='', labels_by_name=None,
@@ -1179,6 +1236,22 @@ def build_flyer_scene_prompt(
     sections.append(setting)
     sections.append(_volleyball_ball_lock(game_type, game_name))
     sections.append(_clean_prompt_format_rules(player_count, flyer=True))
+    if game_type == 'doubles':
+        sections.append(
+            'Design a bold beach-volleyball event poster: an oversized expressive '
+            'headline at the top, prominent date/time and venue, a hero lineup of '
+            'large recognizable player portraits, and individual name-and-stats '
+            'panels beneath each portrait. Adapt the lineup to the actual roster; '
+            'use multiple rows when needed to keep every face and stat readable. '
+            'Use punchy display lettering for the headline and names, with clean '
+            'type for event details and stats. Add beach-court atmosphere and a '
+            'short playful competitive tagline. Colors and lighting are flexible: '
+            'bright, sunny, colorful, or dramatic can all work. A dark background '
+            'is optional. Leave enough space for stats instead of long player bios. '
+            'Use only the supplied players, event details, and venue; do not invent '
+            'a weekday, player count, venue logo, or sponsor.'
+        )
+        sections.append(_flyer_current_year_stats_block(players, labels_by_name))
     sections.append(
         'Energetic, fun, poster-quality illustration — not a plain photo collage.'
     )
@@ -3531,6 +3604,10 @@ def generate_flyer_image(
     )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
+        if game_type == 'doubles':
+            scene_prompt = _refresh_flyer_current_year_stats(
+                scene_prompt, scene_players, labels_by_name,
+            )
     else:
         scene_prompt = build_flyer_scene_prompt(
             scene_players,
