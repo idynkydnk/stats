@@ -1151,7 +1151,7 @@ def build_flyer_solo_prompt(player_name):
 
 def _flyer_current_year_stats_block(players, labels_by_name=None):
     """Read fresh doubles records, with no ranking threshold or prior-year fallback."""
-    from stat_functions import set_cur as doubles_cursor
+    from stat_functions import calculate_trueskill_rankings, set_cur as doubles_cursor
 
     players = _dedupe_players_preserve_order(players)
     if not players:
@@ -1172,11 +1172,18 @@ def _flyer_current_year_stats_block(players, labels_by_name=None):
                         records[key][side] += 1
     finally:
         cur.connection.close()
+    ratings = {
+        row['player'].strip().casefold(): row['rating']
+        for row in calculate_trueskill_rankings(today.year)
+    }
     labels_by_name = labels_by_name or {}
     lines = [
         '[CURRENT-YEAR DOUBLES STATS]',
         f'Display heading: {today.year} DOUBLES STATS · through {today.isoformat()}.',
         'Put each exact record immediately beneath its own player portrait and name. '
+        'Show four stacked, left-aligned lines in this exact order: Rating, Wins, Losses, Win %. '
+        'Keep each label and value together on its own line. Do not show games played, '
+        'abbreviate the labels, or combine stats into a single line. '
         'Use clean, high-contrast, easily readable type for stats. '
         'These are year-to-date doubles records across all locations, not event results. '
         'Do not invent statistics, rankings, or substitute lifetime records.',
@@ -1185,11 +1192,13 @@ def _flyer_current_year_stats_block(players, labels_by_name=None):
         wins, losses = records[name.casefold()]
         played = wins + losses
         label = labels_by_name.get(name) or name
-        record = (
-            f'{played} GP · {wins} W · {losses} L · {100 * wins / played:.0f}% WIN'
-            if played else '0 GP · 0 W · 0 L · WIN — · No games this year'
+        rating = ratings.get(name.casefold()) if played else None
+        rating_text = f'{rating:.1f}' if rating is not None else '—'
+        win_pct = f'{100 * wins / played:.0f}%' if played else '—'
+        lines.append(
+            f'{name} (display name: {label}):\n'
+            f'Rating: {rating_text}\nWins: {wins}\nLosses: {losses}\nWin %: {win_pct}'
         )
-        lines.append(f'{name} (display name: {label}): {record}')
     lines.append('[/CURRENT-YEAR DOUBLES STATS]')
     return '\n'.join(lines)
 

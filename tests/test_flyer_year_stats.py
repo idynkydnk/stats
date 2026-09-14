@@ -11,6 +11,11 @@ class FlyerYearStatsTests(unittest.TestCase):
         self.clock = patch('email_content.datetime')
         self.clock.start().now.return_value = datetime(2026, 9, 13)
         self.addCleanup(self.clock.stop)
+        ratings = patch('stat_functions.calculate_trueskill_rankings', return_value=[
+            {'player': ' Alex ', 'rating': 8.64},
+        ])
+        self.ratings = ratings.start()
+        self.addCleanup(ratings.stop)
 
     def cursor(self):
         conn = sqlite3.connect(':memory:')
@@ -30,9 +35,10 @@ class FlyerYearStatsTests(unittest.TestCase):
                 ['Alex', 'New Player'], {'Alex': 'Ace'},
             )
         self.assertIn('2026 DOUBLES STATS', block)
-        self.assertIn('Alex (display name: Ace): 2 GP · 1 W · 1 L · 50% WIN', block)
-        self.assertIn('New Player (display name: New Player): 0 GP', block)
-        self.assertIn('WIN — · No games this year', block)
+        self.assertIn('Alex (display name: Ace):\nRating: 8.6\nWins: 1\nLosses: 1\nWin %: 50%', block)
+        self.assertIn('New Player (display name: New Player):\nRating: —\nWins: 0\nLosses: 0\nWin %: —', block)
+        self.ratings.assert_called_once_with(2026)
+        self.assertNotIn(' GP', block)
         self.assertNotIn('Cam (display name:', block)
 
     def test_refresh_replaces_stale_stats_and_preserves_custom_design(self):
@@ -45,7 +51,7 @@ class FlyerYearStatsTests(unittest.TestCase):
         self.assertIn('Big faces.', prompt)
         self.assertNotIn('99 wins', prompt)
         self.assertEqual(prompt.count('[CURRENT-YEAR DOUBLES STATS]'), 1)
-        self.assertIn('2 GP · 1 W · 1 L', prompt)
+        self.assertIn('Rating: 8.6\nWins: 1\nLosses: 1\nWin %: 50%', prompt)
 
     def test_default_doubles_layout_has_flexible_lighting_and_stats(self):
         with patch('email_content._clean_player_lines_block',
@@ -76,7 +82,7 @@ class FlyerYearStatsTests(unittest.TestCase):
             result = content.generate_flyer_image(
                 'test-key', ['Alex'], 'doubles', custom_scene_prompt='Sunny beach poster.',
             )
-        self.assertIn('2 GP · 1 W · 1 L', generate.call_args.args[0])
+        self.assertIn('Rating: 8.6\nWins: 1\nLosses: 1\nWin %: 50%', generate.call_args.args[0])
         self.assertIn('Sunny beach poster.', result[4])
         self.assertIn('2026 DOUBLES STATS', result[4])
 
