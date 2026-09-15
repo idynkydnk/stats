@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-09-15-prompts-remember-location",
+    "date": "2026-09-15",
+    "subject": "iPhone: Roomier AI prompts and remembered game locations",
+    "body": "AI summary and image prompts have room for paragraphs, sentence capitalization, and autocorrect and predictive suggestions when enabled in your keyboard settings. New games keep the location from your last saved game on this device, separately for each user."
+  },
+  {
+    "id": "ios-2026-09-15-paragraph-comments",
+    "date": "2026-09-15",
+    "subject": "iPhone: More room for game comments",
+    "body": "Game comments have a larger text box that grows as you write, with room for paragraphs and line breaks. Comments use sentence capitalization and allow autocorrect and predictive suggestions when enabled in your iPhone keyboard settings."
+  },
+  {
     "id": "ios-2026-09-15-roomier-stats-compact-games",
     "date": "2026-09-15",
     "subject": "iPhone: More rows and roomier player names",
