@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-14-shorter-lists",
+    "date": "2026-09-14",
+    "subject": "iPhone: Shorter lists and tighter page spacing",
+    "body": "Long lists show the first five items, with Extend to reveal the rest and Show less to shorten them again. Search sits closer to Stats and Games, keeping more useful content on screen."
+  },
+  {
     "id": "ios-2026-09-14-connected-section-cards",
     "date": "2026-09-14",
     "subject": "iPhone: Connected headers and a consistent look",
