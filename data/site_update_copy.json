@@ -318,5 +318,9 @@
   "f8323c916d718fb16ec6da440072f122a897951a": {
     "subject": "Add game-day photos beside player names",
     "body": "Game-day photo controls were placed beside names in Today's Stats."
+  },
+  "f0bc70c9e409406c73f0867789e46b0fdab33def": {
+    "subject": "Keep AI character details in group pictures",
+    "body": "Group pictures and flyers now ask to preserve saved AI characters, including their clothing, pets, and props, and ignore separate signature traits when a character is available."
   }
 }
