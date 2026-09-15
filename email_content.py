@@ -794,7 +794,7 @@ def _clean_player_lines_block(
     players, labels_by_name=None, phrases_by_name=None, player_stats=None,
 ):
     """Newline-separated person lines for prompts."""
-    from player_functions import player_display_names_map
+    from player_functions import get_player_ai_image_path, player_display_names_map
 
     players = filter_illustratable_players(players)
     labels_by_name = labels_by_name or {}
@@ -805,6 +805,12 @@ def _clean_player_lines_block(
         }
     if phrases_by_name is None:
         phrases_by_name = _phrases_by_player_name(players)
+    # A saved character already embodies the player's look. Do not redesign it
+    # from separate signature traits in the scene prompt.
+    phrases_by_name = {
+        name: [] if get_player_ai_image_path(name) else list(phrases_by_name.get(name) or [])
+        for name in players
+    }
     phrases_by_name = _merge_beach_royalty_phrases(
         players, player_stats, phrases_by_name,
     )
@@ -850,6 +856,18 @@ def _append_body_side_convention(prompt):
     return f'{prompt}\n\n{BODY_SIDE_CONVENTION}' if prompt else BODY_SIDE_CONVENTION
 
 
+CHARACTER_PRESERVATION_RULE = (
+    'For any player with an attached AI character, use that character as the '
+    'source of truth and ignore their separate signature traits, including any '
+    'in the scene prompt. Preserve as much of the character as possible: face, '
+    'hair, skin, body shape, clothing, colors, accessories, tattoos, distinctive '
+    'features, pets, vehicles, and other objects or props. Keep those details '
+    'with that same player, visible in the group; do not simplify them away or '
+    'replace them with a generic sports outfit. Adapt the pose and placement '
+    'to the scene while retaining the character design.'
+)
+
+
 def _group_identity_rules(player_count):
     """Hard identity lock for group scenes — models otherwise swap faces."""
     n = int(player_count or 0)
@@ -862,7 +880,8 @@ def _group_identity_rules(player_count):
         'Omit anyone else even if their name appears. '
         'Each name/stats label sits on the person it names. '
         'If a labeled identity sheet is attached, copy each person from the cell '
-        'with their name — never swap cells — and do not copy that sheet layout.'
+        'with their name — never swap cells — and do not copy that sheet layout. '
+        + CHARACTER_PRESERVATION_RULE
     )
 
 
@@ -920,6 +939,7 @@ def _group_identity_lock_text(player_count, map_lines, has_identity_sheet=False)
     else:
         lines.append('Image 1 is the first attached photo, Image 2 the second, and so on:')
     lines.extend(map_lines)
+    lines.append(CHARACTER_PRESERVATION_RULE)
     lines.append(
         'If a reference is an illustrated character sheet, keep that SAME person '
         '(face, hair, skin, body type, signature looks) and put them in the scene playing. '
@@ -1782,17 +1802,18 @@ def _reference_parts_from_uploaded_photos(
     photos_by_name = {}
     phrases_by_name = {}
     kinds_by_name = {}
-    original_phrases_by_name = {}
     for name in players:
         entry = collect_illustration_reference_images(name)
         refs = (entry or {}).get('parts') or []
         trait = traits_by_name.get((name or '').strip().lower())
-        phrases = list((trait or {}).get('phrases') or [])
+        phrases = (
+            [] if refs and (entry or {}).get('kind') == 'ai_portrait'
+            else list((trait or {}).get('phrases') or [])
+        )
         if not _player_can_illustrate(bool(refs), phrases):
             continue
         included.append(name)
         kinds_by_name[name] = (entry or {}).get('kind')
-        original_phrases_by_name[name] = list(phrases)
         if refs:
             photos_by_name[name] = refs
         if phrases:
@@ -1866,15 +1887,6 @@ def _reference_parts_from_uploaded_photos(
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
         phrases = phrases_by_name.get(name) or []
-        if kinds_by_name.get(name) == 'ai_portrait':
-            original = {
-                (p or '').strip().casefold()
-                for p in (original_phrases_by_name.get(name) or [])
-            }
-            phrases = [
-                p for p in phrases
-                if (p or '').strip().casefold() not in original
-            ]
         quoted = _player_quoted_bits(label, phrases)
         if refs:
             kind = kinds_by_name.get(name)
