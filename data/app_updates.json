@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-15-roomier-stats-compact-games",
+    "date": "2026-09-15",
+    "subject": "iPhone: More rows and roomier player names",
+    "body": "Lists show 25 items before Extend appears. Game cards take up less space, and tighter stats columns give player names more room before wrapping."
+  },
+  {
     "id": "ios-2026-09-14-shorter-lists",
     "date": "2026-09-14",
     "subject": "iPhone: Shorter lists and tighter page spacing",
