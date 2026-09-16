@@ -24,7 +24,7 @@ def init_game_location_columns():
 				pass
 
 
-def saved_game_locations(limit=30):
+def saved_game_locations(limit=None):
 	"""Return previously used locations, most recently used first."""
 	database = '/home/Idynkydnk/stats/stats.db'
 	conn = create_connection(database)

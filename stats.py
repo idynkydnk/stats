@@ -1301,16 +1301,22 @@ with sqlite3.connect(_stats_db_path()) as ownership_conn:
         ensure_game_entry_owner(ownership_conn, game_table)
 ownership_conn.close()
 from location_functions import backfill_2011, location_games, assign_locations, location_players
-with sqlite3.connect(adminfx.stats_db_path()) as location_conn:
+with sqlite3.connect(adminfx.stats_db_path(), timeout=30) as location_conn:
     backfill_2011(location_conn)
+    from migrations.tyler_locations_20260916 import backfill_tyler_locations
+    backfill_tyler_locations(location_conn)
 location_conn.close()
 from player_functions import init_players_photo_column
 init_players_photo_column()
 
 
 def _game_location_form_context():
-    """Location suggestions plus the signed-in user's last-used value."""
-    last_location = adminfx.get_user_last_location(session.get('username'))
+    """All saved locations, with Tyler's Oasis default or the last-used value."""
+    username = session.get('username')
+    user = adminfx.get_site_user(username) if username else None
+    is_tyler = (username or '').strip().casefold() == 'tyler' or (
+        (user or {}).get('player_name') or '').strip().casefold() == 'tyler weston'
+    last_location = 'The Oasis' if is_tyler else adminfx.get_user_last_location(username)
     locations = saved_game_locations()
     if last_location:
         locations = [last_location] + [
