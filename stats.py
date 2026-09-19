@@ -1719,12 +1719,13 @@ def stats(year):
     if not stats and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years:
-            games = year_games(previous_year)
-            if games:
+            previous_games = year_games(previous_year)
+            if previous_games:
+                games = previous_games
                 minimum_games = max(1, len(games) // 30)
-            stats = stats_per_year(previous_year, minimum_games)
-            display_year = previous_year
-            showing_previous_year = True
+                stats = stats_per_year(previous_year, minimum_games)
+                display_year = previous_year
+                showing_previous_year = True
     
     rare_stats = rare_stats_per_year(display_year, minimum_games)
     
