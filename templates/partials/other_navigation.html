@@ -1,0 +1,28 @@
+{% set browse_games = header_mode|default('stats') == 'games' %}
+{% set nav_year = display_year|default(year)|default('All years') %}
+<nav class="sr-other-navigation sr-card" aria-label="Other games">
+    <a class="sr-link-btn" href="{{ url_for('other_games' if browse_games else 'other_stats', year=nav_year) }}">All Other {{ 'games' if browse_games else 'stats' }}</a>
+    {% for category, names in other_navigation_groups() %}
+    <div class="sr-other-group">
+        <strong>{{ category }}</strong>
+        <div class="sr-other-choices">
+            {% if category == 'Volleyball' %}
+            <a class="sr-link-btn" href="{{ url_for('vollis_games' if browse_games else 'vollis_stats', year=nav_year) }}" {% if active_tab|default('') == 'vollis' %}aria-current="page"{% endif %}>Vollis</a>
+            {% endif %}
+            {% for name in names if category != 'Volleyball' or name == 'No jump' or name == game_name|default('') %}
+            <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=nav_year) }}" {% if game_name|default('') == name %}aria-current="page"{% endif %}>{{ name }}</a>
+            {% endfor %}
+        </div>
+        {% if category == 'Volleyball' %}
+        <details class="sr-more-games">
+            <summary>More volleyball games</summary>
+            <div class="sr-other-choices">
+                {% for name in names if name != 'No jump' and name != game_name|default('') %}
+                <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=nav_year) }}">{{ name }}</a>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+    </div>
+    {% endfor %}
+</nav>

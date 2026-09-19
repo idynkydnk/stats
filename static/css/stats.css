@@ -1721,3 +1721,11 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 }
 
 .sr-header-filters:not(:has(*)) { display: none; }
+
+.sr-other-navigation { margin-bottom: 20px; padding: 16px; }
+.sr-other-group { margin-top: 12px; }
+.sr-other-group > strong { display: block; margin-bottom: 8px; font-size: 13px; color: var(--sr-muted); }
+.sr-other-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.sr-other-choices [aria-current="page"] { color: var(--sr-accent); border-color: var(--sr-accent); background: var(--sr-accent-dim); }
+.sr-more-games { margin-top: 12px; }
+.sr-more-games summary { cursor: pointer; color: var(--sr-muted); padding: 8px 0; }

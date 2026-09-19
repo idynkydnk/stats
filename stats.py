@@ -1096,11 +1096,24 @@ def _stats_db_path():
     return 'stats.db'
 
 
+def other_navigation_groups():
+    """Keep game choices discoverable even in seasons with no games."""
+    from other_functions import other_game_names, other_game_type_for_name
+    games = other_year_games('All years')
+    groups = {'Volleyball': {'No jump'}}
+    for name in other_game_names(games):
+        category = other_game_type_for_name(games, name) or 'Other games'
+        groups.setdefault(category, set()).add(name)
+    return [(category, sorted(names, key=lambda name: (name.lower() != 'no jump', name.lower())))
+            for category, names in sorted(groups.items(), key=lambda item: (item[0] != 'Volleyball', item[0]))]
+
+
 @app.context_processor
 def inject_base_template():
     """Inject base template and admin flag for shared navigation."""
     return {
         'base_template': 'base.html',
+        'other_navigation_groups': other_navigation_groups,
         'doubles_division': active_doubles_division() or entry_division(),
         'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
