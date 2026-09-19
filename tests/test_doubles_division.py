@@ -1,8 +1,8 @@
 import sqlite3
 import unittest
 from unittest.mock import patch
-from flask import Flask
-from doubles_division import entry_division, ensure_division_column
+from flask import Flask, session
+from doubles_division import entry_division, ensure_division_column, active_doubles_division
 from stats_location_filter import filter_stats_connection
 from create_games_database import create_game
 import stat_functions as doubles
@@ -73,6 +73,19 @@ class DoublesDivisionTests(unittest.TestCase):
         self.conn.execute("INSERT INTO site_users VALUES ('jen', 'existing', 0, 0)")
         migrate(self.conn)
         self.assertEqual(self.conn.execute('SELECT password_hash, active FROM site_users').fetchall(), [('existing', 0)])
+
+    def test_stats_default_depends_on_user_and_allows_switching(self):
+        for username, expected in [('Jen', 'women'), ('JEN', 'women'), ('Kyle', 'open'), ('Aaron', 'open'), ('', 'open')]:
+            with self.app.test_request_context('/stats'):
+                session['username'] = username
+                self.assertEqual(active_doubles_division(), expected)
+            for explicit in ('open', 'women'):
+                with self.app.test_request_context('/stats?division=' + explicit):
+                    session['username'] = username
+                    self.assertEqual(active_doubles_division(), explicit)
+            with self.app.test_request_context('/stats?division=invalid'):
+                session['username'] = username
+                self.assertEqual(active_doubles_division(), expected)
 
     def test_cache_separates_divisions(self):
         calls = []

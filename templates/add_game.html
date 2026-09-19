@@ -128,9 +128,9 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
             {% endif %}
             <form method="post" action="{{ form_action or url_for('add_game') }}" id="add-game-form">
-                <label for="division">Section</label>
+                <label for="division">Doubles category</label>
                 <select name="division" id="division" style="width:100%;padding:12px;margin-bottom:16px" onchange="window.location.href='{{ url_for('add_game_voice' if is_voice_page else 'add_game', division=None) }}?division=' + this.value">
-                    <option value="open" {% if doubles_division == 'open' %}selected{% endif %}>Doubles</option>
+                    <option value="open" {% if doubles_division == 'open' %}selected{% endif %}>Men’s Doubles</option>
                     <option value="women" {% if doubles_division == 'women' %}selected{% endif %}>Women’s Doubles</option>
                 </select>
                 <input type="hidden" name="client_date" id="client_date" value="">

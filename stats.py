@@ -35,7 +35,7 @@ from email_content import (
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
-from doubles_division import active_doubles_division, entry_division, DIVISIONS
+from doubles_division import active_doubles_division, entry_division, DIVISIONS, STATS_ENDPOINTS as DOUBLES_STATS_ENDPOINTS
 from stats_location_filter import STATS_ENDPOINTS, active_location_filter
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
@@ -1102,6 +1102,7 @@ def inject_base_template():
     return {
         'base_template': 'base.html',
         'doubles_division': active_doubles_division() or entry_division(),
+        'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
         'navigation_locations': saved_game_locations(limit=None),
         'stats_location': active_location_filter()[0],
@@ -1113,10 +1114,9 @@ def inject_base_template():
 
 @app.url_defaults
 def preserve_stats_location(endpoint, values):
-    if endpoint in STATS_ENDPOINTS or endpoint in {'add_game', 'add_game_voice'}:
+    if endpoint in DOUBLES_STATS_ENDPOINTS or endpoint in {'add_game', 'add_game_voice'}:
         division = active_doubles_division()
-        if division and (endpoint in STATS_ENDPOINTS or division == 'women'
-                         or request.endpoint in {'add_game', 'add_game_voice'}):
+        if division:
             values.setdefault('division', division)
     if endpoint in STATS_ENDPOINTS:
         location, missing = active_location_filter()
@@ -1124,6 +1124,15 @@ def preserve_stats_location(endpoint, values):
             values.setdefault('location', location)
         if missing:
             values.setdefault('missing', '1')
+
+
+def doubles_division_url(division):
+    """Switch doubles category while preserving the page, season and location."""
+    endpoint = request.endpoint if request.endpoint in DOUBLES_STATS_ENDPOINTS else 'stats_default'
+    values = dict(request.view_args or {}) if endpoint == request.endpoint else {}
+    values.update({key: value for key, value in request.args.items() if key != 'page'})
+    values['division'] = division
+    return url_for(endpoint, **values)
 
 
 def stats_location_url(location='', missing=False):

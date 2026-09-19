@@ -166,10 +166,13 @@
             </div>
         </header>
 
+        {% include 'partials/doubles_division_tabs.html' %}
+
         <!-- Games List -->
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <form method="get" action="{{ url_for('games', year=year) }}" class="sr-search-wrap" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="hidden" name="division" value="{{ doubles_division }}">
                     {% if stats_location %}<input type="hidden" name="location" value="{{ stats_location }}">{% endif %}
                     {% if stats_missing_location %}<input type="hidden" name="missing" value="1">{% endif %}
                     <i class="fas fa-search sr-search-icon"></i>

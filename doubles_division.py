@@ -1,7 +1,9 @@
 """Doubles categories and request-local selection."""
 from flask import has_request_context, request, session
 
-DIVISIONS = {'open': 'Doubles', 'women': "Women’s Doubles"}
+DIVISIONS = {'open': 'Men’s Doubles', 'women': "Women’s Doubles"}
+STATS_ENDPOINTS = {'index', 'stats', 'stats_default', 'stats_by_date', 'games', 'games_default',
+                   'player_stats', 'player_network', 'player_network_default'}
 ENTRY_ENDPOINTS = {'add_game', 'add_game_voice', 'api_todays_doubles_dashboard', 'api_doubles_players'}
 
 
@@ -22,11 +24,11 @@ def entry_division(username=None):
 def active_doubles_division():
     if not has_request_context():
         return None
-    from stats_location_filter import STATS_ENDPOINTS
     if request.endpoint in ENTRY_ENDPOINTS:
         return entry_division()
     if request.method == 'GET' and request.endpoint in STATS_ENDPOINTS:
-        return 'women' if request.args.get('division') == 'women' else 'open'
+        value = request.args.get('division')
+        return value if value in DIVISIONS else default_division(session.get('username'))
     return None
 
 
