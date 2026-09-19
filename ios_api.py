@@ -431,7 +431,7 @@ def register_ios_api(app):
             vollis_stats_per_year, all_vollis_years,
             todays_vollis_stats, todays_vollis_games,
         )
-        year = _year_arg(str(date.today().year))
+        year = _year_arg('All years')
         current_year = str(date.today().year)
         display_year = year
         showing_previous_year = False
@@ -611,7 +611,7 @@ def register_ios_api(app):
         )
         from stat_functions import player_matchup_min_games
         S = _S()
-        year = _year_arg(str(date.today().year))
+        year = _year_arg('All years')
         name = name.strip()
         games = games_from_vollis_player_by_year(year, name)
         stats = total_vollis_stats(name, games)
@@ -644,7 +644,7 @@ def register_ios_api(app):
             rare_other_stats_per_year, todays_other_stats_by_game, todays_other_games,
         )
         S = _S()
-        year = _year_arg(str(date.today().year))
+        year = _year_arg('All years')
         current_year = str(date.today().year)
         display_year = year
         showing_previous_year = False
@@ -695,7 +695,7 @@ def register_ios_api(app):
     @app.route('/api/volleyball/stats')
     def api_volleyball_stats():
         S = _S()
-        year = _year_arg(str(date.today().year))
+        year = _year_arg('All years')
         from other_functions import all_other_years
         cards = S.build_volleyball_game_cards_styled(year)
         return jsonify({
@@ -879,7 +879,7 @@ def register_ios_api(app):
         )
         from stat_functions import player_matchup_min_games
         S = _S()
-        year = _year_arg(str(date.today().year))
+        year = _year_arg('All years')
         name = name.strip()
         games = games_from_other_player_by_year(year, name)
         stats = total_other_stats(name, games)

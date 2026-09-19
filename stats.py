@@ -1960,7 +1960,7 @@ def games(year):
 
 @app.route('/vollis_stats/')
 def vollis_stats_default():
-    return redirect(url_for('vollis_stats', year=str(date.today().year)))
+    return redirect(url_for('vollis_stats', year='All years'))
 
 @app.route('/vollis_stats/<year>/')
 def vollis_stats(year):
@@ -1991,7 +1991,7 @@ def vollis_stats(year):
 
 @app.route('/vollis_games/')
 def vollis_games_default():
-    return redirect(url_for('vollis_games', year=str(date.today().year)))
+    return redirect(url_for('vollis_games', year='All years'))
 
 @app.route('/vollis_games/<year>/')
 def vollis_games(year):
@@ -2007,7 +2007,7 @@ def vollis_games(year):
 
 @app.route('/other_stats/')
 def other_stats_default():
-    return redirect(url_for('other_stats', year=str(date.today().year)))
+    return redirect(url_for('other_stats', year='All years'))
 
 @app.route('/other_stats/<year>/')
 def other_stats(year):
@@ -2052,7 +2052,7 @@ def other_stats(year):
 
 @app.route('/other_games/')
 def other_games_default():
-    return redirect(url_for('other_games', year=str(date.today().year)))
+    return redirect(url_for('other_games', year='All years'))
 
 @app.route('/other_games/<year>/')
 def other_games(year):
@@ -4585,7 +4585,7 @@ def _other_game_card_for_year(year, game_name):
 
 @app.route('/volleyball_stats/')
 def volleyball_stats_default():
-    return redirect(url_for('volleyball_stats', year=str(date.today().year)))
+    return redirect(url_for('volleyball_stats', year='All years'))
 
 @app.route('/volleyball_stats/<year>/')
 def volleyball_stats(year):
@@ -4862,7 +4862,7 @@ def delete_other_game(id):
 
 @app.route('/game_name_stats/<path:game_name>/')
 def game_name_stats(game_name):
-    return redirect(url_for('game_name_stats_with_year', game_name=game_name, year=str(date.today().year)))
+    return redirect(url_for('game_name_stats_with_year', game_name=game_name, year='All years'))
 
 @app.route('/game_name_stats/<path:game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
