@@ -1,5 +1,6 @@
 import sqlite3
 from sqlite3 import Error
+from other_game_categories import canonical_other_category
 
 WINNER_FIELDS = [f"winner{i}" for i in range(1, 16)]
 LOSER_FIELDS = [f"loser{i}" for i in range(1, 16)]
@@ -62,6 +63,8 @@ def create_table(conn, create_table_sql):
 
 
 def create_other_game(conn, game):
+    game = list(game)
+    game[BASE_INSERT_COLUMNS.index("game_type")] = canonical_other_category(game[BASE_INSERT_COLUMNS.index("game_type")])
     columns = {row[1] for row in conn.execute('PRAGMA table_info(other_games)').fetchall()}
     if 'location' not in columns:
         conn.execute('ALTER TABLE other_games ADD COLUMN location TEXT')
@@ -74,6 +77,8 @@ def create_other_game(conn, game):
 
 
 def database_update_other_game(conn, game):
+    game = list(game)
+    game[BASE_UPDATE_COLUMNS.index("game_type")] = canonical_other_category(game[BASE_UPDATE_COLUMNS.index("game_type")])
     set_clause = ", ".join([f"{col} = ?" for col in BASE_UPDATE_COLUMNS])
     sql = f"""UPDATE other_games
               SET {set_clause}

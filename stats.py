@@ -1342,6 +1342,10 @@ with sqlite3.connect(adminfx.stats_db_path(), timeout=30) as location_conn:
     from migrations.tyler_locations_20260916 import backfill_tyler_locations
     backfill_tyler_locations(location_conn)
 location_conn.close()
+from migrations.normalize_other_game_categories import normalize_other_game_categories
+with sqlite3.connect(_stats_db_path(), timeout=30) as category_conn:
+    normalize_other_game_categories(category_conn)
+category_conn.close()
 from player_functions import init_players_photo_column
 init_players_photo_column()
 
