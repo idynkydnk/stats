@@ -1313,6 +1313,8 @@ adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
 from migrations.create_jen_user import migrate as provision_jen_user
 with sqlite3.connect(_stats_db_path()) as user_setup_conn:
     provision_jen_user(user_setup_conn)
+    from migrations.add_jen_player import migrate as provision_jen_player
+    provision_jen_player(user_setup_conn)
 user_setup_conn.close()
 adminfx.init_site_update_sends_db()
 init_game_location_columns()

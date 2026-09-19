@@ -274,7 +274,7 @@ textarea { resize: vertical; min-height: 60px; }
 })();
 var allPlayers = Array.from(document.getElementById('players').options).map(function(o) { return o.value; });
 function refreshDoublesPlayersFromServer() {
-    return fetch('/api/doubles_players', { credentials: 'same-origin' })
+    return fetch('/api/doubles_players?division={{ doubles_division }}', { credentials: 'same-origin' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('players')); })
         .then(function(players) {
             if (!Array.isArray(players)) return;

@@ -1,3 +1,4 @@
+from player_identity import unique_player_names
 from player_identity import is_unknown_player
 from doubles_division import active_doubles_division
 from stats_location_filter import active_location_filter, filter_stats_connection
@@ -582,11 +583,34 @@ def _games_for_player_order():
 	cur.execute("SELECT * FROM games ORDER BY game_date DESC")
 	return cur.fetchall()
 
+def womens_doubles_players(current_username=None):
+	"""Only women's game participants plus Jen's linked player profile."""
+	cur = set_cur()
+	try:
+		cur.execute(
+			"SELECT winner1, winner2, loser1, loser2 FROM main.games WHERE division='women' "
+			"ORDER BY CASE WHEN lower(updated_by)=lower(?) THEN 0 ELSE 1 END, game_date DESC, id DESC",
+			(current_username or '',),
+		)
+		names = [name for row in cur.fetchall() for name in row]
+		cur.execute(
+			"SELECT p.full_name FROM players p JOIN site_users u "
+			"ON p.full_name=u.player_name COLLATE NOCASE WHERE lower(u.username)='jen'"
+		)
+		names.extend(row[0] for row in cur.fetchall())
+		return unique_player_names(names)
+	finally:
+		cur.connection.close()
+
+
 def all_players_ordered_for_doubles(current_username=None):
 	"""Return player names for doubles autocomplete. If current_username is set, players from games
 	the current user entered (most recent first) appear first, then the rest by last played.
 	Uses doubles_player_last_played when available to avoid scanning all games.
 	Roster players from the players table (including never-played) are appended at the end."""
+	from doubles_division import entry_division
+	if entry_division(current_username) == 'women':
+		return womens_doubles_players(current_username)
 	from player_functions import merge_roster_into_player_names
 
 	last_played_order = get_players_ordered_from_cache()
