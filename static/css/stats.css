@@ -1728,25 +1728,35 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 
 .sr-header-filters:not(:has(*)) { display: none; }
 
-.sr-section-tabs--secondary {
-    padding: 0;
-    gap: 6px;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    margin-top: -6px;
+.sr-doubles-category {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: -6px 0 16px;
 }
-.sr-section-tabs--secondary .sr-section-tab {
-    border: 1px solid var(--sr-line);
+.sr-doubles-category-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 2px 0;
+    box-sizing: border-box;
+    color: var(--sr-muted);
+    font-size: 12px;
     font-weight: 500;
-    background: var(--sr-panel);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
 }
-.sr-section-tabs--secondary .sr-section-tab.active {
-    background: var(--sr-accent-dim);
-    border-color: var(--sr-accent);
-    box-shadow: none;
+.sr-doubles-category-link:hover { color: var(--sr-text); }
+.sr-doubles-category-link.active {
+    color: var(--sr-text);
+    border-bottom-color: var(--sr-muted);
 }
-.sr-other-navigation { margin-bottom: 20px; padding: 16px; }
+.sr-doubles-category-link:focus-visible {
+    outline: 2px solid var(--sr-accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+}
+.sr-other-navigation { margin-bottom: 20px; padding: 0; }
 .sr-other-navigation .sr-link-btn {
     min-height: 44px;
     box-sizing: border-box;
@@ -1767,3 +1777,24 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     .sr-section-tab { padding: 10px 12px; font-size: 12px; }
     .sr-header-compact:has(.sr-header-field) { padding-left: 0; padding-right: 0; }
 }
+
+.sr-game-picker-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 48px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    cursor: pointer;
+    list-style: none;
+    font-size: 13px;
+    font-weight: 600;
+}
+.sr-game-picker-summary::-webkit-details-marker { display: none; }
+.sr-game-picker-summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.sr-game-picker-action { color: var(--sr-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.sr-game-picker-summary:hover .sr-game-picker-action { color: var(--sr-accent); }
+.sr-game-picker-action > span { display: inline-block; margin-left: 4px; }
+.sr-game-picker[open] > summary .sr-game-picker-action > span { transform: rotate(180deg); }
+.sr-game-picker-options { padding: 0 14px 14px; }
