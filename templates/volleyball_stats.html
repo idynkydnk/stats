@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% import 'partials/game_rating.html' as game_rating %}
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ year }} Volleyball Stats{% endblock %}
 {% block extra_css %}
@@ -40,12 +41,14 @@
             <a href="{{ url_for('other_games_by_name', year=year, game_name=card.game_name) }}" class="sr-game-card-link">
                 <i class="fas fa-list-alt"></i> View {{ year }} {{ card.game_name }} games
             </a>
+            {{ game_rating.note(card) }}
             <div class="sr-table-wrap">
-                <table class="sr-table" data-default-sort="winpct" data-default-dir="desc" data-collapse-limit="5">
+                <table class="sr-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc" data-collapse-limit="5">
                     <thead>
                         <tr>
                             <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                            {{ game_rating.header(card) }}
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
@@ -57,6 +60,7 @@
                         <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
                             <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                             <td class="sr-player"><a href="{{ url_for('player_game_stats', year=year, game_name=card.game_name, player_name=stat[0]) }}">{{ stat[0] }}</a></td>
+                            {{ game_rating.cell(card, stat[0]) }}
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                             <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
                             <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>

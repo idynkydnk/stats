@@ -1,0 +1,17 @@
+{% macro header(card) -%}
+{% if card.rating_enabled %}<th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>{% endif %}
+{%- endmacro %}
+{% macro cell(card, name) -%}
+{% if card.rating_enabled %}
+{% set rating = card.ratings.get(name) %}
+<td class="sr-numeric sr-game-rating-cell" data-value="{{ rating.rating if rating else '-Infinity' }}">
+{% if rating %}{{ '%.2f'|format(rating.rating) }}{% if rating.provisional %}<span class="sr-rating-provisional" title="Provisional: needs more games or varied opponents" aria-label="Provisional"> P</span>{% endif %}{% else %}—{% endif %}
+</td>
+{% endif %}
+{%- endmacro %}
+{% macro note(card) -%}
+{% if card.rating_enabled %}
+<p class="sr-game-rating-note">TrueSkill · {{ card.rated_games }} rated games · P = provisional{% if card.unrated_games %} · {{ card.unrated_games }} results excluded{% endif %}</p>
+<details class="sr-rating-help"><summary>About ratings</summary><p>Ratings are separate for each game and selected season/location. Provisional ratings need at least 10 rated games, 3 different opponents, and lower uncertainty. Results with unsupported formats or incomplete players remain in win/loss stats but do not affect ratings.</p></details>
+{% endif %}
+{%- endmacro %}

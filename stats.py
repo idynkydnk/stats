@@ -14,6 +14,7 @@ from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from vollis_functions import *
 from other_functions import *
+from game_ratings import attach_other_ratings, vollis_ratings
 from kob_functions import update_kobs
 from player_identity import unique_player_names
 from email_content import (
@@ -1979,11 +1980,14 @@ def vollis_stats(year):
             display_year = previous_year
             showing_previous_year = True
     
+    rating_info = vollis_ratings(display_year)
+    if rating_info['rating_sort']:
+        stats.sort(key=lambda row: rating_info['ratings'].get(row[0], {}).get('rating', float('-inf')), reverse=True)
     today_stats = todays_vollis_stats()
     today_games = todays_vollis_games()
     return render_template('vollis_stats.html', stats=stats, all_years=all_years, year=year,
         display_year=display_year, showing_previous_year=showing_previous_year,
-        today_stats=today_stats, today_games=today_games)
+        today_stats=today_stats, today_games=today_games, rating_info=rating_info)
 
 @app.route('/vollis_games/')
 def vollis_games_default():
@@ -4479,13 +4483,13 @@ def build_other_game_cards(year, exclude_volleyball=True, minimum_games=1):
             qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
             rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
             
-            game_cards.append({
+            game_cards.append(attach_other_ratings({
                 'game_name': game_name,
                 'stats': qualified_stats,
                 'rare_stats': rare_stats,
                 'minimum_games': card_minimum_games,
                 'total_games': len(game_specific)  # Count actual games, not player participations
-            })
+            }, year))
         
         # Add consolidated volleyball card if we have volleyball games
         if exclude_volleyball and volleyball_games:
@@ -4544,11 +4548,11 @@ def build_volleyball_game_cards(year):
             stats_for_game = total_game_name_stats(game_specific)
             if not stats_for_game:
                 continue
-            game_cards.append({
+            game_cards.append(attach_other_ratings({
                 'game_name': game_name,
                 'stats': stats_for_game,  # Pass all stats, template handles display limit
                 'total_games': len(game_specific)  # Count actual games, not player participations
-            })
+            }, year))
         
         # Sort by total games descending
         game_cards.sort(key=lambda x: x['total_games'], reverse=True)
@@ -4570,13 +4574,13 @@ def _other_game_card_for_year(year, game_name):
     minimum_games = 1 if num_games < 30 else num_games // 30
     qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= minimum_games]
     rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < minimum_games]
-    return {
+    return attach_other_ratings({
         'game_name': game_name,
         'stats': qualified_stats,
         'rare_stats': rare_stats,
         'minimum_games': minimum_games,
         'total_games': num_games,
-    }
+    }, year)
 
 
 @app.route('/volleyball_stats/')
@@ -4610,14 +4614,14 @@ def build_volleyball_game_cards_styled(year):
             card_minimum_games = 1 if num_games < 30 else num_games // 30
             qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
             rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
-            game_cards.append({
+            game_cards.append(attach_other_ratings({
                 'game_name': game_name,
                 'stats': qualified_stats,
                 'rare_stats': rare_stats,
                 'total_games': num_games,
                 'minimum_games': card_minimum_games,
                 'is_consolidated': False
-            })
+            }, year))
         game_cards.sort(key=lambda x: x['total_games'], reverse=True)
     
     return game_cards

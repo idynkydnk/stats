@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-19-game-ratings",
+    "date": "2026-09-19",
+    "subject": "iPhone: Ratings for more games",
+    "body": "No Jump, Vollis, and other supported games have separate skill ratings alongside wins and losses. Early ratings are marked provisional, and results without clear teams stay in your stats without affecting ratings."
+  },
+  {
     "id": "ios-2026-09-19-other-navigation",
     "date": "2026-09-19",
     "subject": "iPhone: Find No Jump and other games faster",

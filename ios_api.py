@@ -170,8 +170,10 @@ def deleted_ids_since(kind, since_str):
 
 def _year_arg(default=None):
     year = (request.args.get('year') or '').strip()
-    if not year or year.lower() in ('all', 'all years'):
+    if not year:
         return 'All years' if default is None else default
+    if year.lower() in ('all', 'all years'):
+        return 'All years'
     return year
 
 
@@ -218,11 +220,21 @@ def _other_game_json(game):
 
 def _card_stats(card):
     def rows(items):
-        return [_ranking(s) for s in (items or [])]
+        result = []
+        for row in (items or []):
+            entry = _ranking(row[:4])
+            info = card.get('ratings', {}).get(row[0])
+            if info:
+                entry.update(rating=info['rating'], provisional=info['provisional'], rated_games=info['rated_games'])
+            result.append(entry)
+        return result
     return {
         'game_name': card.get('game_name'),
         'game_type': card.get('game_type'),
         'is_consolidated': bool(card.get('is_consolidated')),
+        'rating_enabled': card.get('rating_enabled', False),
+        'rated_games': card.get('rated_games', 0),
+        'unrated_games': card.get('unrated_games', 0),
         'total_games': card.get('total_games', 0),
         'minimum_games': card.get('minimum_games', 1),
         'stats': rows(card.get('stats')),
@@ -431,6 +443,11 @@ def register_ios_api(app):
                 stats = vollis_stats_per_year(previous_year, 0)
                 display_year = previous_year
                 showing_previous_year = True
+        from game_ratings import vollis_ratings
+        rating_info = vollis_ratings(display_year)
+        rated_stats = _card_stats(dict(stats=stats, **rating_info))['stats']
+        if rating_info['rating_sort']:
+            rated_stats.sort(key=lambda r: r.get('rating', float('-inf')), reverse=True)
         today = todays_vollis_stats()
         today_games = todays_vollis_games()
         return jsonify({
@@ -438,7 +455,7 @@ def register_ios_api(app):
             'display_year': display_year,
             'showing_previous_year': showing_previous_year,
             'all_years': all_years,
-            'stats': [_ranking(r) for r in (stats or [])],
+            'stats': rated_stats,
             'today_stats': [_ranking(r, rating_key='plus_minus') for r in (today or [])],
             'today_game_count': len(today_games or []),
         })
