@@ -1,4 +1,5 @@
 from player_identity import is_unknown_player
+from doubles_division import active_doubles_division
 from stats_location_filter import active_location_filter, filter_stats_connection
 from database_functions import *
 from datetime import datetime, date
@@ -17,7 +18,7 @@ def cached(ttl=CACHE_TTL):
     def decorator(func):
         def wrapper(*args, **kwargs):
             # Create cache key from function name and arguments
-            key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter())
+            key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())
             current_time = time.time()
             
             # Check if cached and not expired
@@ -1778,7 +1779,7 @@ def calculate_trueskill_rankings(year=None):
 	"""Calculate TrueSkill rankings - uses database cache when available"""
 	from database_functions import get_trueskill_from_db, save_trueskill_to_db, get_trueskill_last_updated, get_last_game_date
 	
-	if any(active_location_filter()):
+	if any(active_location_filter()) or active_doubles_division():
 		return _calculate_trueskill_rankings_fresh(year)
 
 	# Check if we have cached rankings in the database

@@ -1,7 +1,7 @@
 {% extends base_template %}
 {% block active_tab %}doubles{% endblock %}
 {% block header_mode %}games{% endblock %}
-{% block title %}{{ year }} Doubles Games{% endblock %}
+{% block title %}{{ year }} {{ doubles_label }} Games{% endblock %}
 {% block extra_css %}
 <style>
     /* Game card grid */
@@ -160,7 +160,7 @@
 {% endblock %}
 {% block content %}
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Doubles Games</h1>
+            <h1 class="sr-title">{{ year }} {{ doubles_label }} Games</h1>
             <div class="sr-header-actions">
                 {% include 'partials/page_header_actions.html' %}
             </div>

@@ -25,12 +25,21 @@ def active_location_filter():
 
 
 def filter_stats_connection(conn, table):
+    from doubles_division import active_doubles_division
     location, missing = active_location_filter()
-    if not location and not missing:
-        return
     if table not in {'games', 'vollis_games', 'other_games'}:
         raise ValueError('Unknown game table')
-    # SQLite views cannot take parameters; quote() safely produces a SQL literal.
-    value = conn.execute('SELECT quote(?)', (location,)).fetchone()[0]
-    clause = "TRIM(COALESCE(location, ''))=''" if missing else f'TRIM(location)={value} COLLATE NOCASE'
-    conn.execute(f'CREATE TEMP VIEW {table} AS SELECT * FROM main.{table} WHERE {clause}')
+    clauses = []
+    if location or missing:
+        value = conn.execute('SELECT quote(?)', (location,)).fetchone()[0]
+        clauses.append("TRIM(COALESCE(location, ''))=''" if missing else f'TRIM(location)={value} COLLATE NOCASE')
+    division = active_doubles_division() if table == 'games' else None
+    if division:
+        columns = {row[1] for row in conn.execute('PRAGMA main.table_info(games)')}
+        if 'division' in columns:
+            value = conn.execute('SELECT quote(?)', (division,)).fetchone()[0]
+            clauses.append(f"COALESCE(division, 'open')={value}")
+        elif division == 'women':
+            clauses.append('0')
+    if clauses:
+        conn.execute(f'CREATE TEMP VIEW {table} AS SELECT * FROM main.{table} WHERE ' + ' AND '.join(clauses))

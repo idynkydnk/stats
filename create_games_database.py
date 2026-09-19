@@ -38,6 +38,8 @@ def create_table(conn, create_table_sql):
 def create_game(conn, game):
     from game_entry_ownership import ensure_game_entry_owner
     ensure_game_entry_owner(conn, 'games')
+    from doubles_division import ensure_division_column, entry_division
+    ensure_division_column(conn)
     columns = {row[1] for row in conn.execute('PRAGMA table_info(games)').fetchall()}
     if 'location' not in columns:
         conn.execute('ALTER TABLE games ADD COLUMN location TEXT')
@@ -54,6 +56,7 @@ def create_game(conn, game):
         ('updated_by', game[10] if len(game) > 10 else None),
         ('entered_by', game[10] if len(game) > 10 else None),
         ('location', game[11] if len(game) > 11 else ''),
+        ('division', entry_division(game[10] if len(game) > 10 else None)),
     ]
     field_values = [
         (name, canonical_player_name(value) if name in {'loser1', 'loser2'} else value)

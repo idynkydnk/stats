@@ -1,6 +1,6 @@
 {% extends base_template %}
 {% block active_tab %}doubles{% endblock %}
-{% block title %}Add Doubles Game{% endblock %}
+{% block title %}Add {{ doubles_label }} Game{% endblock %}
 {% block extra_css %}
 <style>
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
@@ -97,7 +97,7 @@ textarea { resize: vertical; min-height: 60px; }
         </div>
         {% endif %}
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">Add Doubles</h1>
+            <h1 class="sr-title">Add {{ doubles_label }}</h1>
             <div class="sr-header-actions">
                 {% set header_back_url = url_for('stats', year=year) %}
                 {% set header_back_label = 'Stats' %}
@@ -128,6 +128,11 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
             {% endif %}
             <form method="post" action="{{ form_action or url_for('add_game') }}" id="add-game-form">
+                <label for="division">Section</label>
+                <select name="division" id="division" style="width:100%;padding:12px;margin-bottom:16px" onchange="window.location.href='{{ url_for('add_game_voice' if is_voice_page else 'add_game', division=None) }}?division=' + this.value">
+                    <option value="open" {% if doubles_division == 'open' %}selected{% endif %}>Doubles</option>
+                    <option value="women" {% if doubles_division == 'women' %}selected{% endif %}>Women’s Doubles</option>
+                </select>
                 <input type="hidden" name="client_date" id="client_date" value="">
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
@@ -322,10 +327,10 @@ function escapeHtmlDoubles(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function doublesPlayerUrl(year, name) {
-    return '/player/' + encodeURIComponent(String(year)) + '/' + encodeURIComponent(String(name)) + '/';
+    return '/player/' + encodeURIComponent(String(year)) + '/' + encodeURIComponent(String(name)) + '/?division={{ doubles_division }}';
 }
 function refreshTodaysDoublesDashboard() {
-    return fetch('/api/todays_doubles_dashboard', { credentials: 'same-origin' })
+    return fetch('/api/todays_doubles_dashboard?division={{ doubles_division }}', { credentials: 'same-origin' })
         .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('dashboard')); })
         .then(function(d) {
             var yr = (d && d.year) ? d.year : ADD_GAME_STATS_YEAR;

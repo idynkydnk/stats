@@ -15,6 +15,8 @@ def init_game_location_columns():
 	if conn is None:
 		return
 	with conn:
+		from doubles_division import ensure_division_column
+		ensure_division_column(conn)
 		for table in ('games', 'vollis_games', 'other_games'):
 			try:
 				columns = {row[1] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()}

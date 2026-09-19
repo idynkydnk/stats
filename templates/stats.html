@@ -1,6 +1,6 @@
 {% extends base_template %}
 {% block active_tab %}doubles{% endblock %}
-{% block title %}{{ display_year|default(year) }} Doubles Stats{% endblock %}
+{% block title %}{{ display_year|default(year) }} {{ doubles_label }} Stats{% endblock %}
 {% block extra_css %}
 <style>
     /* Rating popover: fixed overlay 80% width, text must wrap (override table nowrap) */
@@ -71,7 +71,7 @@
 {% endblock %}
 {% block content %}
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ display_year|default(year) }} Doubles Stats</h1>
+            <h1 class="sr-title">{{ display_year|default(year) }} {{ doubles_label }} Stats</h1>
             <div class="sr-header-actions">
                 {% include 'partials/page_header_actions.html' %}
             </div>

@@ -35,6 +35,7 @@ from email_content import (
     EMAIL_PLACEHOLDER,
     SITE_BASE_URL as EMAIL_SITE_BASE_URL,
 )
+from doubles_division import active_doubles_division, entry_division, DIVISIONS
 from stats_location_filter import STATS_ENDPOINTS, active_location_filter
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
@@ -1100,6 +1101,8 @@ def inject_base_template():
     """Inject base template and admin flag for shared navigation."""
     return {
         'base_template': 'base.html',
+        'doubles_division': active_doubles_division() or entry_division(),
+        'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
         'navigation_locations': saved_game_locations(limit=None),
         'stats_location': active_location_filter()[0],
         'stats_missing_location': active_location_filter()[1],
@@ -1110,6 +1113,11 @@ def inject_base_template():
 
 @app.url_defaults
 def preserve_stats_location(endpoint, values):
+    if endpoint in STATS_ENDPOINTS or endpoint in {'add_game', 'add_game_voice'}:
+        division = active_doubles_division()
+        if division and (endpoint in STATS_ENDPOINTS or division == 'women'
+                         or request.endpoint in {'add_game', 'add_game_voice'}):
+            values.setdefault('division', division)
     if endpoint in STATS_ENDPOINTS:
         location, missing = active_location_filter()
         if location:
@@ -1293,6 +1301,10 @@ adminfx.init_ai_prompt_log_db()
 adminfx.init_ai_recap_pages_db()
 ai_jobs.init_ai_auto_send_jobs_db()
 adminfx.init_users_db(seed_users=USERS, seed_admins=ADMIN_USERS)
+from migrations.create_jen_user import migrate as provision_jen_user
+with sqlite3.connect(_stats_db_path()) as user_setup_conn:
+    provision_jen_user(user_setup_conn)
+user_setup_conn.close()
 adminfx.init_site_update_sends_db()
 init_game_location_columns()
 from game_entry_ownership import ensure_game_entry_owner
@@ -5040,6 +5052,7 @@ def api_doubles_create():
     update_kobs()
     # Return the created game (we don't have id easily; fetch last inserted or by unique key)
     conn = sqlite3.connect(_api_get_db())
+    conn.row_factory = sqlite3.Row
     cur = conn.execute("SELECT * FROM games ORDER BY id DESC LIMIT 1")
     row = cur.fetchone()
     conn.close()
