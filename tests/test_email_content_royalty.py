@@ -34,12 +34,14 @@ class BeachRoyaltyPromptTests(unittest.TestCase):
             ['Christian Vincent', 'Eddie Molina', 'Juan Carlos'],
         )
 
-    def test_lock_names_leader_and_forbids_crown_on_juan(self):
+    def test_lock_awards_new_crowns_to_leader_and_preserves_saved_props(self):
         lock = _session_beach_royalty_lock(PLAYERS, STATS)
 
         self.assertIn('Christian Vincent is the only king', lock)
         self.assertIn('Juan Carlos', lock)
-        self.assertIn('must have no crown', lock)
+        self.assertIn('receive no new session-award crown', lock)
+        self.assertIn('Keep any such items already present in their saved character pictures', lock)
+        self.assertNotIn('remove or ignore it', lock)
         self.assertIn('do not infer royalty from point differential', lock)
 
     def test_stale_royalty_traits_are_removed_from_nonleader(self):

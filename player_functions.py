@@ -1232,7 +1232,7 @@ def collect_illustration_reference_images(name):
         entry['parts'].append({
             'label': (
                 f'Illustrated character sheet for {display_name}. '
-                'Character sheet with signature-look props. Keep this person and those looks; put them in the group picture playing in a distinct pose.'
+                'Complete character picture: keep the player and every companion, background person, pet, object, scene detail, and text together in the group picture.'
             ),
             'mime': mime,
             'data_b64': base64.b64encode(raw).decode('ascii'),

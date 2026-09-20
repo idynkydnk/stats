@@ -857,30 +857,38 @@ def _append_body_side_convention(prompt):
 
 
 CHARACTER_PRESERVATION_RULE = (
-    'For any player with an attached AI character, use that character as the '
-    'source of truth and ignore their separate signature traits, including any '
-    'in the scene prompt. Preserve as much of the character as possible: face, '
-    'hair, skin, body shape, clothing, colors, accessories, tattoos, distinctive '
-    'features, pets, vehicles, and other objects or props. Keep those details '
-    'with that same player, visible in the group; do not simplify them away or '
-    'replace them with a generic sports outfit. Adapt the pose and placement '
-    'to the scene while retaining the character design.'
+    'FULL CHARACTER PICTURE PRESERVATION — use every attached AI character picture '
+    'as the source of truth, including the entire scene, not just the main player. '
+    'Ignore that player\'s separate signature traits, including any in the scene prompt. '
+    'Carry EVERYTHING visible into the group picture: the player, spouses, partners, '
+    'friends, other companions and background people, pets, vehicles, objects, props, '
+    'clothing, accessories, tattoos, scenery, signs, captions, and existing text. '
+    'Preserve their faces, hair, skin, body shapes, colors, distinctive features, '
+    'relationships, and interactions. Keep each companion and detail with the player '
+    'whose picture contains them; do not omit, merge, crop out, or simplify them away. '
+    'The roster count counts PLAYERS ONLY, not companions; all people from the saved '
+    'pictures must also appear even when they have no separate roster entry or photo. '
+    'Existing text is allowed. Add the supplied current name/stats label next to each '
+    'actual player only; companions do not receive player stats. If old stats appear '
+    'in a saved picture, replace those stats with the supplied current stats. '
+    'Combine all of these complete character scenes using the requested scene prompt. '
+    'Adapt pose, placement, and setting while retaining all source elements; use more '
+    'space or smaller complete scenes if needed to fit everything. These preservation '
+    'rules override any generic no-extra-people or no-text instruction in the scene prompt.'
 )
 
 
 def _group_identity_rules(player_count):
-    """Hard identity lock for group scenes — models otherwise swap faces."""
+    """Bind roster identities without excluding people in their character pictures."""
     n = int(player_count or 0)
-    who = '1 person' if n == 1 else f'{n} people'
+    who = '1 roster player' if n == 1 else f'{n} roster players'
     return (
-        f'Keep identities accurate: exactly {who}. '
+        f'Keep identities accurate: exactly {who}, plus everyone in their character pictures. '
         'Do not swap or blend faces. Do not mix bodies, hair, or signature looks '
-        'between people. No extra people, no missing people, no twins. '
-        'Only draw people who have a face photo, AI character, or signature look. '
-        'Omit anyone else even if their name appears. '
-        'Each name/stats label sits on the person it names. '
-        'If a labeled identity sheet is attached, copy each person from the cell '
-        'with their name — never swap cells — and do not copy that sheet layout. '
+        'between people. Do not omit or duplicate roster players or their companions. '
+        'Each current name/stats label sits next to the roster player it names. '
+        'If a labeled identity sheet is attached, each cell belongs to the named player '
+        'and includes their companions and scene details; never swap cells. '
         + CHARACTER_PRESERVATION_RULE
     )
 
@@ -918,33 +926,34 @@ def _prompt_with_identity_lock(scene_prompt, reference_parts):
 
 def _group_identity_lock_text(player_count, map_lines, has_identity_sheet=False):
     n = int(player_count or 0)
-    who = '1 person' if n == 1 else f'{n} distinct people'
+    who = '1 roster player' if n == 1 else f'{n} distinct roster players'
     lines = [
-        f'IDENTITY LOCK — exactly {who}.',
+        f'IDENTITY LOCK — exactly {who}, plus everyone in their character pictures.',
         'Do not swap faces or bodies. Do not blend two people into one. '
-        'Do not duplicate anyone. Do not add extra people. Do not drop anyone '
-        'from this lock. Only draw people with a face photo, AI character, or '
-        'signature look. Omit anyone else even if their name appears.',
-        'Each name/stats label must sit on the person it names.',
+        'Do not duplicate or drop any roster player or companion. '
+        'Companions belong with the player whose saved picture contains them, '
+        'even without their own photo, signature look, or roster entry.',
+        'Each current name/stats label must sit next to the roster player it names, '
+        'never next to a companion.',
     ]
     if has_identity_sheet:
         lines.append(
-            'Image 1 is a labeled identity sheet: each person has their name '
-            'painted under them. Copy that exact person into the scene. Never '
-            'swap people between those name labels. Do not copy the sheet grid '
-            'or those painted names into the final picture — the final picture '
-            'uses the name/stats labels from the prompt instead.'
+            'Image 1 is a labeled identity sheet: each cell contains a player\'s '
+            'complete reference picture, possibly with companions, and a player name '
+            'painted underneath. Keep every cell\'s people and details together. '
+            'The added cell captions identify the player, not every person in that cell. '
+            'Use the supplied current name/stats labels in the final picture. '
+            'Text within the original character pictures may remain.'
         )
-        lines.append('Later images are the same people one at a time:')
+        lines.append('Later images are the complete individual player references:')
     else:
         lines.append('Image 1 is the first attached photo, Image 2 the second, and so on:')
     lines.extend(map_lines)
     lines.append(CHARACTER_PRESERVATION_RULE)
     lines.append(
-        'If a reference is an illustrated character sheet, keep that SAME person '
-        '(face, hair, skin, body type, signature looks) and put them in the scene playing. '
-        'If it is a face photo, match that face and invent the body for the scene. '
-        'Do not copy the empty studio pose or give everyone the same stance.'
+        'For an illustrated character picture, bring its complete cast and scene '
+        'into the requested composition, keeping each player identifiable. '
+        'For a face photo, match that player\'s face and invent the body for the scene.'
     )
     return '\n'.join(lines)
 
@@ -1475,13 +1484,15 @@ def _session_beach_royalty_lock(players, player_stats):
         'ROYALTY IDENTITY LOCK — follow this literally and do not infer royalty '
         'from point differential, label size, reference-image clothing, or prompt order.',
         f'{role_text}. The session royalty is determined by best win percentage; '
-        f'attach every crown, royal cape, throne, or other royalty prop only to {leader_text}.',
+        f'attach newly added session-award crowns, capes, thrones, or other royalty props '
+        f'only to {leader_text}. Preserve clothing and props already in saved character pictures; '
+        'those existing items do not designate a session winner.',
     ]
     if nonleaders:
         lines.append(
-            f'All other players ({", ".join(nonleaders)}) are not royalty and must have '
-            'no crown, tiara, royal cape, throne, scepter, or royal clothing. If a '
-            'nonleader reference image contains a royalty item, remove or ignore it.'
+            f'All other players ({", ".join(nonleaders)}) are not session royalty and must '
+            'receive no new session-award crown, tiara, cape, throne, scepter, or royal clothing. '
+            'Keep any such items already present in their saved character pictures.'
         )
     return '\n'.join(lines)
 
@@ -1868,10 +1879,10 @@ def _reference_parts_from_uploaded_photos(
         )
         parts.append({
             'text': (
-                'Image 1 is the labeled identity sheet. Each cell is one person '
-                f'with their name painted underneath, in this order: {order}. '
-                'Copy those exact people into the scene. Never swap them. '
-                'Do not copy this grid or the painted names into the final picture.'
+                'Image 1 is the labeled identity sheet. Each cell is one player reference, '
+                f'with the player name underneath, in this order: {order}. '
+                'Copy the complete contents of every character picture, including '
+                'all companions and text. Never swap players or their companions.'
             ),
         })
         parts.append({
@@ -1905,16 +1916,16 @@ def _reference_parts_from_uploaded_photos(
                 })
             ids = _image_ids_phrase(indices)
             map_lines.append(
-                f'{ids} = {name} only. Copy {name}\'s face, hair, skin, and body from {ids} '
+                f'{ids} belongs to {name}. Copy {name}\'s face, hair, skin, and body from {ids} '
                 f'onto {name}. Never put this face on anyone else.'
             )
             if kind == 'ai_portrait':
                 parts.append({
                     'text': (
-                        f'{ids} is the illustrated character sheet of {name} only. '
-                        'Character sheet of this person including their signature-look props. '
-                        'Keep those looks (vehicles, hats, objects) in the scene. '
-                        'Put them in a distinct playing pose; add sport props here. '
+                        f'{ids} is the complete AI character picture for {name}. '
+                        'Include this player AND every spouse, friend, companion, '
+                        'background person, animal, object, scene detail, and text shown. '
+                        'Keep this entire cast and its details together with this player. '
                         f'Do not use {ids} for any other player.'
                     ),
                 })
@@ -2084,7 +2095,7 @@ def _openai_prompt_and_images(prompt, reference_parts):
         filename = f'image_{index}_{_image_ref_slug(who or f"player{index}")}.{ext}'
         images.append((raw, mime, filename))
         if who:
-            text_bits.append(f'[Image {index} attached — {who} only]')
+            text_bits.append(f'[Image {index} attached — reference for {who}]')
         else:
             text_bits.append(f'[Image {index} attached]')
     if text_bits:
@@ -2119,7 +2130,7 @@ def _openai_responses_content(prompt, reference_parts):
         if who:
             content.append({
                 'type': 'input_text',
-                'text': f'[Image {index} attached — {who} only]',
+                'text': f'[Image {index} attached — reference for {who}]',
             })
         else:
             content.append({
@@ -3554,7 +3565,7 @@ def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image 
             next_index = max(next_index, index + 1)
             who = (part.get('image_name') or '').strip()
             if who:
-                lines.append(f'[Image {index} attached — {who} only]')
+                lines.append(f'[Image {index} attached — reference for {who}]')
             else:
                 lines.append(f'[Image {index} attached]')
     lines.append('')
