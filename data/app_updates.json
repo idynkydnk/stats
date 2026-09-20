@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-19-collapsible-game-picker",
+    "date": "2026-09-19",
+    "subject": "iPhone: Tuck away game choices",
+    "body": "In Other stats and games, selecting a game tucks away the game buttons so results are easier to see. Tap Change game to reopen the choices, just like on the website."
+  },
+  {
     "id": "ios-2026-09-19-other-all-years",
     "date": "2026-09-19",
     "subject": "iPhone: Other games show all years",

@@ -1801,11 +1801,35 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 
 .sr-game-rating-note { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: 8px 0 12px; }
 .sr-rating-provisional { color: var(--sr-muted); font-size: 10px; }
-/* Keep rating tables horizontally scrollable, including their games column. */
+/* Keep the games column visible in rating tables. */
 .sr-table:has(th[data-sort="rating"]) th[data-sort="games"],
 .sr-table:has(th[data-sort="rating"]) td:last-child { display: table-cell; }
 
 .sr-game-rating-cell { white-space: nowrap; min-width: 64px; }
 .sr-table:has(.sr-game-rating-cell) { min-width: 430px; }
+@media (max-width: 768px) {
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) {
+        min-width: 0;
+    }
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(2) {
+        width: 30%;
+        max-width: 30%;
+    }
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(3) {
+        width: 18%;
+    }
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) th {
+        overflow-wrap: anywhere;
+    }
+}
+@media (max-width: 480px) {
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td) {
+        padding: 8px 2px;
+    }
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) td {
+        font-size: 12px;
+    }
+}
+
 .sr-rating-help { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: -6px 0 12px; }
 .sr-rating-help summary { cursor: pointer; padding: 6px 0; }

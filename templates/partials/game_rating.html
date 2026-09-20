@@ -11,7 +11,10 @@
 {%- endmacro %}
 {% macro note(card) -%}
 {% if card.rating_enabled %}
+<details class="sr-rating-help">
+<summary>About ratings</summary>
 <p class="sr-game-rating-note">TrueSkill · {{ card.rated_games }} rated games · P = provisional{% if card.unrated_games %} · {{ card.unrated_games }} results excluded{% endif %}</p>
-<details class="sr-rating-help"><summary>About ratings</summary><p>Ratings are separate for each game and selected season/location. Provisional ratings need at least 10 rated games, 3 different opponents, and lower uncertainty. Results with unsupported formats or incomplete players remain in win/loss stats but do not affect ratings.</p></details>
+<p>Ratings are separate for each game and selected season/location. Provisional ratings need at least 10 rated games, 3 different opponents, and lower uncertainty. Results with unsupported formats or incomplete players remain in win/loss stats but do not affect ratings.</p>
+</details>
 {% endif %}
 {%- endmacro %}
