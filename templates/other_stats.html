@@ -259,7 +259,7 @@
                 {% endif %}
                 {{ game_rating.note(card) }}
             <div class="sr-table-wrap">
-                    <table class="sr-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc" data-collapse-limit="5">
+                    <table class="sr-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc">
                         <thead>
                             <tr>
                                 <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
@@ -273,7 +273,7 @@
                         </thead>
                         <tbody id="game-card-tbody-{{ loop.index }}">
                             {% for stat in card.stats %}
-                            <tr class="{% if loop.index > 5 %}sr-hidden{% endif %}">
+                            <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
                                 {% if card.is_consolidated %}
                                 <td class="sr-player"><a href="{{ url_for('volleyball_player_stats', year=display_year|default(year), name=stat[0]) }}">{{ stat[0] }}</a></td>
@@ -290,11 +290,6 @@
                         </tbody>
                     </table>
                 </div>
-                {% if card.stats|length > 5 %}
-                <button type="button" class="sr-show-more" onclick="toggleCardRows('game-card-tbody-{{ loop.index }}', this)">
-                    Show all {{ card.stats|length }} players
-                </button>
-                {% endif %}
             </div>
         </section>
         {% endfor %}
