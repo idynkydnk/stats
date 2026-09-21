@@ -1,5 +1,4 @@
 {% set browse_games = header_mode|default('stats') == 'games' %}
-{% set nav_year = display_year|default(year)|default('All years') %}
 {% set selected_game = game_name|default('', true) %}
 {% if active_tab|default('') == 'doubles' %}
     {% set selected_game = 'Doubles' %}
@@ -18,17 +17,16 @@
             <span class="sr-game-picker-action">Browse games <span aria-hidden="true">▾</span></span>
         </summary>
         <div class="sr-game-picker-options">
-    <a class="sr-link-btn" href="{{ url_for('other_games' if browse_games else 'other_stats', year=nav_year) }}">All Other {{ 'games' if browse_games else 'stats' }}</a>
     {% for category, names in other_navigation_groups() %}
     <div class="sr-other-group">
         <strong>{{ category }}</strong>
         <div class="sr-other-choices">
             {% if category == 'Volleyball' %}
-            <a class="sr-link-btn" href="{{ url_for('games' if browse_games else 'stats', year=nav_year) }}" {% if active_tab|default('') == 'doubles' %}aria-current="page"{% endif %}>Doubles</a>
-            <a class="sr-link-btn" href="{{ url_for('vollis_games' if browse_games else 'vollis_stats', year=nav_year) }}" {% if active_tab|default('') == 'vollis' %}aria-current="page"{% endif %}>Vollis</a>
+            <a class="sr-link-btn" href="{{ url_for('games' if browse_games else 'stats', year=browse_game_year(kind='doubles')) }}" {% if active_tab|default('') == 'doubles' %}aria-current="page"{% endif %}>Doubles</a>
+            <a class="sr-link-btn" href="{{ url_for('vollis_games' if browse_games else 'vollis_stats', year=browse_game_year(kind='vollis')) }}" {% if active_tab|default('') == 'vollis' %}aria-current="page"{% endif %}>Vollis</a>
             {% endif %}
             {% for name in names if category != 'Volleyball' or name == 'No jump' or name == game_name|default('') %}
-            <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=nav_year) }}" {% if game_name|default('') == name %}aria-current="page"{% endif %}>{{ name }}</a>
+            <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=browse_game_year(name)) }}" {% if game_name|default('') == name %}aria-current="page"{% endif %}>{{ name }}</a>
             {% endfor %}
         </div>
         {% if category == 'Volleyball' %}
@@ -36,7 +34,7 @@
             <summary>More volleyball games</summary>
             <div class="sr-other-choices">
                 {% for name in names if name != 'No jump' and name != game_name|default('') %}
-                <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=nav_year) }}">{{ name }}</a>
+                <a class="sr-link-btn" href="{{ url_for('other_games_by_name' if browse_games else 'game_name_stats_with_year', game_name=name, year=browse_game_year(name)) }}">{{ name }}</a>
                 {% endfor %}
             </div>
         </details>

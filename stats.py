@@ -1097,6 +1097,20 @@ def _stats_db_path():
     return 'stats.db'
 
 
+
+def browse_game_year(game_name=None, kind='other'):
+    """Choose a destination's own season instead of inheriting another game's."""
+    from other_functions import game_name_years
+    if kind == 'doubles':
+        years = grab_all_years()
+    elif kind == 'vollis':
+        years = all_vollis_years()
+    else:
+        years = game_name_years(game_name)
+    recorded = {str(year) for year in years if year and str(year) != 'All years'}
+    return next(iter(recorded)) if len(recorded) == 1 else 'All years'
+
+
 def other_navigation_groups():
     """Keep game choices discoverable even in seasons with no games."""
     from other_functions import other_game_names, other_game_type_for_name
@@ -1115,6 +1129,7 @@ def inject_base_template():
     return {
         'base_template': 'base.html',
         'other_navigation_groups': other_navigation_groups,
+        'browse_game_year': browse_game_year,
         'doubles_division': active_doubles_division() or entry_division(),
         'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
@@ -4862,7 +4877,7 @@ def delete_other_game(id):
 
 @app.route('/game_name_stats/<path:game_name>/')
 def game_name_stats(game_name):
-    return redirect(url_for('game_name_stats_with_year', game_name=game_name, year='All years'))
+    return redirect(url_for('game_name_stats_with_year', game_name=game_name, year=browse_game_year(game_name)))
 
 @app.route('/game_name_stats/<path:game_name>/<year>/')
 def game_name_stats_with_year(game_name, year):
@@ -4870,6 +4885,8 @@ def game_name_stats_with_year(game_name, year):
     from other_functions import game_name_years
 
     all_years = game_name_years(game_name)
+    if str(year) not in {str(value) for value in all_years}:
+        all_years = [year, *all_years]
     card = _other_game_card_for_year(year, game_name)
     return render_template(
         'other_game_stats.html',
