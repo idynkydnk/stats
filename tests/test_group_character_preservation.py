@@ -23,7 +23,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             patch('player_functions.get_player_ai_image_path',
                   side_effect=lambda name: 'character.png' if name == players[0] else None),
         ):
-            for builder in (build_scene_image_prompt, build_flyer_scene_prompt):
+            for builder in (build_flyer_scene_prompt,):
                 with self.subTest(builder=builder.__name__):
                     prompt = builder(
                         **{'players': players, 'game_type': 'vollis',
@@ -95,19 +95,14 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             parts = generate.call_args.kwargs['reference_parts']
             text = '\n'.join(part.get('text', '') for part in parts)
             images = [part['inline_data']['data'] for part in parts if 'inline_data' in part]
-            self.assertEqual(images[1:], [references[name]['parts'][0]['data_b64'] for name in players])
+            self.assertEqual(images, [references[name]['parts'][0]['data_b64'] for name in players])
             self.assertIn('Kevin 3-0 (+12)', text)
             self.assertIn('Jordan 0-3 (-12)', text)
-            self.assertIn(CHARACTER_PRESERVATION_RULE, prompt)
-            self.assertIn('2 distinct roster players, plus everyone in their character pictures', prompt)
-            self.assertIn('companions do not receive player stats', prompt)
-            self.assertIn('Existing text is allowed', prompt)
-            self.assertNotIn('Do not add extra people', text)
-            self.assertNotIn('Each cell is one person', text)
-            self.assertNotIn('remove or ignore it', prompt)
+            self.assertFalse(generate.call_args.kwargs['add_body_side_convention'])
+            for removed in ('LOCK', 'PRESERVATION', 'BODY-SIDE', 'Wilson'):
+                self.assertNotIn(removed, prompt + text)
             if custom:
-                self.assertIn(custom, prompt)
-                self.assertIn('override any generic no-extra-people or no-text instruction', prompt)
+                self.assertEqual(custom, prompt)
 
 
 if __name__ == '__main__':

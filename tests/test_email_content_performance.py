@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from email_content import (
     _append_session_performance_staging_lock,
@@ -17,17 +18,16 @@ PLAYERS = [row[0] for row in STATS]
 
 
 class SessionPerformancePromptTests(unittest.TestCase):
-    def test_default_scene_stages_leader_and_loser_from_stats(self):
-        prompt = build_scene_image_prompt(
-            'doubles', PLAYERS, player_stats=STATS,
-        )
-
-        self.assertIn('PERFORMANCE STAGING LOCK', prompt)
-        self.assertIn('Christian Vincent (3-1, 75%, +4 point differential)', prompt)
-        self.assertIn('ecstatic and triumphant', prompt)
-        self.assertIn('Tyler Weston (0-4, 0%, -24 point differential)', prompt)
-        self.assertIn('down on the ground in comically bad shape', prompt)
-        self.assertIn('no blood, gore, open wounds', prompt)
+    def test_default_scene_includes_stats_without_forced_poses(self):
+        labels = {row[0]: f'{row[0]} {row[1]}-{row[2]}' for row in STATS}
+        with patch('email_content.filter_illustratable_players', return_value=PLAYERS):
+            prompt = build_scene_image_prompt(
+                'doubles', PLAYERS, player_stats=STATS, labels_by_name=labels,
+            )
+        for label in labels.values():
+            self.assertIn(label, prompt)
+        self.assertNotIn('LOCK', prompt)
+        self.assertNotIn('ground', prompt)
 
     def test_middle_players_get_different_direction_from_differential(self):
         lock = _session_performance_staging_lock(PLAYERS, STATS)

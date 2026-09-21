@@ -12,12 +12,9 @@ from email_content import (
 
 
 class BodySideConventionTests(unittest.TestCase):
-    def test_default_scene_prompt_defines_left_as_the_persons_own_left(self):
+    def test_default_scene_has_no_body_side_instructions(self):
         prompt = build_scene_image_prompt('doubles', [])
-
-        self.assertIn(BODY_SIDE_CONVENTION, prompt)
-        self.assertIn("person's own anatomical left or right", prompt)
-        self.assertIn("left leg is their own left leg", prompt)
+        self.assertNotIn(BODY_SIDE_CONVENTION, prompt)
 
     def test_convention_is_appended_only_once(self):
         prompt = _append_body_side_convention('Raise the left leg.')

@@ -1301,27 +1301,18 @@ def build_scene_image_prompt(
     player_stats=None, location='',
 ):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
-    roster_block, player_count, players = _clean_player_lines_block(
-        players, labels_by_name=labels_by_name, player_stats=player_stats,
-    )
-    details = (image_details or '').strip()
-    setting = _scene_setting_line(game_type, game_name)
-    identity = _group_identity_rules(player_count)
-    royalty = _session_beach_royalty_lock(players, player_stats)
-    performance = _session_performance_staging_lock(players, player_stats)
+    players = filter_illustratable_players(players)
+    labels = labels_by_name or _image_labels_for_players(players, player_stats)
     sections = [
-        identity, BODY_SIDE_CONVENTION, royalty, performance, roster_block,
+        f"Create a group picture of all these players with their names and stats. "
+        f"Use the attached player references. Sport: {_sport_desc_for_image(game_type, game_name)}.",
+        '\n'.join(labels.get(name) or name for name in players),
     ]
-    if details:
-        sections.append(details)
+    if (image_details or '').strip():
+        sections.append(image_details.strip())
     if (location or '').strip():
-        sections.append(_location_context_block(location))
-    sections.append(_name_stats_label_rule())
-    sections.append(setting)
-    sections.append(_volleyball_ball_lock(
-        game_type, game_name, summary_image=True,
-    ))
-    sections.append(_clean_prompt_format_rules(player_count))
+        sections.append(f'Location: {location.strip()}.')
+    sections.append('Vertical 4:5.')
     return '\n\n'.join(section for section in sections if section)
 
 
@@ -1780,7 +1771,7 @@ def _image_labels_for_players(players, player_stats=None):
 
 
 def _reference_parts_from_uploaded_photos(
-    players, labels_by_name=None, player_stats=None,
+    players, labels_by_name=None, player_stats=None, simple=False,
 ):
     """Build likeness refs for a single group image call.
 
@@ -1835,6 +1826,26 @@ def _reference_parts_from_uploaded_photos(
             'No selected players have an AI character, face photo, or signature looks. '
             'Add those on the Players page, then try again.'
         )
+
+    if simple:
+        parts = []
+        image_index = 0
+        for name in included:
+            label = labels_by_name.get(name) or name
+            phrases = phrases_by_name.get(name) or []
+            parts.append({'text': f"{name}: {label}" + (
+                f". Signature look: {'; '.join(phrases)}" if phrases else ''
+            )})
+            for ref in (photos_by_name.get(name) or [])[:1]:
+                if image_index >= 16:
+                    break
+                image_index += 1
+                parts.append({
+                    'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']},
+                    'image_index': image_index,
+                    'image_name': name,
+                })
+        return parts, included
 
     # OpenAI edits accepts up to 16 files. A labeled identity sheet uses slot 1.
     included = included[:15] if len(included) >= 2 else included[:16]
@@ -2397,9 +2408,11 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
     raise ValueError(f'no image in response (finish={fr})')
 
 
-def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None):
+def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None,
+                          add_body_side_convention=True):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
-    prompt = _append_body_side_convention(prompt)
+    if add_body_side_convention:
+        prompt = _append_body_side_convention(prompt)
     provider = active_ai_provider()
     if provider == 'openai':
         # Prefer the live OpenAI key even if a Gemini key was passed by callers.
@@ -3547,9 +3560,11 @@ def build_solo_caricature_prompt(player_name, game_type='doubles', game_name=Non
     return _build_solo_player_prompt(name, trait_phrases, has_reference_photos)
 
 
-def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]'):
+def _image_prompt_bundle(reference_parts, prompt, image_label='[Reference image attached]',
+                         add_body_side_convention=True):
     """Serialize the full text sent to the image model (reference labels + prompt)."""
-    prompt = _append_body_side_convention(prompt)
+    if add_body_side_convention:
+        prompt = _append_body_side_convention(prompt)
     lines = []
     next_index = 1
     for part in reference_parts or []:
@@ -3852,7 +3867,7 @@ def generate_email_hero_image(
 
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
-        all_players, labels_by_name=labels_by_name, player_stats=player_stats,
+        all_players, labels_by_name=labels_by_name, player_stats=player_stats, simple=True,
     )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
@@ -3861,24 +3876,16 @@ def generate_email_hero_image(
             game_type, scene_players, game_name=game_name, image_details=image_details,
             labels_by_name=labels_by_name, player_stats=player_stats, location=location,
         )
-    scene_prompt = _append_location_context(scene_prompt, location)
-    scene_prompt = _append_volleyball_ball_lock(
-        scene_prompt, game_type, game_name, summary_image=True,
+    if (custom_scene_prompt or '').strip() and (location or '').strip():
+        scene_prompt += f'\n\nLocation: {location.strip()}.'
+    api_prompt = scene_prompt
+    image_prompt = _image_prompt_bundle(
+        scene_refs, api_prompt, add_body_side_convention=False,
     )
-    api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
-    api_prompt = _append_session_beach_royalty_lock(
-        api_prompt, scene_players, player_stats,
-    )
-    api_prompt = _append_session_performance_staging_lock(
-        api_prompt, scene_players, player_stats,
-    )
-    api_prompt = _append_volleyball_ball_lock(
-        api_prompt, game_type, game_name, summary_image=True,
-    )
-    image_prompt = _image_prompt_bundle(scene_refs, api_prompt)
     try:
         raw, mime = _generate_image_bytes(
             api_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+            add_body_side_convention=False,
         )
     except Exception as e:
         raise ImageGenerationError(

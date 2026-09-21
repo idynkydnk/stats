@@ -12,11 +12,11 @@ from email_content import (
 
 
 class VolleyballImagePromptTests(unittest.TestCase):
-    def test_summary_image_requires_one_yellow_black_wilson_ball(self):
+    def test_summary_image_leaves_equipment_to_model(self):
         prompt = build_scene_image_prompt('doubles', [])
-
-        self.assertIn('yellow-and-black Wilson beach volleyball', prompt)
-        self.assertIn('TOTAL BALL COUNT = 1', prompt)
+        self.assertIn('beach volleyball', prompt)
+        self.assertNotIn('Wilson', prompt)
+        self.assertNotIn('TOTAL BALL COUNT', prompt)
 
     def test_flyer_uses_wilson_ball_without_summary_limit(self):
         prompt = build_flyer_scene_prompt([], 'doubles')
