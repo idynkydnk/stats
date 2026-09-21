@@ -1,5 +1,6 @@
 """Exercise destination defaults without running application startup jobs."""
 import ast
+from datetime import date
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -13,7 +14,7 @@ class BrowseGameYearTests(unittest.TestCase):
         tree = ast.parse((ROOT / 'stats.py').read_text())
         node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'browse_game_year')
         self.namespace = {
-            'grab_all_years': lambda: ['2026', '2025', 'All years'],
+            'date': date,
             'all_vollis_years': lambda: ['2024', 'All years'],
         }
         exec(compile(ast.Module(body=[node], type_ignores=[]), 'stats.py', 'exec'), self.namespace)
@@ -29,7 +30,7 @@ class BrowseGameYearTests(unittest.TestCase):
         ]:
             years.return_value = recorded
             self.assertEqual(self.choose('Matterhorn'), expected)
-        self.assertEqual(self.choose(kind='doubles'), 'All years')
+        self.assertEqual(self.choose(kind='doubles'), str(date.today().year))
         self.assertEqual(self.choose(kind='vollis'), '2024')
 
     @patch('other_functions.game_name_years', return_value=['2023', 'All years'])
@@ -59,10 +60,12 @@ class BrowseGameYearTests(unittest.TestCase):
         for mode, endpoint in [('stats', 'game_name_stats_with_year'), ('games', 'other_games_by_name')]:
             html = env.get_template('partials/section_tabs.html').render(
                 active_tab='doubles', doubles_division='open', header_mode=mode,
-                year='2026', request={'endpoint': 'stats'},
+                year='2000', request={'endpoint': 'stats'},
             )
             self.assertIn(endpoint + ':2023:Matterhorn', html)
-            self.assertNotIn(':2026:', html)
+            self.assertNotIn(':2000:', html)
+            doubles_endpoint = 'games' if mode == 'games' else 'stats'
+            self.assertIn(doubles_endpoint + ':' + str(date.today().year) + ':', html)
             self.assertNotIn('All Other', html)
 
 

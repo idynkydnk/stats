@@ -1825,14 +1825,18 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         min-width: 0;
     }
     .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(2) {
-        width: 30%;
-        max-width: 30%;
+        width: 25%;
+        max-width: 25%;
     }
     .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(3) {
         width: 18%;
     }
     .sr-table-section .sr-table:has(.sr-game-rating-cell) th {
-        overflow-wrap: anywhere;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):last-child {
+        width: 15%;
     }
 }
 @media (max-width: 480px) {

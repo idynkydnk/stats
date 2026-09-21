@@ -1102,7 +1102,7 @@ def browse_game_year(game_name=None, kind='other'):
     """Choose a destination's own season instead of inheriting another game's."""
     from other_functions import game_name_years
     if kind == 'doubles':
-        years = grab_all_years()
+        return str(date.today().year)
     elif kind == 'vollis':
         years = all_vollis_years()
     else:
