@@ -1,4 +1,4 @@
-"""Two-side TrueSkill ratings, isolated by game and requested season/location.
+"""TrueSkill-based ratings, isolated by game and requested season/location.
 
 Uses the closed-form Gaussian update for a decisive result between two teams
 (Microsoft's TrueSkill model, mu=25, sigma=25/3, beta=25/6, tau=25/300).
@@ -9,6 +9,8 @@ from collections import defaultdict
 
 HEAD_TO_HEAD_GAMES = {'backgammon', 'scrabble', 'sequence', 'euchre', 'gin rummy',
                       'otrio', 'spot it!', 'sushi go!', 'catan', 'tic-tac-toe', 'ping pong'}
+INDIVIDUAL_MULTIPLAYER_GAMES = {'gin rummy', 'scrabble', 'sequence', 'catan',
+                                'spot it!', 'sushi go!', 'otrio'}
 ROTATING_GAMES = {'kings', 'coed kings/queens', 'vollis kings', 'one dollar wednesdays',
                   'name that tune', 'short court three boxes', 'short court two boxes', 'four corners'}
 
@@ -29,6 +31,9 @@ def match_teams(game):
     winners, losers = sides
     if len(set(winners + losers)) != len(winners + losers):
         return None
+    # A single winner over individual opponents needs no ordering among losers.
+    if not volleyball and name in INDIVIDUAL_MULTIPLAYER_GAMES and len(winners) == 1:
+        return winners, losers
     # Only formats whose team membership is unambiguous from this schema.
     if len(winners) != len(losers):
         return None
@@ -37,28 +42,51 @@ def match_teams(game):
     return winners, losers
 
 
+def _decisive_deltas(prior, winners, losers):
+    """Return mean/variance changes from one decisive two-side comparison."""
+    players = winners + losers
+    c = math.sqrt(sum(prior[p][1] for p in players) + len(players) * (25 / 6) ** 2)
+    t = (sum(prior[p][0] for p in winners) - sum(prior[p][0] for p in losers)) / c
+    # erfc avoids cancellation for upsets; the asymptotic inverse Mills ratio
+    # keeps extreme negative tails finite.
+    if t < -10:
+        x = -t
+        v = x + 1 / x - 2 / x**3 + 10 / x**5 - 74 / x**7
+    else:
+        v = math.exp(-t * t / 2) / math.sqrt(2 * math.pi) / (0.5 * math.erfc(-t / math.sqrt(2)))
+    w = min(1.0, max(0.0, v * (v + t)))
+    return {p: (sign * prior[p][1] / c * v, -prior[p][1] ** 2 / c**2 * w)
+            for side, sign in ((winners, 1), (losers, -1)) for p in side}
+
+
 def rate_matches(matches):
+    """Replay validated sides; one winner/multiple losers means individuals.
+
+    Multiplayer updates average winner-versus-loser deltas from the same
+    pre-game priors. This bounded approximation assigns no ties or ordering
+    between losers and does not multiply a round's evidence by its field size.
+    """
     ratings = defaultdict(lambda: (25.0, 25.0 / 3))
     counts, opponents = defaultdict(int), defaultdict(set)
     for winners, losers in matches:
         players = winners + losers
         prior = {p: (ratings[p][0], ratings[p][1] ** 2 + (25 / 300) ** 2) for p in players}
-        c = math.sqrt(sum(v for _, v in prior.values()) + len(players) * (25 / 6) ** 2)
-        t = (sum(prior[p][0] for p in winners) - sum(prior[p][0] for p in losers)) / c
-        # erfc avoids cancellation for upsets; asymptotic inverse Mills ratio
-        # keeps extreme negative tails finite.
-        if t < -10:
-            x = -t
-            v = x + 1 / x - 2 / x**3 + 10 / x**5 - 74 / x**7
+        if len(winners) == 1 and len(losers) > 1:
+            # Sort only for deterministic arithmetic, never as a finishing order.
+            comparisons = [_decisive_deltas(prior, winners, [loser]) for loser in sorted(losers)]
+            deltas = {p: (
+                math.fsum(result.get(p, (0, 0))[0] for result in comparisons) / len(losers),
+                math.fsum(result.get(p, (0, 0))[1] for result in comparisons) / len(losers),
+            ) for p in players}
         else:
-            v = math.exp(-t * t / 2) / math.sqrt(2 * math.pi) / (0.5 * math.erfc(-t / math.sqrt(2)))
-        w = min(1.0, max(0.0, v * (v + t)))
-        for side, rivals, sign in ((winners, losers, 1), (losers, winners, -1)):
+            deltas = _decisive_deltas(prior, winners, losers)
+        for side, rivals in ((winners, losers), (losers, winners)):
             for p in side:
                 mu, variance = prior[p]
-                ratings[p] = (mu + sign * variance / c * v,
-                              math.sqrt(max(1e-12, variance * (1 - variance / c**2 * w))))
+                delta_mu, delta_variance = deltas[p]
+                ratings[p] = (mu + delta_mu, math.sqrt(max(1e-12, variance + delta_variance)))
                 counts[p] += 1
+                # Losing players were not compared with one another.
                 opponents[p].update(rivals)
     return {p: {'rating': round(mu - 3 * sigma, 2), 'mu': mu, 'sigma': sigma,
                 'rated_games': counts[p], 'opponents': len(opponents[p]),

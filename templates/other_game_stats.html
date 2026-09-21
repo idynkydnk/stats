@@ -35,7 +35,7 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title">{{ year }} {{ game_name }}</h1>
     <div class="sr-header-actions">
-        <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Other Stats</a>
+        <a href="{{ url_for('other_games_by_name', year=year, game_name=game_name) }}" class="sr-link-btn"><i class="fas fa-list-alt"></i> Games</a>
         <div class="sr-year-select-wrap">
             <select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
                 {% for yr in all_years %}

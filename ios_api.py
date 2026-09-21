@@ -320,11 +320,13 @@ def register_ios_api(app):
         if not stats and year == current_year and all_years:
             previous_year = str(int(current_year) - 1)
             if previous_year in all_years:
-                games = year_games(previous_year)
-                minimum_games = max(1, (len(games) // 30) if games else 1)
-                stats = stats_per_year(previous_year, minimum_games)
-                display_year = previous_year
-                showing_previous_year = True
+                previous_games = year_games(previous_year)
+                if previous_games:
+                    games = previous_games
+                    minimum_games = max(1, len(games) // 30)
+                    stats = stats_per_year(previous_year, minimum_games)
+                    display_year = previous_year
+                    showing_previous_year = True
         rare = rare_stats_per_year(display_year, minimum_games)
         today = todays_stats()
         today_games = todays_games()
@@ -692,7 +694,11 @@ def register_ios_api(app):
         names = other_game_names(games)
         types = other_game_types(games)
         mapping = {n: other_game_type_for_name(games, n) for n in names}
-        return jsonify({'game_names': names, 'game_types': types, 'type_for_name': mapping})
+        return jsonify({
+            'game_names': names, 'game_types': types, 'type_for_name': mapping,
+            'default_years': {name: _S().browse_game_year(name) for name in names},
+            'vollis_default_year': _S().browse_game_year(kind='vollis'),
+        })
 
     @app.route('/api/volleyball/stats')
     def api_volleyball_stats():

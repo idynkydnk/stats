@@ -21,10 +21,50 @@ class GameRatingTests(unittest.TestCase):
         self.assertEqual(ratings['A']['rating'], round(ratings['A']['mu']-3*ratings['A']['sigma'], 2))
 
     def test_no_inferred_losing_teams(self):
-        self.assertIsNone(match_teams(game(1, losers=('B','C'), name='Gin Rummy', category='Card games')))
+        self.assertIsNone(match_teams(game(1, losers=('B','C'), name='Backgammon', category='Board games')))
         self.assertIsNone(match_teams(game(1, ('A','B'), ('C','D'), name='Scrabble', category='Board games')))
         self.assertIsNotNone(match_teams(game(1, ('A','B'), ('C','D'), name='Euchre', category='Card games')))
         self.assertIsNotNone(match_teams(game(1, ('A','B'), ('C','D'))))
+
+    def test_supported_multiplayer_games_and_ambiguous_winners(self):
+        for name in ['Gin Rummy', 'Scrabble', 'Sequence', 'Catan', 'Spot it!', 'Sushi go!', 'Otrio']:
+            summary = summarize_games([game(1, losers=('B', 'C'), name=name, category='Other')])
+            self.assertEqual(set(summary['ratings']), {'A', 'B', 'C'})
+            self.assertEqual((summary['rated_games'], summary['unrated_games']), (1, 0))
+            self.assertIsNone(match_teams(game(2, ('A', 'B'), ('C',), name=name, category='Other')))
+        for name in ['Backgammon', 'Euchre', 'Ping pong', 'Tic-tac-toe', 'Unknown']:
+            self.assertIsNone(match_teams(game(1, losers=('B', 'C'), name=name, category='Other')))
+        for losers in [('B', '?'), ('B', 'B'), ('B', 'A')]:
+            self.assertIsNone(match_teams(game(1, losers=losers, name='Gin Rummy', category='Card games')))
+
+    def test_multiplayer_order_symmetry_and_one_game_per_player(self):
+        first = game(1, losers=('B', 'C', 'D'), name='Gin Rummy', category='Card games')
+        reverse = game(1, losers=('D', 'C', 'B'), name='Gin Rummy', category='Card games')
+        ratings = summarize_games([first])['ratings']
+        self.assertEqual(ratings, summarize_games([reverse])['ratings'])
+        self.assertEqual(ratings['B'], ratings['C'])
+        self.assertGreater(ratings['A']['mu'], 25)
+        self.assertLess(ratings['B']['mu'], 25)
+        self.assertEqual(ratings['A']['opponents'], 3)
+        self.assertEqual(ratings['B']['opponents'], 1)
+        self.assertTrue(all(r['rated_games'] == 1 for r in ratings.values()))
+
+    def test_large_field_does_not_multiply_winner_adjustment(self):
+        head_to_head = rate_matches([(['A'], ['B'])])
+        multiplayer = rate_matches([(['A'], ['B', 'C', 'D', 'E'])])
+        self.assertAlmostEqual(multiplayer['A']['mu'], head_to_head['A']['mu'])
+        self.assertAlmostEqual(multiplayer['A']['sigma'], head_to_head['A']['sigma'])
+        self.assertAlmostEqual(25 - multiplayer['B']['mu'], (25 - head_to_head['B']['mu']) / 4)
+
+    def test_multiplayer_uses_opponent_strength_and_replays_stably(self):
+        history = [(['Strong'], ['Weak'])] * 30
+        upset = rate_matches(history + [(['New'], ['Strong', 'Other'])])
+        expected = rate_matches(history + [(['New'], ['Weak', 'Other'])])
+        self.assertGreater(upset['New']['mu'], expected['New']['mu'])
+        matches = [(['A'], ['B', 'C']), (['C'], ['B', 'A']), (['B'], ['A', 'C'])] * 200
+        ratings = rate_matches(matches)
+        self.assertTrue(all(math.isfinite(r['rating']) and r['sigma'] > 0 for r in ratings.values()))
+        self.assertTrue(all(r['rated_games'] == 600 for r in ratings.values()))
 
     def test_rotating_and_luck_heavy_games_not_rated(self):
         for name in ['Kings', 'Vollis kings', 'Coed kings/queens', 'One Dollar Wednesdays', 'Uno', 'Ono 99']:

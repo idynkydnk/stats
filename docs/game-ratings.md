@@ -1,7 +1,7 @@
 # Ratings for individual games
 
 Doubles keeps its existing rating system. Other games and Vollis use separate
-TrueSkill histories within the selected season and location. Categories such as
+TrueSkill-based histories within the selected season and location. Categories such as
 Volleyball, Card games and Board games never combine ratings across game names.
 
 The new engine uses the closed-form two-team, decisive-result TrueSkill update:
@@ -19,8 +19,22 @@ Supported results:
 - Head-to-head Backgammon, Scrabble, Sequence, Euchre, Gin Rummy, Otrio, Spot it!,
   Sushi go!, Catan, Tic-tac-toe and Ping pong. Sequence and Euchre also allow 2v2.
 
+- Single-winner multiplayer Gin Rummy, Scrabble, Sequence, Catan, Spot it!,
+  Sushi go! and Otrio.
+
+For those individual multiplayer formats, compare the winner with each loser
+using the same pre-game priors. Average the mean and variance changes over the
+number of losers (including zero changes for nonparticipants in each comparison),
+then apply the result once per player. This is a bounded pairwise approximation,
+not an exact multiplayer TrueSkill posterior. An equal-strength winner receives
+the same update regardless of field size; each loss receives a fraction of the
+one-on-one adjustment. Dynamics variance is added once per round. Rated-game
+counts increase once per participant; opponent counts include only actual
+winner-loser comparisons. No comparison is made between losers, and they are
+not treated as tied or as a team. Loser-list order cannot affect the result.
+
 We do not infer team membership or finishing order from a list of individual
-losers. Unordered multiplayer rounds, rotating Kings/Queens and box drills,
+losers. Multiple-winner individual rounds, rotating Kings/Queens and box drills,
 unknown game formats, Uno, Ono 99, and incomplete/duplicate player rosters are
 excluded from ratings. The original win/loss stats still include those records.
 New formats should be reviewed before expanding the allowlist.

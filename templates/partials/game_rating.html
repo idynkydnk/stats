@@ -13,8 +13,8 @@
 {% if card.rating_enabled %}
 <details class="sr-rating-help">
 <summary>About ratings</summary>
-<p class="sr-game-rating-note">TrueSkill · {{ card.rated_games }} rated games{% if card.unrated_games %} · {{ card.unrated_games }} results excluded{% endif %}</p>
-<p>Ratings are separate for each game and selected season/location. Results with unsupported formats or incomplete players remain in win/loss stats but do not affect ratings.</p>
+<p class="sr-game-rating-note">Skill rating · {{ card.rated_games }} rated games{% if card.unrated_games %} · {{ card.unrated_games }} results excluded{% endif %}</p>
+<p>Ratings are separate for each game and selected season/location. In supported multiplayer games, the winner is compared with each opponent without ranking the other players. Results with unsupported formats or incomplete players remain in win/loss stats but do not affect ratings.</p>
 </details>
 {% endif %}
 {%- endmacro %}

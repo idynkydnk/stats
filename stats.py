@@ -5022,6 +5022,8 @@ def api_doubles_list():
     database = _api_get_db()
     conn = sqlite3.connect(database)
     conn.row_factory = sqlite3.Row
+    from stats_location_filter import filter_stats_connection
+    filter_stats_connection(conn, 'games')
     cur = conn.cursor()
     year = request.args.get('year', '').strip()
     since = request.args.get('since', '').strip()

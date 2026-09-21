@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-20-stats-browsing-parity",
+    "date": "2026-09-20",
+    "subject": "iPhone: Cleaner stats and game browsing",
+    "body": "Browse games sits beside Men’s and Women’s, with Doubles, Vollis, and No jump grouped under Volleyball. Doubles opens the current year, other games choose their only recorded year or All years, and Games opens the current game’s list; ratings show numbers without P markers and include supported multiplayer results."
+  },
+  {
     "id": "ios-2026-09-20-daily-ratings",
     "date": "2026-09-20",
     "subject": "iPhone: Ratings for today’s doubles",

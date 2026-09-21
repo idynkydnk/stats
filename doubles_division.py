@@ -3,7 +3,8 @@ from flask import has_request_context, request, session
 
 DIVISIONS = {'open': 'Men’s Doubles', 'women': "Women’s Doubles"}
 STATS_ENDPOINTS = {'index', 'stats', 'stats_default', 'stats_by_date', 'games', 'games_default',
-                   'player_stats', 'player_network', 'player_network_default'}
+                   'player_stats', 'player_network', 'player_network_default',
+                   'api_doubles_stats', 'api_doubles_player', 'api_doubles_list', 'api_network'}
 ENTRY_ENDPOINTS = {'add_game', 'add_game_voice', 'api_todays_doubles_dashboard', 'api_doubles_players'}
 
 
