@@ -27,7 +27,7 @@ New formats should be reviewed before expanding the allowlist.
 
 A rating is provisional until the player has at least 10 rated matches, 3 distinct
 opponents, and sigma <= 6. These are display policy thresholds, not a claim of
-statistical certainty. P marks provisional ratings; no eligible matches means
-no rating. Tables retain win-percentage ordering until at least one player meets
+statistical certainty. Provisional status is used internally for default sorting
+and is not displayed beside ratings; no eligible matches means no rating. Tables retain win-percentage ordering until at least one player meets
 these thresholds, then default to conservative rating order. The rating column
 can also be sorted manually. Coverage counts disclose excluded results.
