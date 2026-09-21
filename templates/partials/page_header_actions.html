@@ -39,7 +39,6 @@
 
     {% if not hide_year and all_years is defined and year_base is defined and yr is not none %}
     <label class="sr-header-field sr-header-year">
-        <span class="sr-header-label">Season</span>
         <span class="sr-year-select-wrap">
         <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
             {% for yr_option in all_years %}
@@ -63,7 +62,6 @@
     {% endif %}
     {% if all_years is defined %}
     <label class="sr-header-field sr-header-location">
-        <span class="sr-header-label">Location</span>
         <span class="sr-year-select-wrap">
         <select class="sr-year-select" aria-label="Locations" onchange="window.location.href=this.value">
             <option value="{{ stats_location_url() }}" {% if not stats_location and not stats_missing_location %}selected{% endif %}>All locations</option>

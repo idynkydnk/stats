@@ -156,8 +156,8 @@
                     <table class="sr-table" data-default-sort="winpct" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th class="sr-numeric">#</th>
+                                <th data-column="player">Player</th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
@@ -262,8 +262,8 @@
                     <table class="sr-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th class="sr-numeric">#</th>
+                                <th data-column="player">Player</th>
                                 {{ game_rating.header(card) }}
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>

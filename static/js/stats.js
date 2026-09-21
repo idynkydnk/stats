@@ -313,9 +313,9 @@ function cellNumericValue(row, cellIndex) {
 }
 
 function findSortColumnIndex(table, sortKey) {
-    const headers = table.querySelectorAll('th[data-sort]');
+    const headers = table.querySelectorAll('th[data-sort], th[data-column]');
     for (let i = 0; i < headers.length; i++) {
-        if (headers[i].dataset.sort === sortKey) return headers[i].cellIndex;
+        if ((headers[i].dataset.column || headers[i].dataset.sort) === sortKey) return headers[i].cellIndex;
     }
     return -1;
 }

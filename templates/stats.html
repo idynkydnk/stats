@@ -96,13 +96,12 @@
                     </p>
                     <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
                 </div>
-                <p class="sr-rating-help">Rating uses only today’s games. Everyone starts equal; fewer games mean more uncertainty.</p>
                 <div class="sr-table-wrap">
                     <table class="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th class="sr-numeric">#</th>
+                                <th data-column="player">Player</th>
                                 <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
@@ -149,8 +148,8 @@
                     <table class="sr-table" id="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th class="sr-numeric">#</th>
+                                <th data-column="player">Player</th>
                                 <th data-sort="rating" class="sr-numeric">
                                     <span class="sr-rating-header">
                                         Rating <span class="sr-sort-arrow">▼</span>
@@ -206,8 +205,8 @@
                     <table class="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
-                                <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                                <th class="sr-numeric">#</th>
+                                <th data-column="player">Player</th>
                                 <th data-sort="rating" class="sr-numeric">
                                 <span class="sr-rating-header">
                                     Rating <span class="sr-sort-arrow">▼</span>
