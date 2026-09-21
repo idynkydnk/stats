@@ -913,9 +913,6 @@ input[type=number] {
     .sr-table-section .sr-table td:nth-child(7),
     .sr-table-section .sr-table th:nth-child(7) { width: 10%; }
 
-    /* Hide the Games column on narrow screens (W + L already tell the story) */
-    .sr-table-section .sr-table#sr-table td:nth-child(7),
-    .sr-table-section .sr-table#sr-table th:nth-child(7) { display: none; }
     
     .sr-header-top {
         flex-direction: column;
@@ -1451,7 +1448,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     background: var(--sr-panel);
     box-shadow: 0 -12px 0 0 var(--sr-panel), 0 1px 0 var(--sr-line);
 }
-/* Keep partner/opponent tables inside the card; GP was clipping the right edge. */
+/* Keep partner/opponent tables inside the card. */
 @media (max-width: 768px) {
     .sr-player-section .sr-mini-table {
         table-layout: fixed;
@@ -1477,7 +1474,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     }
     .sr-player-section .sr-mini-table th:nth-child(2),
     .sr-player-section .sr-mini-table td:nth-child(2) {
-        width: 36%;
+        width: 50%;
         overflow-wrap: anywhere;
         word-break: break-word;
     }
@@ -1814,39 +1811,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 
 .sr-game-rating-note { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: 8px 0 12px; }
 .sr-rating-provisional { color: var(--sr-muted); font-size: 10px; }
-/* Keep the games column visible in rating tables. */
-.sr-table:has(th[data-sort="rating"]) th[data-sort="games"],
-.sr-table:has(th[data-sort="rating"]) td:last-child { display: table-cell; }
-
-.sr-game-rating-cell { white-space: nowrap; min-width: 64px; }
-.sr-table:has(.sr-game-rating-cell) { min-width: 430px; }
-@media (max-width: 768px) {
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) {
-        min-width: 0;
-    }
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(2) {
-        width: 25%;
-        max-width: 25%;
-    }
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):nth-child(3) {
-        width: 18%;
-    }
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) th {
-        overflow-wrap: normal;
-        word-break: normal;
-    }
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td):last-child {
-        width: 15%;
-    }
-}
-@media (max-width: 480px) {
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) :is(th, td) {
-        padding: 8px 2px;
-    }
-    .sr-table-section .sr-table:has(.sr-game-rating-cell) td {
-        font-size: 12px;
-    }
-}
+.sr-game-rating-cell { white-space: nowrap; }
 
 .sr-rating-help { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: -6px 0 12px; }
 .sr-rating-help summary { cursor: pointer; padding: 6px 0; }

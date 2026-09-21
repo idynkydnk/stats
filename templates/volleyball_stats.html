@@ -52,7 +52,6 @@
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
-                            <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                         </tr>
                     </thead>
                     <tbody id="volleyball-card-tbody-{{ loop.index }}">
@@ -64,7 +63,6 @@
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                             <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
                             <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
-                            <td class="sr-numeric" data-value="{{ stat[1] + stat[2] }}">{{ stat[1] + stat[2] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
