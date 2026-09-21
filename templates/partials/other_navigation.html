@@ -1,16 +1,21 @@
 {% set browse_games = header_mode|default('stats') == 'games' %}
 {% set nav_year = display_year|default(year)|default('All years') %}
 {% set selected_game = game_name|default('', true) %}
-{% if active_tab|default('') == 'vollis' %}
+{% if active_tab|default('') == 'doubles' %}
+    {% set selected_game = 'Doubles' %}
+{% elif active_tab|default('') == 'vollis' %}
     {% set selected_game = 'Vollis' %}
 {% elif request.endpoint == 'volleyball_stats' %}
     {% set selected_game = 'Volleyball' %}
 {% endif %}
-<nav class="sr-other-navigation sr-card" aria-label="Other games">
+<nav class="sr-other-navigation sr-card{% if selected_game == 'Doubles' %} sr-doubles-navigation{% endif %}" aria-label="Browse games">
+    {% if selected_game == 'Doubles' %}
+    {% include 'partials/doubles_division_tabs.html' %}
+    {% endif %}
     <details class="sr-game-picker" {% if not selected_game %}open{% endif %}>
         <summary class="sr-game-picker-summary">
-            <span>{{ selected_game or 'Choose a game' }}</span>
-            <span class="sr-game-picker-action">{{ 'Change game' if selected_game else 'Browse games' }} <span aria-hidden="true">▾</span></span>
+            {% if selected_game != 'Doubles' %}<span>{{ selected_game or 'Choose a game' }}</span>{% endif %}
+            <span class="sr-game-picker-action">Browse games <span aria-hidden="true">▾</span></span>
         </summary>
         <div class="sr-game-picker-options">
     <a class="sr-link-btn" href="{{ url_for('other_games' if browse_games else 'other_stats', year=nav_year) }}">All Other {{ 'games' if browse_games else 'stats' }}</a>
@@ -19,6 +24,7 @@
         <strong>{{ category }}</strong>
         <div class="sr-other-choices">
             {% if category == 'Volleyball' %}
+            <a class="sr-link-btn" href="{{ url_for('games' if browse_games else 'stats', year=nav_year) }}" {% if active_tab|default('') == 'doubles' %}aria-current="page"{% endif %}>Doubles</a>
             <a class="sr-link-btn" href="{{ url_for('vollis_games' if browse_games else 'vollis_stats', year=nav_year) }}" {% if active_tab|default('') == 'vollis' %}aria-current="page"{% endif %}>Vollis</a>
             {% endif %}
             {% for name in names if category != 'Volleyball' or name == 'No jump' or name == game_name|default('') %}

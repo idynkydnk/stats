@@ -1798,6 +1798,19 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 .sr-game-picker-action > span { display: inline-block; margin-left: 4px; }
 .sr-game-picker[open] > summary .sr-game-picker-action > span { transform: rotate(180deg); }
 .sr-game-picker-options { padding: 0 14px 14px; }
+.sr-doubles-navigation { display: grid; }
+.sr-doubles-navigation > .sr-doubles-category {
+    grid-area: 1 / 1;
+    align-self: start;
+    justify-self: start;
+    margin: 6px 14px;
+    z-index: 1;
+}
+.sr-doubles-navigation > .sr-game-picker { grid-area: 1 / 1; min-width: 0; }
+.sr-doubles-navigation .sr-game-picker-summary {
+    justify-content: flex-end;
+    padding-left: 170px;
+}
 
 .sr-game-rating-note { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: 8px 0 12px; }
 .sr-rating-provisional { color: var(--sr-muted); font-size: 10px; }
