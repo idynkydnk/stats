@@ -188,6 +188,8 @@ def _ranking(row, rating_key='rating'):
     }
     if len(row) > 4:
         out[rating_key] = row[4]
+    if rating_key == 'plus_minus' and len(row) > 5:
+        out['rating'] = row[5]
     return out
 
 

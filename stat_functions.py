@@ -308,21 +308,7 @@ def teams(games):
 
 def todays_stats():
     games = todays_games()
-    players = all_players(games)
-    stats = []
-    for player in players:
-        wins, losses, differential = 0, 0, 0
-        for game in games:
-            if player == game[2] or player == game[3]:
-                wins += 1
-                differential += (game[4] - game[7])
-            elif player == game[5] or player == game[6]:
-                losses += 1
-                differential -= (game[4] - game[7])
-        win_percentage = wins / (wins + losses)
-        stats.append([player, wins, losses, win_percentage, differential])
-    stats.sort(key=lambda x: (x[3], x[4]), reverse=True)
-    return stats
+    return calculate_stats_from_games(games)
 
 
 def todays_doubles_dashboard_payload():
@@ -342,7 +328,7 @@ def todays_doubles_dashboard_payload():
             'loser_score': g[7],
             'comment': g[9] if len(g) > 9 else '',
         })
-    stats_out = [[row[0], row[1], row[2], row[3], row[4]] for row in stats]
+    stats_out = [list(row) for row in stats]
     return {'stats': stats_out, 'games': out_games, 'year': str(date.today().year)}
 
 
@@ -384,9 +370,32 @@ def calculate_stats_from_games(games):
                 differential -= (game[4] - game[7])
         win_percentage = wins / (wins + losses)
         stats.append([player, wins, losses, win_percentage, differential])
-    stats.sort(key=lambda x: x[4], reverse=True)
-    stats.sort(key=lambda x: x[3], reverse=True)
+    ratings = {r['player']: r['rating'] for r in calculate_session_ratings(games)}
+    for row in stats:
+        row.append(ratings.get(row[0]))
+    stats.sort(key=lambda row: (row[5] if row[5] is not None else float('-inf'), row[3], row[4]), reverse=True)
     return stats
+
+
+def calculate_session_ratings(games):
+    """Reset skill for this session and replay games in chronological order."""
+    def game_order(game):
+        value = str(game[1]).split(' (')[0]
+        try:
+            when = datetime.fromisoformat(value)
+        except ValueError:
+            when = None
+            for fmt in ('%m/%d/%Y %I:%M %p', '%m/%d/%y', '%m/%d/%Y'):
+                try:
+                    when = datetime.strptime(value, fmt)
+                    break
+                except ValueError:
+                    pass
+            if when is None:
+                raise ValueError(f'Cannot order session game date: {value}')
+        return when, game[0]
+    return _calculate_trueskill_from_games(sorted(games, key=game_order))
+
 
 def specific_date_stats(target_date):
     """Get stats for a specific date"""
@@ -1837,6 +1846,14 @@ def _calculate_trueskill_rankings_fresh(year=None):
 		cur.execute("SELECT * FROM games ORDER BY game_date ASC")
 	games = cur.fetchall()
 	
+	return _calculate_trueskill_from_games(games)
+
+
+def _calculate_trueskill_from_games(games):
+	"""Shared rating engine; callers supply games in chronological order."""
+	import math
+	from collections import defaultdict
+
 	# TrueSkill default parameters
 	INITIAL_MU = 25.0  # Mean skill
 	INITIAL_SIGMA = 8.333  # Skill uncertainty
@@ -1851,13 +1868,6 @@ def _calculate_trueskill_rankings_fresh(year=None):
 	
 	# Process games chronologically
 	for game in games:
-		# Get game date
-		game_date_str = game[1]
-		if len(game_date_str) > 19:
-			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S.%f")
-		else:
-			game_date = datetime.strptime(game_date_str, "%Y-%m-%d %H:%M:%S")
-		
 		# Get teams
 		winners = [game[2], game[3]]  # winner1, winner2
 		losers = [game[5], game[6]]   # loser1, loser2

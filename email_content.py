@@ -1430,31 +1430,33 @@ _BEACH_ROYALTY_PHRASES = frozenset({
 })
 
 
+def _session_rank(row):
+    """Prefer the session rating; unrated game types keep their existing order."""
+    if len(row) > 5:
+        return (float(row[5]) if row[5] is not None else float('-inf'),)
+    return (float(row[3] or 0), int(row[4] or 0))
+
+
 def _session_beach_royalty_names(player_stats):
-    """Names tied for best win% and differential in this session."""
+    """Names tied for the highest session rating (or legacy unrated ranking)."""
     rows = []
     for row in player_stats or []:
-        if not row or len(row) < 5:
-            continue
-        name = (row[0] or '').strip()
-        if not name:
+        if not row or len(row) < 5 or not (row[0] or '').strip():
             continue
         try:
-            win_pct = float(row[3] or 0)
-            differential = int(row[4] or 0)
+            rank = _session_rank(row)
         except (TypeError, ValueError):
             continue
-        rows.append((name, win_pct, differential))
+        if rank[0] != float('-inf'):
+            rows.append((row[0].strip(), rank))
     if not rows:
         return []
-    best_pct = max(row[1] for row in rows)
-    at_pct = [row for row in rows if row[1] == best_pct]
-    best_diff = max(row[2] for row in at_pct)
-    return [row[0] for row in at_pct if row[2] == best_diff]
+    best = max(rank for _, rank in rows)
+    return [name for name, rank in rows if rank == best]
 
 
 def _session_beach_royalty_lock(players, player_stats):
-    """Explicitly bind royalty props to the win-percentage leader(s)."""
+    """Explicitly bind royalty props to the session leader(s)."""
     players = _dedupe_players_preserve_order(players)
     player_keys = {(name or '').strip().casefold() for name in players}
     leaders = [
@@ -1467,6 +1469,7 @@ def _session_beach_royalty_lock(players, player_stats):
     leader_keys = {name.casefold() for name in leaders}
     nonleaders = [name for name in players if name.casefold() not in leader_keys]
     leader_text = ', '.join(leaders)
+    basis = 'highest session rating' if any(len(row) > 5 for row in player_stats or [] if row) else 'best win percentage'
     role_text = ', '.join(
         f'{name} is the only {"queen" if _player_is_female_for_beach_title(name) else "king"}'
         for name in leaders
@@ -1474,7 +1477,7 @@ def _session_beach_royalty_lock(players, player_stats):
     lines = [
         'ROYALTY IDENTITY LOCK — follow this literally and do not infer royalty '
         'from point differential, label size, reference-image clothing, or prompt order.',
-        f'{role_text}. The session royalty is determined by best win percentage; '
+        f'{role_text}. The session royalty is determined by {basis}; '
         f'attach newly added session-award crowns, capes, thrones, or other royalty props '
         f'only to {leader_text}. Preserve clothing and props already in saved character pictures; '
         'those existing items do not designate a session winner.',
@@ -1527,6 +1530,7 @@ def _session_performance_staging_lock(players, player_stats):
     if not rows:
         return ''
 
+    leaders = set(_session_beach_royalty_names(player_stats))
     best_rank = max((row[3], row[4]) for row in rows)
     worst_rank = min((row[3], row[4]) for row in rows)
     has_clear_loser = len(rows) > 1 and worst_rank != best_rank
@@ -1540,7 +1544,7 @@ def _session_performance_staging_lock(players, player_stats):
     for name, wins, losses, win_pct, differential in rows:
         record = f'{wins}-{losses}, {win_pct:.0%}, {differential:+d} point differential'
         rank = (win_pct, differential)
-        if rank == best_rank:
+        if name in leaders:
             direction = (
                 'the session leader: upright in front, ecstatic and triumphant, with a huge '
                 'proud smile and celebratory winner body language. If designated king or queen, '
@@ -3861,7 +3865,7 @@ def generate_email_hero_image(
         player_stats = session_stats_for_illustration(game_type, games)
 
     # Callers sometimes pass a set of names. Put players in the same authoritative
-    # order as the stats table so the win-percentage leader is the first identity
+    # order as the stats table so the session-rating leader is the first identity
     # the image model sees rather than whichever set item happens to come first.
     all_players = _players_in_session_rank_order(all_players, player_stats)
 
@@ -4481,7 +4485,7 @@ def build_doubles_email_payload(
     
     games = convert_ampm(raw_games)
     summary_location = _summary_location_from_rows(raw_games, game_columns)
-    stats = calculate_stats_from_games(games)
+    stats = calculate_stats_from_games(raw_games)
 
     all_streaks = get_current_streaks_last_365_days()
     streaks_dict = {streak[0]: {'length': streak[1], 'type': streak[2], 'max': streak[3]} for streak in all_streaks}
@@ -4560,7 +4564,7 @@ def build_doubles_email_payload(
             if abs(age - avg_age) >= 10:
                 age_outliers.add(player_name)
     
-    context += "Player Stats (with details & streaks):\n"
+    context += "Player Stats (with details & streaks), ordered by session rating. The highest session rating earns the crown; win percentage alone does not determine the leader.\n"
     for stat in stats[:10]:
         player_name = stat[0]
         wins = stat[1]
@@ -4588,7 +4592,8 @@ def build_doubles_email_payload(
 
         # Only show point differential if it's significant (+/- 5 or more)
         diff_str = f", Point Diff: {differential:+d}" if abs(differential) >= 5 else ""
-        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%){diff_str}{age_str}{height_str}{streak_str}\n"
+        rating_text = f'{stat[5]:.2f}' if stat[5] is not None else 'unrated'
+        context += f"- {player_name}: {wins}-{losses} ({win_pct:.1f}%), Session rating: {rating_text}{diff_str}{age_str}{height_str}{streak_str}\n"
 
     # Get earliest game date for historical queries
     date_values = [r[1] for r in raw_games if len(r) > 1 and r[1]]

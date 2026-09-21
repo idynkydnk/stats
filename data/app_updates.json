@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-20-daily-ratings",
+    "date": "2026-09-20",
+    "subject": "iPhone: Ratings for today’s doubles",
+    "body": "Today’s doubles standings show ratings based only on that day’s games, with less weight given to a one-game result. Group AI pictures request a king or queen based on the highest rating in the selected session."
+  },
+  {
     "id": "ios-2026-09-19-collapsible-game-picker",
     "date": "2026-09-19",
     "subject": "iPhone: Tuck away game choices",

@@ -190,10 +190,11 @@ textarea { resize: vertical; min-height: 60px; }
             <h2 style="font-size: 16px; margin-bottom: 12px;">Today's Stats</h2>
             <div id="add-game-todays-stats-body">
             {% if todays_stats %}
-            <table class="sr-stats-table" data-default-sort="winpct" data-default-dir="desc">
+            <table class="sr-stats-table" data-default-sort="rating" data-default-dir="desc">
                 <thead><tr>
                     <th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
@@ -204,6 +205,7 @@ textarea { resize: vertical; min-height: 60px; }
                 <tr>
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td data-value="{{ player[5] if player[5] is not none else '' }}">{{ "%.2f"|format(player[5]) if player[5] is not none else "—" }}</td>
                     <td data-value="{{ player[1] }}">{{ player[1] }}</td>
                     <td data-value="{{ player[2] }}">{{ player[2] }}</td>
                     <td data-value="{{ player[3] }}">{{ "%.0f"|format(player[3]*100) }}</td>
@@ -342,9 +344,10 @@ function refreshTodaysDoublesDashboard() {
             if (!statsBody || !grid) return;
             var stats = (d && d.stats) ? d.stats : [];
             if (stats.length) {
-                var stHtml = '<table class="sr-stats-table" data-default-sort="winpct" data-default-dir="desc"><thead><tr>' +
+                var stHtml = '<table class="sr-stats-table" data-default-sort="rating" data-default-dir="desc"><thead><tr>' +
                     '<th data-sort="rank" class="sr-numeric"># <span class="sr-sort-arrow">▼</span></th>' +
                     '<th data-sort="player">Player <span class="sr-sort-arrow">▼</span></th>' +
+                    '<th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>' +
                     '<th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>' +
                     '<th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>' +
                     '<th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>' +
@@ -355,7 +358,7 @@ function refreshTodaysDoublesDashboard() {
                     var pct = Math.round((p[3] || 0) * 100);
                     var pm = p[4];
                     var pname = escapeHtmlDoubles(p[0]);
-                    stHtml += '<tr><td class="sr-rank" data-value="' + (i + 1) + '">' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + pname + '</a></td><td data-value="' + p[1] + '">' + p[1] + '</td><td data-value="' + p[2] + '">' + p[2] + '</td><td data-value="' + (p[3] || 0) + '">' + pct + '</td><td data-value="' + pm + '">' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
+                    stHtml += '<tr><td class="sr-rank" data-value="' + (i + 1) + '">' + (i + 1) + '</td><td><a href="' + doublesPlayerUrl(yr, p[0]) + '">' + pname + '</a></td><td data-value="' + (p[5] == null ? '' : p[5]) + '">' + (p[5] == null ? '—' : Number(p[5]).toFixed(2)) + '</td><td data-value="' + p[1] + '">' + p[1] + '</td><td data-value="' + p[2] + '">' + p[2] + '</td><td data-value="' + (p[3] || 0) + '">' + pct + '</td><td data-value="' + pm + '">' + (pm > 0 ? '+' : '') + pm + '</td></tr>';
                 }
                 stHtml += '</tbody></table>';
                 statsBody.innerHTML = stHtml;
