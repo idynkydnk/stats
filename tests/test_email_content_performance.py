@@ -27,7 +27,7 @@ class SessionPerformancePromptTests(unittest.TestCase):
         for label in labels.values():
             self.assertIn(label, prompt)
         self.assertNotIn('LOCK', prompt)
-        self.assertNotIn('ground', prompt)
+        self.assertNotIn('on the ground', prompt)
 
     def test_middle_players_get_different_direction_from_differential(self):
         lock = _session_performance_staging_lock(PLAYERS, STATS)

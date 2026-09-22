@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from email_content import (
     CHARACTER_PRESERVATION_RULE,
+    GROUP_REFERENCE_DETAILS,
     _reference_parts_from_uploaded_photos,
     build_flyer_scene_prompt,
     build_scene_image_prompt,
@@ -34,6 +35,20 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                     self.assertIn('purple cape', prompt)
                     self.assertIn(CHARACTER_PRESERVATION_RULE, prompt)
 
+    def test_preview_crowns_rating_leader_instead_of_win_percentage_leader(self):
+        players = ['Rating Leader', 'Win Leader']
+        stats = [[players[0], 7, 1, .875, 23, 20.4],
+                 [players[1], 1, 0, 1.0, 2, 1.95]]
+        with patch('email_content.filter_illustratable_players', return_value=players):
+            prompt = build_scene_image_prompt(
+                'doubles', players, player_stats=stats,
+                labels_by_name={name: name for name in players},
+            )
+        self.assertIn('Dress Rating Leader as the king', prompt)
+        self.assertNotIn('Dress Win Leader', prompt)
+        self.assertIn('Show Win Leader lying flat on the ground in bad shape', prompt)
+        self.assertIn(GROUP_REFERENCE_DETAILS, prompt)
+
     def test_reference_bundle_ignores_traits_only_for_attached_characters(self):
         players = ['Saved Player', 'Fallback Player']
         with (
@@ -59,7 +74,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
 
     def test_complete_character_references_and_stats_reach_default_and_custom_generation(self):
         players = ['Kevin Cleary', 'Jordan']
-        stats = [[players[0], 3, 0, 1.0, 12], [players[1], 0, 3, 0.0, -12]]
+        stats = [[players[0], 3, 0, 1.0, 12, 8.0], [players[1], 0, 3, 0.0, -12, 1.0]]
         references = {
             players[0]: {'kind': 'ai_portrait', 'parts': [
                 {'mime': 'image/png', 'data_b64': 'a2V2aW4td2l0aC13aWZl'},
@@ -102,7 +117,10 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             for removed in ('LOCK', 'PRESERVATION', 'BODY-SIDE', 'Wilson'):
                 self.assertNotIn(removed, prompt + text)
             if custom:
-                self.assertEqual(custom, prompt)
+                self.assertTrue(prompt.startswith(custom))
+            self.assertEqual(prompt.count(GROUP_REFERENCE_DETAILS), 1)
+            self.assertEqual(prompt.count("Dress Kevin Cleary as the king"), 1)
+            self.assertEqual(prompt.count("Show Jordan lying flat on the ground in bad shape"), 1)
 
 
 if __name__ == '__main__':

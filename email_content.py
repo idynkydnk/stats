@@ -1296,6 +1296,58 @@ def build_flyer_scene_prompt(
     return '\n\n'.join(section for section in sections if section)
 
 
+GROUP_REFERENCE_DETAILS = (
+    'Include everything in the reference photos. '
+    'Place each player’s name and selected-game stats directly next to that same player.'
+)
+
+
+def _append_group_picture_details(prompt, players, player_stats):
+    """Keep reference details and selected-game ranking poses in previews and remakes."""
+    prompt = (prompt or '').strip()
+    if GROUP_REFERENCE_DETAILS not in prompt:
+        prompt += f'\n\n{GROUP_REFERENCE_DETAILS}'
+    # Only rated selected-game results can award the crown here.
+    rated_rows = [row for row in player_stats or [] if row and len(row) > 5]
+    leaders = _session_beach_royalty_names(rated_rows)
+    visible = set(players)
+    leaders = [name for name in leaders if name in visible]
+    if leaders:
+        names = ', '.join(leaders)
+        rule = (
+            f'Dress {names} as {"the king" if len(leaders) == 1 else "joint kings"}, '
+            'with a crown and royal robe: '
+            f'{"this player has" if len(leaders) == 1 else "these players share"} '
+            'the highest rating calculated from only the selected games. '
+            'Add the royal outfit while retaining the recognizable clothing, '
+            'accessories, and other details from the references. '
+            'Do not award new royal outfits to any other player.'
+        )
+        if rule not in prompt:
+            prompt += f'\n\n{rule}'
+    ranked = []
+    for row in rated_rows:
+        try:
+            rating = float(row[5])
+        except (TypeError, ValueError):
+            continue
+        if float('-inf') < rating < float('inf'):
+            ranked.append((row[0], rating))
+    # An all-tied session has no distinct worst player.
+    if ranked and min(rating for _, rating in ranked) < max(rating for _, rating in ranked):
+        worst = min(rating for _, rating in ranked)
+        lowest = [name for name, rating in ranked if rating == worst and name in visible]
+        if lowest:
+            rule = (
+                f'Show {", ".join(lowest)} lying flat on the ground in bad shape, '
+                f'{"the player with" if len(lowest) == 1 else "the players tied for"} '
+                'the lowest rating from the selected games.'
+            )
+            if rule not in prompt:
+                prompt += f'\n\n{rule}'
+    return prompt.strip()
+
+
 def build_scene_image_prompt(
     game_type, players, game_name=None, image_details='', labels_by_name=None,
     player_stats=None, location='',
@@ -1313,7 +1365,9 @@ def build_scene_image_prompt(
     if (location or '').strip():
         sections.append(f'Location: {location.strip()}.')
     sections.append('Vertical 4:5.')
-    return '\n\n'.join(section for section in sections if section)
+    return _append_group_picture_details(
+        '\n\n'.join(section for section in sections if section), players, player_stats,
+    )
 
 
 def _location_context_block(location):
@@ -3882,6 +3936,7 @@ def generate_email_hero_image(
         )
     if (custom_scene_prompt or '').strip() and (location or '').strip():
         scene_prompt += f'\n\nLocation: {location.strip()}.'
+    scene_prompt = _append_group_picture_details(scene_prompt, scene_players, player_stats)
     api_prompt = scene_prompt
     image_prompt = _image_prompt_bundle(
         scene_refs, api_prompt, add_body_side_convention=False,
