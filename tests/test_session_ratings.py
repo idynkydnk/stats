@@ -1,4 +1,4 @@
-"""Session-only ratings and crowns using the September 20 late-arrival case."""
+"""Daily score-aware ratings, including rotation and late-arrival regressions."""
 import unittest
 from unittest.mock import patch
 
@@ -27,15 +27,22 @@ def session_games():
             for i, (time, w, l, ws, ls) in enumerate(results)]
 
 
+def rotation_games():
+    names = dict(G='Chris Goshow', B='Ben Apstein', J='Justin Chow', K='Kyle Thomson')
+    results = [('GB', 'KJ', 19), ('GB', 'KJ', 18), ('GJ', 'BK', 13),
+               ('JG', 'BK', 13), ('BJ', 'GK', 19), ('JB', 'GK', 16)]
+    return [(i, f'2026-09-23 10:{i:02d}:00', names[w[0]], names[w[1]], 21,
+             names[l[0]], names[l[1]], score)
+            for i, (w, l, score) in enumerate(results)]
+
+
 class SessionRatingTests(unittest.TestCase):
     def test_late_arrival_does_not_take_crown(self):
         stats = calculate_stats_from_games(session_games())
-        self.assertEqual([(r[0], r[5]) for r in stats], [
-            ('Justin Chow', 20.40), ('Tyler Stock', 7.70),
-            ('Kyle Thomson', 5.29), ('Chris Goshow', 4.06),
-            ('Sam Greenleaf', 1.95),
-        ])
-        self.assertEqual(stats[-1][1:5], [1, 0, 1.0, 2])
+        self.assertEqual(stats[0][0], 'Justin Chow')
+        late_arrival = next(r for r in stats if r[0] == 'Sam Greenleaf')
+        self.assertEqual(late_arrival[1:5], [1, 0, 1.0, 2])
+        self.assertGreater(stats[0][5], late_arrival[5])
         self.assertEqual(_session_beach_royalty_names(stats), ['Justin Chow'])
         players = [r[0] for r in stats]
         lock = _session_beach_royalty_lock(players, stats)
@@ -68,9 +75,63 @@ class SessionRatingTests(unittest.TestCase):
             dashboard = todays_doubles_dashboard_payload()
         self.assertEqual(dashboard['stats'], stats)
         ios = _ranking(stats[0], rating_key='plus_minus')
-        self.assertEqual(ios['rating'], 20.40)
+        self.assertEqual(ios['rating'], stats[0][5])
         self.assertEqual(ios['plus_minus'], 23)
         self.assertEqual(_ranking(['Alex', 1, 0, 1.0, 12.5])['rating'], 12.5)
+
+    def test_september_23_rotation_rewards_chows_better_scores(self):
+        games = rotation_games()
+        stats = calculate_stats_from_games(games)
+        self.assertEqual([r[0] for r in stats],
+                         ['Justin Chow', 'Chris Goshow', 'Ben Apstein', 'Kyle Thomson'])
+        self.assertEqual([r[1:3] for r in stats[:3]], [[4, 2]] * 3)
+        self.assertEqual([r[4] for r in stats[:3]], [18, 14, -4])
+        self.assertEqual(_session_beach_royalty_names(stats), ['Justin Chow'])
+
+    def test_reversing_actual_play_order_cannot_change_ratings(self):
+        games = rotation_games()
+        # Change the timestamps and IDs, not just the input list order.
+        reversed_play = [(100 - g[0], games[-i - 1][1], *g[2:])
+                         for i, g in enumerate(games)]
+        self.assertEqual(calculate_stats_from_games(games),
+                         calculate_stats_from_games(reversed_play))
+
+    def test_bigger_win_and_closer_loss_improve_rating(self):
+        close = [(1, '2026-09-23', 'A', 'B', 21, 'C', 'D', 19)]
+        wide = [(1, '2026-09-23', 'A', 'B', 21, 'C', 'D', 5)]
+        close_ratings = {r['player']: r['rating'] for r in calculate_session_ratings(close)}
+        wide_ratings = {r['player']: r['rating'] for r in calculate_session_ratings(wide)}
+        self.assertGreater(wide_ratings['A'], close_ratings['A'])
+        self.assertGreater(close_ratings['C'], wide_ratings['C'])
+
+    def test_equal_results_and_scores_have_equal_ratings(self):
+        games = [(g[0], g[1], g[2], g[3], 21, g[5], g[6], 19)
+                 for g in rotation_games()]
+        stats = calculate_stats_from_games(games)
+        self.assertEqual(len({r[5] for r in stats[:3]}), 1)
+        self.assertEqual(set(_session_beach_royalty_names(stats)),
+                         {'Chris Goshow', 'Ben Apstein', 'Justin Chow'})
+
+    def test_score_scale_does_not_change_rating(self):
+        games = rotation_games()
+        scaled = [(g[0], g[1], g[2], g[3], g[4] * 2, g[5], g[6], g[7] * 2)
+                  for g in games]
+        self.assertEqual(calculate_session_ratings(games), calculate_session_ratings(scaled))
+
+    def test_unscored_or_invalid_scores_still_use_result(self):
+        expected = None
+        for ws, ls in [(0, 0), (None, None), ('', ''), (21, -1),
+                       (19, 21), (float('nan'), 1), (float('inf'), 1)]:
+            games = [(1, '2026-09-23', 'A', 'B', ws, 'C', 'D', ls)]
+            ratings = calculate_session_ratings(games)
+            if expected is None:
+                expected = ratings
+            self.assertEqual(ratings, expected)
+            self.assertGreater(ratings[0]['rating'], ratings[-1]['rating'])
+
+    def test_unknown_players_do_not_get_ratings(self):
+        games = [(1, '2026-09-23', 'A', '?', 21, 'B', '???', 19)]
+        self.assertEqual({r['player'] for r in calculate_session_ratings(games)}, {'A', 'B'})
 
     def test_equal_ratings_share_crown_even_with_different_win_percentages(self):
         rows = [['Alex', 1, 0, 1.0, 2, 5.0], ['Blair', 3, 2, .6, 4, 5.0]]

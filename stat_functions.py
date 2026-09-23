@@ -378,23 +378,48 @@ def calculate_stats_from_games(games):
 
 
 def calculate_session_ratings(games):
-    """Reset skill for this session and replay games in chronological order."""
-    def game_order(game):
-        value = str(game[1]).split(' (')[0]
+    """Score a doubles session from results and points, independent of game order.
+
+    Each game contributes 80% win/loss and 20% share of points scored. Two
+    neutral games shrink small samples toward 50; see docs/session-ratings.md.
+    This deliberately does not use the season's sequential skill estimator.
+    """
+    import math
+    from collections import defaultdict
+
+    totals = defaultdict(lambda: {'wins': 0, 'losses': 0, 'point_shares': []})
+    for game in games:
+        winner_share = 0.5  # Historical unscored games still count as results.
         try:
-            when = datetime.fromisoformat(value)
-        except ValueError:
-            when = None
-            for fmt in ('%m/%d/%Y %I:%M %p', '%m/%d/%y', '%m/%d/%Y'):
-                try:
-                    when = datetime.strptime(value, fmt)
-                    break
-                except ValueError:
-                    pass
-            if when is None:
-                raise ValueError(f'Cannot order session game date: {value}')
-        return when, game[0]
-    return _calculate_trueskill_from_games(sorted(games, key=game_order))
+            winner_score, loser_score = float(game[4]), float(game[7])
+            if (math.isfinite(winner_score) and math.isfinite(loser_score)
+                    and winner_score > loser_score >= 0):
+                winner_share = winner_score / (winner_score + loser_score)
+        except (TypeError, ValueError):
+            pass
+        for players, result, share in (
+                (game[2:4], 'wins', winner_share),
+                (game[5:7], 'losses', 1 - winner_share)):
+            for player in set(players):
+                if not player or '?' in player:
+                    continue
+                totals[player][result] += 1
+                totals[player]['point_shares'].append(share)
+
+    rankings = []
+    for player, record in totals.items():
+        count = record['wins'] + record['losses']
+        performance = 0.8 * record['wins'] + 0.2 * math.fsum(record['point_shares'])
+        rating = 100 * (performance + 1) / (count + 2)
+        rankings.append({
+            'player': player,
+            'rating': round(rating, 2),
+            'games_played': count,
+            'wins': record['wins'],
+            'losses': record['losses'],
+        })
+    rankings.sort(key=lambda row: (-row['rating'], row['player']))
+    return rankings
 
 
 def specific_date_stats(target_date):

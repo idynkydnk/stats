@@ -1,6 +1,8 @@
 # Ratings for individual games
 
-Doubles keeps its existing rating system. Other games and Vollis use separate
+Doubles season/all-time ratings keep their existing rating system; daily doubles
+ratings use the [score-aware session calculation](session-ratings.md).
+Other games and Vollis use separate
 TrueSkill-based histories within the selected season and location. Categories such as
 Volleyball, Card games and Board games never combine ratings across game names.
 

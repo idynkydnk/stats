@@ -95,6 +95,10 @@
                     </p>
                     <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
                 </div>
+                <details style="margin-bottom: 12px; font-size: 12px; color: var(--sr-muted);">
+                    <summary>How daily ratings work</summary>
+                    <p>Daily ratings combine wins and losses (80%) with the share of points scored in each game (20%). A small-sample adjustment keeps a short appearance from counting as strongly as a full session. Ratings run from 0 to 100, use only today's games, and do not depend on game order.</p>
+                </details>
                 <div class="sr-table-wrap">
                     <table class="sr-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
