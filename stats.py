@@ -2165,17 +2165,20 @@ def edit_other_games(year):
 @login_required
 def ai_summary():
     """AI summary page for selecting games to summarize."""
-    from ai_summary_games import load_ai_summary_games
+    from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
     with sqlite3.connect(_stats_db_path()) as conn:
         conn.row_factory = sqlite3.Row
         games = {kind: load_ai_summary_games(conn, kind, session.get('username', ''))
                  for kind in ('doubles', 'vollis', 'other')}
+        select_all_ids = {kind: latest_owned_game_ids(conn, kind, session.get('username', ''))
+                          for kind in ('doubles', 'vollis', 'other')}
     conn.close()
     doubles_games, vollis_games, other_games = (games[kind] for kind in ('doubles', 'vollis', 'other'))
     return render_template('ai_summary.html',
                            doubles_games=doubles_games,
                            vollis_games=vollis_games,
-                           other_games=other_games)
+                           other_games=other_games, select_all_ids=select_all_ids,
+                           showing_all=(session.get('username') or '').strip().casefold() == 'kyle')
 
 
 @app.route('/ai-recaps/')
@@ -2330,7 +2333,7 @@ def _serialize_ai_summary_game(game_type, game):
 @app.route('/api/ai_summary_game_search/')
 @api_login_required
 def api_ai_summary_game_search():
-    """Search the signed-in user’s historical entries for the AI summary picker."""
+    """Search recap entries with Kyle’s wider visibility and normal owner filtering."""
     from ai_summary_games import load_ai_summary_games
 
     q = (request.args.get('q') or '').strip()

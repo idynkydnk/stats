@@ -245,7 +245,7 @@
         <div class="sr-card">
             <div class="sr-card-header">
                 <h2 class="sr-card-title">Select Games for AI Summary</h2>
-                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select games for an AI recap page you can share in group text. Your latest game day is shown below. Select All picks every game you entered that day. Search your entries across all years to find older games.</p>
+                <p style="color: var(--sr-muted); font-size: 13px; margin-top: 4px;">Select games for an AI recap page you can share in group text. {% if showing_all %}You can browse everyone’s games; the latest game day is shown below.{% else %}Your latest game day is shown below.{% endif %} Select All picks every game you entered on your latest game day. Search {% if showing_all %}everyone’s{% else %}your{% endif %} entries across all years to find older games.</p>
             </div>
 
             <div class="sr-game-search-wrap">
@@ -439,6 +439,7 @@
 {% block extra_js %}
 <script>
 let currentTab = 'doubles';
+        const selectAllIds = {{ select_all_ids|default({})|tojson }};
         const expandedTabs = {};
         const searchPlaceholders = {
             doubles: 'Search doubles games — e.g. dan aaron kyle (all must play)',
@@ -742,7 +743,9 @@ let currentTab = 'doubles';
             // Browse mode: select only this user’s latest game day.
             var day = firstBrowseDay(activeTab);
             activeTab.querySelectorAll('.sr-browse-card').forEach(function(card) {
-                var selected = (card.dataset.gameDay || '') === day;
+                var selected = Object.prototype.hasOwnProperty.call(selectAllIds, currentTab)
+                    ? selectAllIds[currentTab].includes(card.dataset.gameId)
+                    : (card.dataset.gameDay || '') === day;
                 if (selected) card.classList.remove('sr-hidden-game');
                 var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = selected;

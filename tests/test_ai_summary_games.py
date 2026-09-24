@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from ai_summary_games import load_ai_summary_games
+from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
 from game_entry_ownership import ensure_game_entry_owner
 from create_games_database import create_game, database_update_game
 from create_vollis_database import create_vollis_game
@@ -76,13 +76,29 @@ class AISummaryGamesTests(unittest.TestCase):
         database_update_game(self.conn, (game_id, date, 'Alex', 'Pat', 21, 'Sam', 'Jo', 12,
                                         date, 'Fixed score', 'kyle', game_id))
         self.assertEqual(self.ids('doubles'), [game_id])
-        self.assertEqual(self.ids('doubles', 'kyle'), [])
+        self.assertEqual(self.ids('doubles', 'kyle'), [game_id])
 
     def test_vollis_creation_records_owner(self):
         date = '2026-09-12 12:00:00'
         create_vollis_game(self.conn, (date, 'Alex', 21, 'Sam', 10, date, None, 'Beach', 'mila'))
         self.assertEqual(len(self.ids('vollis')), 1)
-        self.assertEqual(self.ids('vollis', 'kyle'), [])
+        self.assertEqual(len(self.ids('vollis', 'kyle')), 1)
+
+    def test_kyle_sees_everyone_but_select_all_keeps_own_latest_day(self):
+        for kind in ('doubles', 'vollis', 'other'):
+            with self.subTest(kind=kind):
+                own = self.insert(kind, 'Kyle', '2020-01-02', 65)
+                self.insert(kind, 'kyle', '2020-01-01')
+                same_day = self.insert(kind, 'dan', '2020-01-02')
+                newer = self.insert(kind, 'dan', '2026-09-23', 60)
+                legacy = self.insert(kind, None, '2026-09-24')
+                visible = self.ids(kind, ' KYLE ')
+                self.assertTrue(set(own + newer[-49:] + legacy).issubset(visible))
+                self.assertEqual(set(latest_owned_game_ids(self.conn, kind, 'kyle')), set(map(str, own)))
+                found = self.ids(kind, 'kyle', query='2020', limit=100)
+                self.assertTrue(set(own + same_day).issubset(found))
+                self.assertFalse(set(own).intersection(self.ids(kind, 'dan', query='2020')))
+                self.assertEqual(latest_owned_game_ids(self.conn, kind, 'nobody'), [])
 
     def test_legacy_attribution_is_preserved_only_once(self):
         with sqlite3.connect(':memory:') as conn:
