@@ -2413,7 +2413,7 @@ def select_ai_style():
 
 def _render_select_ai_prompt(
     game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
-    illustration_players=None, error=None,
+    illustration_players=None, error=None, animation_details='',
 ):
     """Re-show the style picker with prior selections after a recoverable error."""
     if error:
@@ -2428,6 +2428,7 @@ def _render_select_ai_prompt(
         selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
+        animation_details_value=animation_details or '',
         worker_alive=ai_jobs.daemon_is_alive(),
     )
 
@@ -2445,7 +2446,9 @@ def preview_ai_summary_with_prompt():
     custom_prompt = request.form.get('custom_prompt', '')
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
-    image_details = (request.form.get('image_details') or '').strip()
+    illustration_details = (request.form.get('image_details') or '').strip()
+    animation_details = (request.form.get('animation_details') or '').strip()
+    image_details = animation_details if image_mode == 'animation' else illustration_details
     illustration_players = []
     
     if not selected_game_ids:
@@ -2458,7 +2461,8 @@ def preview_ai_summary_with_prompt():
             game_type,
             prompt_style=prompt_style,
             custom_prompt=custom_prompt,
-            image_details=image_details,
+            image_details=illustration_details,
+            animation_details=animation_details,
             error=error,
         )
 
@@ -3274,6 +3278,7 @@ def view_ai_recap(share_id):
         game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,
         remake_scene_prompt=remake_scene_prompt,
+        is_animation=row.get('image_mode') == 'animation',
         og_description=og_description,
         instagram_slides=instagram_slides,
         ig_slide_data=ig_slide_data,
@@ -3475,8 +3480,8 @@ def remake_ai_recap_image(share_id):
     # Prefer the edited full scene prompt; fall back to the saved prompt/details.
     scene_prompt = (request.form.get('scene_prompt') or '').strip()
     image_details = (row.get('image_details') or '').strip()
-    # Remake always generates an image, even if the original mode was "none".
-    image_mode = 'image'
+    # Keep animated recaps animated when remaking their hero.
+    image_mode = 'animation' if row.get('image_mode') == 'animation' else 'image'
 
     try:
         old_solos = json.loads(row.get('solo_images_json') or '[]')

@@ -46,7 +46,7 @@ OG_IMAGE_PREFIX = 'og_'
 OG_IMAGE_MAX_BYTES = 500 * 1024
 OG_IMAGE_MAX_WIDTH = 1200
 
-IMAGE_MODES = ('none', 'image')
+IMAGE_MODES = ('none', 'image', 'animation')
 DEFAULT_IMAGE_MODE = 'none'
 _LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
 
@@ -73,6 +73,7 @@ def image_mode_label(mode):
     labels = {
         'none': 'text only',
         'image': 'with illustration',
+        'animation': 'with animation',
     }
     return labels.get(_normalize_image_mode(mode), labels[DEFAULT_IMAGE_MODE])
 
@@ -442,13 +443,14 @@ def _email_hero_html(hero_image_url, use_cid=False):
     if not hero_image_url and not use_cid:
         return ''
     src = f'cid:{HERO_IMAGE_CID}' if use_cid else hero_image_url
+    alt = 'AI game animation' if '.gif' in (hero_image_url or '').lower() else 'AI game illustration'
     img_style = (
         'display:block;width:100%;max-width:600px;height:auto;border:0;'
         'border-radius:12px;margin:0 auto;'
     )
     return f"""
                     <div class="card hero-image-card">
-                        <img src="{src}" alt="AI game illustration" width="600" border="0"
+                        <img src="{src}" alt="{alt}" width="600" border="0"
                              style="{img_style}">
                     </div>
     """
@@ -2310,7 +2312,8 @@ def _generate_image_bytes_openai_responses(
     return _openai_image_from_responses_payload(data)
 
 
-def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None):
+def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None,
+                                 output_size=None):
     """One OpenAI image call.
 
     Reference photos use the Responses API (chat model sees the picture, then
@@ -2321,7 +2324,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     import requests
 
     full_prompt, images = _openai_prompt_and_images(prompt, reference_parts)
-    size = _openai_size_for_aspect(aspect_ratio)
+    size = output_size or _openai_size_for_aspect(aspect_ratio)
     headers = {'Authorization': f'Bearer {api_key}'}
     # Group edits with several face refs + high quality often exceed 3 minutes.
     timeout = int(os.environ.get('OPENAI_IMAGE_TIMEOUT', '300') or '300')
@@ -2467,7 +2470,7 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
 
 
 def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None,
-                          add_body_side_convention=True):
+                          add_body_side_convention=True, output_size=None):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
     if add_body_side_convention:
         prompt = _append_body_side_convention(prompt)
@@ -2477,6 +2480,7 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=No
         key = (os.environ.get('OPENAI_API_KEY') or api_key or '').strip()
         return _generate_image_bytes_openai(
             prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
+            **({'output_size': output_size} if output_size else {}),
         )
     if provider == 'gemini':
         key = (api_key or os.environ.get('GEMINI_API_KEY') or '').strip()
@@ -3890,7 +3894,7 @@ def generate_player_character_sheet(api_key, player_name):
 def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
-    selected_players=None, player_stats=None, location='',
+    selected_players=None, player_stats=None, location='', animation=False,
 ):
     """Generate one group hero image from saved AI characters and/or face photos.
 
@@ -3938,21 +3942,34 @@ def generate_email_hero_image(
         scene_prompt += f'\n\nLocation: {location.strip()}.'
     scene_prompt = _append_group_picture_details(scene_prompt, scene_players, player_stats)
     api_prompt = scene_prompt
+    if animation:
+        from recap_animation import animation_sheet_prompt
+        api_prompt = animation_sheet_prompt(scene_prompt, image_details)
     image_prompt = _image_prompt_bundle(
         scene_refs, api_prompt, add_body_side_convention=False,
     )
     try:
+        image_options = {}
+        if animation:
+            from recap_animation import SHEET_SIZE
+            image_options['output_size'] = SHEET_SIZE
         raw, mime = _generate_image_bytes(
-            api_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+            api_prompt, api_key, reference_parts=scene_refs,
+            aspect_ratio='1:1' if animation else '4:5',
             add_body_side_convention=False,
+            **image_options,
         )
+        if animation:
+            from recap_animation import animation_gif_from_sheet
+            raw, mime = animation_gif_from_sheet(raw), 'image/gif'
     except Exception as e:
         raise ImageGenerationError(
             _friendly_image_error(e, api_calls=1),
             image_prompt=image_prompt,
             solo_images=[],
         ) from e
-    raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
+    if not animation:
+        raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt, [], scene_prompt
 
@@ -3979,6 +3996,7 @@ def _try_generate_email_hero_image(
             selected_players=selected_players,
             player_stats=player_stats,
             location=location,
+            **({'animation': True} if mode == 'animation' else {}),
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:

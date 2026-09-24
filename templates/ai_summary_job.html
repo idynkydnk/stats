@@ -50,8 +50,10 @@
 
 <div class="sr-card sr-job-card">
     <i class="fas fa-spinner fa-spin sr-job-spin" id="job-spin"></i>
-    <h1 id="job-title">{% if (job.image_mode or 'none') == 'image' %}Generating your illustration…{% else %}Generating your recap…{% endif %}</h1>
-    {% if (job.image_mode or 'none') == 'image' %}
+    <h1 id="job-title">{% if job.image_mode == 'animation' %}Creating your animation…{% elif (job.image_mode or 'none') == 'image' %}Generating your illustration…{% else %}Generating your recap…{% endif %}</h1>
+    {% if job.image_mode == 'animation' %}
+    <p>Your animation keeps running in the background. Allow several minutes — you can leave and check Recaps when it’s done.</p>
+    {% elif (job.image_mode or 'none') == 'image' %}
     <p>This keeps running in the background — about <strong>5 minutes</strong>. Use <strong>Menu</strong> anytime. Come back here or check Recaps when it’s done.</p>
     {% else %}
     <p>This keeps running in the background. Use <strong>Menu</strong> anytime to visit other pages — come back here or check Recaps when it’s done.</p>

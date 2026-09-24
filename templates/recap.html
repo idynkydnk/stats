@@ -601,7 +601,7 @@
                     <i class="fas fa-pen"></i> Remake summary
                 </button>
                 <button type="button" class="recap-btn recap-btn-secondary" id="recap-remake-image-toggle">
-                    <i class="fas fa-sync-alt"></i> Remake picture
+                    <i class="fas fa-sync-alt"></i> Remake {{ 'animation' if is_animation else 'picture' }}
                 </button>
                 {% endif %}
                 {% if session.logged_in %}
@@ -685,13 +685,13 @@
     <div class="recap-remake-panel" id="recap-remake-image-panel">
         <div class="recap-remake-panel-inner">
             <form method="post" action="{{ url_for('remake_ai_recap_image', share_id=share_id) }}" id="recap-remake-form">
-                <label for="recap-scene-prompt">Group picture prompt</label>
+                <label for="recap-scene-prompt">{{ 'Animation' if is_animation else 'Group picture' }} prompt</label>
                 <p class="recap-remake-help">Edit the full prompt used for the group picture, then remake. Uses saved AI characters when a player has one; otherwise face photos and/or signature looks. Players with none of those are left out.</p>
                 <textarea id="recap-scene-prompt" name="scene_prompt" placeholder="Group scene illustration prompt…">{{ remake_scene_prompt }}</textarea>
                 <div class="recap-remake-actions">
                     <button type="button" class="recap-btn recap-btn-secondary" data-remake-cancel="image">Cancel</button>
                     <button type="submit" class="recap-btn recap-btn-primary" id="recap-remake-btn">
-                        <i class="fas fa-sync-alt"></i> Remake picture
+                        <i class="fas fa-sync-alt"></i> Remake {{ 'animation' if is_animation else 'picture' }}
                     </button>
                 </div>
             </form>

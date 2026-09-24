@@ -107,7 +107,8 @@
             margin-bottom: 6px;
         }
         #custom-prompt-text,
-        #image-details-text {
+        #image-details-text,
+        #animation-details-text {
             box-sizing: border-box;
         }
         .sr-illustration-details textarea {
@@ -133,14 +134,14 @@
             border-top: 1px solid var(--sr-line);
         }
         .sr-illustration-options {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             margin-top: 12px;
         }
         .sr-illustration-btn {
-            flex: 1 1 160px;
-            min-width: 140px;
+            min-width: 0;
+            text-align: left;
             flex-direction: column;
             align-items: flex-start;
             padding: 12px 16px;
@@ -151,6 +152,14 @@
             font-weight: 400;
             color: var(--sr-muted);
             margin-top: 4px;
+        }
+        .sr-illustration-btn:not(.sr-generate-btn-outline) span {
+            color: #18333b;
+        }
+        #generate-btn-none { grid-column: 1 / -1; }
+        @media (min-width: 600px) {
+            .sr-illustration-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            #generate-btn-none { grid-column: auto; }
         }
         .sr-back-btn {
             background: transparent;
@@ -247,12 +256,17 @@
                 <input type="hidden" name="image_details" id="image-details-hidden" value="{{ image_details_value|default('') }}">
                 
                 <div class="sr-illustration-section">
-                    <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
+                    <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration or animation</h2>
                     <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses each player's saved AI character when they have one; otherwise face photos and/or signature looks. Players with none of those are skipped.{% if worker_alive %} Illustration can take about 5 minutes — you can leave after you tap generate; it keeps running in the background.{% else %} Illustration can take about 5 minutes — stay on this page until it finishes.{% endif %}</p>
                     <div class="sr-illustration-details">
                         <label for="image-details-text">Extra illustration details (optional)</label>
                         <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
                         <p>Only used when you choose <strong>With illustration</strong>.</p>
+                    </div>
+                    <div class="sr-illustration-details">
+                        <label for="animation-details-text">What should the players be doing? (optional)</label>
+                        <textarea id="animation-details-text" name="animation_details" placeholder="Example: Sam bumps the ball while Alex cheers, then they return to their starting poses…">{{ animation_details_value|default('') }}</textarea>
+                        <p>Only used with animation. A short, silent loop using the same player references. Keep the action simple; leave blank for a celebration.</p>
                     </div>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
@@ -262,6 +276,10 @@
                         <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" disabled onclick="setImageMode('image')">
                             <strong><i class="fas fa-image"></i> With illustration</strong>
                             <span>{% if worker_alive %}About 5 minutes — you can leave{% else %}About 5 minutes — stay on page{% endif %}</span>
+                        </button>
+                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-animation" disabled onclick="setImageMode('animation')">
+                            <strong><i class="fas fa-film"></i> With animation <b style="background: #ffe17a; color: #342700; border-radius: 4px; padding: 2px 5px; font-size: 11px;">New!</b></strong>
+                            <span>Short, silent loop — allow several minutes</span>
                         </button>
                     </div>
                 </div>
@@ -311,7 +329,7 @@ let selectedPrompt = null;
         }
 
         function setGenerateButtonsEnabled(enabled) {
-            ['generate-btn-none', 'generate-btn-image'].forEach(function(id) {
+            ['generate-btn-none', 'generate-btn-image', 'generate-btn-animation'].forEach(function(id) {
                 var btn = document.getElementById(id);
                 if (btn) btn.disabled = !enabled;
             });
@@ -333,11 +351,19 @@ let selectedPrompt = null;
 
         function showGenerateLoading(mode) {
             var copy = loadingCopy[mode] || loadingCopy.none;
+            if (mode === 'animation') {
+                copy = {
+                    title: 'Creating your animation...',
+                    detail: workerAlive
+                        ? 'Allow several minutes. You can leave this page and check Recaps when it’s done.'
+                        : 'Allow several minutes. Stay on this page until your animation finishes.'
+                };
+            }
             if (window.showAiGenerateLoading) {
                 window.showAiGenerateLoading({
                     title: copy.title,
                     detail: copy.detail,
-                    illustration: mode === 'image',
+                    illustration: mode !== 'none',
                 });
             }
         }
