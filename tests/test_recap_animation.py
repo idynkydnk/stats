@@ -75,6 +75,20 @@ class RecapAnimationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             animation_gif_from_sheet(buf.getvalue())
 
+    def test_older_pillow_without_resampling_or_dither_enums(self):
+        sheet, colors = sample_sheet()
+        legacy_image = SimpleNamespace(
+            open=Image.open, LANCZOS=1, NONE=0,
+        )
+        with patch('recap_animation.Image', legacy_image):
+            result = animation_gif_from_sheet(sheet)
+        animation = Image.open(io.BytesIO(result))
+        self.assertEqual(animation.n_frames, 12)
+        self.assertEqual(animation.info['loop'], 0)
+        for i, color in enumerate(colors):
+            animation.seek(i)
+            self.assertEqual(animation.convert('RGB').getpixel((192, 240)), color)
+
     def test_animation_uses_same_references_and_saves_gif_without_still_conversion(self):
         raw, _ = sample_sheet()
         refs = [{'text': 'Reference for Sam'}, {'text': 'Reference for Alex'}]

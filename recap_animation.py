@@ -38,6 +38,9 @@ def animation_gif_from_sheet(image_bytes):
     width, height = sheet.size
     if width < 400 or height < 300:
         raise ValueError('Animation frame sheet is too small. Please try again.')
+    # Production may have Pillow predating the Resampling/Dither enums.
+    lanczos = getattr(Image, 'Resampling', Image).LANCZOS
+    no_dither = getattr(Image, 'Dither', Image).NONE
     frames = []
     for row in range(3):
         for col in range(4):
@@ -45,10 +48,10 @@ def animation_gif_from_sheet(image_bytes):
                 col * width // 4, row * height // 3,
                 (col + 1) * width // 4, (row + 1) * height // 3,
             ))
-            frames.append(ImageOps.fit(cell, FRAME_SIZE, method=Image.Resampling.LANCZOS))
+            frames.append(ImageOps.fit(cell, FRAME_SIZE, method=lanczos))
     # One palette across the sequence reduces color flicker between frames.
     palette = sheet.quantize(colors=256)
-    frames = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    frames = [frame.quantize(palette=palette, dither=no_dither) for frame in frames]
     output = io.BytesIO()
     frames[0].save(
         output, format='GIF', save_all=True, append_images=frames[1:],
