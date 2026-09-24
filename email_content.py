@@ -3942,29 +3942,39 @@ def generate_email_hero_image(
         scene_prompt += f'\n\nLocation: {location.strip()}.'
     scene_prompt = _append_group_picture_details(scene_prompt, scene_players, player_stats)
     api_prompt = scene_prompt
-    if animation:
-        from recap_animation import animation_sheet_prompt
-        api_prompt = animation_sheet_prompt(scene_prompt, image_details)
-    image_prompt = _image_prompt_bundle(
-        scene_refs, api_prompt, add_body_side_convention=False,
-    )
+    image_prompt = _image_prompt_bundle(scene_refs, api_prompt, add_body_side_convention=False)
     try:
-        image_options = {}
         if animation:
-            from recap_animation import SHEET_SIZE
-            image_options['output_size'] = SHEET_SIZE
-        raw, mime = _generate_image_bytes(
-            api_prompt, api_key, reference_parts=scene_refs,
-            aspect_ratio='1:1' if animation else '4:5',
-            add_body_side_convention=False,
-            **image_options,
-        )
-        if animation:
-            from recap_animation import animation_gif_from_sheet
-            raw, mime = animation_gif_from_sheet(raw), 'image/gif'
+            from recap_animation import (
+                SHEET_SIZE, animation_subject, animation_first_frame_prompt,
+                animation_sheet_prompt, animation_gif_from_sheet,
+            )
+            moving_player, action = animation_subject(image_details, scene_players)
+            first_prompt = animation_first_frame_prompt(scene_prompt, moving_player)
+            first_raw, first_mime = _generate_image_bytes(
+                first_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+                add_body_side_convention=False,
+            )
+            first_raw, first_mime = _normalize_image_bytes_to_aspect(first_raw)
+            motion_refs = scene_refs + [
+                {'text': 'STARTING FRAME: preserve this exact composition, background and stationary players.'},
+                {'inline_data': {'mime_type': first_mime, 'data': base64.b64encode(first_raw).decode('ascii')}},
+            ]
+            api_prompt = animation_sheet_prompt(scene_prompt, action, moving_player)
+            image_prompt = _image_prompt_bundle(motion_refs, api_prompt, add_body_side_convention=False)
+            raw, mime = _generate_image_bytes(
+                api_prompt, api_key, reference_parts=motion_refs, aspect_ratio='1:1',
+                add_body_side_convention=False, output_size=SHEET_SIZE,
+            )
+            raw, mime = animation_gif_from_sheet(raw, first_raw), 'image/gif'
+        else:
+            raw, mime = _generate_image_bytes(
+                api_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
+                add_body_side_convention=False,
+            )
     except Exception as e:
         raise ImageGenerationError(
-            _friendly_image_error(e, api_calls=1),
+            _friendly_image_error(e, api_calls=2 if animation else 1),
             image_prompt=image_prompt,
             solo_images=[],
         ) from e

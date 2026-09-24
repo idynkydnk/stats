@@ -2401,6 +2401,7 @@ def select_ai_prompt():
 @login_required
 def select_ai_style():
     """Show writing style + illustration options after roster review."""
+    from email_content import filter_illustratable_players
     selected_game_ids = request.form.getlist('game_ids')
     game_type = request.form.get('game_type', 'doubles')
     if not selected_game_ids:
@@ -2411,14 +2412,16 @@ def select_ai_style():
         game_ids=selected_game_ids,
         game_type=game_type,
         worker_alive=ai_jobs.daemon_is_alive(),
+        animation_players=filter_illustratable_players(_roster_players_for_games(selected_game_ids, game_type)),
     )
 
 
 def _render_select_ai_prompt(
     game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
-    illustration_players=None, error=None, animation_details='',
+    illustration_players=None, error=None, animation_details='', animation_player='',
 ):
     """Re-show the style picker with prior selections after a recoverable error."""
+    from email_content import filter_illustratable_players
     if error:
         flash(str(error), 'error')
     style = _normalize_prompt_style(prompt_style) if prompt_style else ''
@@ -2432,6 +2435,8 @@ def _render_select_ai_prompt(
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
         animation_details_value=animation_details or '',
+        animation_player_value=animation_player,
+        animation_players=filter_illustratable_players(_roster_players_for_games(game_ids, game_type)),
         worker_alive=ai_jobs.daemon_is_alive(),
     )
 
@@ -2451,7 +2456,10 @@ def preview_ai_summary_with_prompt():
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
     illustration_details = (request.form.get('image_details') or '').strip()
     animation_details = (request.form.get('animation_details') or '').strip()
+    animation_player = (request.form.get('animation_player') or '').strip()
     image_details = animation_details if image_mode == 'animation' else illustration_details
+    if image_mode == 'animation' and animation_player:
+        image_details = f'Moving player: {animation_player}\nAction: {animation_details}'
     illustration_players = []
     
     if not selected_game_ids:
@@ -2466,6 +2474,7 @@ def preview_ai_summary_with_prompt():
             custom_prompt=custom_prompt,
             image_details=illustration_details,
             animation_details=animation_details,
+            animation_player=animation_player,
             error=error,
         )
 

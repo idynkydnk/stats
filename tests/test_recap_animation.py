@@ -13,7 +13,7 @@ from email_content import (
     _email_hero_html, _normalize_image_mode, _try_generate_email_hero_image,
     generate_email_hero_image,
 )
-from recap_animation import animation_gif_from_sheet, animation_sheet_prompt
+from recap_animation import animation_gif_from_sheet, animation_sheet_prompt, animation_subject
 
 
 def sample_sheet():
@@ -48,12 +48,12 @@ class RecapAnimationTests(unittest.TestCase):
                 node = next(n for n in ast.walk(ast.parse((root / filename).read_text()))
                             if isinstance(n, ast.FunctionDef) and n.name == name)
                 exec(compile(ast.Module(body=[node], type_ignores=[]), filename, 'exec'), namespace)
-                payload = dict(game_ids=['1'], image_mode='animation', image_details='wave' if native else 'sunset', animation_details='wave')
+                payload = dict(game_ids=['1'], image_mode='animation', image_details='Moving player: Sam\nAction: wave' if native else 'sunset', animation_details='wave', animation_player='Sam')
                 client = app.test_client()
                 response = client.post('/api/ai/summary', json=payload) if native else client.post('/preview_ai_summary_with_prompt/', data=payload)
                 self.assertIn(response.status_code, (200, 302))
                 self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_mode'], 'animation')
-                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_details'], 'wave')
+                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_details'], 'Moving player: Sam\nAction: wave')
 
     def test_twelve_frames_in_order_with_loop_and_portrait_dimensions(self):
         sheet, colors = sample_sheet()
@@ -78,7 +78,7 @@ class RecapAnimationTests(unittest.TestCase):
     def test_older_pillow_without_resampling_or_dither_enums(self):
         sheet, colors = sample_sheet()
         legacy_image = SimpleNamespace(
-            open=Image.open, LANCZOS=1, NONE=0,
+            open=Image.open, new=Image.new, composite=Image.composite, LANCZOS=1, NONE=0,
         )
         with patch('recap_animation.Image', legacy_image):
             result = animation_gif_from_sheet(sheet)
@@ -100,20 +100,24 @@ class RecapAnimationTests(unittest.TestCase):
             patch('email_content._append_group_picture_details', side_effect=lambda p, *_: p),
             patch('email_content._generate_image_bytes', return_value=(raw, 'image/png')) as generate,
             patch('email_content._save_email_image', return_value=('https://example.com/hero.gif', '/tmp/hero.gif')) as save,
-            patch('email_content._normalize_image_bytes_to_aspect') as normalize,
+            patch('email_content._normalize_image_bytes_to_aspect', return_value=(raw, 'image/png')) as normalize,
         ):
             result = generate_email_hero_image(
                 'unused', 'doubles', [], ['Sam', 'Alex'],
-                image_details='Sam bumps the ball; Alex cheers.',
+                image_details='Moving player: Sam\nAction: Bump the ball.',
                 custom_scene_prompt='Both players at the beach.', animation=True,
             )
         self.assertTrue(result[0].endswith('.gif'))
-        self.assertEqual(generate.call_args.kwargs['reference_parts'], refs)
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(generate.call_args_list[0].kwargs['reference_parts'], refs)
+        self.assertEqual(generate.call_args.kwargs['reference_parts'][:2], refs)
+        self.assertIn('STARTING FRAME', generate.call_args.kwargs['reference_parts'][2]['text'])
         self.assertEqual(generate.call_args.kwargs['output_size'], '1536x1440')
-        self.assertIn('Sam bumps the ball; Alex cheers.', generate.call_args.args[0])
+        self.assertIn('ONLY MOVING PERSON: Sam', generate.call_args.args[0])
+        self.assertIn('Requested movement: Bump the ball.', generate.call_args.args[0])
         self.assertEqual(save.call_args.args[1], 'gif')
         self.assertEqual(Image.open(io.BytesIO(save.call_args.args[0])).n_frames, 12)
-        normalize.assert_not_called()
+        normalize.assert_called_once()
         self.assertIn('hero.gif', _email_hero_html(result[0]))
         self.assertIn('hero-image-card', _email_hero_html(result[0]))
 
@@ -128,8 +132,28 @@ class RecapAnimationTests(unittest.TestCase):
         self.assertIsNone(result[0])
         self.assertTrue(result[2])
 
+    def test_stationary_area_is_identical_to_first_frame(self):
+        sheet, _ = sample_sheet()
+        first = Image.new('RGB', (384, 480), (30, 200, 90))
+        first_buf = io.BytesIO()
+        first.save(first_buf, 'PNG')
+        animation = Image.open(io.BytesIO(animation_gif_from_sheet(sheet, first_buf.getvalue())))
+        animation.seek(0)
+        fixed = animation.convert('RGB').crop((192, 0, 384, 480)).tobytes()
+        self.assertEqual(animation.n_frames, 12)
+        for i in range(1, 12):
+            animation.seek(i)
+            self.assertEqual(animation.convert('RGB').crop((192, 0, 384, 480)).tobytes(), fixed)
+        self.assertNotEqual(animation.convert('RGB').getpixel((20, 240)), (30, 200, 90))
+
+    def test_selected_player_must_have_a_reference(self):
+        self.assertEqual(animation_subject('Moving player: Sam\nAction: Wave', ['Alex', 'Sam']), ('Sam', 'Wave'))
+        with self.assertRaises(ValueError):
+            animation_subject('Moving player: Stranger\nAction: Wave', ['Sam'])
+        self.assertEqual(animation_subject('', ['Sam'])[0], 'Sam')
+
     def test_default_action_and_user_action(self):
-        self.assertIn('celebrate', animation_sheet_prompt('beach', ''))
+        self.assertIn('Wave', animation_sheet_prompt('beach', ''))
         self.assertIn('EXACTLY 12', animation_sheet_prompt('beach', 'wave'))
         self.assertIn('Requested movement: wave', animation_sheet_prompt('beach', 'wave'))
 

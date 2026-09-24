@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-24-one-player-animation",
+    "date": "2026-09-24",
+    "subject": "iPhone: Choose one player to animate",
+    "body": "Choose the one player who moves in an animated recap and describe a simple action just for them. The animation keeps everyone else in the starting picture still."
+  },
+  {
     "id": "ios-2026-09-24-recap-animation",
     "date": "2026-09-24",
     "subject": "iPhone: Animated AI recaps",

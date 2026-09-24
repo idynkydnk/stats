@@ -264,9 +264,16 @@
                         <p>Only used when you choose <strong>With illustration</strong>.</p>
                     </div>
                     <div class="sr-illustration-details">
-                        <label for="animation-details-text">What should the players be doing? (optional)</label>
-                        <textarea id="animation-details-text" name="animation_details" placeholder="Example: Sam bumps the ball while Alex cheers, then they return to their starting poses…">{{ animation_details_value|default('') }}</textarea>
-                        <p>Only used with animation. A short, silent loop using the same player references. Keep the action simple; leave blank for a celebration.</p>
+                        <label for="animation-player">Choose the one player who moves</label>
+                        <select id="animation-player" name="animation_player" style="width:100%; padding:12px; background:var(--sr-bg); color:var(--sr-text); border:1px solid var(--sr-line); border-radius:8px; margin-bottom:12px;">
+                            <option value="">Choose one player…</option>
+                            {% for player in animation_players|default([]) %}
+                            <option value="{{ player }}" {% if player == animation_player_value %}selected{% endif %}>{{ player }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="animation-details-text">What should this one player do? (optional)</label>
+                        <textarea id="animation-details-text" name="animation_details" placeholder="Example: Wave with one hand, then return to the starting pose.">{{ animation_details_value|default('') }}</textarea>
+                        <p>Only ONE person can move. Everyone else stays still. Describe a simple action for your selected player only; leave blank for a wave. Creating the starting picture and animation can take several minutes.</p>
                     </div>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
@@ -326,6 +333,7 @@ let selectedPrompt = null;
 
         function setImageMode(mode) {
             document.getElementById('image-mode').value = mode;
+            document.getElementById('animation-player').required = mode === 'animation';
         }
 
         function setGenerateButtonsEnabled(enabled) {
