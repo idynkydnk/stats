@@ -693,9 +693,12 @@ def register_ios_api(app):
         games = other_year_games('All years')
         names = other_game_names(games)
         types = other_game_types(games)
+        from other_functions import other_game_entry_defaults
+        defaults = other_game_entry_defaults(games)
         mapping = {n: other_game_type_for_name(games, n) for n in names}
         return jsonify({
             'game_names': names, 'game_types': types, 'type_for_name': mapping,
+            'entry_defaults': defaults,
             'default_years': {name: _S().browse_game_year(name) for name in names},
             'vollis_default_year': _S().browse_game_year(kind='vollis'),
         })

@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-28-faster-other-game-defaults",
+    "date": "2026-09-28",
+    "subject": "iPhone: Faster setup for Other games",
+    "body": "Choosing a known game such as No jump fills in its game type, scoring, and player slots immediately. You can start entering players while suggestions load."
+  },
+  {
     "id": "ios-2026-09-28-recap-select-own-games",
     "date": "2026-09-28",
     "subject": "iPhone: Select your recent games for AI summaries",

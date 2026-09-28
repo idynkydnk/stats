@@ -4128,6 +4128,8 @@ def add_other_game():
     
     players = all_combined_players()
     games_dict = other_year_games('All years')
+    from other_functions import other_game_entry_defaults
+    game_defaults = other_game_entry_defaults(games_dict)
     game_names = other_game_names(games_dict)
     game_types = other_game_types(games_dict)
     games = todays_other_games()
@@ -4135,7 +4137,7 @@ def add_other_game():
     from other_functions import game_name_requires_scores
     game_names_requiring_scores = [n for n in game_names if game_name_requires_scores(n)]
     return render_template('add_other_game.html', players=players, games=games, year=year,
-        game_names=game_names, game_types=game_types, todays_stats=todays_stats_data,
+        game_names=game_names, game_types=game_types, game_defaults=game_defaults, todays_stats=todays_stats_data,
         game_names_requiring_scores=game_names_requiring_scores,
         **_game_location_form_context())
 
@@ -5302,23 +5304,8 @@ def get_other_game_players(game_name):
 @app.route('/api/other_game_info/<game_name>')
 def get_other_game_info(game_name):
     """API endpoint to get game type, score type, and player counts for a given game name"""
-    from other_functions import get_score_type_for_game, get_players_per_side_for_game
-    games = other_year_games('All years')
-    game_type = other_game_type_for_name(games, game_name)
-    score_type = get_score_type_for_game(game_name)
-    players_per_side = get_players_per_side_for_game(game_name)
-    # Coed with no previous data: default 2v2 team
-    if game_type and game_type.lower() == 'coed' and players_per_side is None:
-        players_per_side = {'winner_count': 2, 'loser_count': 2}
-        score_type = 'team'
-    elif players_per_side is None:
-        players_per_side = {'winner_count': 1, 'loser_count': 1}
-    return {
-        'game_type': game_type,
-        'score_type': score_type,
-        'winner_count': players_per_side['winner_count'],
-        'loser_count': players_per_side['loser_count']
-    }
+    from other_functions import get_other_game_entry_info
+    return get_other_game_entry_info(game_name)
 
 @app.route('/api/search_all_players')
 def api_search_all_players():

@@ -693,6 +693,8 @@ function showExtraPlayers() {
     document.getElementById('add-more-players-btn').style.display = 'none';
 }
 
+const gameEntryDefaults = {{ game_defaults | default({}) | tojson }};
+
 // Game name: on select, fetch info and player order for this game; then focus game_type or winner1
 setupAutocomplete('game_name', () => allGameNames, field => {
     cachedCommonScores = null;
@@ -707,9 +709,8 @@ setupAutocomplete('game_name', () => allGameNames, field => {
         cachedPlayerOrder = null;
         cachedPlayerOrderGame = null;
     }
-    fetch(`/api/other_game_info/${encodeURIComponent(field.value)}`)
-        .then(r => r.json())
-        .then(data => {
+    const applyDefaults = data => {
+            if (field.value.trim() !== gameName) return;
             if (data.game_type) {
                 document.getElementById('game_type').value = data.game_type;
                 const gtWrap = document.getElementById('game_type-wrap');
@@ -719,8 +720,19 @@ setupAutocomplete('game_name', () => allGameNames, field => {
             const gt = document.getElementById('game_type');
             if (!gt.value.trim()) setTimeout(() => gt.focus(), 100);
             else setTimeout(() => document.getElementById('winner1')?.focus(), 100);
-        })
-        .catch(() => { setTimeout(() => document.getElementById('game_type')?.focus(), 100); });
+    };
+    const cached = gameEntryDefaults[gameName.toLowerCase()];
+    if (cached) {
+        applyDefaults(cached);
+    } else if (gameName) {
+        fetch(`/api/other_game_info/${encodeURIComponent(gameName)}`)
+            .then(r => r.json())
+            .then(data => {
+                gameEntryDefaults[gameName.toLowerCase()] = data;
+                applyDefaults(data);
+            })
+            .catch(() => {});
+    }
 });
 
 // Game type: on select Coed apply 2v2 and focus winner1; else focus score_type

@@ -461,6 +461,39 @@ def other_game_names(games):
             game_names.append(game['game_name'])
     return game_names
 
+def other_game_entry_info(row):
+    """Entry defaults from one latest game, without formatting game history."""
+    row = dict(row) if row else {}
+    score_type = ('individual' if row.get('winner1_score') is not None else
+                  'team' if row.get('winner_score') is not None else
+                  'none' if row else 'individual')
+    counts = {side + '_count': max(
+        (i for i in range(1, 16) if str(row.get(f'{side}{i}') or '').strip()),
+        default=1) for side in ('winner', 'loser')}
+    return dict(game_type=row.get('game_type'), score_type=score_type, **counts)
+
+
+def other_game_entry_defaults(games):
+    """Reuse newest-first rows already loaded for the game-name picker."""
+    defaults = {}
+    for game in games:
+        name = (game.get('game_name') or '').strip().lower()
+        if name and name not in defaults:
+            defaults[name] = other_game_entry_info(game)
+    return defaults
+
+
+def get_other_game_entry_info(game_name):
+    cur = set_cur()
+    try:
+        cur.execute("""SELECT * FROM other_games
+            WHERE LOWER(TRIM(game_name)) = LOWER(TRIM(?))
+            ORDER BY game_date DESC, id DESC LIMIT 1""", (game_name,))
+        return other_game_entry_info(cur.fetchone())
+    finally:
+        cur.connection.close()
+
+
 def other_game_type_for_name(games, game_name):
     """Get the game type for a given game name"""
     for game in games:
