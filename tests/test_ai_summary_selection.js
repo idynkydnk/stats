@@ -14,9 +14,11 @@ function card(day, checked = false) {
 }
 const cards = Array.from({ length: 65 }, () => card('2026-09-12'));
 cards.push(card('2026-09-11', true));
+cards.forEach((c, i) => { c.dataset.gameId = String(i); });
 const tab = { querySelector: () => cards[0], querySelectorAll: () => cards };
 let updates = 0;
-const context = { currentTab: 'doubles', searchMode: false, selectAllIds: {},
+const context = { currentTab: 'doubles', searchMode: false, searchRequestId: 0, selectAllIds: {doubles: cards.slice(0, 65).map(c => c.dataset.gameId)},
+    showBrowseMode: () => { context.searchMode = false; },
     document: { getElementById: () => tab }, updateSelectedCount: () => updates++,
     visibleCards: () => cards.slice(0, 2) };
 vm.createContext(context);
@@ -27,12 +29,12 @@ assert.equal(cards[65].checkbox.checked, false, 'Older manually selected games m
 cards.forEach(c => { c.checkbox.checked = false; });
 context.searchMode = true;
 context.selectAll();
-assert.equal(cards.filter(c => c.checkbox.checked).length, 2);
+assert.equal(cards.filter(c => c.checkbox.checked).length, 65);
 assert.equal(updates, 2);
 context.searchMode = false;
 cards.length = 0;
 context.selectAll();
-console.log('Select All covers the full latest day, clears older choices, and handles search and empty lists.');
+console.log('Select All covers the full latest day, clears older choices, and uses the same owned games during search, and handles empty lists.');
 
 // Kyle can browse newer submissions and same-day games belonging to others.
 context.selectAllIds = {doubles: ['own1', 'own2']};
@@ -45,5 +47,5 @@ context.selectAll();
 assert.equal(cards.filter(c => c.checkbox.checked).length, 0);
 context.searchMode = true;
 context.selectAll();
-assert.equal(cards.filter(c => c.checkbox.checked).length, 2, 'Search still selects displayed results');
-console.log('Kyle browsing everyone preserves own-day Select All; search selection is unchanged.');
+assert.equal(cards.filter(c => c.checkbox.checked).length, 0, 'Search must not select other users or older games');
+console.log('Kyle browsing everyone preserves own-day Select All; search also respects ownership.');

@@ -730,22 +730,12 @@ let currentTab = 'doubles';
 
         function selectAll() {
             var activeTab = document.getElementById('tab-' + currentTab);
-            if (searchMode) {
-                visibleCards(activeTab).forEach(function(card) {
-                    var checkbox = card.querySelector('.sr-game-checkbox');
-                    checkbox.checked = true;
-                    card.classList.add('selected');
-                });
-                updateSelectedCount();
-                return;
-            }
-
-            // Browse mode: select only this user’s latest game day.
-            var day = firstBrowseDay(activeTab);
+            // Select the current user's recent games even while viewing search results.
+            ++searchRequestId;
+            document.getElementById('game-search').value = '';
+            showBrowseMode();
             activeTab.querySelectorAll('.sr-browse-card').forEach(function(card) {
-                var selected = Object.prototype.hasOwnProperty.call(selectAllIds, currentTab)
-                    ? selectAllIds[currentTab].includes(card.dataset.gameId)
-                    : (card.dataset.gameDay || '') === day;
+                var selected = (selectAllIds[currentTab] || []).includes(card.dataset.gameId);
                 if (selected) card.classList.remove('sr-hidden-game');
                 var checkbox = card.querySelector('.sr-game-checkbox');
                 checkbox.checked = selected;

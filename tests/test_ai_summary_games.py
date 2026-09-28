@@ -100,6 +100,35 @@ class AISummaryGamesTests(unittest.TestCase):
                 self.assertFalse(set(own).intersection(self.ids(kind, 'dan', query='2020')))
                 self.assertEqual(latest_owned_game_ids(self.conn, kind, 'nobody'), [])
 
+    def test_recent_api_returns_complete_owned_selection_for_app(self):
+        import ast
+        import tempfile
+        from pathlib import Path
+        from flask import Flask, jsonify, request, session
+
+        own = self.insert('doubles', 'Kyle', '2020-01-02', 65)
+        self.insert('doubles', 'dan', '2026-09-28', 60)
+        self.conn.commit()
+        source = ast.parse(Path('stats.py').read_text())
+        functions = [node for node in source.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('api_ai_summary_game_search', '_serialize_ai_summary_game')]
+        for node in functions:
+            node.decorator_list = []
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = str(Path(directory) / 'games.db')
+            with sqlite3.connect(db_path) as conn:
+                self.conn.backup(conn)
+            namespace = dict(sqlite3=sqlite3, jsonify=jsonify, request=request,
+                             session=session, _stats_db_path=lambda: db_path)
+            exec(compile(ast.Module(body=functions, type_ignores=[]), 'stats.py', 'exec'), namespace)
+            app = Flask(__name__)
+            app.secret_key = 'test'
+            with app.test_request_context('/api/ai_summary_game_search/?game_type=doubles'):
+                session['username'] = 'kyle'
+                payload = namespace['api_ai_summary_game_search']().get_json()
+            self.assertEqual(set(payload['select_all_ids']), set(map(str, own)))
+            self.assertTrue(set(own).issubset({game['id'] for game in payload['games']}))
+
     def test_legacy_attribution_is_preserved_only_once(self):
         with sqlite3.connect(':memory:') as conn:
             conn.execute('CREATE TABLE games (updated_by TEXT)')

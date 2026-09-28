@@ -2334,25 +2334,24 @@ def _serialize_ai_summary_game(game_type, game):
 @api_login_required
 def api_ai_summary_game_search():
     """Search recap entries with Kyle’s wider visibility and normal owner filtering."""
-    from ai_summary_games import load_ai_summary_games
+    from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
 
     q = (request.args.get('q') or '').strip()
     game_type = (request.args.get('game_type') or 'doubles').strip().lower()
     limit = min(max(request.args.get('limit', 50, type=int), 1), 100)
-
-    if not q:
-        return jsonify({'success': True, 'games': [], 'query': '', 'game_type': game_type})
 
     if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
     with sqlite3.connect(_stats_db_path()) as conn:
         conn.row_factory = sqlite3.Row
         games = load_ai_summary_games(conn, game_type, session.get('username', ''), q, limit)
+        select_all_ids = latest_owned_game_ids(conn, game_type, session.get('username', ''))
     conn.close()
 
     return jsonify({
         'success': True,
         'query': q,
+        'select_all_ids': select_all_ids,
         'game_type': game_type,
         'games': [_serialize_ai_summary_game(game_type, game) for game in games],
     })

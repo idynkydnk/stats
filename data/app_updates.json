@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-28-recap-select-own-games",
+    "date": "2026-09-28",
+    "subject": "iPhone: Select your recent games for AI summaries",
+    "body": "Select all chooses every game you added on your latest game day, even when other people have added newer games. The selection includes the whole day without cutting off longer sessions."
+  },
+  {
     "id": "ios-2026-09-24-one-player-animation",
     "date": "2026-09-24",
     "subject": "iPhone: Choose one player to animate",
