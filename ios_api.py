@@ -410,26 +410,6 @@ def register_ios_api(app):
             'email': avatar.get('player_email') or '',
         })
 
-    @app.route('/api/network')
-    def api_network():
-        from stat_functions import build_player_network_data, grab_all_years, year_games
-        year = _year_arg(str(date.today().year))
-        current_year = str(date.today().year)
-        display_year = year
-        all_years = grab_all_years()
-        games = year_games(year)
-        if not games and year == current_year and all_years:
-            previous_year = str(int(current_year) - 1)
-            if previous_year in all_years and year_games(previous_year):
-                display_year = previous_year
-        data = build_player_network_data(display_year)
-        return jsonify({
-            'year': year,
-            'display_year': display_year,
-            'all_years': all_years,
-            'network': data,
-        })
-
     # ----- Vollis -----
 
     @app.route('/api/vollis/stats')

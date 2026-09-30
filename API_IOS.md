@@ -20,7 +20,6 @@ Send `Authorization: Bearer <token>` on write endpoints. Session cookies still w
 - `GET /api/doubles/games?year=&since=` (also `{deleted_ids}`)
 - `GET /api/doubles/games/<id>`
 - `GET /api/doubles/players/<name>?year=`
-- `GET /api/network?year=`
 - `GET /api/vollis/stats?year=`
 - `GET /api/vollis/games?year=&since=`
 - `GET /api/vollis/games/<id>`

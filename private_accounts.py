@@ -22,7 +22,7 @@ DATA_TABLES = {
 }
 GOOGLE_IOS_CLIENT_ID = '195048170299-63t84plh4cae8a7r5nk70d8l8hkr3t8p.apps.googleusercontent.com'
 PRIVATE_ENDPOINTS = {
-    'api_me', 'api_logout', 'api_years', 'api_network',
+    'api_me', 'api_logout', 'api_years',
     'api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
     'api_doubles_get', 'api_doubles_create', 'api_doubles_update', 'api_doubles_delete',
     'api_vollis_stats', 'api_vollis_player', 'api_vollis_list',
@@ -37,7 +37,7 @@ PRIVATE_ENDPOINTS = {
     'private_delete_account', 'private_starter_stats',
 }
 PREVIEW_ENDPOINTS = {
-    'api_years', 'api_network', 'api_doubles_stats', 'api_doubles_player',
+    'api_years', 'api_doubles_stats', 'api_doubles_player',
     'api_doubles_list', 'api_doubles_get', 'api_vollis_stats', 'api_vollis_player',
     'api_vollis_list', 'api_vollis_get', 'api_other_stats', 'api_other_player',
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',

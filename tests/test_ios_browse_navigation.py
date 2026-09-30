@@ -73,7 +73,7 @@ class IOSBrowseNavigationTests(unittest.TestCase):
     def test_native_doubles_reads_filter_both_divisions(self):
         app = Flask(__name__)
         app.secret_key = 'test'
-        for endpoint in ['api_doubles_stats', 'api_doubles_player', 'api_doubles_list', 'api_network']:
+        for endpoint in ['api_doubles_stats', 'api_doubles_player', 'api_doubles_list']:
             app.add_url_rule('/' + endpoint, endpoint=endpoint, view_func=lambda: '')
             for division, expected in [('open', 1), ('women', 2)]:
                 with app.test_request_context('/' + endpoint + '?division=' + division):

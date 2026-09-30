@@ -11,7 +11,7 @@ STATS_ENDPOINTS = {
     'vollis_stats', 'vollis_stats_default', 'vollis_games', 'vollis_games_default',
     'other_stats', 'other_stats_default', 'other_games', 'other_games_default',
     'other_games_by_name', 'player_stats', 'vollis_player_stats', 'other_player_stats',
-    'player_network', 'player_network_default', 'single_game_stats',
+    'single_game_stats',
     'single_game_stats_with_year', 'volleyball_stats', 'volleyball_stats_default',
     'volleyball_player_stats', 'game_name_stats', 'game_name_stats_with_year',
     'player_game_stats',

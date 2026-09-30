@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-09-30-simpler-more-menu",
+    "date": "2026-09-30",
+    "subject": "iPhone: A simpler More menu",
+    "body": "When signed out, More shows Home, Appearance, AI Recaps, and Login. Tournaments and Player Network have been removed from More, personal accounts no longer show Volleyball there, and AI Summary is available from Add."
+  },
+  {
     "id": "ios-2026-09-30-private-accounts",
     "date": "2026-09-30",
     "subject": "iPhone: Personal accounts and private stats",
