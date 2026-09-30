@@ -1,4 +1,5 @@
 import sqlite3
+from private_accounts import connect_data, data_path
 from sqlite3 import Error
 from other_game_categories import canonical_other_category
 
@@ -36,12 +37,13 @@ def create_connection(db_file):
     """
     # Skip paths whose directory doesn't exist (e.g. server path when running locally)
     import os
+    db_file = data_path(db_file)
     parent = os.path.dirname(db_file)
     if parent and not os.path.isdir(parent):
         return None
     conn = None
     try:
-        conn = sqlite3.connect(db_file)
+        conn = connect_data(db_file)
         return conn
     except Error as e:
         print(e)

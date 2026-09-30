@@ -52,4 +52,4 @@ static/recaps/*
 !static/recaps/.gitkeep
 recaps/*
 !recaps/.gitkeep
-
+private_data/

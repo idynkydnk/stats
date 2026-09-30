@@ -1,5 +1,6 @@
 import requests
 import sqlite3
+from private_accounts import connect_data
 from datetime import date, datetime
 from bs4 import BeautifulSoup
 from create_games_database import *
@@ -151,10 +152,10 @@ def search_player_names(search_term):
     """Search for player names across all game types"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     cursor = conn.cursor()
     
     results = {
@@ -220,10 +221,10 @@ def update_player_name(old_name, new_name):
     """Update player name across all game types"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     cursor = conn.cursor()
     
     updates_made = 0
@@ -285,10 +286,10 @@ def get_all_unique_players():
     """Get all unique player names across all game types"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     cursor = conn.cursor()
     
     all_players = set()
@@ -331,10 +332,10 @@ def init_trueskill_table():
     """Create the trueskill_rankings table if it doesn't exist"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -361,10 +362,10 @@ def get_trueskill_from_db(year):
     """Get TrueSkill rankings from database for a specific year"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     
     cursor = conn.cursor()
     year_str = str(year) if year else 'All years'
@@ -400,10 +401,10 @@ def save_trueskill_to_db(year, rankings):
     """Save TrueSkill rankings to database"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     
     cursor = conn.cursor()
     year_str = str(year) if year else 'All years'
@@ -436,10 +437,10 @@ def get_trueskill_last_updated(year):
     """Get when TrueSkill rankings were last updated for a year"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     
     cursor = conn.cursor()
     year_str = str(year) if year else 'All years'
@@ -459,10 +460,10 @@ def get_last_game_date():
     """Get the date of the most recent game"""
     try:
         database = '/home/Idynkydnk/stats/stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     except:
         database = r'stats.db'
-        conn = sqlite3.connect(database)
+        conn = connect_data(database)
     
     cursor = conn.cursor()
     cursor.execute("SELECT MAX(game_date) FROM games")
@@ -485,4 +486,3 @@ init_trueskill_table()
 
 if __name__ == '__main__':
     main()
-

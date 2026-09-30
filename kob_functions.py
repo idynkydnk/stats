@@ -1,16 +1,18 @@
 import sqlite3
+from private_accounts import connect_data, data_path
 from datetime import datetime, timedelta
 from collections import Counter
 from itertools import combinations
 
 def create_connection(db_file):
     import os
+    db_file = data_path(db_file)
     parent = os.path.dirname(db_file)
     if parent and not os.path.isdir(parent):
         return None
     conn = None
     try:
-        conn = sqlite3.connect(db_file)
+        conn = connect_data(db_file)
     except sqlite3.Error as e:
         print(e)
     return conn
@@ -231,4 +233,3 @@ def save_kob(cur, conn, session_number, games):
     """, (session_number, start_time, end_time, total_games, total_games, datetime.now()))
     
     conn.commit()
-

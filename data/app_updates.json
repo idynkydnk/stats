@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-09-30-private-accounts",
+    "date": "2026-09-30",
+    "subject": "iPhone: Personal accounts and private stats",
+    "body": "Create a personal account with a password, Apple, or Google to keep your own games, players, and stats separate from everyone else's."
+  },
+  {
+    "id": "ios-2026-09-30-starter-stats",
+    "date": "2026-09-30",
+    "subject": "iPhone: Explore KT Stats before getting started",
+    "body": "Browse KT Stats without changing its games or players, then create an account for your own games. Hide or show KT Stats whenever you like; nothing is deleted."
+  },
+  {
     "id": "ios-2026-09-30-year-menu",
     "date": "2026-09-30",
     "subject": "iPhone: More room for stats and games",

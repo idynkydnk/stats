@@ -18,6 +18,9 @@ def cached(ttl=CACHE_TTL):
     """Decorator for caching function results with TTL"""
     def decorator(func):
         def wrapper(*args, **kwargs):
+            from private_accounts import private_database
+            if private_database():
+                return func(*args, **kwargs)
             # Create cache key from function name and arguments
             key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())
             current_time = time.time()

@@ -362,7 +362,9 @@ def activity_overview():
 def snapshot_row(target, row_id):
     """Full row of a target table as a dict, or None."""
     table = TARGET_TABLES[target]
-    conn = _connect()
+    from private_accounts import connect_data
+    conn = connect_data(stats_db_path(), timeout=30)
+    conn.row_factory = sqlite3.Row
     row = conn.execute(f'SELECT * FROM {table} WHERE id = ?', (row_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
@@ -371,7 +373,9 @@ def snapshot_row(target, row_id):
 def snapshot_last_row(target):
     """Most recently inserted row of a target table (for logging adds)."""
     table = TARGET_TABLES[target]
-    conn = _connect()
+    from private_accounts import connect_data
+    conn = connect_data(stats_db_path(), timeout=30)
+    conn.row_factory = sqlite3.Row
     row = conn.execute(f'SELECT * FROM {table} ORDER BY id DESC LIMIT 1').fetchone()
     conn.close()
     return dict(row) if row else None

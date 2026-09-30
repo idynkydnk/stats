@@ -8,10 +8,11 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from private_accounts import connect_data, private_database
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import jsonify, request, session, url_for
+from flask import g, jsonify, request, session, url_for
 from werkzeug.security import generate_password_hash
 
 
@@ -122,7 +123,7 @@ def api_admin_required(f):
 
 def _ensure_deleted_table():
     S = _S()
-    conn = sqlite3.connect(S._stats_db_path())
+    conn = connect_data(S._stats_db_path())
     conn.execute(
         '''CREATE TABLE IF NOT EXISTS deleted_records (
             id INTEGER PRIMARY KEY,
@@ -142,7 +143,7 @@ def record_deletion(kind, record_id):
     _ensure_deleted_table()
     S = _S()
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    conn = sqlite3.connect(S._stats_db_path())
+    conn = connect_data(S._stats_db_path())
     conn.execute(
         'INSERT INTO deleted_records (kind, record_id, deleted_at) VALUES (?, ?, ?)',
         (kind, int(record_id), now),
@@ -154,7 +155,7 @@ def record_deletion(kind, record_id):
 def deleted_ids_since(kind, since_str):
     _ensure_deleted_table()
     S = _S()
-    conn = sqlite3.connect(S._stats_db_path())
+    conn = connect_data(S._stats_db_path())
     cur = conn.cursor()
     if since_str:
         cur.execute(
@@ -271,6 +272,8 @@ def register_ios_api(app):
             'username': username,
             'is_admin': bool(S.is_admin(username)),
             'logged_in': True,
+            'is_private': bool(private_database()),
+            'show_starter_stats': bool(getattr(g, 'private_account', {}).get('show_starter_stats', False)),
         })
 
     @app.route('/api/auth/logout', methods=['POST'])
@@ -561,7 +564,7 @@ def register_ios_api(app):
             return jsonify({'error': 'winner_score must be greater than loser_score'}), 400
         before = S.adminfx.snapshot_row('vollis_game', game_id)
         edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, S.get_user_now(), game_id)
-        conn = sqlite3.connect(S._api_get_db())
+        conn = connect_data(S._api_get_db())
         conn.execute('UPDATE vollis_games SET location = ? WHERE id = ?', (location, game_id))
         conn.commit()
         conn.close()
@@ -928,7 +931,7 @@ def register_ios_api(app):
     @api_login_required
     def api_tournaments_list():
         S = _S()
-        conn = sqlite3.connect(S._stats_db_path())
+        conn = connect_data(S._stats_db_path())
         cur = conn.cursor()
         try:
             S._ensure_tournaments_table(conn)
@@ -966,7 +969,7 @@ def register_ios_api(app):
         tournament_name = (data.get('tournament_name') or '').strip()
         if not all([tournament_date, place, team, location, tournament_name]):
             return jsonify({'error': 'All fields are required'}), 400
-        conn = sqlite3.connect(S._stats_db_path())
+        conn = connect_data(S._stats_db_path())
         cur = conn.cursor()
         S._ensure_tournaments_table(conn)
         cur.execute(

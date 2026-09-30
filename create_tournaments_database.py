@@ -1,4 +1,5 @@
 import sqlite3
+from private_accounts import connect_data
 from sqlite3 import Error
 
 def create_connection(db_file):
@@ -9,7 +10,7 @@ def create_connection(db_file):
     """
     conn = None
     try:
-        conn = sqlite3.connect(db_file)
+        conn = connect_data(db_file)
         return conn
     except Error as e:
         print(e)
@@ -62,4 +63,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

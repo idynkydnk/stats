@@ -1616,6 +1616,9 @@ def _ensure_player_record(name):
 def log_activity(action, target=None, target_id=None, summary=None, before=None, after=None, username=None):
     """Record an entry in the admin activity log. Never raises - logging must
     not break the action being logged."""
+    from private_accounts import private_database
+    if private_database():
+        return
     try:
         user = username or session.get('username') or 'unknown'
         stored = adminfx.canonical_username(user)
@@ -1742,7 +1745,8 @@ def api_login_required(f):
 
 def _api_get_db():
     """Return DB path for API (same as rest of app)."""
-    return _stats_db_path()
+    from private_accounts import data_path
+    return data_path(_stats_db_path())
 
 def _api_game_row_to_dict(row):
     """Convert a games row (tuple or Row) to JSON-serializable dict."""
@@ -7420,6 +7424,8 @@ def handle_unexpected_error(error):
 
 import ios_api
 ios_api.register_ios_api(app)
+from private_accounts import register_private_accounts
+register_private_accounts(app, __import__(__name__))
 
 
 if __name__ == '__main__':

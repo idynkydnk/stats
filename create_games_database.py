@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from private_accounts import connect_data, data_path
 from sqlite3 import Error
 from player_identity import canonical_player_name
 
@@ -11,12 +12,13 @@ def create_connection(db_file):
     """
     # Skip absolute paths whose directory doesn't exist (e.g. the PythonAnywhere
     # path when running locally) instead of spamming "unable to open database file".
+    db_file = data_path(db_file)
     parent = os.path.dirname(db_file)
     if parent and not os.path.isdir(parent):
         return None
     conn = None
     try:
-        conn = sqlite3.connect(db_file)
+        conn = connect_data(db_file)
         return conn
     except Error as e:
         print(e)
