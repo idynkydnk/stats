@@ -6,13 +6,31 @@ from pathlib import Path
 from types import SimpleNamespace
 import sqlite3
 import unittest
-from unittest.mock import patch
-from flask import Flask, jsonify
+from unittest.mock import Mock, patch
+from flask import Flask, jsonify, request
 from doubles_division import active_doubles_division
 from stats_location_filter import filter_stats_connection
 
 
 class IOSBrowseNavigationTests(unittest.TestCase):
+    def test_public_recap_api_lists_all_creators_without_login(self):
+        source = Path(__file__).resolve().parents[1] / 'ios_api.py'
+        node = next(n for n in ast.walk(ast.parse(source.read_text()))
+                    if isinstance(n, ast.FunctionDef) and n.name == 'api_my_recaps')
+        app = Flask(__name__)
+        admin = Mock()
+        admin.list_ai_recap_pages.return_value = ([{'share_id': 'public-recap'}], 1)
+        service = SimpleNamespace(app=app, adminfx=admin, EMAIL_SITE_BASE_URL='https://example.com',
+                                  serialize_recap_list_entry=lambda row, base: row)
+        namespace = {'app': app, 'jsonify': jsonify, 'request': request, '_S': lambda: service}
+        exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
+        for suffix, page in [('', 1), ('?page=bad', 1), ('?page=2', 2)]:
+            response = app.test_client().get('/api/ai/recaps' + suffix)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['recaps'][0]['share_id'], 'public-recap')
+            self.assertTrue(response.json['showing_all'])
+            admin.list_ai_recap_pages.assert_called_with(page=page, per_page=25, username=None)
+
     def test_default_year_metadata_uses_shared_website_policy(self):
         source = Path(__file__).resolve().parents[1] / 'ios_api.py'
         tree = ast.parse(source.read_text())

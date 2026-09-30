@@ -990,11 +990,10 @@ def register_ios_api(app):
     # ----- AI -----
 
     @app.route('/api/ai/recaps')
-    @api_login_required
     def api_my_recaps():
         S = _S()
-        username = S._browse_username_filter()
-        page = max(int(request.args.get('page', 1) or 1), 1)
+        username = None
+        page = max(request.args.get('page', 1, type=int) or 1, 1)
         per_page = 25
         entries, total = S.adminfx.list_ai_recap_pages(page=page, per_page=per_page, username=username)
         site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
