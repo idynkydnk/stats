@@ -1048,11 +1048,7 @@ def verify_password(username, password):
         if not user.get('active'):
             return False
         return check_password_hash(user['password_hash'], password)
-    # Fallback for the seed dict in case the DB table is unavailable
-    password_hash = USERS.get(username)
-    if not password_hash:
-        return False
-    return check_password_hash(password_hash, password)
+    return False
 
 
 # --- Simple in-memory rate limiting for login endpoints (no extra dependency) ---
@@ -1298,7 +1294,8 @@ def validate_auth_token(token):
     conn.close()
     if not result:
         return None
-    return adminfx.canonical_username(result[0]) or result[0]
+    user = adminfx.get_site_user(result[0])
+    return user['username'] if user and user.get('active') else None
 
 def revoke_auth_token(token):
     """Revoke a specific authentication token"""
@@ -1670,6 +1667,18 @@ def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username
         )
     except Exception:
         app.logger.exception('Failed to save AI prompt log')
+
+
+@app.before_request
+def reject_removed_user_session():
+    """Expire existing browser sessions for removed or deactivated accounts."""
+    if session.get('logged_in'):
+        username = session.get('username')
+        if username == 'api_key':
+            return
+        user = adminfx.get_site_user(username)
+        if not user or not user.get('active'):
+            session.clear()
 
 
 def admin_required(f):
@@ -7127,6 +7136,20 @@ def admin_toggle_active():
             revoke_all_user_tokens(username)
         log_activity('Reactivated site user' if activate else 'Deactivated site user', summary=username)
         flash(f'User "{username}" {"reactivated" if activate else "deactivated"}.', 'success')
+    else:
+        flash(f'User "{username}" not found.', 'error')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/users/delete', methods=['POST'])
+@admin_required
+def admin_delete_user():
+    username = (request.form.get('username') or '').strip()
+    if username.lower() == (session.get('username') or '').lower():
+        flash('You cannot remove your own account.', 'error')
+    elif adminfx.delete_site_user(username):
+        log_activity('Removed site user', summary=username)
+        flash(f'User "{username}" permanently removed.', 'success')
     else:
         flash(f'User "{username}" not found.', 'error')
     return redirect(url_for('admin_dashboard'))

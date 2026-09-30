@@ -84,6 +84,25 @@ class SiteUserPresenceTests(unittest.TestCase):
         users = {row['username']: row for row in adminfx.list_site_users()}
         self.assertGreaterEqual(users['tyler']['last_seen'], first_seen)
 
+    def test_delete_user_removes_account_and_tokens_but_keeps_history(self):
+        self._create_auth_tokens_table()
+        self._insert_activity('Tyler', 'Logged in', '2026-09-06 15:00:00')
+        with sqlite3.connect(self.db_path) as conn:
+            conn.executemany(
+                'INSERT INTO auth_tokens (username, token_hash, expires_at) VALUES (?, ?, ?)',
+                [('Tyler', 'abc', '2026-12-01'), ('kyle', 'def', '2026-12-01')],
+            )
+        self.assertTrue(adminfx.delete_site_user('TYLER'))
+        self.assertIsNone(adminfx.get_site_user('tyler'))
+        self.assertFalse(adminfx.delete_site_user('tyler'))
+        with sqlite3.connect(self.db_path) as conn:
+            self.assertEqual(conn.execute('SELECT username FROM auth_tokens').fetchall(), [('kyle',)])
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM activity_log').fetchone()[0], 1)
+        self.assertIsNotNone(adminfx.get_site_user('kyle'))
+
+    def test_delete_user_without_token_table(self):
+        self.assertTrue(adminfx.delete_site_user('tyler'))
+
     def test_canonical_username_uses_stored_account_name(self):
         self.assertEqual(adminfx.canonical_username('Tyler'), 'tyler')
         self.assertEqual(adminfx.canonical_username('nobody'), 'nobody')

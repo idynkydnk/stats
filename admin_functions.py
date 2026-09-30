@@ -663,6 +663,21 @@ def create_site_user(username, password_hash, is_admin=False):
     return True
 
 
+def delete_site_user(username):
+    """Permanently remove a login account and its saved authentication tokens."""
+    with _connect() as conn:
+        cur = conn.execute(
+            'DELETE FROM site_users WHERE lower(username) = lower(?)', (username,)
+        )
+        changed = cur.rowcount > 0
+        if changed and conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='auth_tokens'").fetchone():
+            conn.execute(
+                'DELETE FROM auth_tokens WHERE lower(username) = lower(?)', (username,)
+            )
+    conn.close()
+    return changed
+
+
 def update_site_user(username, password_hash=None, is_admin=None, active=None):
     sets, params = [], []
     if password_hash is not None:

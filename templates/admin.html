@@ -354,6 +354,11 @@ details.adm-section > summary { padding:12px 16px; cursor:pointer; font-weight:6
                             {{ 'Reactivate' if not u.active else 'Deactivate' }}
                         </button>
                     </form>
+                    <form method="POST" action="{{ url_for('admin_delete_user') }}"
+                          onsubmit="return confirm('Permanently remove this user account? This cannot be undone. Game results and player records will be kept.');">
+                        <input type="hidden" name="username" value="{{ u.username }}">
+                        <button type="submit" class="adm-btn adm-btn-danger">Remove permanently</button>
+                    </form>
                     {% endif %}
                 </div>
             </details>
