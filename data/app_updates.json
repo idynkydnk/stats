@@ -1,9 +1,15 @@
 [
   {
+    "id": "ios-2026-09-30-today-differential-visible",
+    "date": "2026-09-30",
+    "subject": "iPhone: Today’s differential stays visible",
+    "body": "Today’s standings keep names and numbers on the same line, with wins and losses closer together so the +/− differential stays visible without swiping sideways. Names that do not fit end with an ellipsis."
+  },
+  {
     "id": "ios-2026-09-30-single-line-player-names",
     "date": "2026-09-30",
     "subject": "iPhone: Player names stay on one line",
-    "body": "Today’s and yearly standings have smaller side margins and keep full player names on one line. Swipe sideways to see all the stats when a long name needs more room."
+    "body": "Today’s and yearly standings have smaller side margins and keep player names on one line. Names that do not fit end with an ellipsis; tap a player to open their full details."
   },
   {
     "id": "ios-2026-09-30-simpler-more-menu",
