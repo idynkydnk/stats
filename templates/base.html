@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260919-game-ratings') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-appearance') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-compact') }}">
     <script src="{{ url_for('static', filename='js/theme.js', v='20260930-appearance') }}"></script>
     {% block extra_css %}{% endblock %}
     <template id="sr-nav-context" hidden aria-hidden="true">
@@ -47,7 +47,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/menu.js', v='20260907') }}"></script>
+    <script src="{{ url_for('static', filename='js/menu.js', v='20260930-compact') }}"></script>
     <script src="{{ url_for('static', filename='js/search-filter.js', v='20260716') }}"></script>
     <script src="{{ url_for('static', filename='js/mobile-keyboard.js', v='20260716b') }}"></script>
     {% block extra_js %}{% endblock %}

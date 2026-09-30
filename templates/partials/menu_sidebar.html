@@ -2,8 +2,9 @@
     <li><a href="{{ url_for('stats_default', division=None) }}"><i class="fas fa-home"></i> Main Page</a></li>
 
     <li class="sr-appearance">
-        <fieldset>
-            <legend>Appearance</legend>
+        <details>
+            <summary><i class="fas fa-palette" aria-hidden="true"></i> Appearance</summary>
+            <div class="sr-appearance-controls">
             <label for="sr-appearance-mode">Mode</label>
             <select id="sr-appearance-mode" data-sr-appearance="mode">
                 <option value="dark">Dark</option>
@@ -23,7 +24,8 @@
                 <option value="sharp">Sharp · crisp</option>
             </select>
             <p>Changes apply instantly. Saved in this browser.</p>
-        </fieldset>
+            </div>
+        </details>
     </li>
 
     <li class="menu-section-label">Browse</li>

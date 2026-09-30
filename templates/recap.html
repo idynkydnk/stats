@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% if session.logged_in %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260716e') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-appearance') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-compact') }}">
     <script src="{{ url_for('static', filename='js/theme.js', v='20260930-appearance') }}"></script>
     {% endif %}
     <style>
@@ -1061,7 +1061,7 @@
     </script>
     {% endif %}
     {% if session.logged_in %}
-    <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/menu.js', v='20260930-compact') }}"></script>
     <script src="{{ url_for('static', filename='js/mobile-keyboard.js', v='20260716b') }}"></script>
     {% endif %}
 </body>

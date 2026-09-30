@@ -26,7 +26,7 @@
                 closeMenu();
             }
             if (event.key === 'Tab') {
-                var items = Array.from(menuSidebar.querySelectorAll('a[href], button, input, select, [tabindex="0"]')).filter(function(item) { return !item.disabled && item.getClientRects().length; });
+                var items = Array.from(menuSidebar.querySelectorAll('a[href], button, summary, input, select, [tabindex="0"]')).filter(function(item) { return !item.disabled && item.getClientRects().length; });
                 var first = items[0], last = items[items.length - 1];
                 if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
                 else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }

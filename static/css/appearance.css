@@ -104,22 +104,32 @@ html[data-sr-style="soft"] .sr-section-tab.active { box-shadow: inset 0 0 0 1px 
 
 /* Native, labelled selects work with keyboards, screen readers, and phone pickers. */
 .menu-sidebar { box-sizing: border-box; max-width: 100vw; }
-.sr-appearance { padding: 12px 4px 8px; }
-.sr-appearance fieldset {
-    min-width: 0;
-    margin: 0;
-    padding: 12px;
-    border: 1px solid var(--sr-line);
-    border-radius: 12px;
+.sr-appearance { padding: 0; }
+.sr-appearance summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 10px 16px;
+    border-radius: 8px;
+    color: var(--sr-text);
+    font-size: 14px;
+    cursor: pointer;
+    list-style: none;
 }
-.sr-appearance legend {
-    padding: 0 6px;
+.sr-appearance summary::-webkit-details-marker { display: none; }
+.sr-appearance summary::after {
+    content: '›';
+    margin-left: auto;
     color: var(--sr-muted);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    font-size: 20px;
 }
+.sr-appearance details[open] > summary::after { transform: rotate(90deg); }
+.sr-appearance summary:hover { background: var(--sr-accent-dim); }
+.sr-appearance summary:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-appearance summary i { width: 18px; text-align: center; }
+.sr-appearance-controls { padding: 0 16px 12px; }
 .sr-appearance label { display: block; margin: 8px 0 5px; font-size: 13px; color: var(--sr-text); }
 .sr-appearance select {
     box-sizing: border-box;
