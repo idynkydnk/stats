@@ -1176,7 +1176,11 @@ def list_ai_recap_pages(page=1, per_page=25, username=None):
                 if not existing.get('game_type') and job.get('game_type'):
                     existing['game_type'] = job.get('game_type') or ''
                 continue
-            page_row = get_ai_recap_page(sid) or {}
+            page_row = get_ai_recap_page(sid)
+            # Jobs retain their share IDs after deletion; they are history,
+            # not evidence that a published page still exists.
+            if page_row is None:
+                continue
             entries_by_id[sid] = _recap_list_entry(sid, {
                 **page_row,
                 'created_at': page_row.get('created_at') or created_at,
