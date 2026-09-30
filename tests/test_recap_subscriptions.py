@@ -1,5 +1,6 @@
 """Public recap access and email subscriptions without app startup jobs."""
 import ast
+import json
 from pathlib import Path
 import secrets
 import tempfile
@@ -34,7 +35,8 @@ class RecapSubscriptionTests(unittest.TestCase):
                        _is_owner_or_admin=lambda owner: session.get('username') == owner)
         tree = ast.parse((ROOT / 'stats.py').read_text())
         names = {'my_ai_recaps', 'inject_recap_subscription_token', 'subscribe_ai_recaps',
-                 'send_ai_summary_messages', '_apply_ai_email_opt_out'}
+                 'send_ai_summary_messages', '_apply_ai_email_opt_out',
+                 '_email_published_recap', '_publish_ai_recap', '_absolute_site_url'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), self.ns)
         self.client = self.app.test_client()
@@ -62,21 +64,60 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.assertEqual(recap_subscriptions.recipients([]), ['a@example.com'])
         self.assertEqual(recap_subscriptions.recipients(['A@example.com']), ['A@example.com'])
 
-    def test_delivery_includes_subscribers_and_unsubscribe_removes_them(self):
+    def test_manual_send_does_not_email_subscribers_again(self):
         recap_subscriptions.subscribe('fan@example.com')
         build = Mock(side_effect=lambda *args, **kwargs: args[3])
-        send = Mock(return_value=(2, []))
+        send = Mock(return_value=(1, []))
         self.ns.update(_filter_ai_email_opt_outs=lambda values: values,
                        _ai_email_public_recipients=list, extend_ai_email_recipients=list,
                        build_ai_summary_message=build, send_messages_with_retry=send,
                        _ai_email_public_sent_count=lambda values, errors: len(values))
-        self.assertEqual(self.ns['send_ai_summary_messages']('Recap', 'html', 'text', ['player@example.com']), (2, []))
-        send.assert_called_once_with(['player@example.com', 'fan@example.com'])
+        self.assertEqual(self.ns['send_ai_summary_messages']('Recap', 'html', 'text', ['player@example.com']), (1, []))
+        send.assert_called_once_with(['player@example.com'])
         cur = Mock()
         cur.fetchone.return_value = None
         self.ns['set_cur'] = lambda: cur
         self.ns['_apply_ai_email_opt_out']('FAN@example.com')
         self.assertEqual(recap_subscriptions.recipients([]), [])
+
+    def publish(self, sender=None):
+        self.admin.get_ai_recap_page.return_value = None
+        self.ns.update(json=json, EMAIL_PLACEHOLDER='{{EMAIL_PLACEHOLDER}}',
+                       _refresh_instagram_slides=Mock(), log_activity=Mock(),
+                       build_ai_summary_message=Mock(side_effect=lambda *args: args),
+                       send_messages_with_retry=sender or Mock(return_value=(1, [])))
+        with self.app.app_context():
+            return self.ns['_publish_ai_recap'](
+                {'subject': 'A & B recap'}, 'fun', '', [1], username='creator')
+
+    def test_publishing_notifies_subscribers_without_a_request_or_manual_send(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        sender = Mock(return_value=(1, []))
+        share_id = self.publish(sender)
+        self.admin.insert_ai_recap_page.assert_called_once()
+        sender.assert_called_once()
+        subject, html, plain, recipient = sender.call_args.args[0][0]
+        self.assertEqual(recipient, 'fan@example.com')
+        self.assertIn('A &amp; B recap', html)
+        self.assertIn(f'https://example.com/recap/{share_id}/', html)
+        self.assertIn(f'https://example.com/recap/{share_id}/', plain)
+        self.assertIn('/opt_out_ai_emails?email={{EMAIL_PLACEHOLDER}}', html)
+        self.ns['log_activity'].assert_called_once()
+        self.assertEqual(self.ns['log_activity'].call_args.args[0], 'Sent AI recap to subscribers')
+
+    def test_publishing_without_subscribers_does_not_send(self):
+        sender = Mock()
+        self.publish(sender)
+        sender.assert_not_called()
+
+    def test_email_failure_preserves_published_page_and_records_failure(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        for sender in (Mock(side_effect=RuntimeError('SMTP unavailable')),
+                       Mock(return_value=(0, ['fan@example.com: refused']))):
+            self.assertTrue(self.publish(sender))
+            self.assertEqual(self.ns['log_activity'].call_args.args[0],
+                             'AI recap subscriber email failed')
+            self.admin.insert_ai_recap_page.reset_mock()
 
     def test_public_menu_and_subscription_templates(self):
         with self.app.test_request_context('/'):

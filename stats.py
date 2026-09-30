@@ -275,7 +275,7 @@ def _ai_email_public_sent_count(public_recipients, errors):
 
 def send_ai_summary_messages(subject, html_body, plain_text_body, recipients,
                              hero_image_url=None, hero_image_path=None):
-    recipients = recap_subscriptions.recipients(_filter_ai_email_opt_outs(recipients))
+    recipients = _filter_ai_email_opt_outs(recipients)
     public_recipients = _ai_email_public_recipients(recipients)
     all_recipients = extend_ai_email_recipients(recipients)
     if not all_recipients:
@@ -520,6 +520,45 @@ def _refresh_instagram_slides(share_id, html_body='', plain_text_body='', subjec
         return []
 
 
+def _email_published_recap(share_id, payload, username):
+    """Notify subscribers after publication; an email failure must not lose the page."""
+    from html import escape
+
+    try:
+        recipients = recap_subscriptions.recipients([])
+        if not recipients:
+            return
+        share_url = _absolute_site_url(f'/recap/{share_id}/')
+        subject = payload.get('subject') or 'New AI recap'
+        # A small notification links to the finished recap, including its latest image.
+        html_body = (
+            f'<h1>{escape(subject)}</h1>'
+            f'<p>A new AI recap is ready. <a href="{escape(share_url, quote=True)}">Read the recap</a>.</p>'
+            '<p>You received this because you subscribed to AI recaps. '
+            f'<a href="{escape(_absolute_site_url("/opt_out_ai_emails"), quote=True)}?email={EMAIL_PLACEHOLDER}">Unsubscribe</a>.</p>'
+        )
+        plain_text_body = (
+            f'{subject}\n\nRead the recap: {share_url}\n\n'
+            'You received this because you subscribed to AI recaps.\n'
+            f'Unsubscribe: {_absolute_site_url("/opt_out_ai_emails")}?email={EMAIL_PLACEHOLDER}'
+        )
+        messages = [build_ai_summary_message(subject, html_body, plain_text_body, address)
+                    for address in recipients]
+        sent, errors = send_messages_with_retry(messages)
+        log_activity(
+            'AI recap subscriber email failed' if errors else 'Sent AI recap to subscribers',
+            target=share_id,
+            summary=f'Sent to {sent} subscriber(s); {len(errors)} failed.'
+                    + (f' {"; ".join(errors)[:200]}' if errors else ''),
+            username=username,
+        )
+    except Exception:
+        app.logger.exception('Subscriber email failed for published recap %s', share_id)
+        log_activity('AI recap subscriber email failed', target=share_id,
+                     summary='The recap was published, but subscriber email could not be sent.',
+                     username=username)
+
+
 def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=None):
     """Save a generated AI recap as a public shareable page."""
     illustration_meta = payload.get('illustration_meta') or {}
@@ -563,6 +602,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         hero_image_url=hero_image_url,
         force=True,
     )
+    _email_published_recap(share_id, payload, username or session.get('username') or 'unknown')
     return share_id
 
 
@@ -656,7 +696,7 @@ def _send_ai_summary_payload(payload, username='unknown'):
         for p in payload.get('players', [])
         if p.get('email') and str(p['email']).strip()
     ]
-    if not recap_subscriptions.recipients(recipients):
+    if not recipients:
         raise ValueError('No recipients with email addresses for the selected games.')
 
     emails_sent, errors = send_ai_summary_messages(
