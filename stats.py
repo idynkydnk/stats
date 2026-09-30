@@ -40,6 +40,7 @@ from doubles_division import active_doubles_division, entry_division, DIVISIONS,
 from stats_location_filter import STATS_ENDPOINTS, active_location_filter
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
+import recap_subscriptions
 import os
 import subprocess
 import sqlite3
@@ -173,7 +174,7 @@ def _filter_ai_email_opt_outs(recipients):
         if addr in copy_addrs:
             out.append(addr)
             continue
-        cur.execute("SELECT notes FROM players WHERE email = ?", (addr,))
+        cur.execute("SELECT notes FROM players WHERE email = ? COLLATE NOCASE", (addr,))
         row = cur.fetchone()
         if row and 'AI_EMAILS_OPT_OUT' in (row[0] or ''):
             continue
@@ -274,7 +275,7 @@ def _ai_email_public_sent_count(public_recipients, errors):
 
 def send_ai_summary_messages(subject, html_body, plain_text_body, recipients,
                              hero_image_url=None, hero_image_path=None):
-    recipients = _filter_ai_email_opt_outs(recipients)
+    recipients = recap_subscriptions.recipients(_filter_ai_email_opt_outs(recipients))
     public_recipients = _ai_email_public_recipients(recipients)
     all_recipients = extend_ai_email_recipients(recipients)
     if not all_recipients:
@@ -655,7 +656,7 @@ def _send_ai_summary_payload(payload, username='unknown'):
         for p in payload.get('players', [])
         if p.get('email') and str(p['email']).strip()
     ]
-    if not recipients:
+    if not recap_subscriptions.recipients(recipients):
         raise ValueError('No recipients with email addresses for the selected games.')
 
     emails_sent, errors = send_ai_summary_messages(
@@ -2182,11 +2183,10 @@ def ai_summary():
 
 
 @app.route('/ai-recaps/')
-@login_required
 def my_ai_recaps():
-    """Browse AI recap pages. Admins see everyone's; everyone else sees their own."""
-    username = _browse_username_filter()
-    page = max(int(request.args.get('page', 1) or 1), 1)
+    """Public directory of published AI recap pages."""
+    username = None
+    page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = 25
     entries, total_entries = adminfx.list_ai_recap_pages(
         page=page, per_page=per_page, username=username,
@@ -2194,6 +2194,8 @@ def my_ai_recaps():
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
     entries = [serialize_recap_list_entry(entry, site_base) for entry in entries]
+    for entry in entries:
+        entry['can_manage'] = bool(session.get('logged_in') and _is_owner_or_admin(entry.get('username')))
     return render_template(
         'ai_recaps.html',
         entries=entries,
@@ -2202,6 +2204,29 @@ def my_ai_recaps():
         total_entries=total_entries,
         showing_all=username is None,
     )
+
+
+@app.context_processor
+def inject_recap_subscription_token():
+    def recap_subscription_token():
+        if 'recap_subscription_token' not in session:
+            session['recap_subscription_token'] = secrets.token_urlsafe(32)
+        return session['recap_subscription_token']
+    return {'recap_subscription_token': recap_subscription_token}
+
+
+@app.route('/ai-recaps/subscribe', methods=['POST'])
+def subscribe_ai_recaps():
+    token = request.form.get('subscription_token', '')
+    if not token or not secrets.compare_digest(token.encode(), session.get('recap_subscription_token', '').encode()):
+        abort(400)
+    try:
+        recap_subscriptions.subscribe(request.form.get('email'))
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    else:
+        flash("You're subscribed to future AI recap emails. You can unsubscribe from any recap email.", 'success')
+    return redirect(url_for('my_ai_recaps'))
 
 
 @app.route('/ai-recaps/delete', methods=['POST'])
@@ -6310,10 +6335,11 @@ def opt_in_ai_emails():
 
 
 def _apply_ai_email_opt_out(email):
+    recap_subscriptions.unsubscribe(email)
     from player_functions import update_player_info
 
     cur = set_cur()
-    cur.execute("SELECT id, full_name, email, notes FROM players WHERE email = ?", (email,))
+    cur.execute("SELECT id, full_name, email, notes FROM players WHERE email = ? COLLATE NOCASE", (email,))
     player = cur.fetchone()
     if not player:
         return True

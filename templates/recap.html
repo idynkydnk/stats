@@ -28,7 +28,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% if session.logged_in %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260716e') }}">
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-appearance') }}">
+    <script src="{{ url_for('static', filename='js/theme.js', v='20260930-appearance') }}"></script>
     {% endif %}
     <style>
         :root {
@@ -734,6 +735,8 @@
         <div class="recap-body-wrap">
             {{ recap_html | safe }}
         </div>
+        {% include 'partials/recap_subscription.html' %}
+        <p style="text-align:center;"><a href="{{ url_for('my_ai_recaps') }}">Browse all AI recaps</a></p>
     </main>
     </div>
 

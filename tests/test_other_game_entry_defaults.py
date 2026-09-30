@@ -3,10 +3,33 @@ import unittest
 from unittest.mock import patch
 
 from other_functions import (other_game_entry_info, other_game_entry_defaults,
-                             get_other_game_entry_info)
+                             get_other_game_entry_info, other_year_games)
 
 
 class OtherGameEntryDefaultsTests(unittest.TestCase):
+    def test_sequence_defaults_follow_latest_saved_player_count(self):
+        conn = sqlite3.connect(':memory:')
+        self.addCleanup(conn.close)
+        conn.row_factory = sqlite3.Row
+        conn.execute('''CREATE TABLE other_games (
+            id INTEGER PRIMARY KEY, game_name, game_date, game_type,
+            winner1, winner1_score, loser1, loser2, loser3)''')
+        # Even when timestamps match, each newly saved result replaces the
+        # previous player count, including when unused loser slots are blank.
+        for loser_count in (2, 1, 3, 1):
+            conn.execute('INSERT INTO other_games VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         ('Sequence', '2026-09-30 10:00:00', 'Board game',
+                          'A', 2, 'B', 'C' if loser_count >= 2 else '',
+                          'D' if loser_count >= 3 else None))
+            for year in ('All years', '2026'):
+                with self.subTest(loser_count=loser_count, year=year), \
+                     patch('other_functions.set_cur', return_value=conn.cursor()), \
+                     patch('time_display.format_game_time', return_value='09/30/26 10:00 AM'):
+                    defaults = other_game_entry_defaults(other_year_games(year))['sequence']
+                self.assertEqual(defaults['winner_count'], 1)
+                self.assertEqual(defaults['loser_count'], loser_count)
+                self.assertEqual(defaults['score_type'], 'individual')
+
     def test_team_individual_none_and_new_game(self):
         row = dict(game_type='Volleyball', winner_score=21, winner1='A',
                    winner2='B', loser1='C', loser2='D')

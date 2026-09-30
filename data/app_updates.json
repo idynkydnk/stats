@@ -1,5 +1,29 @@
 [
   {
+    "id": "ios-2026-09-30-appearance",
+    "date": "2026-09-30",
+    "subject": "iPhone: Choose your colors and style",
+    "body": "Open More, then Appearance to choose Ocean, Forest, Sunset, or Violet colors and Classic, Soft, or Sharp styling. Light and dark modes and your appearance choices apply immediately and stay saved on your iPhone."
+  },
+  {
+    "id": "ios-2026-09-30-simpler-games-navigation",
+    "date": "2026-09-30",
+    "subject": "iPhone: Simpler Games navigation",
+    "body": "Removed the duplicate Games button at the top left of Stats. Open Games from the tab at the bottom of the screen."
+  },
+  {
+    "id": "ios-2026-09-30-other-player-stats",
+    "date": "2026-09-30",
+    "subject": "iPhone: Open players from Sequence standings",
+    "body": "Tapping a player in Sequence or other game standings opens their stats without a Server Double-Fault error. Player totals and opponent records include team games and games with multiple opponents."
+  },
+  {
+    "id": "ios-2026-09-30-remember-player-counts",
+    "date": "2026-09-30",
+    "subject": "iPhone: Remember the latest game's player count",
+    "body": "After saving an Other game such as Sequence, the next entry for that game uses the number of winners and losers you just entered. Saving a two-player game now replaces the extra player fields from an earlier three- or four-player game."
+  },
+  {
     "id": "ios-2026-09-28-faster-other-game-defaults",
     "date": "2026-09-28",
     "subject": "iPhone: Faster setup for Other games",
@@ -22,6 +46,12 @@
     "date": "2026-09-24",
     "subject": "iPhone: Animated AI recaps",
     "body": "Choose With animation when creating an AI recap and describe what the players should do. A short, silent animation uses the same player references and appears in place of the recap picture."
+  },
+  {
+    "id": "ios-2026-09-23-preserve-game-time",
+    "date": "2026-09-23",
+    "subject": "iPhone: Edited games keep their original time",
+    "body": "Editing a doubles or Vollis game keeps its original date and time, so it stays in the same place in game history. This also applies to doubles edits saved offline and synced later."
   },
   {
     "id": "ios-2026-09-20-stats-browsing-parity",

@@ -504,9 +504,9 @@ def other_game_type_for_name(games, game_name):
 def other_year_games(year):
     cur = set_cur()
     if year == 'All years':
-        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC")
+        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC, id DESC")
     else:
-        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
+        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC, id DESC", (year,))
     row = cur.fetchall()
     games = readable_games_data(row)
     return games
@@ -857,47 +857,56 @@ def games_from_other_player_by_year(year, name):
     games = readable_games_data(row)
     return games
 
+def _other_player_result(player, game):
+    """Return the player's result and only the players on the opposing side."""
+    sides = [[game.get(f'{side}{i}') for i in range(1, MAX_OTHER_PLAYERS + 1)
+              if _is_valid_player_name(game.get(f'{side}{i}'))]
+             for side in ('winner', 'loser')]
+    winners, losers = sides
+    if player in winners:
+        return True, set(losers) - {player}
+    if player in losers:
+        return False, set(winners) - {player}
+    return None, set()
+
+
 def all_other_opponents(player, games):
-    players = []
+    opponents = set()
     for game in games:
-        if game[4] not in players:
-            players.append(game[4])
-        if game[6] not in players:
-            players.append(game[6])
-    players.remove(player)
-    return players
+        _, rivals = _other_player_result(player, game)
+        opponents.update(rivals)
+    return sorted(opponents)
 
 
 def other_opponent_stats_by_year(name, games, min_games=None):
-    opponents = all_other_opponents(name, games)
+    records = {}
+    for game in games:
+        won, opponents = _other_player_result(name, game)
+        for opponent in opponents:
+            counts = records.setdefault(opponent, [0, 0])
+            counts[0 if won else 1] += 1
     stats = []
-    for opponent in opponents:
-        wins, losses = 0, 0
-        for game in games:
-            if game[4] == opponent:
-                losses += 1
-            if game[6] == opponent:
-                wins += 1
-        win_percent = wins / (wins + losses)
+    for opponent, (wins, losses) in sorted(records.items()):
         total_games = wins + losses
-        stats.append({'opponent':opponent, 'wins':wins, 'losses':losses, 'win_percentage':win_percent, 'total_games':total_games})
+        stats.append({'opponent': opponent, 'wins': wins, 'losses': losses,
+                      'win_percentage': wins / total_games, 'total_games': total_games})
     from stat_functions import player_matchup_min_games, sort_by_winpct_with_minimum
     if min_games is None:
         min_games = player_matchup_min_games(len(games))
     return sort_by_winpct_with_minimum(stats, min_games)
 
+
 def total_other_stats(name, games):
-    stats = []
     wins, losses = 0, 0
     for game in games:
-        if game[4] == name:
+        won, _ = _other_player_result(name, game)
+        if won is True:
             wins += 1
-        if game[6] == name:
+        elif won is False:
             losses += 1
-    win_percent = wins / (wins + losses)
     total_games = wins + losses
-    stats.append([name, wins, losses, win_percent, total_games])
-    return stats
+    win_percent = wins / total_games if total_games else 0
+    return [[name, wins, losses, win_percent, total_games]]
 
 def todays_other_stats():
     games = todays_other_games()

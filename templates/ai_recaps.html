@@ -118,17 +118,19 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title">AI Recaps</h1>
     <div class="sr-header-actions">
+        {% if session.logged_in %}
         <a href="{{ url_for('ai_summary') }}" class="sr-link-btn"><i class="fas fa-robot"></i> New</a>
+        {% endif %}
         {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 
+{% include 'partials/recap_subscription.html' %}
+
 <div class="adm-section">
     <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
-        Your published AI recap pages{% if showing_all %}, including every user's{% endif %}. Copy the share link for group text — pages with an illustration
-        use that image as the thumbnail. After you upload or remake a picture, copy the link again
-        so WhatsApp picks up the new thumbnail.
+        Browse published AI recaps and share your favorites.
     </p>
     {% if entries %}
     <div class="adm-recap-list">
@@ -143,7 +145,7 @@
             </div>
             <div class="adm-recap-main">
                 <div class="adm-recap-meta">
-                    {% if showing_all %}
+                    {% if is_admin_user %}
                     <span class="adm-recap-user">{{ e.username or 'unknown' }}</span>
                     {% endif %}
                     <span class="adm-recap-badge">{{ (e.game_type or 'game')|capitalize }}</span>
@@ -165,12 +167,15 @@
                     <a class="adm-btn" href="{{ e.share_url }}" target="_blank" rel="noopener">
                         <i class="fas fa-external-link-alt"></i> Open
                     </a>
+                    {% if e.can_manage %}
                     <a class="adm-btn" href="{{ url_for('view_ai_recap', share_id=e.share_id, published=1) }}">
                         <i class="fas fa-eye"></i> Creator view
                     </a>
+                    {% endif %}
                     <button type="button" class="adm-btn" data-copy-url="{{ e.share_url }}">
                         <i class="fas fa-copy"></i> Copy link
                     </button>
+                    {% if e.can_manage %}
                     <form method="POST" action="{{ url_for('my_ai_recaps_delete') }}" style="display:inline;margin:0;">
                         <input type="hidden" name="share_id" value="{{ e.share_id }}">
                         <input type="hidden" name="page" value="{{ page }}">
@@ -179,6 +184,7 @@
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -194,8 +200,7 @@
     {% else %}
     <div class="sr-card sr-card-compact">
         <p style="color: var(--sr-muted); text-align: center; padding: 32px 16px; margin: 0;">
-            You haven't published any AI recaps yet.
-            <a href="{{ url_for('ai_summary') }}" style="color: var(--sr-accent);">Generate one from AI Summary</a>.
+            No AI recaps have been published yet. Subscribe above to receive future recap emails.
         </p>
     </div>
     {% endif %}

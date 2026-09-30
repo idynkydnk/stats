@@ -1,0 +1,12 @@
+<section aria-labelledby="recap-subscription-heading" style="margin:20px auto;padding:20px;max-width:720px;border:1px solid var(--sr-line, #cbd5e1);border-radius:12px;background:var(--sr-panel, #fff);color:var(--sr-text, #172033);">
+    <h2 id="recap-subscription-heading" style="margin:0 0 8px;font-size:20px;">Get future AI recaps by email</h2>
+    <p style="margin:0 0 16px;">Subscribe to AI recap emails from across the site. No account needed. Unsubscribe from any recap email.</p>
+    <form method="post" action="{{ url_for('subscribe_ai_recaps') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;">
+        <input type="hidden" name="subscription_token" value="{{ recap_subscription_token() }}">
+        <div style="flex:1 1 220px;min-width:0;">
+            <label for="recap-subscription-email" style="display:block;margin-bottom:6px;">Email address</label>
+            <input id="recap-subscription-email" type="email" name="email" autocomplete="email" required maxlength="254" placeholder="you@example.com" style="box-sizing:border-box;width:100%;padding:12px;border:1px solid #94a3b8;border-radius:6px;background:var(--sr-panel, #fff);color:inherit;font:inherit;">
+        </div>
+        <button type="submit" style="padding:12px 18px;border:0;border-radius:6px;background:#0369a1;color:white;font:inherit;cursor:pointer;">Subscribe</button>
+    </form>
+</section>
