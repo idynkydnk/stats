@@ -715,6 +715,13 @@ def set_player_ai_image_path(player_id, ai_image_path):
         conn.commit()
 
 
+def _player_file_id(player_id):
+    from private_accounts import private_database
+    database = private_database()
+    prefix = os.path.splitext(os.path.basename(database))[0] + '_' if database else ''
+    return prefix + str(int(player_id))
+
+
 def _ai_image_filename_for_player(filename, player_id):
     """True if filename is this player's AI character file (current or archived)."""
     name = os.path.basename(filename or '')
@@ -725,7 +732,7 @@ def _ai_image_filename_for_player(filename, player_id):
     if ext not in ALLOWED_PHOTO_EXTENSIONS:
         return False
     try:
-        pid = str(int(player_id))
+        pid = _player_file_id(player_id)
     except (TypeError, ValueError):
         return False
     if stem == f'ai_{pid}':
@@ -759,7 +766,7 @@ def _new_ai_image_filename(player_id, ext):
         ext = 'png'
     stamp = datetime.now().strftime('%Y%m%d%H%M%S')
     token = uuid.uuid4().hex[:8]
-    return f'ai_{player_id}_{stamp}_{token}.{ext}'
+    return f'ai_{_player_file_id(player_id)}_{stamp}_{token}.{ext}'
 
 
 def list_player_ai_image_versions(player_id):
@@ -1142,14 +1149,14 @@ def save_player_photo_upload(player_id, file_storage):
     dest_dir = player_photos_dir()
     # Remove any previous face photo with a different extension.
     for old_ext in ALLOWED_PHOTO_EXTENSIONS:
-        old_path = os.path.join(dest_dir, f'{player_id}{old_ext}')
+        old_path = os.path.join(dest_dir, f'{_player_file_id(player_id)}{old_ext}')
         if os.path.isfile(old_path):
             try:
                 os.remove(old_path)
             except OSError:
                 pass
     _abs_path, filename = _save_upload_compressed(
-        file_storage, dest_dir, str(player_id), ext,
+        file_storage, dest_dir, _player_file_id(player_id), ext,
     )
 
     rel_path = f'player_photos/{filename}'

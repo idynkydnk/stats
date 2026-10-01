@@ -741,7 +741,8 @@ def run_ai_auto_send_job(
     image_mode='none', image_details='', illustration_players=None,
 ):
     """Generate AI summary and publish a shareable recap page."""
-    with app.app_context():
+    from private_accounts import ai_account_context
+    with ai_account_context(app, _stats_db_path(), username):
         try:
             payload = _build_ai_summary_payload(
                 game_type, game_ids, prompt_style, custom_prompt,
@@ -900,7 +901,8 @@ def run_flyer_job(username, payload):
 
 def run_player_ai_image_job(username, player_name):
     """Generate a reusable AI character sheet and save it on the player."""
-    with app.app_context():
+    from private_accounts import ai_account_context
+    with ai_account_context(app, _stats_db_path(), username):
         try:
             from email_content import (
                 ImageGenerationError,
@@ -2380,6 +2382,7 @@ def _serialize_ai_summary_game(game_type, game):
 @api_login_required
 def api_ai_summary_game_search():
     """Search recap entries with Kyle’s wider visibility and normal owner filtering."""
+    from private_accounts import data_path
     from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
 
     q = (request.args.get('q') or '').strip()
@@ -2388,7 +2391,7 @@ def api_ai_summary_game_search():
 
     if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
-    with sqlite3.connect(_stats_db_path()) as conn:
+    with sqlite3.connect(data_path(_stats_db_path())) as conn:
         conn.row_factory = sqlite3.Row
         games = load_ai_summary_games(conn, game_type, session.get('username', ''), q, limit)
         select_all_ids = latest_owned_game_ids(conn, game_type, session.get('username', ''))

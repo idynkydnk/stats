@@ -4,6 +4,7 @@ Identity and tokens remain in the site database. Only an authenticated account
 can select a private database; neither a URL nor a client-supplied ID can do so.
 """
 import os
+from contextlib import contextmanager
 import hashlib
 import time
 from pathlib import Path
@@ -35,6 +36,9 @@ PRIVATE_ENDPOINTS = {
     'get_other_game_type', 'api_search_all_players', 'api_add_player',
     'api_update_player_info', 'api_rename_player', 'set_timezone',
     'private_delete_account', 'private_starter_stats',
+    'api_upload_player_photo', 'api_save_player_ai_image_traits',
+    'api_generate_player_ai_image', 'api_ai_summary_game_search',
+    'api_ai_roster', 'api_ai_summary_json', 'api_ai_job', 'api_my_recaps',
 }
 PREVIEW_ENDPOINTS = {
     'api_years', 'api_doubles_stats', 'api_doubles_player',
@@ -317,3 +321,15 @@ def register_private_accounts(app, service):
                     conn.execute('DELETE FROM "' + table + '"')
         session.clear()
         return jsonify(ok=True)
+
+
+@contextmanager
+def ai_account_context(app, site_path, username):
+    """Resolve worker storage from trusted account identity, never job-supplied paths."""
+    with app.test_request_context():
+        account = account_for_user(site_path, username)
+        if account:
+            g.private_account = account
+            g.private_database = provision_database(site_path, account['id'])
+        session['username'] = username
+        yield

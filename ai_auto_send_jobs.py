@@ -145,10 +145,11 @@ def enqueue_player_ai_image_job(username, player_name):
         SELECT id FROM ai_auto_send_jobs
         WHERE COALESCE(job_type, '') = 'player_ai_image'
           AND payload_json = ?
+          AND username = ?
           AND status IN ('pending', 'running')
         ORDER BY id DESC
         LIMIT 1
-    ''', (payload,)).fetchone()
+    ''', (payload, username)).fetchone()
     if existing:
         job_id = existing['id']
         conn.close()

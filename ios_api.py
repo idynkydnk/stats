@@ -975,7 +975,7 @@ def register_ios_api(app):
     @app.route('/api/ai/recaps')
     def api_my_recaps():
         S = _S()
-        username = None
+        username = session.get('username') if private_database() else None
         page = max(request.args.get('page', 1, type=int) or 1, 1)
         per_page = 25
         entries, total = S.adminfx.list_ai_recap_pages(page=page, per_page=per_page, username=username)

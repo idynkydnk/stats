@@ -80,6 +80,11 @@ class PrivateAccountTests(unittest.TestCase):
                                  (request.json['name'], request.json['id']))
                 return jsonify(rows=conn.execute('SELECT * FROM games ORDER BY id').fetchall())
 
+        @self.app.route('/api/ai/roster', endpoint='api_ai_roster', methods=['POST'])
+        def ai_roster():
+            with connect_data(self.path) as conn:
+                return jsonify(players=conn.execute('SELECT * FROM players').fetchall())
+
         @self.app.route('/api/me', endpoint='api_me')
         def me():
             return jsonify(private=bool(private_database()))
@@ -108,6 +113,32 @@ class PrivateAccountTests(unittest.TestCase):
         public = self.app.test_client().get('/api/games')
         self.assertEqual(public.json['rows'], [[1, 'Shared player']])
         self.assertEqual(self.a.get('/api/games', headers=a).headers['Cache-Control'], 'no-store')
+
+    def test_personal_ai_access_uses_only_own_players(self):
+        a = self.register(self.a, 'alice')
+        b = self.register(self.b, 'bob')
+        from private_accounts import ai_account_context
+        with ai_account_context(self.app, self.path, 'alice'):
+            with connect_data(self.path) as conn:
+                conn.execute("INSERT INTO players VALUES (1, 'Alice character')")
+        self.assertEqual(self.a.post('/api/ai/roster', headers=a).json['players'], [[1, 'Alice character']])
+        self.assertEqual(self.b.post('/api/ai/roster', headers=b).json['players'], [])
+        self.assertEqual(self.a.post('/api/ai/roster', headers={**a, 'X-Stats-Preview': '1'}).status_code, 403)
+
+    def test_ai_worker_context_keeps_accounts_and_public_storage_separate(self):
+        from private_accounts import ai_account_context
+        self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        with ai_account_context(self.app, self.path, 'alice'):
+            with connect_data(self.path) as conn:
+                conn.execute("INSERT INTO players VALUES (1, 'Alice character')")
+        with ai_account_context(self.app, self.path, 'bob'):
+            with connect_data(self.path) as conn:
+                self.assertEqual(conn.execute('SELECT * FROM players').fetchall(), [])
+        with ai_account_context(self.app, self.path, 'Kyle'):
+            self.assertIsNone(private_database())
+            with connect_data(self.path) as conn:
+                self.assertEqual(conn.execute('SELECT * FROM players').fetchall(), [(1, 'Shared player')])
 
     def test_storage_has_no_shared_rows_or_auth_tables(self):
         a = self.register(self.a, 'alice')
