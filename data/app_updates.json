@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-01-large-win-loss-counts",
+    "date": "2026-10-01",
+    "subject": "iPhone: Large win and loss totals stay readable",
+    "body": "Standings give wins and losses enough room for larger totals, including counts over 1,000. Numbers stay on one line and lined up beneath their headings."
+  },
+  {
     "id": "ios-2026-09-30-login-menu-ai",
     "date": "2026-09-30",
     "subject": "iPhone: Cleaner login and personal AI tools",
