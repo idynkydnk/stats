@@ -1,5 +1,23 @@
 [
   {
+    "id": "ios-2026-10-02-game-times-cleaner-cards",
+    "date": "2026-10-02",
+    "subject": "iPhone: Game times and cleaner game cards",
+    "body": "Game lists show the saved time beside each game's date when available. The faint lines through and between game cards are gone."
+  },
+  {
+    "id": "ios-2026-10-02-summary-return-home",
+    "date": "2026-10-02",
+    "subject": "iPhone: Return to Stats while your AI summary generates",
+    "body": "Submitting an AI summary takes you back to Stats with a generating message. Keep browsing while it works, then tap Open recap when it is ready."
+  },
+  {
+    "id": "ios-2026-10-02-added-game-popup",
+    "date": "2026-10-02",
+    "subject": "iPhone: See the game you just added",
+    "body": "After adding a game, a popup shows the players, scores, and any location or comments. Tap outside or Done to close it, or choose Add another game to start the next entry."
+  },
+  {
     "id": "ios-2026-10-01-large-win-loss-counts",
     "date": "2026-10-01",
     "subject": "iPhone: Large win and loss totals stay readable",

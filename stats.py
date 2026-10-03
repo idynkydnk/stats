@@ -2546,7 +2546,8 @@ def preview_ai_summary_with_prompt():
                 f'style "{prompt_style}"'
             ),
         )
-        return redirect(url_for('ai_summary_job_status', job_id=job_id))
+        session['ai_summary_job_id'] = job_id
+        return redirect(url_for('index'))
 
     try:
         if game_type == 'vollis':
@@ -2592,7 +2593,8 @@ def preview_ai_summary_with_prompt():
             target=share_id,
             summary=f'{game_type} recap published at /recap/{share_id}',
         )
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        flash('Your recap is ready. Open Recaps to read it.', 'success')
+        return redirect(url_for('index'))
     except Exception as e:
         app.logger.exception('AI recap publish failed')
         return stay_on_prompt(f'Failed to publish recap: {str(e)}')
@@ -2610,6 +2612,23 @@ def ai_summary_job_status(job_id):
     if job.get('status') == 'completed' and job.get('share_id'):
         return redirect(url_for('view_ai_recap', share_id=job['share_id'], published=1))
     return render_template('ai_summary_job.html', job=job, job_id=job_id)
+
+
+@app.context_processor
+def inject_ai_summary_progress():
+    job_id = session.get('ai_summary_job_id')
+    if not job_id or not session.get('logged_in'):
+        return {}
+    job = ai_jobs.get_job(job_id)
+    if not job or not _can_access_job(job):
+        session.pop('ai_summary_job_id', None)
+        return {}
+    # Terminal states are shown once; polling updates the current page too.
+    if job.get('status') in ('completed', 'failed'):
+        session.pop('ai_summary_job_id', None)
+    return {'ai_summary_progress_job': {
+        key: job.get(key) for key in ('id', 'status', 'error', 'share_id')
+    }}
 
 
 @app.route('/api/ai_summary_job/<int:job_id>/')
@@ -3910,7 +3929,12 @@ def _add_doubles_game_view(redirect_to):
                          target_id=new_row['id'] if new_row else None,
                          summary=details, after=new_row)
             update_kobs()
-            flash('Game saved to database.', 'success')
+            session['saved_game_' + redirect_to] = {
+                'title': 'Doubles', 'winners': f'{winner1} & {winner2}',
+                'losers': f'{loser1} & {loser2}',
+                'winner_score': winner_score, 'loser_score': loser_score,
+                'location': location, 'comment': comments,
+            }
         return redirect(url_for(redirect_to))
     
     current_user = session.get('username')
@@ -3925,6 +3949,7 @@ def _add_doubles_game_view(redirect_to):
     return render_template('add_game.html', players=players, games=games, year=year,
         l_scores=l_scores, todays_stats=todays_stats_data, form_action=url_for(redirect_to),
         is_voice_page=is_voice_page, added=added, saved=saved, deleted=deleted,
+        saved_game=session.pop('saved_game_' + redirect_to, None),
         **_game_location_form_context())
 
 
@@ -4066,6 +4091,8 @@ def add_vollis_game():
             log_activity('Added vollis game', target='vollis_game',
                          target_id=new_row['id'] if new_row else None,
                          summary=details, after=new_row)
+            session['saved_game_add_vollis_game'] = {'title': 'Vollis', 'winners': winner, 'losers': loser,
+                'winner_score': winner_score, 'loser_score': loser_score, 'location': location}
         return redirect(url_for('add_vollis_game'))
     
     all_games = vollis_year_games('All years')
@@ -4077,6 +4104,7 @@ def add_vollis_game():
     losing_scores = list(range(0, 26))
     return render_template('add_vollis_game.html', players=players, games=games, year=year,
         winning_scores=winning_scores, losing_scores=losing_scores, todays_stats=todays_stats_data,
+        saved_game=session.pop('saved_game_add_vollis_game', None),
         **_game_location_form_context())
 
 @app.route('/add_other_game/', methods=['GET', 'POST'])
@@ -4173,6 +4201,11 @@ def add_other_game():
             log_activity('Added other game', target='other_game',
                          target_id=new_row['id'] if new_row else None,
                          summary=details, after=new_row)
+            session['saved_game_add_other_game'] = {'title': game_name,
+                'winners': ', '.join(f'{n} ({v})' if score_type == 'individual' and v != '' else n for n, v in zip(winners, winner_scores)),
+                'losers': ', '.join(f'{n} ({v})' if score_type == 'individual' and v != '' else n for n, v in zip(losers, loser_scores)),
+                'winner_score': team_winner_score, 'loser_score': team_loser_score,
+                'location': location, 'comment': comment}
         return redirect(url_for('add_other_game'))
     
     players = all_combined_players()
@@ -4188,6 +4221,7 @@ def add_other_game():
     return render_template('add_other_game.html', players=players, games=games, year=year,
         game_names=game_names, game_types=game_types, game_defaults=game_defaults, todays_stats=todays_stats_data,
         game_names_requiring_scores=game_names_requiring_scores,
+        saved_game=session.pop('saved_game_add_other_game', None),
         **_game_location_form_context())
 
 

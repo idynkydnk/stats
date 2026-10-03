@@ -104,6 +104,7 @@
 </style>
 {% endblock %}
 {% block content %}
+        {% include 'partials/saved_game_popup.html' %}
 
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add Vollis</h1>
@@ -342,7 +343,7 @@ document.getElementById('add-vollis-form').addEventListener('submit', function()
 })();
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
-    setTimeout(() => document.getElementById('winner')?.focus(), 100);
+    setTimeout(() => (!document.getElementById('saved-game-popup') && document.getElementById('winner')?.focus()), 100);
 });
 </script>
 {% endblock %}

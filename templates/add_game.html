@@ -89,6 +89,7 @@ textarea { resize: vertical; min-height: 60px; }
 </style>
 {% endblock %}
 {% block content %}
+        {% include 'partials/saved_game_popup.html' %}
         {% if added or saved or deleted %}
         <div class="sr-success-banner" role="alert">
             {% if added %}<i class="fas fa-check-circle"></i> Game added. Safe to close.{% endif %}
@@ -106,14 +107,6 @@ textarea { resize: vertical; min-height: 60px; }
             </div>
         </header>
         <div class="sr-form-container">
-            <div class="sr-success-banner" id="add-game-success-banner" role="alert" aria-live="assertive" aria-atomic="true" style="display: none; margin-bottom: 16px;">
-                <i class="fas fa-check-circle" aria-hidden="true"></i>
-                <span id="add-game-success-text"></span>
-            </div>
-            <div class="sr-success-banner" id="add-game-error-banner" role="alert" aria-live="assertive" style="display: none; margin-bottom: 16px; border-color: rgba(248,113,113,0.5); background: rgba(248,113,113,0.12); color: var(--sr-loss, #f87171);">
-                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-                <span id="add-game-error-text">Could not save. Check your connection and try again.</span>
-            </div>
             {% if is_voice_page %}
             <div class="sr-voice-section" id="sr-voice-section">
                 <button type="button" class="sr-mic-btn" id="sr-mic-btn" aria-label="Record game result" title="Tap to record a game result"><i class="fas fa-microphone"></i></button>
@@ -540,62 +533,10 @@ document.getElementById('add-game-form').addEventListener('submit', function(e) 
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
-    var form = document.getElementById('add-game-form');
-    if (typeof fetch !== 'function' || !form || !form.action) {
-        return;
-    }
-    e.preventDefault();
-    var data = new FormData(form);
-    var errBanner = document.getElementById('add-game-error-banner');
-    var okBanner = document.getElementById('add-game-success-banner');
-    var okText = document.getElementById('add-game-success-text');
-    if (errBanner) errBanner.style.display = 'none';
-    if (okBanner && okText) {
-        okText.textContent = 'Game added';
-        okBanner.style.display = 'flex';
-    }
-    var priorityNames = [
-        (data.get('winner1') || '').trim(),
-        (data.get('winner2') || '').trim(),
-        (data.get('loser1') || '').trim(),
-        (data.get('loser2') || '').trim()
-    ];
-    var saveSeq = ++doublesBackgroundSaveSeq;
-    if (priorityNames.every(function(n) { return n; })) {
-        lastGamePlayers = priorityNames.slice();
-        showRematchBtn();
-    }
-    applyDoublesPlayerOrderAfterSave(priorityNames);
-    var action = form.action;
-    clearAddGameForm();
-    var w1 = document.getElementById('winner1');
-    if (w1) w1.focus();
-    fetch(action, { method: 'POST', body: data, credentials: 'same-origin', keepalive: true })
-        .then(function(r) {
-            if (!r.ok) return Promise.reject(new Error('save'));
-            return refreshDoublesPlayersFromServer()
-                .then(function() {
-                    if (saveSeq === doublesBackgroundSaveSeq) {
-                        applyDoublesPlayerOrderAfterSave(priorityNames);
-                    }
-                    return refreshTodaysDoublesDashboard();
-                });
-        })
-        .then(function() {
-            if (saveSeq !== doublesBackgroundSaveSeq) return;
-            if (okText) okText.textContent = 'Game saved successfully';
-            if (okBanner) okBanner.style.display = 'flex';
-        })
-        .catch(function() {
-            if (okBanner) okBanner.style.display = 'none';
-            if (errBanner) {
-                errBanner.style.display = 'flex';
-                errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        });
+    document.getElementById('add-game-submit-btn').disabled = true;
 });
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1) w1.focus(); }, 100);
+    setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1 && !document.getElementById('saved-game-popup')) w1.focus(); }, 100);
 });
 function toggleAllGames() {
     var checked = document.getElementById('select-all').checked;
