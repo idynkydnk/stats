@@ -1,5 +1,11 @@
 # Project instructions
 
+## Push requests
+
+When the user says "push", commit and push pending changes in both this website
+repository and `/Users/mila/stats ios`. Check both repositories even when the
+chat is opened in only one. Include the app update notes with the website push.
+
 ## Site updates
 
 For every change you commit or prepare to push, decide whether Kyle or players
