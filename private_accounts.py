@@ -114,6 +114,14 @@ def create_account(path, username, password=None, google_subject=None, apple_sub
         conn.execute('BEGIN IMMEDIATE')
         if conn.execute('SELECT 1 FROM site_users WHERE lower(username)=lower(?)', (username,)).fetchone():
             raise ValueError('That username is already taken.')
+        # Older deletions kept social identities attached to inactive accounts.
+        # Release that link in the same transaction as creating the replacement;
+        # never reactivate the old username, database, or authentication tokens.
+        for column, subject in [('google_subject', google_subject), ('apple_subject', apple_subject)]:
+            if subject is not None:
+                conn.execute(f'''UPDATE private_accounts SET {column}=NULL
+                    WHERE {column}=? AND username IN
+                    (SELECT username FROM site_users WHERE active=0)''', (subject,))
         conn.execute('INSERT INTO site_users (username, password_hash, is_admin) VALUES (?, ?, 0)',
                      (username, generate_password_hash(password or secrets.token_urlsafe(48))))
         conn.execute('INSERT INTO private_accounts (id, username, google_subject, apple_subject) VALUES (?, ?, ?, ?)',
@@ -200,7 +208,9 @@ def register_private_accounts(app, service):
     def social_session(provider, subject):
         column = {'google': 'google_subject', 'apple': 'apple_subject'}[provider]
         with sqlite3.connect(site_path) as conn:
-            row = conn.execute(f'SELECT username FROM private_accounts WHERE {column}=?', (subject,)).fetchone()
+            row = conn.execute(f'''SELECT a.username FROM private_accounts a
+                JOIN site_users u ON u.username=a.username
+                WHERE a.{column}=? AND u.active=1''', (subject,)).fetchone()
         if row:
             username = row[0]
         else:
@@ -315,6 +325,8 @@ def register_private_accounts(app, service):
             conn.execute('UPDATE site_users SET active=0, password_hash=? WHERE username=?',
                          (generate_password_hash(secrets.token_urlsafe(48)), account['username']))
             conn.execute('DELETE FROM auth_tokens WHERE lower(username)=lower(?)', (account['username'],))
+            conn.execute('''UPDATE private_accounts SET apple_subject=NULL, google_subject=NULL
+                WHERE id=?''', (account['id'],))
         with sqlite3.connect(private_database()) as conn:
             for table in DATA_TABLES:
                 if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():

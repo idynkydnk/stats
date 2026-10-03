@@ -259,6 +259,52 @@ class PrivateAccountTests(unittest.TestCase):
              patch('google.oauth2.id_token.verify_oauth2_token', side_effect=ValueError('bad token')):
             self.assertEqual(self.a.post('/api/auth/google', json={'id_token': 'bad'}).status_code, 401)
 
+    def test_social_signup_after_deletion_uses_new_empty_account(self):
+        for provider in ('apple', 'google'):
+            for legacy_link in (False, True):
+                with self.subTest(provider=provider, legacy_link=legacy_link):
+                    subject = f'{provider}-deleted-{legacy_link}'
+                    def sign_in():
+                        if provider == 'apple':
+                            nonce = self.a.post('/api/auth/apple/challenge').json['nonce']
+                            nonce_hash = hashlib.sha256(nonce.encode()).hexdigest()
+                            with patch('jwt.PyJWKClient.get_signing_key_from_jwt', return_value=SimpleNamespace(key='test')), \
+                                 patch('jwt.decode', return_value={'sub': subject, 'nonce': nonce_hash}):
+                                return self.a.post('/api/auth/apple', json={'id_token': 'verified', 'nonce': nonce})
+                        with patch('google.oauth2.id_token.verify_oauth2_token', return_value={'sub': subject, 'email_verified': True}):
+                            return self.a.post('/api/auth/google', json={'id_token': 'verified'})
+
+                    first = sign_in()
+                    self.assertEqual(first.status_code, 200, first.json)
+                    old_name = first.json['username']
+                    old_account = account_for_user(self.path, old_name)
+                    old_headers = {'Authorization': 'Bearer ' + first.json['token']}
+                    self.a.post('/api/games', headers=old_headers, json={'name': 'Deleted private game'})
+                    with sqlite3.connect(self.path) as conn:
+                        conn.execute('INSERT INTO auth_tokens VALUES (?, ?)', (old_name, 'old-hash'))
+                    self.assertEqual(self.a.delete('/api/account', headers=old_headers).status_code, 200)
+                    self.assertIsNone(account_for_user(self.path, old_name)[provider + '_subject'])
+                    if legacy_link:
+                        # Reproduce accounts deleted before identities were released.
+                        with sqlite3.connect(self.path) as conn:
+                            conn.execute(f'UPDATE private_accounts SET {provider}_subject=? WHERE username=?',
+                                         (subject, old_name))
+
+                    fresh = sign_in()
+                    self.assertEqual(fresh.status_code, 200, fresh.json)
+                    self.assertNotEqual(fresh.json['username'], old_name)
+                    new_account = account_for_user(self.path, fresh.json['username'])
+                    self.assertNotEqual(new_account['id'], old_account['id'])
+                    self.assertEqual(new_account[provider + '_subject'], subject)
+                    fresh_headers = {'Authorization': 'Bearer ' + fresh.json['token']}
+                    self.assertEqual(self.a.get('/api/games', headers=fresh_headers).json['rows'], [])
+                    self.assertEqual(sign_in().json['username'], fresh.json['username'])
+                    self.assertEqual(self.a.get('/api/games', headers=old_headers).status_code, 401)
+                    self.assertFalse(self.service.adminfx.get_site_user(old_name)['active'])
+                    with sqlite3.connect(self.path) as conn:
+                        self.assertEqual(conn.execute('SELECT * FROM auth_tokens WHERE username=?', (old_name,)).fetchall(), [])
+                        self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [(1, 'Shared player')])
+
     def test_stats_cache_is_not_shared_with_private_requests(self):
         from stat_functions import cached, clear_stats_cache
         from flask import g

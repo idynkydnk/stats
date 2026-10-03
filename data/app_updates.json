@@ -1,5 +1,23 @@
 [
   {
+    "id": "ios-2026-10-03-sign-up-after-deletion",
+    "date": "2026-10-03",
+    "subject": "iPhone: Sign up again after deleting your account",
+    "body": "After deleting your account, you can use the same Apple or Google sign-in to create a fresh account. Your deleted games stay deleted, and your old account stays closed."
+  },
+  {
+    "id": "ios-2026-10-03-menu-heading",
+    "date": "2026-10-03",
+    "subject": "iPhone: A single Menu heading",
+    "body": "Opening More shows Menu at the top, with the duplicate heading removed."
+  },
+  {
+    "id": "ios-2026-10-03-signed-out-ai-recaps",
+    "date": "2026-10-03",
+    "subject": "iPhone: Browse AI recaps without logging in",
+    "body": "When signed out, open More → AI Recaps to browse published recaps and subscribe by email on the same page. No account is needed."
+  },
+  {
     "id": "ios-2026-10-02-game-times-cleaner-cards",
     "date": "2026-10-02",
     "subject": "iPhone: Game times and cleaner game cards",
