@@ -1,5 +1,23 @@
 [
   {
+    "id": "ios-2026-10-03-game-deletion-feedback",
+    "date": "2026-10-03",
+    "subject": "iPhone: Clear feedback when deleting games",
+    "body": "Deleting a game immediately shows a spinner and a Deleting game message. When deletion succeeds, the game disappears and Game deleted confirms it; if it fails, an error explains what happened."
+  },
+  {
+    "id": "ios-2026-10-03-immediate-game-popup",
+    "date": "2026-10-03",
+    "subject": "iPhone: Consistent background updates while you browse",
+    "body": "Game saves, AI recaps, flyers, AI characters, and changes waiting to sync use matching green status messages at the top. Saving shows your game immediately and lets you browse other pages while it finishes; errors appear in red and failed saves keep your entries."
+  },
+  {
+    "id": "ios-2026-10-03-add-menu-navigation",
+    "date": "2026-10-03",
+    "subject": "iPhone: Simpler Add page and Menu",
+    "body": "Add now shows Doubles and Other, with Vollis inside Other. In More, browse players, AI recaps, and flyers, create an AI recap or flyer, or add a doubles game by voice."
+  },
+  {
     "id": "ios-2026-10-03-sign-up-after-deletion",
     "date": "2026-10-03",
     "subject": "iPhone: Sign up again after deleting your account",
