@@ -1182,7 +1182,7 @@ def inject_base_template():
 
 @app.url_defaults
 def preserve_stats_location(endpoint, values):
-    if endpoint in DOUBLES_STATS_ENDPOINTS or endpoint in {'add_game', 'add_game_voice'}:
+    if endpoint in DOUBLES_STATS_ENDPOINTS or endpoint in {'add_game'}:
         division = active_doubles_division()
         if division:
             values.setdefault('division', division)
@@ -3881,7 +3881,7 @@ def api_generate_and_send_ai_summary():
 
 
 def _add_doubles_game_view(redirect_to):
-    """Shared logic for add_game and add_game_voice (same page, different URLs)."""
+    """Render and save doubles games."""
     year = str(date.today().year)
     if request.method == 'POST':
         winner1 = request.form['winner1'].strip()
@@ -3942,13 +3942,12 @@ def _add_doubles_game_view(redirect_to):
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
-    is_voice_page = (redirect_to == 'add_game_voice')
     added = request.args.get('added')
     saved = request.args.get('saved')
     deleted = request.args.get('deleted')
     return render_template('add_game.html', players=players, games=games, year=year,
         l_scores=l_scores, todays_stats=todays_stats_data, form_action=url_for(redirect_to),
-        is_voice_page=is_voice_page, added=added, saved=saved, deleted=deleted,
+        added=added, saved=saved, deleted=deleted,
         saved_game=session.pop('saved_game_' + redirect_to, None),
         **_game_location_form_context())
 
@@ -3958,103 +3957,6 @@ def _add_doubles_game_view(redirect_to):
 def add_game():
     """Add doubles game page."""
     return _add_doubles_game_view('add_game')
-
-
-@app.route('/add_game_voice/', methods=['GET', 'POST'])
-@login_required
-def add_game_voice():
-    """Add doubles game page (same as add_game, linked from hamburger for Kyle only)."""
-    return _add_doubles_game_view('add_game_voice')
-
-
-@app.route('/api/parse_voice_doubles', methods=['POST'])
-@api_login_required
-def api_parse_voice_doubles():
-    """Parse a spoken doubles game transcript into structured fields using AI."""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not logged in'}), 401
-
-    data = request.get_json() or {}
-    transcript = (data.get('transcript') or '').strip()
-    if not transcript:
-        return jsonify({'success': False, 'error': 'No transcript provided.'}), 400
-
-    if not active_ai_provider():
-        return jsonify({
-            'success': False,
-            'error': ai_api_key_error_message(),
-        }), 400
-
-    all_games = year_games('All years')
-    recent_players = []
-    seen = set()
-    for game in all_games:
-        for idx in (2, 3, 5, 6):
-            p = (game[idx] or '').strip()
-            if p and p not in seen:
-                seen.add(p)
-                recent_players.append(p)
-                if len(recent_players) >= 30:
-                    break
-        if len(recent_players) >= 30:
-            break
-    players_str = ', '.join(recent_players) if recent_players else '(no players yet)'
-
-    try:
-        prompt = f"""You are parsing a spoken doubles volleyball game result into structured data.
-
-Known players (use EXACT full names from this list): {players_str}
-
-Transcript from the user: "{transcript}"
-
-Rules:
-- Identify the two winners and two losers, and the final score (winner score, loser score).
-- Map each spoken name (first name, nickname, or partial name) to the EXACT full name from the known players list above. If only one person matches, use that full name.
-- If a name cannot be matched to the list, leave that field as empty string "".
-- Common phrases: "X and Y beat Z and W 21 13", "X and Y won 21-13 against Z and W", "X and Y over Z and W 21-13".
-- winner_score must be greater than loser_score (e.g. 21 and 13).
-
-Respond with ONLY a JSON object, no other text, with these exact keys: winner1, winner2, loser1, loser2, winner_score, loser_score. Use strings for names (empty string "" if no match) and integers for scores.
-Example: {{"winner1": "Kyle Thomson", "winner2": "Aaron Plumb", "loser1": "Dan Ferris", "loser2": "Zac Prost", "winner_score": 21, "loser_score": 13}}"""
-
-        text = generate_ai_text(prompt)
-        # Strip markdown code fence if present
-        if text.startswith('```'):
-            lines = text.split('\n')
-            if lines[0].startswith('```'):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == '```':
-                lines = lines[:-1]
-            text = '\n'.join(lines)
-        parsed = json.loads(text)
-
-        for key in ('winner1', 'winner2', 'loser1', 'loser2'):
-            if key not in parsed or not isinstance(parsed.get(key), str):
-                return jsonify({'success': False, 'error': f'Missing or invalid field: {key}'}), 400
-            parsed[key] = parsed[key].strip()
-        for key in ('winner_score', 'loser_score'):
-            if key not in parsed:
-                return jsonify({'success': False, 'error': f'Missing field: {key}'}), 400
-            try:
-                parsed[key] = int(parsed[key])
-            except (TypeError, ValueError):
-                return jsonify({'success': False, 'error': f'Invalid score: {key}'}), 400
-        if parsed['winner_score'] <= parsed['loser_score']:
-            return jsonify({'success': False, 'error': "Winner's score must be higher than loser's score."}), 400
-
-        return jsonify({
-            'success': True,
-            'winner1': parsed['winner1'],
-            'winner2': parsed['winner2'],
-            'loser1': parsed['loser1'],
-            'loser2': parsed['loser2'],
-            'winner_score': parsed['winner_score'],
-            'loser_score': parsed['loser_score'],
-        })
-    except json.JSONDecodeError as e:
-        return jsonify({'success': False, 'error': 'Could not parse the result. Try speaking more clearly or rephrasing.'}), 400
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 @app.route('/add_vollis_game/', methods=['GET', 'POST'])

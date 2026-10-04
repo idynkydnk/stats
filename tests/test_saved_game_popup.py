@@ -35,7 +35,7 @@ class SavedGamePopupTests(unittest.TestCase):
                      'other_game_types', 'todays_other_games', 'todays_other_stats'):
             namespace[name] = Mock(return_value=[])
         tree = ast.parse((ROOT / 'stats.py').read_text())
-        for name in ('_add_doubles_game_view', 'add_game', 'add_game_voice',
+        for name in ('_add_doubles_game_view', 'add_game',
                      'add_vollis_game', 'add_other_game'):
             node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
             exec(compile(ast.Module(body=[node], type_ignores=[]), 'stats.py', 'exec'), namespace)
@@ -57,7 +57,7 @@ class SavedGamePopupTests(unittest.TestCase):
                            location='Beach')
 
     def test_each_form_shows_exact_result_once_after_save(self):
-        for path in ('add_game', 'add_game_voice', 'add_vollis_game', 'add_other_game'):
+        for path in ('add_game', 'add_vollis_game', 'add_other_game'):
             with self.subTest(path=path):
                 response = self.client.post('/' + path + '/', data=self.fields)
                 self.assertEqual(response.status_code, 302)
@@ -67,7 +67,7 @@ class SavedGamePopupTests(unittest.TestCase):
                     self.assertIn(text, html)
                 self.assertNotIn('<script>comment</script>', html)
                 self.assertNotIn('saved-game-popup', self.client.get(response.location).get_data(as_text=True))
-        self.assertEqual(self.write.call_count, 4)
+        self.assertEqual(self.write.call_count, 3)
 
     def test_rejected_input_never_shows_success(self):
         for path in ('add_game', 'add_vollis_game', 'add_other_game'):

@@ -6,7 +6,7 @@ Live at `idynkydnk.pythonanywhere.com`.
 
 The native iPhone companion lives in [`ios/`](ios/README.md). It wraps the live
 site in a SwiftUI app so the full website remains available, and adds native
-navigation, sharing/downloads, uploads, and speech recognition for voice entry.
+navigation, sharing/downloads, and uploads.
 
 ## Tech stack
 

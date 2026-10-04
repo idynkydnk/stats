@@ -1,5 +1,12 @@
 <ul class="menu-list">
+    {% if session.logged_in %}
+    <li class="menu-section-label">Account</li>
+    <li class="menu-account-status">Signed in as {{ session.username }}</li>
+    {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
+    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
+    {% else %}
     <li><a href="{{ url_for('stats_default', division=None) }}"><i class="fas fa-home"></i> Home</a></li>
+    {% endif %}
 
     <li class="sr-appearance">
         <details>
@@ -28,39 +35,23 @@
         </details>
     </li>
 
-    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
-
     {% if session.logged_in %}
-    <li class="menu-section-label">Manage</li>
-    {% if active_tab is defined and active_tab == 'vollis' %}
-    <li><a href="{{ url_for('edit_vollis_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
-    {% elif active_tab is defined and active_tab == 'other' %}
-    <li><a href="{{ url_for('edit_other_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
-    {% elif active_tab is defined %}
-    <li><a href="{{ url_for('edit_games_default') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
-    {% else %}
-    <li><a href="{{ url_for('edit_stats') }}"><i class="fas fa-edit"></i> Edit Games</a></li>
-    {% endif %}
+    <li class="menu-section-label">Browse</li>
     <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
+    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>
-    <li><a href="{{ url_for('create_flyer') }}"><i class="fas fa-bullhorn"></i> Create Flyer</a></li>
+
+    <li class="menu-section-label">Create</li>
+    <li><a href="{{ url_for('ai_summary') }}"><i class="fas fa-share-alt"></i> AI Recap</a></li>
+    <li><a href="{{ url_for('create_flyer') }}"><i class="fas fa-bullhorn"></i> Flyer</a></li>
 
     {% if is_admin_user %}
     <li class="menu-section-label">Admin</li>
-    <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin Dashboard</a></li>
+    <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin dashboard</a></li>
     <li><a href="{{ url_for('admin_site_updates') }}"><i class="fas fa-bullhorn"></i> Site updates</a></li>
-    <li><a href="{{ url_for('admin_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
-    <li><a href="{{ url_for('admin_ai_flyers') }}"><i class="fas fa-scroll"></i> AI Flyers</a></li>
-    <li><a href="{{ url_for('admin_ai_prompts') }}"><i class="fas fa-robot"></i> AI Prompts</a></li>
-    <li><a href="{{ url_for('admin_ai_images') }}"><i class="fas fa-images"></i> AI Images</a></li>
-    <li><a href="{{ url_for('add_game_voice') }}"><i class="fas fa-microphone"></i> Add Doubles (Voice)</a></li>
-    <li><a href="{{ url_for('benchmarks') }}"><i class="fas fa-tachometer-alt"></i> Benchmarks</a></li>
-    <li><a href="{{ url_for('testing_lab') }}"><i class="fas fa-flask"></i> Testing Lab</a></li>
     {% endif %}
-
-    <li class="menu-section-label">Account</li>
-    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout{% if session.username %} ({{ session.username }}){% endif %}</a></li>
     {% else %}
+    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
     {% endif %}
 </ul>

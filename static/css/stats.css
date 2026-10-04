@@ -1208,6 +1208,12 @@ input[type=number] {
     color: var(--sr-muted);
     pointer-events: none;
 }
+.menu-account-status {
+    padding: 8px 15px;
+    color: var(--sr-muted);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
 .menu-list a {
     display: block;
     padding: 12px 15px;

@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-04-remove-voice-game-entry",
+    "date": "2026-10-04",
+    "subject": "iPhone: Voice game entry removed",
+    "body": "The microphone shortcut and Doubles by voice menu option are gone. Add games using the player and score fields on the Add page."
+  },
+  {
+    "id": "ios-2026-10-04-other-game-name-choice",
+    "date": "2026-10-04",
+    "subject": "iPhone: Choose Vollis with your other games",
+    "body": "In Add → Other, tap Game name to choose from all previous game names, including Vollis. The extra Other games/Vollis picker is gone; choosing Vollis sets up its players and scores and keeps games in your existing Vollis history."
+  },
+  {
     "id": "ios-2026-10-04-smoother-stats-loading",
     "date": "2026-10-04",
     "subject": "iPhone: Smoother stats loading and refresh",
