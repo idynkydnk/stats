@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-04-smoother-stats-loading",
+    "date": "2026-10-04",
+    "subject": "iPhone: Smoother stats loading and refresh",
+    "body": "KT Stats load automatically after logging out, and recently viewed public stats appear immediately while fresh results load. A message at the top lets you keep browsing during loading; refresh stops with a retry message if the connection takes too long, keeping displayed stats available."
+  },
+  {
     "id": "ios-2026-10-03-game-deletion-feedback",
     "date": "2026-10-03",
     "subject": "iPhone: Clear feedback when deleting games",
