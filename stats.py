@@ -4746,6 +4746,19 @@ def update_other_game(id):
     loser_count = next((i for i in range(15, 0, -1) if game_data_dict.get(f'loser{i}')), 1)
     
     if request.method == 'POST':
+        game_datetime = game_data_dict.get('game_date') or ''
+        invalid_datetime = False
+        if 'game_date' in request.form or 'game_time' in request.form:
+            game_date = request.form.get('game_date', '').strip()
+            game_time = request.form.get('game_time', '').strip()
+            try:
+                parsed_datetime = datetime.strptime(f'{game_date} {game_time}', '%Y-%m-%d %H:%M')
+                # Keep seconds and fractions when the displayed date/time was not changed.
+                if game_date != game_datetime[:10] or game_time != game_datetime[11:16]:
+                    game_datetime = parsed_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                invalid_datetime = True
+
         game_type = request.form.get('game_type', '')
         game_name = request.form.get('game_name', '')
         score_type = request.form.get('score_type', 'individual')
@@ -4790,7 +4803,9 @@ def update_other_game(id):
         else:
             has_scores = True
 
-        if not game_type or not game_name or not winners or not losers:
+        if invalid_datetime:
+            flash('Please enter a valid game date and time.')
+        elif not game_type or not game_name or not winners or not losers:
             flash('Required fields missing!')
         elif requires_scores and not has_scores:
             if score_type == 'team':
@@ -4822,7 +4837,7 @@ def update_other_game(id):
             before_row = adminfx.snapshot_row('other_game', game_id)
             with conn:
                 game_data = tuple(
-                    [game_row[1], game_type, game_name]
+                    [game_datetime, game_type, game_name]
                     + (winners + [""] * 15)[:15]
                     + [(int(score) if score not in ("", None) else None) for score in (winner_scores + [None] * 15)[:15]]
                     + [aggregate_winner_score]

@@ -91,6 +91,7 @@
         }
         .sr-cancel-btn:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
         .form-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .sr-date-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .player-entry { display: flex; gap: 8px; margin-bottom: 12px; }
         .player-entry .autocomplete { flex: 2; margin-bottom: 0; }
         .player-entry .score-input {
@@ -150,6 +151,16 @@
                 <datalist id="game_names">{% for name in (game_names | default([])) %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in (game_types | default([])) %}<option value="{{ type }}">{% endfor %}</datalist>
 
+                <div class="sr-date-time-row">
+                    <div class="autocomplete">
+                        <input type="date" name="game_date" id="game_date" aria-label="Game date" required
+                               value="{{ request.form.get('game_date', (game.get('game_date') or '')[:10]) }}">
+                    </div>
+                    <div class="autocomplete">
+                        <input type="time" name="game_time" id="game_time" aria-label="Game time" required
+                               value="{{ request.form.get('game_time', (game.get('game_date') or '')[11:16]) }}">
+                    </div>
+                </div>
                 <div class="autocomplete has-clear empty" id="game_name-wrap">
                     <input type="text" name="game_name" id="game_name" placeholder="Game Name" autocomplete="off"
                            value="{{ request.form.get('game_name', game.get('game_name') or '') }}">
