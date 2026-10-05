@@ -45,6 +45,30 @@ class OtherGameEntryDefaultsTests(unittest.TestCase):
         self.assertEqual(list(other_game_entry_defaults(games)), ['no jump'])
         self.assertEqual(other_game_entry_defaults(games)['no jump']['score_type'], 'team')
 
+    def test_catalog_uses_one_query_and_preserves_history_score_requirements(self):
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        conn.execute('CREATE TABLE other_games (id, game_name, game_date, game_type, winner_score, winner1_score, winner1, loser1, loser2)')
+        conn.executemany('INSERT INTO other_games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            (1, 'Sequence', '2026-01-01', 'Board game', None, 0, 'A', 'B', 'C'),
+            (2, 'Sequence', '2026-10-05', 'Board game', None, None, 'A', 'B', None),
+            (3, 'No jump', '2026-10-05', 'Volleyball', 21, None, 'A', 'B', None),
+            (4, 'New game', '2026-10-05', 'Cards', None, None, 'A', 'B', None)])
+        statements = []
+        conn.set_trace_callback(statements.append)
+        from other_functions import other_game_entry_catalog
+        with patch('other_functions.set_cur', return_value=conn.cursor()), \
+             patch('other_functions.readable_games_data', side_effect=AssertionError('Do not format history')):
+            catalog = other_game_entry_catalog()
+        self.assertEqual(len(statements), 1)
+        self.assertEqual(catalog['names'], ['New game', 'No jump', 'Sequence'])
+        self.assertEqual(catalog['types'], ['Cards', 'Volleyball', 'Board game'])
+        self.assertEqual(catalog['defaults']['sequence']['loser_count'], 1)
+        self.assertEqual(catalog['defaults']['sequence']['score_type'], 'none')
+        self.assertEqual(catalog['requiring_scores'], ['No jump', 'Sequence'])
+        with self.assertRaises(sqlite3.ProgrammingError):
+            conn.execute('SELECT 1')
+
     def test_fallback_reads_latest_matching_row_without_formatting_history(self):
         conn = sqlite3.connect(':memory:')
         conn.row_factory = sqlite3.Row

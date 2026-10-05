@@ -4110,16 +4110,15 @@ def add_other_game():
                 'location': location, 'comment': comment}
         return redirect(url_for('add_other_game'))
     
+    from other_functions import other_game_entry_catalog
+    catalog = other_game_entry_catalog()
     players = all_combined_players()
-    games_dict = other_year_games('All years')
-    from other_functions import other_game_entry_defaults
-    game_defaults = other_game_entry_defaults(games_dict)
-    game_names = other_game_names(games_dict)
-    game_types = other_game_types(games_dict)
+    game_defaults = catalog['defaults']
+    game_names = catalog['names']
+    game_types = catalog['types']
     games = todays_other_games()
     todays_stats_data = todays_other_stats()
-    from other_functions import game_name_requires_scores
-    game_names_requiring_scores = [n for n in game_names if game_name_requires_scores(n)]
+    game_names_requiring_scores = catalog['requiring_scores']
     return render_template('add_other_game.html', players=players, games=games, year=year,
         game_names=game_names, game_types=game_types, game_defaults=game_defaults, todays_stats=todays_stats_data,
         game_names_requiring_scores=game_names_requiring_scores,

@@ -46,6 +46,8 @@ class SavedGamePopupTests(unittest.TestCase):
             patch('other_functions.all_combined_players', return_value=[]),
             patch('other_functions.game_name_requires_scores', return_value=False),
             patch('other_functions.other_game_entry_defaults', return_value={}),
+            patch('other_functions.other_game_entry_catalog', return_value=dict(
+                names=[], types=[], defaults={}, requiring_scores=[])),
         ]
         for item in self.patches:
             item.start()

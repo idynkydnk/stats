@@ -483,6 +483,38 @@ def other_game_entry_defaults(games):
     return defaults
 
 
+def other_game_entry_catalog():
+    """Build entry choices in one history scan without formatting old games."""
+    cur = set_cur()
+    try:
+        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC, id DESC")
+        rows = cur.fetchall()
+    finally:
+        cur.connection.close()
+    names, types, defaults, requiring_scores = [], [], {}, set()
+    seen_names, seen_types = set(), set()
+    score_columns = ['winner_score', 'loser_score'] + [
+        f'{side}{i}_score' for side in ('winner', 'loser') for i in range(1, 16)]
+    for record in rows:
+        row = dict(record)
+        name = row.get('game_name')
+        game_type = row.get('game_type')
+        if name not in seen_names:
+            seen_names.add(name)
+            names.append(name)
+        if game_type not in seen_types:
+            seen_types.add(game_type)
+            types.append(game_type)
+        key = (name or '').strip().lower()
+        if key and key not in defaults:
+            defaults[key] = other_game_entry_info(row)
+        if key and any(row.get(column) is not None for column in score_columns):
+            requiring_scores.add(key)
+    return dict(names=names, types=types, defaults=defaults,
+                requiring_scores=[name for name in names
+                                  if (name or '').strip().lower() in requiring_scores])
+
+
 def get_other_game_entry_info(game_name):
     cur = set_cur()
     try:
