@@ -668,7 +668,7 @@ def all_players_ordered_for_doubles(current_username=None):
 	try:
 		cur = set_cur()
 		cur.execute(
-			"SELECT * FROM games WHERE updated_by = ? ORDER BY game_date DESC",
+			"SELECT * FROM games WHERE updated_by = ? COLLATE NOCASE ORDER BY game_date DESC",
 			(current_username.strip(),)
 		)
 		rows = cur.fetchall()
