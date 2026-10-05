@@ -78,20 +78,9 @@
 
 <div class="sr-header-tools">
 {% if session.logged_in %}
-<div class="sr-dropdown">
-    <button type="button" class="sr-dropdown-btn sr-link-btn-accent" aria-haspopup="true" aria-expanded="false">
-        <i class="fas fa-plus"></i> Add
-    </button>
-    <div class="sr-dropdown-content">
-        <div class="sr-dropdown-menu">
-            <a href="{{ url_for('add_game') }}"{% if tab == 'doubles' %} class="active"{% endif %}>Doubles</a>
-            <a href="{{ url_for('add_vollis_game') }}"{% if tab == 'vollis' %} class="active"{% endif %}>Vollis</a>
-            <a href="{{ url_for('add_other_game') }}"{% if tab == 'other' %} class="active"{% endif %}>Other</a>
-            <a href="{{ url_for('ai_summary') }}">AI Summary</a>
-            <a href="{{ url_for('create_flyer') }}">Create Flyer</a>
-        </div>
-    </div>
-</div>
+<a href="{{ url_for('add_game') }}" class="sr-link-btn sr-link-btn-accent">
+    <i class="fas fa-plus"></i> Add
+</a>
 {% endif %}
 
 <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="menu-sidebar" aria-expanded="false"><i class="fas fa-bars"></i> Menu</button>

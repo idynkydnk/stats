@@ -1,0 +1,4 @@
+<nav class="sr-add-game-navigation" aria-label="Game to add" style="display:flex;gap:8px;margin:0 auto 20px;max-width:400px;padding:0 16px;">
+    <a href="{{ url_for('add_game') }}" class="sr-link-btn{% if add_section == 'doubles' %} sr-link-btn-accent{% endif %}"{% if add_section == 'doubles' %} aria-current="page"{% endif %} style="flex:1;justify-content:center;">Doubles</a>
+    <a href="{{ url_for('add_other_game') }}" class="sr-link-btn{% if add_section == 'other' %} sr-link-btn-accent{% endif %}"{% if add_section == 'other' %} aria-current="page"{% endif %} style="flex:1;justify-content:center;">Other games</a>
+</nav>

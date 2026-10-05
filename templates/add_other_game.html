@@ -199,7 +199,7 @@
         {% include 'partials/saved_game_popup.html' %}
 
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">Add Other</h1>
+            <h1 class="sr-title">Add</h1>
             <div class="sr-header-actions">
                 {% set header_back_url = url_for('other_stats', year=year) %}
                 {% set header_back_label = 'Stats' %}
@@ -207,6 +207,8 @@
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
+        {% set add_section = "other" %}
+        {% include 'partials/add_game_navigation.html' %}
 
         <div class="sr-form-container">
             <form method="post" action="{{ url_for('add_other_game') }}" id="add-other-form">
@@ -214,7 +216,7 @@
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
-                <datalist id="game_names">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
+                <datalist id="game_names"><option value="Vollis">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
                 
                 <div class="autocomplete has-clear empty" id="game_name-wrap">
@@ -701,6 +703,10 @@ setupAutocomplete('game_name', () => allGameNames, field => {
     cachedCommonScores = null;
     cachedCommonScoresGameName = null;
     const gameName = (field.value || '').trim();
+    if (gameName.toLowerCase() === 'vollis') {
+        window.location.href = {{ url_for('add_vollis_game') | tojson }};
+        return;
+    }
     if (gameName) {
         fetch(`/api/other_game_players/${encodeURIComponent(gameName)}`)
             .then(r => r.json())
@@ -734,6 +740,16 @@ setupAutocomplete('game_name', () => allGameNames, field => {
             })
             .catch(() => {});
     }
+});
+
+function openVollisEntry() {
+    if (document.getElementById('game_name').value.trim().toLowerCase() !== 'vollis') return false;
+    window.location.href = {{ url_for('add_vollis_game') | tojson }};
+    return true;
+}
+document.getElementById('game_name').addEventListener('change', openVollisEntry);
+document.getElementById('add-other-form').addEventListener('submit', function(event) {
+    if (openVollisEntry()) event.preventDefault();
 });
 
 // Game type: on select Coed apply 2v2 and focus winner1; else focus score_type
