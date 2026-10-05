@@ -528,6 +528,8 @@ def register_ios_api(app):
         rows = find_vollis_game(game_id)
         if not rows:
             return jsonify({'error': 'Game not found'}), 404
+        if game_id not in S._editable_game_ids('vollis_games', [game_id]):
+            return jsonify({'error': 'You can only edit games you entered.'}), 403
         row = rows[0]
         data = request.get_json(force=True, silent=True) or {}
 
@@ -797,6 +799,8 @@ def register_ios_api(app):
         rows = find_other_game(game_id)
         if not rows:
             return jsonify({'error': 'Game not found'}), 404
+        if game_id not in S._editable_game_ids('other_games', [game_id]):
+            return jsonify({'error': 'You can only edit games you entered.'}), 403
         game_row = rows[0]
         data = request.get_json(force=True, silent=True) or {}
         p = _other_payload_from_json(data)

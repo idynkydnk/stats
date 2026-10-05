@@ -44,6 +44,7 @@ class GameEditTimeTests(unittest.TestCase):
             namespace = dict(app=app, api_login_required=lambda f: f, request=request,
                              session=session, jsonify=jsonify, sqlite3=sqlite3, datetime=datetime,
                              find_game=find_game, update_game=update_game,
+                             _editable_game_ids=lambda table, ids: set(ids),
                              get_user_now=lambda: edited, _api_get_db=lambda: database,
                              adminfx=SimpleNamespace(snapshot_row=Mock(return_value=None)),
                              _remember_game_location=Mock(), clear_stats_cache=Mock(),

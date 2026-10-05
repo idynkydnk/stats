@@ -139,7 +139,7 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Edit Other Game</h1>
             <div class="sr-header-actions">
-                <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Back</a>
+                <a href="{{ return_url or url_for('edit_other_games', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Back</a>
                 {% set header_custom_nav = true %}
                 {% include 'partials/page_header_actions.html' %}
             </div>
@@ -147,6 +147,7 @@
 
         <div class="sr-form-container">
             <form method="post" action="{{ url_for('update_other_game', id=game['id']) }}" id="edit-other-form">
+                {% if games_year %}<input type="hidden" name="games_year" value="{{ games_year }}">{% endif %}
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 <datalist id="game_names">{% for name in (game_names | default([])) %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in (game_types | default([])) %}<option value="{{ type }}">{% endfor %}</datalist>
@@ -272,7 +273,7 @@
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="sr-submit-btn">Update Game</button>
-                    <a href="{{ url_for('edit_other_games', year=year) }}" class="sr-cancel-btn">Cancel</a>
+                    <a href="{{ return_url or url_for('edit_other_games', year=year) }}" class="sr-cancel-btn">Cancel</a>
                 </div>
             </form>
             <div id="common_score_dropdown" class="autocomplete-list" style="display: none; position: fixed; z-index: 1000;"></div>

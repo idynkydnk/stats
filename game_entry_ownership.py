@@ -1,6 +1,31 @@
 """Preserve the person who entered a game independently of later edits."""
 
 
+def editable_game_ids(conn, table, game_ids, username, admin=False):
+    """Only the original entrant or an admin can edit a game."""
+    if table not in {'games', 'vollis_games', 'other_games'}:
+        raise ValueError('Unsupported game table')
+    ids = set(game_ids)
+    username = (username or '').strip()
+    if not username or not ids:
+        return set()
+    if admin:
+        return ids
+    columns = {row[1] for row in conn.execute(f'PRAGMA table_info({table})')}
+    if 'entered_by' not in columns:
+        return set()
+    owned = set()
+    # Keep large yearly lists below SQLite's parameter limit.
+    ids_list = list(ids)
+    for start in range(0, len(ids_list), 500):
+        batch = ids_list[start:start + 500]
+        placeholders = ','.join('?' for _ in batch)
+        owned.update(row[0] for row in conn.execute(
+            f'SELECT id FROM {table} WHERE id IN ({placeholders}) '
+            'AND TRIM(entered_by) = ? COLLATE NOCASE', [*batch, username]))
+    return owned
+
+
 def ensure_game_entry_owner(conn, table):
     if table not in {'games', 'vollis_games'}:
         raise ValueError('Unsupported game table')

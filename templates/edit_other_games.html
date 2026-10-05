@@ -87,7 +87,7 @@
                         <div class="sr-edit-header">
                             <div class="sr-edit-title-row">
                                 <div class="sr-edit-actions">
-                                    <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                                    {% if game['game_id'] in editable_game_ids %}<a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>{% endif %}
                                     <a href="{{ url_for('delete_other_game', id=game['game_id']) }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
                                 </div>
                                 <h3 class="sr-edit-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>

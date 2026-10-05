@@ -1115,6 +1115,18 @@ def _is_owner_or_admin(owner_username):
     return is_admin()
 
 
+def _editable_game_ids(table, game_ids):
+    if not session.get('logged_in'):
+        return set()
+    from game_entry_ownership import editable_game_ids
+    from private_accounts import connect_data
+    with connect_data(_stats_db_path()) as conn:
+        result = editable_game_ids(conn, table, game_ids,
+                                   session.get('username'), admin=is_admin())
+    conn.close()
+    return result
+
+
 def _browse_username_filter():
     """None = list everyone's recaps/flyers (admins). Otherwise the current user."""
     if is_admin():
@@ -1988,7 +2000,8 @@ def games(year):
         else:
             day_groups.append({'day': day_raw, 'label': label, 'games': [game]})
 
-    return render_template('games.html', games=games_list, year=year, all_years=all_years,
+    return render_template('games.html',
+        editable_game_ids=_editable_game_ids('games', [g[0] for g in games_list]), games=games_list, year=year, all_years=all_years,
                            page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end,
                            search_query=search_query, day_groups=day_groups)
 
@@ -2037,7 +2050,8 @@ def vollis_games(year):
     """Redesigned vollis games page."""
     all_years = all_vollis_years()
     games = vollis_year_games(year)
-    return render_template('vollis_games.html', games=games, all_years=all_years, year=year)
+    return render_template('vollis_games.html',
+        editable_game_ids=_editable_game_ids('vollis_games', [g[0] for g in games]), games=games, all_years=all_years, year=year)
 
 
 # ============================================
@@ -2098,7 +2112,8 @@ def other_games(year):
     """Other games page."""
     all_years = all_other_years()
     games = other_year_games(year)
-    return render_template('other_games.html', games=games, all_years=all_years, year=year)
+    return render_template('other_games.html',
+        editable_game_ids=_editable_game_ids('other_games', [g['game_id'] for g in games]), games=games, all_years=all_years, year=year)
 
 
 @app.route('/other_games/<year>/<game_name>/')
@@ -2110,7 +2125,8 @@ def other_games_by_name(year, game_name):
     # Filter games by game_name
     games = [g for g in all_games if g.get('game_name') == game_name]
     stats = total_game_name_stats(games)
-    return render_template('other_games.html', games=games, all_years=all_years, year=year, game_name=game_name, stats=stats)
+    return render_template('other_games.html',
+        editable_game_ids=_editable_game_ids('other_games', [g['game_id'] for g in games]), games=games, all_years=all_years, year=year, game_name=game_name, stats=stats)
 
 
 # ============================================
@@ -2150,7 +2166,8 @@ def edit_games(year):
     page_end = min(page * per_page, total)
     saved = request.args.get('saved')
     deleted = request.args.get('deleted')
-    return render_template('edit_games.html', games=games, year=year, all_years=all_years,
+    return render_template('edit_games.html',
+        editable_game_ids=_editable_game_ids('games', [g[0] for g in games]), games=games, year=year, all_years=all_years,
                            page=page, total_pages=total_pages, total_games=total, per_page=per_page, page_end=page_end,
                            search_query=search_query, saved=saved, deleted=deleted)
 
@@ -2165,7 +2182,8 @@ def edit_vollis_games(year):
     """Edit vollis games page."""
     all_years = all_vollis_years()
     games = vollis_year_games(year)
-    return render_template('edit_vollis_games.html', games=games, year=year, all_years=all_years)
+    return render_template('edit_vollis_games.html',
+        editable_game_ids=_editable_game_ids('vollis_games', [g[0] for g in games]), games=games, year=year, all_years=all_years)
 
 @app.route('/edit_other_games/')
 @login_required
@@ -2178,7 +2196,8 @@ def edit_other_games(year):
     """Edit other games page."""
     all_years = all_other_years()
     games = other_year_games(year)
-    return render_template('edit_other_games.html', games=games, year=year, all_years=all_years)
+    return render_template('edit_other_games.html',
+        editable_game_ids=_editable_game_ids('other_games', [g['game_id'] for g in games]), games=games, year=year, all_years=all_years)
 
 
 # ============================================
@@ -4277,6 +4296,10 @@ def update(id):
     if not x:
         flash('Game not found.')
         return redirect(url_for('edit_games', year=str(date.today().year)))
+    if id not in _editable_game_ids('games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('games', year=games_year) if games_year else None
     raw_game = x[0]
     existing_comment = ''
     if len(raw_game) > 9 and raw_game[9]:
@@ -4337,9 +4360,9 @@ def update(id):
             if from_add_game == 'true':
                 return redirect(url_for('add_game'))
             else:
-                return redirect(url_for('edit_games', year=str(date.today().year)))
+                return redirect(return_url or url_for('edit_games', year=str(date.today().year)))
  
-    return render_template('edit_game.html', game=game, players=players, 
+    return render_template('edit_game.html', return_url=return_url, games_year=games_year, game=game, players=players,
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
         from_add_game=request.args.get('from_add_game'))
 
@@ -4388,6 +4411,12 @@ def delete_game(id):
 def update_vollis_game(id):
     game_id = id
     x = find_vollis_game(game_id)
+    if not x:
+        abort(404)
+    if id not in _editable_game_ids('vollis_games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('vollis_games', year=games_year) if games_year else None
     game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6]]
     games = vollis_year_games(str(date.today().year))
     players = all_vollis_players(games)
@@ -4411,9 +4440,9 @@ def update_vollis_game(id):
                          summary=details, before=before_row,
                          after=adminfx.snapshot_row('vollis_game', game_id))
             
-            return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
+            return redirect(return_url or url_for('edit_vollis_games', year=str(date.today().year)))
  
-    return render_template('edit_vollis_game.html', game=game, players=players, year=str(date.today().year))
+    return render_template('edit_vollis_game.html', return_url=return_url, games_year=games_year, game=game, players=players, year=str(date.today().year))
 
 
 @app.route('/delete_vollis_game/<int:id>/',methods = ['GET','POST'])
@@ -4734,6 +4763,10 @@ def update_other_game(id):
         flash('Game not found!')
         return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
+    if id not in _editable_game_ids('other_games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('other_games', year=games_year) if games_year else None
     # Get the full game data (all 20 fields); Row needs zip(keys, row) for column-name keys
     game_row = x[0]
     game_data_dict = dict(zip(game_row.keys(), game_row)) if hasattr(game_row, 'keys') else dict(game_row)
@@ -4855,9 +4888,9 @@ def update_other_game(id):
                          summary=details, before=before_row,
                          after=adminfx.snapshot_row('other_game', game_id))
             
-            return redirect(url_for('edit_other_games', year=str(date.today().year)))
+            return redirect(return_url or url_for('edit_other_games', year=str(date.today().year)))
  
-    return render_template('edit_other_game.html', game=game_data_dict, players=players, year=str(date.today().year),
+    return render_template('edit_other_game.html', return_url=return_url, games_year=games_year, game=game_data_dict, players=players, year=str(date.today().year),
         game_names=game_names, game_types=game_types, winner_count=winner_count, loser_count=loser_count)
 
 
@@ -5142,6 +5175,8 @@ def api_doubles_update(game_id):
     x = find_game(game_id)
     if not x or not x[0]:
         return jsonify({'error': 'Game not found'}), 404
+    if game_id not in _editable_game_ids('games', [game_id]):
+        return jsonify({'error': 'You can only edit games you entered.'}), 403
     row = x[0]
     # row is tuple: id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, entered_timezone?, updated_by?
     def get(i, default=''):

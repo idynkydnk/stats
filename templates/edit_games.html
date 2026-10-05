@@ -150,9 +150,9 @@
                     <div class="sr-edit-card" data-game-id="{{ game[0] }}" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[3]|lower }} {{ game[5]|lower }} {{ game[6]|lower }}{% if game|length > 9 and game[9] %} {{ game[9]|lower }}{% endif %}">
                         <div class="sr-edit-header">
                             <div class="sr-edit-actions">
-                                <a href="{{ url_for('update', id=game[0]) }}" class="sr-action-btn" title="Edit">
+                                {% if game[0] in editable_game_ids %}<a href="{{ url_for('update', id=game[0]) }}" class="sr-action-btn" title="Edit">
                                     <i class="fas fa-pen"></i>
-                                </a>
+                                </a>{% endif %}
                                 <a href="{{ url_for('delete_game', id=game[0]) }}" class="sr-action-btn delete" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </a>

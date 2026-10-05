@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from jinja2 import ChoiceLoader, DictLoader
 from create_other_database import BASE_UPDATE_COLUMNS
 
@@ -33,8 +33,10 @@ class OtherGameEditTimeTests(unittest.TestCase):
         }), self.app.jinja_loader])
         self.app.context_processor(lambda: {'base_template': 'test_base.html'})
         self.app.add_url_rule('/other/<year>', 'edit_other_games', lambda year: '')
+        self.app.add_url_rule('/other_games/<year>', 'other_games', lambda year: '')
         namespace = dict(app=self.app, login_required=lambda f: f, request=request,
-                         session=session, date=date, datetime=datetime, flash=flash,
+                         session=session, date=date, datetime=datetime, flash=flash, abort=abort,
+                         _editable_game_ids=lambda table, ids: set(ids),
                          redirect=redirect, url_for=url_for, render_template=render_template,
                          find_other_game=lambda game_id: self.conn.execute(
                              'SELECT * FROM other_games WHERE id=?', (game_id,)).fetchall(),

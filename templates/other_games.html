@@ -203,6 +203,11 @@
                                 </div>
                             </div>
                         </div>
+                        {% if game['game_id'] in editable_game_ids %}
+                        <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                            <a href="{{ url_for('update_other_game', id=game['game_id'], games_year=year) }}" class="sr-link-btn" aria-label="Edit game"><i class="fas fa-pen" aria-hidden="true"></i> Edit</a>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>

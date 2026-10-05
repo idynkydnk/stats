@@ -3,6 +3,7 @@
 {% block content %}
 <div class="sr-header sr-header-compact" style="margin-bottom: 20px;">
     <div class="sr-header-actions">
+        {% if return_url %}<a href="{{ return_url }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Games</a>{% endif %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </div>
@@ -19,7 +20,7 @@
 			<tr>
 				<td>{{ game[1][5:7] }}/{{ game[1][8:10] }}/{{ game[1][0:4] }}<br>{{ game[1][11:16] }}</td>
                 <td><a href="{{ url_for('player_stats', year=year, name=game[2] ) }}">{{ game[2] }}</a></td>
-                <td><a href="{{ url_for('player_stats', year=year, name=game[0][5] ) }}">{{ game[4] }}</a></td>
+                <td><a href="{{ url_for('player_stats', year=year, name=game[4] ) }}">{{ game[4] }}</a></td>
 			</tr>
 			<tr>
 				<td>{{ game[6][5:7] }}/{{ game[6][8:10] }}/{{ game[6][0:4] }}<br>{{ game[6][11:16] }}</td>
@@ -30,6 +31,7 @@
 	</table>
 	<div>
 	   <form method="post">
+              {% if games_year %}<input type="hidden" name="games_year" value="{{ games_year }}">{% endif %}
 			  <datalist id="players">
 					 {% for player in players %}
 							<option value= "{{ player }}">
@@ -37,19 +39,19 @@
 			  </datalist>
 			  <input type="text" name="winner"
 					 placeholder="Winner"
-					 value="{{ request.form['winner'] }}"
+					 value="{{ request.form.get('winner', game[2]) }}"
 					 list="players">
 			  <input type="text" name="loser"
 					 placeholder="Loser"
-					 value="{{ request.form['loser'] }}"
+					 value="{{ request.form.get('loser', game[4]) }}"
 					 list="players">      
 			  <input type="number" pattern="[0-9]*" name="winner_score"
 					 placeholder="Winner's Score"
-					 value="{{ request.form['winner_score'] }}"
+					 value="{{ request.form.get('winner_score', game[3]) }}"
 					 list="scores">
 			  <input type="number" pattern="[0-9]*" name="loser_score"
 					 placeholder="Loser's Score"
-					 value="{{ request.form['loser_score'] }}"
+					 value="{{ request.form.get('loser_score', game[5]) }}"
 					 list="scores">    
 			  <input type="submit" value="Submit">
 		   </form>

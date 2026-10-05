@@ -76,7 +76,7 @@
                     <div class="sr-edit-card" data-game-id="{{ game[0] }}" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[4]|lower }}">
                         <div class="sr-edit-header">
                             <div class="sr-edit-actions">
-                                <a href="{{ url_for('update_vollis_game', id=game[0]) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                                {% if game[0] in editable_game_ids %}<a href="{{ url_for('update_vollis_game', id=game[0]) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>{% endif %}
                                 <a href="{{ url_for('delete_vollis_game', id=game[0]) }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
                             </div>
                             <div class="sr-edit-meta">
