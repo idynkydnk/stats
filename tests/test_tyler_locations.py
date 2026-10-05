@@ -1,13 +1,33 @@
 import ast
 import sqlite3
+import tempfile
 import types
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
 from migrations.tyler_locations_20260916 import backfill_tyler_locations
+from migrations.tyler_locations_20260916 import NAME
 
 
 class TylerLocationTests(unittest.TestCase):
+    def test_completed_migration_starts_while_another_connection_is_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / 'stats.db')
+            with sqlite3.connect(path) as setup:
+                setup.execute('CREATE TABLE location_migrations (name TEXT PRIMARY KEY)')
+                setup.execute('INSERT INTO location_migrations VALUES (?)', (NAME,))
+            writer = sqlite3.connect(path)
+            startup = sqlite3.connect(path, timeout=0)
+            try:
+                writer.execute('BEGIN IMMEDIATE')
+                writer.execute("INSERT INTO location_migrations VALUES ('another-migration')")
+                self.assertEqual(backfill_tyler_locations(startup), 0)
+                self.assertFalse(startup.in_transaction)
+            finally:
+                writer.rollback()
+                writer.close()
+                startup.close()
+
     def setUp(self):
         self.conn = sqlite3.connect(':memory:')
         self.addCleanup(self.conn.close)

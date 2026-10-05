@@ -17,6 +17,11 @@ BEACH = {'ryan mccoy', 'darryl olejniczak', 'chris lahiff',
 
 
 def backfill_tyler_locations(conn):
+    # Completed migrations must not acquire a write lock during web startup.
+    # A writer can acquire RESERVED while readers still block its COMMIT.
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='location_migrations'").fetchone():
+        if conn.execute('SELECT 1 FROM location_migrations WHERE name=?', (NAME,)).fetchone():
+            return 0
     # Serialize startup workers and game writes while taking this short snapshot.
     conn.execute('BEGIN IMMEDIATE')
     try:

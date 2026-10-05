@@ -7275,10 +7275,10 @@ _ERROR_PAGE_COPY = {
         'message': "That method isn't allowed here. Try a different angle of attack.",
     },
     500: {
-        'title': 'Server Double-Fault',
+        'title': 'Taking a quick timeout',
         'call': 'Timeout',
         'icon': 'fa-bolt',
-        'message': "Something broke on our side. We're resetting the point — try again in a moment.",
+        'message': "Stats couldn't load this page. Give it a moment, then try again. If you were saving a game, check your games before adding it again.",
     },
     502: {
         'title': 'Net Violation',
@@ -7320,8 +7320,9 @@ def _render_error_page(error, code):
             'message': copy['message'],
             'code': code,
         }), code
-    return render_template(
-        'error.html',
+    # Avoid shared context processors: navigation and progress read the database,
+    # which may be the very thing that failed. This template is self-contained.
+    return app.jinja_env.get_template('error.html').render(
         error_code=code,
         error_title=copy['title'],
         error_call=copy['call'],

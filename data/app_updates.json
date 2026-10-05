@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-05-friendly-outage-messages",
+    "date": "2026-10-05",
+    "subject": "iPhone: Clearer messages during an outage",
+    "body": "When Stats is temporarily unavailable, the app shows a short message explaining when to try again instead of a page of server error text. If a game save is interrupted, the message reminds you to check your games before adding it again."
+  },
+  {
     "id": "ios-2026-10-04-remove-voice-game-entry",
     "date": "2026-10-04",
     "subject": "iPhone: Voice game entry removed",

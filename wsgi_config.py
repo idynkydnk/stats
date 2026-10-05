@@ -13,7 +13,8 @@ if path not in sys.path:
     sys.path.append(path)
 
 # Import your Flask app
-from stats import app as application
+from wsgi_application import load_application
+application = load_application()
 
 # Email environment variables
 # IMPORTANT: The WSGI file on PythonAnywhere is SEPARATE from this file in git.
