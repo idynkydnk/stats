@@ -7,6 +7,12 @@ from other_game_categories import canonical_other_category
 
 
 def normalize_other_game_categories(conn):
+    # Once all categories are canonical, startup only needs a read. Taking a
+    # write transaction even with zero updates can block COMMIT behind readers.
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='other_category_migration_audit'").fetchone():
+        categories = conn.execute('SELECT DISTINCT game_type FROM other_games').fetchall()
+        if all(row[0] == canonical_other_category(row[0]) for row in categories):
+            return 0
     conn.execute('BEGIN IMMEDIATE')
     try:
         conn.execute('''CREATE TABLE IF NOT EXISTS other_category_migration_audit (

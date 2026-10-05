@@ -1,4 +1,5 @@
 import sqlite3
+import tempfile
 import unittest
 
 from create_other_database import (BASE_INSERT_COLUMNS, BASE_UPDATE_COLUMNS,
@@ -8,6 +9,27 @@ from other_game_categories import canonical_other_category
 
 
 class OtherGameCategoryTests(unittest.TestCase):
+    def test_canonical_categories_do_not_take_a_startup_write_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = directory + '/stats.db'
+            with sqlite3.connect(path) as setup:
+                setup.execute('CREATE TABLE other_games (id INTEGER PRIMARY KEY, game_type TEXT)')
+                setup.execute("INSERT INTO other_games VALUES (1, 'Card games')")
+            setup = sqlite3.connect(path)
+            normalize_other_game_categories(setup)
+            setup.close()
+            writer = sqlite3.connect(path)
+            startup = sqlite3.connect(path, timeout=0)
+            try:
+                writer.execute('BEGIN IMMEDIATE')
+                writer.execute("INSERT INTO other_games VALUES (2, 'Board games')")
+                self.assertEqual(normalize_other_game_categories(startup), 0)
+                self.assertFalse(startup.in_transaction)
+            finally:
+                writer.rollback()
+                writer.close()
+                startup.close()
+
     def setUp(self):
         self.conn = sqlite3.connect(':memory:')
         self.conn.execute('CREATE TABLE other_games (id INTEGER PRIMARY KEY, ' +
