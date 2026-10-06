@@ -41,12 +41,9 @@
     </div>
 
     <div class="sr-container">
-        {% if stats_shared_titles %}
+        {% if stats_shared_read_only and session.logged_in %}
         <p class="sr-muted" style="font-size:12px;margin-bottom:12px">
-            Viewing {{ stats_shared_titles|join(' + ') }}.
-            {% if stats_shared_read_only and session.logged_in %}
             <a href="{{ url_for('stats_default', view=None) }}">Back to my stats</a>
-            {% endif %}
         </p>
         {% endif %}
         {% for category, message in get_flashed_messages(with_categories=true) %}
