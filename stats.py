@@ -41,6 +41,7 @@ from stats_location_filter import STATS_ENDPOINTS, active_location_filter
 import admin_functions as adminfx
 import ai_auto_send_jobs as ai_jobs
 import recap_subscriptions
+import recap_email_queue
 import os
 import subprocess
 import sqlite3
@@ -521,14 +522,14 @@ def _refresh_instagram_slides(share_id, html_body='', plain_text_body='', subjec
 
 
 def _email_published_recap(share_id, payload, username):
-    """Email the full recap after publication; email failure must not lose the page."""
+    """Email the latest saved recap after its waiting period."""
     from html import escape
     import re
 
     try:
         recipients = recap_subscriptions.recipients([])
         if not recipients:
-            return
+            return True
         share_url = _absolute_site_url(f'/recap/{share_id}/')
         subject = payload.get('subject') or 'New AI recap'
         html_body = payload.get('html_body') or ''
@@ -567,11 +568,33 @@ def _email_published_recap(share_id, payload, username):
                     + (f' {"; ".join(errors)[:200]}' if errors else ''),
             username=username,
         )
+        return not errors
     except Exception:
         app.logger.exception('Subscriber email failed for published recap %s', share_id)
         log_activity('AI recap subscriber email failed', target=share_id,
                      summary='The recap was published, but subscriber email could not be sent.',
                      username=username)
+        return False
+
+
+def send_due_recap_email():
+    """Send one due subscriber email, loading current content at send time."""
+    share_id = recap_email_queue.claim_due()
+    if not share_id:
+        return False
+    try:
+        with app.app_context():
+            payload = adminfx.get_ai_recap_page(share_id)
+            if not payload:
+                recap_email_queue.finish(share_id, 'cancelled')
+                return True
+            success = _email_published_recap(
+                share_id, payload, payload.get('username') or 'unknown')
+            recap_email_queue.finish(share_id, 'sent' if success else 'failed')
+    except Exception:
+        recap_email_queue.finish(share_id, 'failed')
+        app.logger.exception('Delayed subscriber email failed for recap %s', share_id)
+    return True
 
 
 def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=None):
@@ -617,7 +640,9 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         hero_image_url=hero_image_url,
         force=True,
     )
-    _email_published_recap(share_id, payload, username or session.get('username') or 'unknown')
+    recap_email_queue.schedule(
+        share_id, username or session.get('username') or 'unknown',
+        payload.get('game_type') or 'doubles', game_ids)
     return share_id
 
 

@@ -11,6 +11,7 @@ from flask import Flask, abort, flash, redirect, request, session, url_for
 from jinja2 import ChoiceLoader, DictLoader
 import admin_functions as adminfx
 import recap_subscriptions
+import recap_email_queue
 from email_content import plain_text_fallback_from_html
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,9 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.db.start()
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(self.db.stop)
+        clock_patch = patch.object(recap_email_queue.time, 'time', return_value=1000)
+        self.clock = clock_patch.start()
+        self.addCleanup(clock_patch.stop)
         self.app = Flask(__name__, template_folder=str(ROOT / 'templates'))
         self.app.secret_key = 'test'
         self.render = Mock(return_value='recaps')
@@ -30,7 +34,8 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.admin.list_ai_recap_pages.return_value = ([{'share_id': 'abc', 'username': 'owner'}], 1)
         self.ns = dict(app=self.app, request=request, session=session, abort=abort,
                        flash=flash, redirect=redirect, url_for=url_for, secrets=secrets,
-                       recap_subscriptions=recap_subscriptions, adminfx=self.admin,
+                       recap_subscriptions=recap_subscriptions, recap_email_queue=recap_email_queue,
+                       adminfx=self.admin,
                        EMAIL_SITE_BASE_URL='https://example.com', render_template=self.render,
                        plain_text_fallback_from_html=plain_text_fallback_from_html,
                        serialize_recap_list_entry=lambda row, base: dict(row),
@@ -39,7 +44,8 @@ class RecapSubscriptionTests(unittest.TestCase):
         tree = ast.parse((ROOT / 'stats.py').read_text())
         names = {'my_ai_recaps', 'inject_recap_subscription_token', 'subscribe_ai_recaps',
                  'send_ai_summary_messages', '_apply_ai_email_opt_out',
-                 '_email_published_recap', '_publish_ai_recap', '_absolute_site_url'}
+                 '_email_published_recap', '_publish_ai_recap', '_absolute_site_url',
+                 'send_due_recap_email'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), self.ns)
         self.client = self.app.test_client()
@@ -83,17 +89,24 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.ns['_apply_ai_email_opt_out']('FAN@example.com')
         self.assertEqual(recap_subscriptions.recipients([]), [])
 
-    def publish(self, sender=None, payload=None):
+    def publish(self, sender=None, payload=None, send_due=True):
         self.admin.get_ai_recap_page.return_value = None
         self.ns.update(json=json, EMAIL_PLACEHOLDER='{{EMAIL_PLACEHOLDER}}',
                        _refresh_instagram_slides=Mock(), log_activity=Mock(),
                        build_ai_summary_message=Mock(side_effect=lambda *args, **kwargs: args),
                        send_messages_with_retry=sender or Mock(return_value=(1, [])))
         with self.app.app_context():
-            return self.ns['_publish_ai_recap'](
+            share_id = self.ns['_publish_ai_recap'](
                 payload or {'subject': 'A & B recap'}, 'fun', '', [1], username='creator')
+        self.ns['send_messages_with_retry'].assert_not_called()
+        self.admin.get_ai_recap_page.return_value = dict(
+            payload or {'subject': 'A & B recap'}, username='creator')
+        if send_due:
+            self.clock.return_value += 3600
+            self.ns['send_due_recap_email']()
+        return share_id
 
-    def test_publishing_notifies_subscribers_without_a_request_or_manual_send(self):
+    def test_publishing_notifies_subscribers_after_delay_without_a_request_or_manual_send(self):
         recap_subscriptions.subscribe('fan@example.com')
         sender = Mock(return_value=(1, []))
         share_id = self.publish(sender)
@@ -107,6 +120,38 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.assertIn('/opt_out_ai_emails?email={{EMAIL_PLACEHOLDER}}', html)
         self.ns['log_activity'].assert_called_once()
         self.assertEqual(self.ns['log_activity'].call_args.args[0], 'Sent AI recap to subscribers')
+
+    def test_waits_full_hour_then_loads_latest_saved_content_once(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        sender = Mock(return_value=(1, []))
+        self.publish(sender, send_due=False)
+        self.clock.return_value = 4599
+        self.assertFalse(self.ns['send_due_recap_email']())
+        sender.assert_not_called()
+        self.admin.get_ai_recap_page.return_value = {
+            'subject': 'Remade recap', 'html_body': '<p>Latest version</p>',
+            'hero_image_url': 'https://example.com/new.png', 'username': 'creator'}
+        self.clock.return_value = 4600
+        self.assertTrue(self.ns['send_due_recap_email']())
+        self.assertFalse(self.ns['send_due_recap_email']())
+        sender.assert_called_once()
+        args = self.ns['build_ai_summary_message'].call_args
+        self.assertEqual(args.args[0], 'Remade recap')
+        self.assertIn('Latest version', args.args[1])
+        self.assertEqual(args.kwargs['hero_image_url'], 'https://example.com/new.png')
+
+    def test_deleted_recap_and_unsubscribed_reader_receive_no_email(self):
+        for deleted in (False, True):
+            recap_subscriptions.subscribe('fan@example.com')
+            sender = Mock()
+            self.publish(sender, send_due=False)
+            if deleted:
+                self.admin.get_ai_recap_page.return_value = None
+            else:
+                recap_subscriptions.unsubscribe('fan@example.com')
+            self.clock.return_value += 3600
+            self.ns['send_due_recap_email']()
+            sender.assert_not_called()
 
     def test_subscriber_email_contains_full_recap_and_embedded_image_inputs(self):
         recap_subscriptions.subscribe('fan@example.com')

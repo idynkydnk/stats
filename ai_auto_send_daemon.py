@@ -224,6 +224,7 @@ def main():
         _log(f'AI provider key present: {provider}')
 
     _preload_stats()
+    from stats import send_due_recap_email
 
     idle_loops = 0
     while True:
@@ -241,6 +242,8 @@ def main():
             if stale:
                 _log(f'Re-queued {stale} stale running job(s)')
 
+            # Check between generation jobs, including when no new jobs arrive.
+            send_due_recap_email()
             job = jobs.claim_next_pending_job()
             if job:
                 idle_loops = 0

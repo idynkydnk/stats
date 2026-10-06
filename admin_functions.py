@@ -124,16 +124,23 @@ def write_recap_html_file(share_id, html_body):
 
 def update_ai_recap_page(share_id, html_body=None, **meta_updates):
     """Update a published recap's HTML and/or JSON metadata on disk."""
+    from contextlib import nullcontext
+    import recap_email_queue
+
     safe_id = _safe_recap_share_id(share_id)
-    meta = _read_recap_meta_file(safe_id) or {'share_id': safe_id}
-    if html_body is not None:
-        write_recap_html_file(safe_id, html_body)
-    for key, value in meta_updates.items():
-        if value is None:
-            continue
-        meta[key] = value
-    meta.pop('html_body', None)
-    _write_json_atomic(_recap_meta_path(safe_id), meta)
+    # Prompt-only changes and failed image attempts do not postpone mail.
+    content_changed = html_body is not None or any(
+        key in meta_updates for key in ('subject', 'plain_text_body', 'hero_image_url'))
+    with recap_email_queue.updating(safe_id) if content_changed else nullcontext():
+        meta = _read_recap_meta_file(safe_id) or {'share_id': safe_id}
+        if html_body is not None:
+            write_recap_html_file(safe_id, html_body)
+        for key, value in meta_updates.items():
+            if value is None:
+                continue
+            meta[key] = value
+        meta.pop('html_body', None)
+        _write_json_atomic(_recap_meta_path(safe_id), meta)
     return meta
 
 
