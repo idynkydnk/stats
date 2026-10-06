@@ -195,7 +195,7 @@
                                 <div class="sr-game-title">{{ game['game_name'] }}</div>
                                 <div class="sr-game-date">{{ game['game_time'] or game['game_date_only'] }}</div>
                             </div>
-                            {% if session.logged_in %}
+                            {% if session.logged_in and not stats_shared_read_only %}
                             <div class="sr-game-actions">
                                 <a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>
                                 <a href="{{ url_for('delete_other_game', id=game['game_id'], from_redesign='true') }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
@@ -303,5 +303,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+<script src="{{ url_for('static', filename='js/stats.js', v='20261006-sharing') }}"></script>
 {% endblock %}

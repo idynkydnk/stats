@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from flask import g
+from flask import g, jsonify, request, url_for
 from account_stats_views import build_stats_view, sources_for_user, SOURCE_ID_STRIDE
 from private_accounts import account_for_user, connect_data, provision_database
 from migrations.separate_existing_accounts import migrate, ownership_report
@@ -74,6 +74,119 @@ class StatsSourceAPITests(unittest.TestCase):
             self.assertNotIn('site_users', tables)
             self.assertNotIn('auth_tokens', tables)
         self.assertEqual(os.stat(snapshot).st_mode & 0o777, 0o600)
+
+
+class SharedStatsLinkTests(unittest.TestCase):
+    register = account_fixtures.PrivateAccountTests.register
+
+    def setUp(self):
+        account_fixtures.PrivateAccountTests.setUp(self)
+
+        @self.app.get('/stats/<year>/', endpoint='stats')
+        def stats_page(year):
+            with connect_data(self.path) as conn:
+                rows = conn.execute('SELECT * FROM games ORDER BY id').fetchall()
+            return jsonify(rows=rows, token=getattr(g, 'stats_share_token', None),
+                           next=url_for('stats', year='2025'),
+                           api=url_for('api_doubles_list'),
+                           read_only=getattr(g, 'stats_shared_read_only', False),
+                           location=request.args.get('location'),
+                           snapshot=getattr(g, 'stats_view_database', None))
+
+    def own_game(self, client, name):
+        headers = self.register(client, name)
+        client.post('/api/games', headers=headers, json={'name': name + ' game'})
+        client.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': False})
+        return headers
+
+    def test_personal_url_works_for_guests_and_other_accounts(self):
+        self.own_game(self.a, 'dan')
+        self.own_game(self.b, 'bob')
+        redirect = self.a.get('/stats/2026/?location=Beach&division=womens')
+        self.assertEqual(redirect.status_code, 302)
+        link = redirect.location
+        self.assertIn('division=womens', link)
+        self.assertIn('view=', link)
+        guest = self.app.test_client()
+        for client in [self.a, guest, self.b]:
+            page = client.get(link)
+            self.assertEqual(page.json['rows'], [[2, 'dan game']])
+            self.assertEqual(page.json['location'], 'Beach')
+            self.assertEqual(page.json['read_only'], client != self.a)
+            self.assertEqual(page.headers['Cache-Control'], 'no-store')
+            self.assertEqual(page.headers['Referrer-Policy'], 'same-origin')
+            self.assertFalse(Path(page.json['snapshot']).exists())
+            self.assertEqual(client.get(page.json['next']).json['rows'], [[2, 'dan game']])
+            self.assertEqual(client.get(page.json['api']).json['rows'], [[2, 'dan game']])
+        # Following Dan's link changes neither authentication nor preferences.
+        self.assertEqual(self.b.get('/api/games').json['rows'], [[2, 'bob game']])
+        with guest.session_transaction() as session:
+            self.assertFalse(session.get('logged_in'))
+        self.assertFalse(account_for_user(self.path, 'dan')['share_stats'])
+
+    def test_link_freezes_sources_and_preserves_game_ids(self):
+        headers = self.own_game(self.a, 'dan')
+        own_link = self.a.get('/stats/2026/').location
+        self.a.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': True})
+        combined_link = self.a.get('/stats/2026/').location
+        self.assertNotEqual(own_link, combined_link)
+        expected = [[2, 'dan game'], [SOURCE_ID_STRIDE + 1, 'Shared player']]
+        guest = self.app.test_client()
+        self.assertEqual(guest.get(combined_link).json['rows'], expected)
+        self.a.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': False})
+        self.assertEqual(guest.get(combined_link).json['rows'], expected)
+        self.assertEqual(guest.get(own_link).json['rows'], [[2, 'dan game']])
+        self.assertEqual(self.a.get('/stats/2026/').location, own_link)
+
+    def test_public_link_overrides_recipient_personal_preferences(self):
+        guest = self.app.test_client()
+        link = guest.get('/stats/2026/').location
+        self.own_game(self.a, 'dan')
+        self.assertEqual(self.a.get(link).json['rows'], [[1, 'Shared player']])
+        self.assertIsNone(guest.get(link).json['snapshot'])
+
+    def test_tampering_and_writes_fail_without_falling_back(self):
+        self.own_game(self.a, 'dan')
+        link = self.a.get('/stats/2026/').location
+        token = self.a.get(link).json['token']
+        guest = self.app.test_client()
+        for value in ['', 'dan', token + 'bad']:
+            self.assertEqual(guest.get('/stats/2026/', query_string={'view': value}).status_code, 404)
+        for method in ['POST', 'PUT', 'DELETE']:
+            response = guest.open('/api/games', method=method, query_string={'view': token},
+                                  json={'id': 2, 'name': 'Tampered'})
+            self.assertEqual(response.status_code, 403)
+        self.assertEqual(guest.get('/admin', query_string={'view': token}).status_code, 403)
+        self.assertEqual(self.a.get('/api/games').json['rows'], [[2, 'dan game']])
+        self.assertEqual(guest.get('/api/games').json['rows'], [[1, 'Shared player']])
+
+    def test_disabled_or_deleted_owner_invalidates_link(self):
+        self.own_game(self.a, 'dan')
+        link = self.a.get('/stats/2026/').location
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET active=0 WHERE username='dan'")
+        self.assertEqual(self.app.test_client().get(link).status_code, 404)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("DELETE FROM private_accounts WHERE username='dan'")
+        self.assertEqual(self.app.test_client().get(link).status_code, 404)
+
+    def test_shared_foreign_source_revocation_and_admin_privacy(self):
+        a = self.own_game(self.a, 'dan')
+        b = self.own_game(self.b, 'bob')
+        self.a.put('/api/account/stats-sharing', headers=a, json={'share_stats': True})
+        self.b.put('/api/account/stats-sources', headers=b, json={'owner': 'dan', 'enabled': True})
+        link = self.b.get('/stats/2026/').location
+        guest = self.app.test_client()
+        self.assertEqual({r[1] for r in guest.get(link).json['rows']}, {'dan game', 'bob game'})
+        self.a.put('/api/account/stats-sharing', headers=a, json={'share_stats': False})
+        self.assertEqual(guest.get(link).status_code, 404)
+        admin = self.app.test_client()
+        auth = {'Authorization': 'Bearer shared-token'}
+        admin.put('/api/account/stats-sources', headers=auth, json={'owner': 'dan', 'enabled': True})
+        page = admin.get('/stats/2026/')
+        self.assertEqual(page.status_code, 200)
+        self.assertIsNone(page.json['token'])
+        self.assertEqual({r[1] for r in page.json['rows']}, {'Shared player', 'dan game'})
 
 
 class ExistingAccountMigrationTests(unittest.TestCase):

@@ -262,7 +262,7 @@
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title">Player List</h1>
     <div class="sr-header-actions">
-        {% if session.logged_in %}
+        {% if session.logged_in and not stats_shared_read_only %}
         <button class="sr-add-btn" onclick="openAddPlayerModal()">
             <i class="fas fa-plus"></i> Add Player
         </button>
@@ -312,11 +312,11 @@
                         </div>
                     </div>
                     <div class="pl-stats">{{ card.games }} game{{ 's' if card.games != 1 else '' }}{% if card.firstGame %} · since {{ card.firstGame[5:7] }}/{{ card.firstGame[2:4] }}{% endif %}</div>
-                    {% if session.logged_in %}
+                    {% if session.logged_in and not stats_shared_read_only %}
                     <div class="pl-edit-hint">Edit · photos · AI character</div>
                     {% endif %}
                 </button>
-                {% if is_admin_user and card.id %}
+                {% if is_admin_user and card.id and not stats_shared_read_only %}
                 <button type="button" class="pl-delete-btn" title="Delete player"
                         aria-label="Delete {{ card.name }}"
                         data-player-id="{{ card.id }}"
@@ -338,7 +338,7 @@
     </div>
 </section>
 
-{% if session.logged_in %}
+{% if session.logged_in and not stats_shared_read_only %}
 {% include 'partials/player_photo_modal.html' %}
 {% endif %}
 

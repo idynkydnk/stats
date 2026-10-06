@@ -1,4 +1,4 @@
-{% if session.logged_in %}
+{% if session.logged_in and not stats_shared_read_only %}
 <div class="sr-photo-modal" id="player-photo-modal" data-is-admin="{{ '1' if is_admin_user else '0' }}" hidden>
     <div class="sr-photo-modal-backdrop" data-close-photo-modal></div>
     <div class="sr-photo-modal-dialog" role="dialog" aria-labelledby="player-photo-title">

@@ -4,8 +4,10 @@ from pathlib import Path
 import secrets
 import sqlite3
 import tempfile
+from urllib.parse import urlencode
 
-from flask import flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
+from itsdangerous import BadSignature, URLSafeSerializer
 
 GAME_TABLES = ('games', 'vollis_games', 'other_games')
 SOURCE_ID_STRIDE = 1 << 32
@@ -144,8 +146,64 @@ def build_stats_view(site_path, own_path, sources):
 
 
 def register_stats_views(app, service, site_path):
+    signer = URLSafeSerializer(app.secret_key, salt='shared-stats-view-v1')
+
     def current_user():
         return session.get('username') if session.get('logged_in') else None
+
+    def share_selection(username, sources):
+        from private_accounts import account_for_user
+        own = account_for_user(site_path, username)
+        # An admin's access to somebody's private stats is not permission to
+        # publish them. Their owner must enable sharing first.
+        selected = [source for source in sources if source['enabled']]
+        for source in selected:
+            if source['account_id'] is not None:
+                account = account_for_user(site_path, source['owner'])
+                if not account or not account['share_stats']:
+                    return None
+        return signer.dumps(dict(base=own['id'] if own else None,
+                                 sources=[source['account_id'] for source in selected]))
+
+    def read_selection(token):
+        try:
+            selection = signer.loads(token)
+        except BadSignature:
+            abort(404, description='This stats link is invalid or no longer available.')
+        with sqlite3.connect(site_path) as conn:
+            conn.row_factory = sqlite3.Row
+            accounts = {row['id']: dict(row) for row in conn.execute('''
+                SELECT a.*, a.rowid AS source_number FROM private_accounts a
+                JOIN site_users u ON u.username=a.username COLLATE NOCASE
+                WHERE u.active=1''')}
+
+        def resolve(account_id, base=False):
+            if account_id is None:
+                return dict(owner='kyle', title='KT Stats', account_id=None, number=1, enabled=True)
+            account = accounts.get(account_id)
+            if not account or (not base and not account['share_stats']):
+                abort(404, description='This stats link is no longer available.')
+            source = dict(owner=account['username'], title=account['username'] + '’s stats',
+                          account_id=account_id, number=account['source_number'] + 1, enabled=True)
+            if not Path(_database_path(site_path, source)).is_file():
+                abort(404, description='This stats link is no longer available.')
+            return source
+
+        return resolve(selection['base'], base=True), [resolve(value) for value in selection['sources']]
+
+    @app.url_defaults
+    def preserve_shared_stats(endpoint, values):
+        if has_request_context() and endpoint in BROWSE_ENDPOINTS:
+            token = getattr(g, 'stats_share_token', None)
+            if token:
+                values.setdefault('view', token)
+
+    @app.context_processor
+    def shared_stats_context():
+        return dict(stats_share_token=getattr(g, 'stats_share_token', None),
+                    stats_share_available=getattr(g, 'stats_share_available', False),
+                    stats_shared_titles=getattr(g, 'stats_shared_titles', []),
+                    stats_shared_read_only=getattr(g, 'stats_shared_read_only', False))
 
     def payload(username):
         from private_accounts import account_for_user
@@ -158,6 +216,24 @@ def register_stats_views(app, service, site_path):
     @app.before_request
     def combine_selected_stats():
         from private_accounts import private_database
+        token = request.args.get('view')
+        if 'view' in request.args:
+            # A share link is a read-only capability, never a login or a write
+            # database selector. Reject malformed links instead of showing KT.
+            if request.method != 'GET' or request.endpoint not in BROWSE_ENDPOINTS:
+                return jsonify(error='Shared stats links are read-only.'), 403
+            base, sources = read_selection(token)
+            g.stats_share_token = token
+            g.stats_share_available = True
+            g.stats_shared_titles = [base['title']] + [source['title'] for source in sources]
+            g.stats_shared_read_only = base['owner'].casefold() != (current_user() or '').casefold()
+            if base['account_id'] is None and not sources:
+                # Public KT links must also override a signed-in recipient's
+                # personal database, without copying the whole public archive.
+                g.private_database = None
+                return
+            g.stats_view_database = build_stats_view(site_path, _database_path(site_path, base), sources)
+            return
         # Foreign game IDs are view-only, including for admins.
         if request.method != 'GET' or request.endpoint in {'update', 'update_vollis_game', 'update_other_game', 'delete_game', 'delete_vollis_game', 'delete_other_game'}:
             if any(isinstance(v, int) and v >= SOURCE_ID_STRIDE for v in (request.view_args or {}).values()):
@@ -168,12 +244,24 @@ def register_stats_views(app, service, site_path):
         if request.path.startswith('/api/') and request.headers.get('X-Stats-Owned') == '1' and request.headers.get('X-Stats-Combined') != '1' and request.headers.get('X-Stats-Preview') != '1':
             return
         username = current_user()
-        # Preview without authentication remains Kyle-only.
-        if not username:
-            return
-        sources = sources_for_user(site_path, username, service.is_admin(username))
+        sources = sources_for_user(site_path, username, service.is_admin(username)) if username else []
+        if not request.path.startswith('/api/'):
+            token = share_selection(username, sources)
+            g.stats_share_available = bool(token)
+            if token:
+                # Make copying the address bar work too. Keep every active
+                # filter (including repeated query arguments) on the URL.
+                args = list(request.args.items(multi=True)) + [('view', token)]
+                return redirect(request.path + '?' + urlencode(args))
         if any(s['enabled'] for s in sources):
             g.stats_view_database = build_stats_view(site_path, private_database() or site_path, sources)
+
+    @app.after_request
+    def protect_share_link(response):
+        if getattr(g, 'stats_share_token', None):
+            response.headers['Referrer-Policy'] = 'same-origin'
+            response.headers['Cache-Control'] = 'no-store'
+        return response
 
     @app.teardown_request
     def remove_stats_view(error):

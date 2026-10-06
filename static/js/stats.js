@@ -132,7 +132,7 @@ function searchAllPlayers(query, dropdown) {
     searchAbort = new AbortController();
     const requested = query;
 
-    fetch(`/api/search_all_players?q=${encodeURIComponent(query)}`, {
+    fetch(statsViewURL(`/api/search_all_players?q=${encodeURIComponent(query)}`), {
         signal: searchAbort.signal,
     })
         .then(response => response.json())
@@ -185,7 +185,7 @@ function renderPlayerSearchDropdown(dropdown, players) {
         } else {
             linkPath = `/player/${linkYear}/${encodeURIComponent(player.name)}/`;
         }
-        html += `<a href="${linkPath}" class="sr-search-dropdown-item">
+        html += `<a href="${statsViewURL(linkPath)}" class="sr-search-dropdown-item">
             <div class="sr-search-player-name">${player.name}</div>
             <div class="sr-search-player-info">${yearText}${gamesText}</div>
         </a>`;

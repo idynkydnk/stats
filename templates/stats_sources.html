@@ -10,7 +10,7 @@
 {% endfor %}
 {% if is_private %}
 <hr><p><label><input type="checkbox" name="share_stats" {% if share_stats %}checked{% endif %}> Let other signed-in users include my stats</label></p>
-<p>Kyle can include your stats as the administrator. Turning sharing off removes access for other users.</p>
+<p>Kyle can include your stats as the administrator. Turning this off removes your stats from other users’ combined views. Anyone with a link you copy to your own stats can still view them without signing in.</p>
 {% endif %}
 <button type="submit">Save choices</button>
 </form>

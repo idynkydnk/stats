@@ -172,6 +172,7 @@
         <section class="sr-table-section">
             <div class="sr-card sr-card-compact">
                 <form method="get" action="{{ url_for('games', year=year) }}" class="sr-search-wrap" style="display: flex; align-items: center; gap: 8px;">
+                    {% if stats_share_token %}<input type="hidden" name="view" value="{{ stats_share_token }}">{% endif %}
                     <input type="hidden" name="division" value="{{ doubles_division }}">
                     {% if stats_location %}<input type="hidden" name="location" value="{{ stats_location }}">{% endif %}
                     {% if stats_missing_location %}<input type="hidden" name="missing" value="1">{% endif %}

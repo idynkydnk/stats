@@ -77,7 +77,12 @@
 {% endif %}
 
 <div class="sr-header-tools">
-{% if session.logged_in %}
+{% if stats_share_available %}
+<button type="button" class="sr-link-btn" data-copy-stats-link aria-label="Copy link to these stats" title="Anyone with this link can view these stats">
+    <i class="fas fa-link" aria-hidden="true"></i> <span aria-live="polite">Copy link</span>
+</button>
+{% endif %}
+{% if session.logged_in and not stats_shared_read_only %}
 <a href="{{ url_for('add_game') }}" class="sr-link-btn sr-link-btn-accent">
     <i class="fas fa-plus"></i> Add
 </a>

@@ -3,7 +3,7 @@
 {% if player_ai_image_traits is not defined %}{% set player_ai_image_traits = [] %}{% endif %}
 {% if player_face_photo_focus is not defined %}{% set player_face_photo_focus = {'x': 50, 'y': 50, 'z': 1} %}{% endif %}
 <div class="sr-player-avatar-col" id="player-avatar-wrap">
-    {% if session.logged_in %}
+    {% if session.logged_in and not stats_shared_read_only %}
     <button type="button" class="sr-avatar-clickable" id="player-avatar-trigger"
             title="Edit player" aria-label="Edit player">
         {% if player_photo_url %}
@@ -23,7 +23,7 @@
     {% endif %}
 </div>
 
-{% if session.logged_in %}
+{% if session.logged_in and not stats_shared_read_only %}
 {% include 'partials/player_photo_modal.html' %}
 <style>
 .sr-avatar-clickable:focus-visible {
