@@ -82,7 +82,11 @@ def migrate(path):
                     raise RuntimeError('Stop writers and use rollback journal mode before migrating')
             conn.execute('BEGIN IMMEDIATE')
             if not account:
-                conn.execute('INSERT INTO private_accounts (id,username) VALUES (?,?)', (account_id, username))
+                # Startup may capture the existing group before its personal
+                # databases are created. Preserve that rollout's sharing default.
+                group_member = conn.execute('SELECT 1 FROM stats_source_group WHERE username=?', (username,)).fetchone() is not None
+                conn.execute('INSERT INTO private_accounts (id,username,share_stats) VALUES (?,?,?)',
+                             (account_id, username, int(group_member)))
             counts = {}
             names = set()
             for table in GAME_TABLES:

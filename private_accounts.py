@@ -132,6 +132,10 @@ def create_account(path, username, password=None, google_subject=None, apple_sub
                      (username, generate_password_hash(password or secrets.token_urlsafe(48))))
         conn.execute('INSERT INTO private_accounts (id, username, google_subject, apple_subject) VALUES (?, ?, ?, ?)',
                      (account_id, username, google_subject, apple_subject))
+        # Reusing a removed username never inherits the old group's access or
+        # browsing preferences. This is a new account, regardless of provider.
+        conn.execute('DELETE FROM stats_source_group WHERE username=?', (username,))
+        conn.execute('DELETE FROM account_stats_sources WHERE viewer=?', (username,))
     return username
 
 

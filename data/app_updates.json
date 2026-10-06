@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-06-existing-group-stats-defaults",
+    "date": "2026-10-06",
+    "subject": "iPhone: Stats choices for existing and new accounts",
+    "body": "Existing users start with all stats checked and can turn off sources or sharing whenever they want. New accounts, including Google and Apple sign-ins, can include KT Stats alongside their own games; other users’ stats stay out of their source list."
+  },
+  {
     "id": "ios-2026-10-05-personal-ai-recaps",
     "date": "2026-10-05",
     "subject": "iPhone: Your recaps and Kyle’s summaries",

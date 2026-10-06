@@ -7,11 +7,18 @@ usernames, active status, and sign-in tokens remain in the identity database.
 Tournaments are not part of personal storage or this migration.
 
 Stats to include changes a browsing preference, never stored game ownership.
-Kyle can include individual users as admin. Personal accounts can include KT
-Stats and accounts whose owners opt into sharing. Sharing is off by default;
-revoking it immediately removes access even if a viewer previously selected it.
-Public visitors see only KT Stats. The migration initially enables all existing
-accounts for Kyle so his combined historical totals are preserved.
+Kyle can include individual users as admin. A one-time startup migration captures
+the active existing users in `stats_source_group`, checks every source for them,
+and enables their sharing. Later restarts preserve each user's saved choices.
+Existing group members can include KT Stats and accounts whose owners share
+their stats. Revoking sharing immediately removes non-admin access even if a
+viewer previously selected it. New accounts, including Google and Apple sign-ups,
+can include only KT Stats, enabled by default, alongside their own games. They
+cannot discover or select Dan, Tyler, or other users through the source picker,
+even when those users share with the existing group. New accounts' own sharing
+starts off. Public visitors see only KT Stats unless given an explicit stats link.
+The group is captured before personal-database separation when needed; separation
+also applies the group's sharing default to newly created personal databases.
 
 Combined views recalculate stats and ratings from the selected game histories.
 A request-local, data-only snapshot keeps authentication tables out of the view.

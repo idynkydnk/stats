@@ -1,15 +1,25 @@
 import os
+import hashlib
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from flask import g, jsonify, request, url_for
-from account_stats_views import build_stats_view, sources_for_user, SOURCE_ID_STRIDE
+from account_stats_views import build_stats_view, init_stats_views, sources_for_user, SOURCE_ID_STRIDE
 from private_accounts import account_for_user, connect_data, provision_database
 from migrations.separate_existing_accounts import migrate, ownership_report
 from tests import test_private_accounts as account_fixtures
+
+
+def apply_rollout_to_existing_users(path):
+    """Simulate upgrading a database that already has personal accounts."""
+    with sqlite3.connect(path) as conn:
+        conn.execute('DROP TABLE stats_source_group')
+        conn.execute('DROP TABLE stats_source_rollouts')
+    init_stats_views(path)
 
 
 class StatsSourceAPITests(unittest.TestCase):
@@ -36,6 +46,8 @@ class StatsSourceAPITests(unittest.TestCase):
     def test_sharing_authorization_revocation_and_no_cross_account_edit(self):
         a = self.register(self.a, 'alice')
         b = self.register(self.b, 'bob')
+        apply_rollout_to_existing_users(self.path)
+        self.a.put('/api/account/stats-sharing', headers=a, json={'share_stats': False})
         self.a.post('/api/games', headers=a, json={'name': 'Alice'})
         self.b.post('/api/games', headers=b, json={'name': 'Bob'})
         self.assertEqual(self.b.put('/api/account/stats-sources', headers=b, json={'owner': 'alice', 'enabled': True}).status_code, 403)
@@ -51,6 +63,77 @@ class StatsSourceAPITests(unittest.TestCase):
         rows = self.b.get('/api/games', headers={**b, 'X-Stats-Combined': '1'}).json['rows']
         self.assertNotIn('Alice', [r[1] for r in rows])
         self.assertEqual(self.b.put('/api/account/stats-sources', headers=b, json={'owner': '/tmp/anything', 'enabled': True}).status_code, 403)
+
+    def test_existing_defaults_are_applied_once_and_opt_out_survives_restart(self):
+        a = self.register(self.a, 'alice')
+        b = self.register(self.b, 'bob')
+        self.a.put('/api/account/stats-sources', headers=a, json={'owner': 'kyle', 'enabled': False})
+        apply_rollout_to_existing_users(self.path)
+        for client, headers, other in [(self.a, a, 'bob'), (self.b, b, 'alice')]:
+            payload = client.get('/api/account/stats-sources', headers=headers).json
+            self.assertEqual({s['owner'].lower() for s in payload['sources']}, {'kyle', other})
+            self.assertTrue(all(s['enabled'] for s in payload['sources']))
+            self.assertTrue(payload['share_stats'])
+        admin = self.app.test_client().get('/api/account/stats-sources', headers={'Authorization': 'Bearer shared-token'}).json
+        self.assertTrue(all(s['enabled'] for s in admin['sources']))
+        for owner in ('kyle', 'bob'):
+            self.a.put('/api/account/stats-sources', headers=a, json={'owner': owner, 'enabled': False})
+        self.a.put('/api/account/stats-sharing', headers=a, json={'share_stats': False})
+        init_stats_views(self.path)
+        payload = self.a.get('/api/account/stats-sources', headers=a).json
+        self.assertTrue(all(not s['enabled'] for s in payload['sources']))
+        self.assertFalse(payload['share_stats'])
+        self.assertFalse(account_for_user(self.path, 'alice')['show_starter_stats'])
+        self.assertEqual([s['owner'] for s in self.b.get('/api/account/stats-sources', headers=b).json['sources']], ['kyle'])
+
+    def test_future_password_google_and_apple_users_only_get_kt(self):
+        a = self.register(self.a, 'dan')
+        self.register(self.b, 'tyler')
+        self.a.post('/api/games', headers=a, json={'name': 'Dan game'})
+        apply_rollout_to_existing_users(self.path)
+        for provider in ('password', 'google', 'apple'):
+            with self.subTest(provider=provider):
+                client = self.app.test_client()
+                if provider == 'password':
+                    headers = self.register(client, 'newperson')
+                    username = 'newperson'
+                else:
+                    if provider == 'google':
+                        with patch('google.oauth2.id_token.verify_oauth2_token', return_value={'sub': 'new-google', 'email_verified': True}):
+                            response = client.post('/api/auth/google', json={'id_token': 'verified'})
+                    else:
+                        nonce = client.post('/api/auth/apple/challenge').json['nonce']
+                        with patch('jwt.PyJWKClient.get_signing_key_from_jwt', return_value=SimpleNamespace(key='test')), \
+                             patch('jwt.decode', return_value={'sub': 'new-apple', 'nonce': hashlib.sha256(nonce.encode()).hexdigest()}):
+                            response = client.post('/api/auth/apple', json={'id_token': 'verified', 'nonce': nonce})
+                    self.assertEqual(response.status_code, 200, response.json)
+                    username = response.json['username']
+                    headers = {'Authorization': 'Bearer ' + response.json['token']}
+                # A restart and even a stale/forged selection must not grant access.
+                with sqlite3.connect(self.path) as conn:
+                    conn.execute('INSERT INTO account_stats_sources VALUES (?, ?, 1)', (username, 'dan'))
+                init_stats_views(self.path)
+                payload = client.get('/api/account/stats-sources', headers=headers).json
+                self.assertEqual(payload['sources'], [{'owner': 'kyle', 'title': 'KT Stats', 'enabled': True}])
+                self.assertFalse(payload['share_stats'])
+                for owner in ('dan', 'tyler'):
+                    self.assertEqual(client.put('/api/account/stats-sources', headers=headers, json={'owner': owner, 'enabled': True}).status_code, 403)
+                combined = {**headers, 'X-Stats-Combined': '1'}
+                self.assertEqual(client.get('/api/games', headers=combined).json['rows'], [[SOURCE_ID_STRIDE + 1, 'Shared player']])
+                client.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': False})
+                self.assertEqual(client.get('/api/games', headers=combined).json['rows'], [])
+
+    def test_reused_username_does_not_inherit_existing_group_access(self):
+        self.register(self.a, 'dan')
+        self.register(self.b, 'removed')
+        apply_rollout_to_existing_users(self.path)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("DELETE FROM site_users WHERE username='removed'")
+            conn.execute("DELETE FROM private_accounts WHERE username='removed'")
+        headers = self.register(self.b, 'removed')
+        payload = self.b.get('/api/account/stats-sources', headers=headers).json
+        self.assertEqual(payload['sources'], [{'owner': 'kyle', 'title': 'KT Stats', 'enabled': True}])
+        self.assertFalse(payload['share_stats'])
 
     def test_admin_can_include_unshared_source_and_preferences_are_independent(self):
         a = self.register(self.a, 'alice')
@@ -173,6 +256,9 @@ class SharedStatsLinkTests(unittest.TestCase):
     def test_shared_foreign_source_revocation_and_admin_privacy(self):
         a = self.own_game(self.a, 'dan')
         b = self.own_game(self.b, 'bob')
+        apply_rollout_to_existing_users(self.path)
+        for client, headers in [(self.a, a), (self.b, b)]:
+            client.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': False})
         self.a.put('/api/account/stats-sharing', headers=a, json={'share_stats': True})
         self.b.put('/api/account/stats-sources', headers=b, json={'owner': 'dan', 'enabled': True})
         link = self.b.get('/stats/2026/').location
@@ -186,7 +272,7 @@ class SharedStatsLinkTests(unittest.TestCase):
         page = admin.get('/stats/2026/')
         self.assertEqual(page.status_code, 200)
         self.assertIsNone(page.json['token'])
-        self.assertEqual({r[1] for r in page.json['rows']}, {'Shared player', 'dan game'})
+        self.assertEqual({r[1] for r in page.json['rows']}, {'Shared player', 'dan game', 'bob game'})
 
 
 class ExistingAccountMigrationTests(unittest.TestCase):
@@ -262,6 +348,20 @@ class ExistingAccountMigrationTests(unittest.TestCase):
             self.assertEqual(conn.execute("SELECT count(*) FROM personal_database_migrations WHERE username='tyler'").fetchone()[0], 0)
         with sqlite3.connect(target) as conn:
             self.assertEqual(conn.execute('SELECT winner1 FROM games WHERE id=2').fetchone()[0], 'Existing personal game')
+
+    def test_rollout_before_personal_separation_and_inactive_sources(self):
+        from private_accounts import init_accounts
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET active=0 WHERE username='arbel'")
+        init_accounts(str(self.path))
+        init_stats_views(str(self.path))
+        migrate(self.path)
+        for user in ('tyler', 'dan'):
+            self.assertTrue(account_for_user(self.path, user)['share_stats'])
+            sources = sources_for_user(self.path, user)
+            self.assertEqual({s['owner'] for s in sources}, {'kyle', 'dan' if user == 'tyler' else 'tyler'})
+            self.assertTrue(all(s['enabled'] for s in sources))
+        self.assertFalse(account_for_user(self.path, 'arbel')['share_stats'])
 
 
 if __name__ == '__main__':

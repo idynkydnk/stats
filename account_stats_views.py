@@ -45,6 +45,7 @@ BROWSE_ENDPOINTS = {
 
 def init_stats_views(path):
     with sqlite3.connect(path) as conn:
+        conn.execute('BEGIN IMMEDIATE')
         columns = {row[1] for row in conn.execute('PRAGMA table_info(private_accounts)')}
         if 'share_stats' not in columns:
             conn.execute('ALTER TABLE private_accounts ADD COLUMN share_stats INTEGER NOT NULL DEFAULT 0')
@@ -54,6 +55,8 @@ def init_stats_views(path):
             enabled INTEGER NOT NULL DEFAULT 1,
             PRIMARY KEY(viewer, owner)
         )''')
+        from migrations.enable_existing_stats_sources import migrate
+        migrate(conn)
 
 
 def sources_for_user(path, username, admin=False):
@@ -64,6 +67,8 @@ def sources_for_user(path, username, admin=False):
         conn.row_factory = sqlite3.Row
         selected = {r['owner'].casefold(): bool(r['enabled']) for r in conn.execute(
             'SELECT owner, enabled FROM account_stats_sources WHERE viewer=?', (username or '',))}
+        group_member = conn.execute('SELECT 1 FROM stats_source_group WHERE username=?',
+                                    (username or '',)).fetchone() is not None
         rows = conn.execute('''SELECT a.rowid AS source_number, a.* FROM private_accounts a
             JOIN site_users u ON u.username=a.username COLLATE NOCASE WHERE u.active=1
             ORDER BY a.username COLLATE NOCASE''').fetchall()
@@ -74,7 +79,7 @@ def sources_for_user(path, username, admin=False):
         owner = row['username']
         if username and owner.casefold() == username.casefold():
             continue
-        if not admin and not row['share_stats']:
+        if not admin and (not group_member or not row['share_stats']):
             continue
         sources.append(dict(owner=owner, title=owner + "’s stats", enabled=selected.get(owner.casefold(), False),
                             number=row['source_number'] + 1, account_id=row['id']))
