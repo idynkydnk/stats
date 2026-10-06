@@ -77,6 +77,17 @@ class SiteUserPresenceTests(unittest.TestCase):
             self.assertEqual(adminfx.site_user_display_name('new user'), 'New User')
             self.assertEqual(adminfx.site_user_display_name(''), '')
 
+    def test_social_profile_name_and_linked_player_take_precedence(self):
+        username = 'google_' + 'a' * 32
+        adminfx.create_site_user(username, 'hash')
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute('UPDATE site_users SET display_name=? WHERE username=?', ('José McDonald', username))
+        with mock.patch.object(adminfx, 'list_players_for_site_updates', return_value=[]):
+            self.assertEqual(adminfx.site_user_display_name(username), 'José McDonald')
+            self.assertEqual(adminfx.site_user_display_name('apple_' + 'b' * 32), 'Apple account')
+            adminfx.set_site_user_player(username, 'José Smith')
+            self.assertEqual(adminfx.site_user_display_name(username), 'José Smith')
+
     def test_list_site_users_uses_auth_token_as_last_login_fallback(self):
         self._create_auth_tokens_table()
         conn = sqlite3.connect(self.db_path)

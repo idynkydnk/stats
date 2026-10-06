@@ -260,6 +260,36 @@ class PrivateAccountTests(unittest.TestCase):
              patch('google.oauth2.id_token.verify_oauth2_token', side_effect=ValueError('bad token')):
             self.assertEqual(self.a.post('/api/auth/google', json={'id_token': 'bad'}).status_code, 401)
 
+    def test_google_name_backfills_existing_account_without_changing_ownership(self):
+        claims = {'sub': 'google-person', 'email_verified': True}
+        with patch('google.oauth2.id_token.verify_oauth2_token', return_value=claims):
+            first = self.a.post('/api/auth/google', json={'id_token': 'verified'})
+            username = first.json['username']
+            self.assertEqual(first.json['display_name'], 'Google account')
+            account_id = account_for_user(self.path, username)['id']
+            headers = {'Authorization': 'Bearer ' + first.json['token'], 'X-Stats-Owned': '1'}
+            self.a.post('/api/games', headers=headers, json={'name': 'Saved game'})
+            claims['name'] = '  José   McDonald  '
+            second = self.b.post('/api/auth/google', json={'id_token': 'verified', 'full_name': 'Forged name'})
+            self.assertEqual(second.json['username'], username)
+            self.assertEqual(second.json['display_name'], 'José McDonald')
+            self.assertEqual(account_for_user(self.path, username)['id'], account_id)
+            self.assertEqual(self.a.get('/api/games', headers=headers).json['rows'], [[2, 'Saved game']])
+            for missing in (None, '', {'invalid': 'name'}, '<script>alert(1)</script>', 'x' * 201):
+                claims['name'] = missing
+                response = self.b.post('/api/auth/google', json={'id_token': 'verified'})
+                self.assertEqual(response.json['display_name'], 'José McDonald')
+
+    def test_people_with_same_google_name_remain_separate_accounts(self):
+        claims = {'sub': 'first', 'email_verified': True, 'given_name': 'Jamie', 'family_name': 'Lee'}
+        with patch('google.oauth2.id_token.verify_oauth2_token', return_value=claims):
+            first = self.a.post('/api/auth/google', json={'id_token': 'verified'}).json
+            claims['sub'] = 'second'
+            second = self.b.post('/api/auth/google', json={'id_token': 'verified'}).json
+        self.assertEqual(first['display_name'], 'Jamie Lee')
+        self.assertEqual(second['display_name'], 'Jamie Lee')
+        self.assertNotEqual(first['username'], second['username'])
+
     def test_social_signup_after_deletion_uses_new_empty_account(self):
         for provider in ('apple', 'google'):
             for legacy_link in (False, True):
@@ -336,15 +366,25 @@ class PrivateAccountTests(unittest.TestCase):
             return jwt.encode(claims, key, algorithm='RS256', headers={'kid': 'test'})
         with patch('jwt.PyJWKClient.get_signing_key_from_jwt', return_value=SimpleNamespace(key=key.public_key())):
             nonce = challenge()
-            payload = {'nonce': nonce, 'id_token': apple_token(nonce)}
+            payload = {'nonce': nonce, 'id_token': apple_token(nonce), 'full_name': '  Alex  O’Neill '}
             response = self.a.post('/api/auth/apple', json=payload)
             self.assertEqual(response.status_code, 200, response.json)
             self.assertTrue(response.json['is_private'])
+            username = response.json['username']
+            self.assertEqual(response.json['display_name'], 'Alex O’Neill')
             self.assertEqual(self.a.post('/api/auth/apple', json=payload).status_code, 401)
+            for omitted_name in (None, '', 123, '<b>Changed</b>'):
+                nonce = challenge()
+                response = self.b.post('/api/auth/apple', json={
+                    'nonce': nonce, 'id_token': apple_token(nonce), 'full_name': omitted_name})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json['username'], username)
+                self.assertEqual(response.json['display_name'], 'Alex O’Neill')
             for overrides in [{'aud': 'wrong-app'}, {'iss': 'wrong-issuer'}, {'exp': 1}, {'nonce': 'wrong'}]:
                 nonce = challenge()
-                response = self.a.post('/api/auth/apple', json={'nonce': nonce, 'id_token': apple_token(nonce, **overrides)})
+                response = self.a.post('/api/auth/apple', json={'nonce': nonce, 'id_token': apple_token(nonce, **overrides), 'full_name': 'Unverified name'})
                 self.assertEqual(response.status_code, 401, overrides)
+            self.assertEqual(self.service.adminfx.get_site_user(username)['display_name'], 'Alex O’Neill')
 
 
 if __name__ == '__main__':

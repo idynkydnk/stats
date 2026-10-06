@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from flask import abort, flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
 from itsdangerous import BadSignature, URLSafeSerializer
+from account_names import database_display_names
 
 GAME_TABLES = ('games', 'vollis_games', 'other_games')
 SOURCE_ID_STRIDE = 1 << 32
@@ -65,6 +66,7 @@ def sources_for_user(path, username, admin=False):
     own = account_for_user(path, username) if username else None
     with sqlite3.connect(path) as conn:
         conn.row_factory = sqlite3.Row
+        display_names = database_display_names(conn)
         selected = {r['owner'].casefold(): bool(r['enabled']) for r in conn.execute(
             'SELECT owner, enabled FROM account_stats_sources WHERE viewer=?', (username or '',))}
         group_member = conn.execute('SELECT 1 FROM stats_source_group WHERE username=?',
@@ -81,7 +83,7 @@ def sources_for_user(path, username, admin=False):
             continue
         if not admin and (not group_member or not row['share_stats']):
             continue
-        sources.append(dict(owner=owner, title=owner + "’s stats", enabled=selected.get(owner.casefold(), False),
+        sources.append(dict(owner=owner, title=display_names[owner.casefold()] + "’s stats", enabled=selected.get(owner.casefold(), False),
                             number=row['source_number'] + 1, account_id=row['id']))
     return sources
 
@@ -177,6 +179,7 @@ def register_stats_views(app, service, site_path):
             abort(404, description='This stats link is invalid or no longer available.')
         with sqlite3.connect(site_path) as conn:
             conn.row_factory = sqlite3.Row
+            display_names = database_display_names(conn)
             accounts = {row['id']: dict(row) for row in conn.execute('''
                 SELECT a.*, a.rowid AS source_number FROM private_accounts a
                 JOIN site_users u ON u.username=a.username COLLATE NOCASE
@@ -188,7 +191,7 @@ def register_stats_views(app, service, site_path):
             account = accounts.get(account_id)
             if not account or (not base and not account['share_stats']):
                 abort(404, description='This stats link is no longer available.')
-            source = dict(owner=account['username'], title=account['username'] + '’s stats',
+            source = dict(owner=account['username'], title=display_names[account['username'].casefold()] + '’s stats',
                           account_id=account_id, number=account['source_number'] + 1, enabled=True)
             if not Path(_database_path(site_path, source)).is_file():
                 abort(404, description='This stats link is no longer available.')

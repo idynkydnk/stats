@@ -26,6 +26,40 @@ class StatsSourceAPITests(unittest.TestCase):
     setUp = account_fixtures.PrivateAccountTests.setUp
     register = account_fixtures.PrivateAccountTests.register
 
+    def test_current_users_use_full_roster_names_and_kt_stays_unchanged(self):
+        self.register(self.a, 'tyler')
+        self.register(self.b, 'jen')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('ALTER TABLE site_users ADD COLUMN player_name TEXT')
+            conn.execute("UPDATE site_users SET player_name='tyler weston' WHERE username='tyler'")
+            conn.executemany('INSERT INTO players (full_name) VALUES (?)',
+                             [('Tyler Weston',), ('Tyler Bird',), ('Jen Example',), ('Kyle Thomson',)])
+        admin_headers = {'Authorization': 'Bearer shared-token'}
+        payload = self.app.test_client().get('/api/account/stats-sources', headers=admin_headers).json
+        self.assertEqual({source['owner']: source['title'] for source in payload['sources']},
+                         {'tyler': 'Tyler Weston’s stats', 'jen': 'Jen Example’s stats'})
+        own = self.a.get('/api/account/stats-sources').json
+        self.assertEqual(own['sources'][0]['title'], 'KT Stats')
+        self.assertEqual(own['sources'][0]['owner'], 'kyle')
+
+    def test_source_titles_use_social_names_but_keep_stable_owner_keys(self):
+        claims = {'sub': 'profile-person', 'email_verified': True, 'name': 'Jamie McDonald'}
+        with patch('google.oauth2.id_token.verify_oauth2_token', return_value=claims):
+            response = self.a.post('/api/auth/google', json={'id_token': 'verified'})
+        owner = response.json['username']
+        admin_headers = {'Authorization': 'Bearer shared-token'}
+        payload = self.b.get('/api/account/stats-sources', headers=admin_headers).json
+        self.assertEqual(payload['sources'][0]['owner'], owner)
+        self.assertEqual(payload['sources'][0]['title'], 'Jamie McDonald’s stats')
+        response = self.b.put('/api/account/stats-sources', headers=admin_headers,
+                              json={'owner': owner, 'enabled': True})
+        self.assertEqual(response.status_code, 200)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE site_users SET display_name=NULL WHERE username=?', (owner,))
+        payload = self.b.get('/api/account/stats-sources', headers=admin_headers).json
+        self.assertEqual(payload['sources'][0]['title'], 'Google account’s stats')
+        self.assertTrue(payload['sources'][0]['enabled'])
+
     def test_default_combined_view_and_owned_writes(self):
         a = self.register(self.a, 'alice')
         combined = {**a, 'X-Stats-Combined': '1'}
@@ -170,6 +204,7 @@ class SharedStatsLinkTests(unittest.TestCase):
             with connect_data(self.path) as conn:
                 rows = conn.execute('SELECT * FROM games ORDER BY id').fetchall()
             return jsonify(rows=rows, token=getattr(g, 'stats_share_token', None),
+                           titles=getattr(g, 'stats_shared_titles', []),
                            next=url_for('stats', year='2025'),
                            api=url_for('api_doubles_list'),
                            read_only=getattr(g, 'stats_shared_read_only', False),
@@ -220,6 +255,24 @@ class SharedStatsLinkTests(unittest.TestCase):
         self.assertEqual(guest.get(combined_link).json['rows'], expected)
         self.assertEqual(guest.get(own_link).json['rows'], [[2, 'dan game']])
         self.assertEqual(self.a.get('/stats/2026/').location, own_link)
+
+    def test_saved_share_link_uses_updated_display_name(self):
+        self.own_game(self.a, 'dan')
+        link = self.a.get('/stats/2026/').location
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET display_name='Dan Ferris' WHERE username='dan'")
+        page = self.app.test_client().get(link)
+        self.assertEqual(page.json['titles'], ['Dan Ferris’s stats'])
+        self.assertEqual(page.json['rows'], [[2, 'dan game']])
+
+    def test_shared_link_uses_linked_roster_name_and_keeps_kt_title(self):
+        headers = self.own_game(self.a, 'tyler')
+        self.a.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': True})
+        link = self.a.get('/stats/2026/').location
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('ALTER TABLE site_users ADD COLUMN player_name TEXT')
+            conn.execute("UPDATE site_users SET player_name='Tyler Weston' WHERE username='tyler'")
+        self.assertEqual(self.app.test_client().get(link).json['titles'], ['Tyler Weston’s stats', 'KT Stats'])
 
     def test_public_link_overrides_recipient_personal_preferences(self):
         guest = self.app.test_client()

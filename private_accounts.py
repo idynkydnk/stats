@@ -15,6 +15,7 @@ import uuid
 
 from flask import g, has_request_context, jsonify, request, session
 from werkzeug.security import generate_password_hash
+from account_names import account_label, clean_display_name, ensure_display_name_column
 
 
 DATA_TABLES = {
@@ -67,6 +68,7 @@ def connect_data(path, *args, **kwargs):
 
 def init_accounts(path):
     with sqlite3.connect(path) as conn:
+        ensure_display_name_column(conn)
         conn.execute('''CREATE TABLE IF NOT EXISTS private_accounts (
             id TEXT PRIMARY KEY, username TEXT NOT NULL COLLATE NOCASE UNIQUE,
             google_subject TEXT UNIQUE, apple_subject TEXT UNIQUE,
@@ -202,6 +204,7 @@ def register_private_accounts(app, service):
         session.clear()
         service.establish_user_session(username, login=True)
         return jsonify(token=service.create_auth_token(username), username=username,
+                       display_name=account_label(username, user.get('display_name')),
                        is_admin=False, logged_in=True, is_private=True)
 
     @app.put('/api/account/starter-stats')
@@ -223,7 +226,7 @@ def register_private_accounts(app, service):
     def limited():
         return service.login_rate_limited(service._client_ip())
 
-    def social_session(provider, subject):
+    def social_session(provider, subject, full_name=None):
         column = {'google': 'google_subject', 'apple': 'apple_subject'}[provider]
         with sqlite3.connect(site_path) as conn:
             row = conn.execute(f'''SELECT a.username FROM private_accounts a
@@ -238,6 +241,13 @@ def register_private_accounts(app, service):
             except sqlite3.IntegrityError:
                 with sqlite3.connect(site_path) as conn:
                     username = conn.execute(f'SELECT username FROM private_accounts WHERE {column}=?', (subject,)).fetchone()[0]
+        display_name = clean_display_name(full_name)
+        if display_name:
+            with sqlite3.connect(site_path) as conn:
+                # Apple supplies the name separately from its token, usually only
+                # on the first authorization. Never erase it on later sign-ins.
+                conn.execute('UPDATE site_users SET display_name=? WHERE username=? AND active=1',
+                             (display_name, username))
         service.clear_login_failures(service._client_ip())
         return issue_session(username)
 
@@ -287,7 +297,10 @@ def register_private_accounts(app, service):
         except Exception:
             app.logger.exception('Google verification unavailable')
             return jsonify(error='Google sign-in is temporarily unavailable.'), 503
-        return social_session('google', subject)
+        full_name = clean_display_name(claims.get('name')) or ' '.join(
+            part for part in (clean_display_name(claims.get('given_name')),
+                              clean_display_name(claims.get('family_name'))) if part)
+        return social_session('google', subject, full_name)
 
     @app.post('/api/auth/apple/challenge')
     def private_apple_challenge():
@@ -330,7 +343,7 @@ def register_private_accounts(app, service):
         except Exception:
             app.logger.exception('Apple verification unavailable')
             return jsonify(error='Apple sign-in is temporarily unavailable.'), 503
-        return social_session('apple', claims['sub'])
+        return social_session('apple', claims['sub'], body.get('full_name'))
 
     @app.delete('/api/account')
     def private_delete_account():

@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 from datetime import datetime, timezone
 from site_update_notes import parse_site_update_note
+from account_names import ensure_display_name_column, user_display_name
 
 
 def stats_db_path():
@@ -455,6 +456,7 @@ def init_users_db(seed_users=None, seed_admins=None):
         conn.execute('ALTER TABLE site_users ADD COLUMN last_location TEXT')
     _ensure_user_player_column(conn)
     _ensure_user_presence_columns(conn)
+    ensure_display_name_column(conn)
     count = conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0]
     if count == 0 and seed_users:
         admins = {a.lower() for a in (seed_admins or set())}
@@ -552,18 +554,7 @@ def site_user_display_name(username):
     username = (username or '').strip()
     if not username:
         return ''
-    user = get_site_user(username) or {}
-    stored = (user.get('player_name') or '').strip()
-    players = list_players_for_site_updates()
-    by_name = {player['name'].casefold(): player['name'] for player in players}
-    if stored:
-        return by_name.get(stored.casefold(), stored)
-    if username.casefold() in by_name:
-        return by_name[username.casefold()]
-    matches = suggested_players_for_username(username, players)
-    if len(matches) == 1:
-        return matches[0]['name']
-    return username.title() if username.islower() or username.isupper() else username
+    return user_display_name(username, get_site_user(username) or {}, list_players_for_site_updates())
 
 
 def touch_site_user(username, login=False, min_interval_seconds=300):

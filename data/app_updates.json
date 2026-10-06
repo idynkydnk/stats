@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-06-social-account-names",
+    "date": "2026-10-06",
+    "subject": "iPhone: Names for Google and Apple accounts",
+    "body": "Google and Apple sign-ins use your full name when it is provided, and keep it saved for later sign-ins. Stats to include also shows current users’ full names from their player profiles; KT Stats keeps its name."
+  },
+  {
     "id": "ios-2026-10-06-existing-group-stats-defaults",
     "date": "2026-10-06",
     "subject": "iPhone: Stats choices for existing and new accounts",

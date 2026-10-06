@@ -1,5 +1,11 @@
 # Project instructions
 
+## Computer use
+
+Always use a cloud computer for browser and desktop interaction. Never inspect
+or control the user's local computer, apps, or browser. If a cloud computer is
+unavailable, explain the limitation instead of falling back to local computer use.
+
 ## Push requests
 
 When the user says "push", commit and push pending changes in both this website

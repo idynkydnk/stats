@@ -62,6 +62,23 @@ and backend code together; preserve any games saved after migration separately.
 
 ## Google sign-in
 
+Social account display names are saved separately from their stable login keys.
+Google names come from verified profile claims and are refreshed on sign-in,
+including for existing accounts. Apple names come from the native authorization's
+full-name field after token and nonce verification. The iPhone app requests that
+field and keeps it in Keychain until sign-in succeeds so a failed request can be
+retried. Later sign-ins without a name never clear the saved name. Display names
+do not link accounts, change game ownership, or grant roster access. Duplicate
+names remain separate accounts. A linked roster name still takes precedence in
+the account header. Source lists and shared stats links use the same name rules
+for current users too: linked roster name first, then a saved profile name or a
+unique roster match. The shared public database always remains “KT Stats”.
+
+If no name was supplied or saved, labels say “Google account” or “Apple account”
+instead of exposing the generated login key. Existing Google users get their name
+on their next Google sign-in; an Apple name cannot be recovered if the provider
+does not supply it again.
+
 The local iPhone project's older Google configuration identifies the OAuth iOS
 client below for the matching bundle ID `com.kt.stats`. The code uses this public
 client ID and its reversed URL scheme; no Google client secret goes in the app.
