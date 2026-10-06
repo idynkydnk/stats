@@ -2268,8 +2268,9 @@ def edit_other_games(year):
 @login_required
 def ai_summary():
     """AI summary page for selecting games to summarize."""
+    from private_accounts import data_path
     from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
-    with sqlite3.connect(_stats_db_path()) as conn:
+    with sqlite3.connect(data_path(_stats_db_path())) as conn:
         conn.row_factory = sqlite3.Row
         games = {kind: load_ai_summary_games(conn, kind, session.get('username', ''))
                  for kind in ('doubles', 'vollis', 'other')}

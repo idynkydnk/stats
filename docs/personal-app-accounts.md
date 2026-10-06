@@ -117,6 +117,15 @@ Reference: [Apple user verification](https://developer.apple.com/documentation/s
 
 ## Verification
 
+All signed-in accounts can use the website AI recap creation flow, including
+the game picker, roster review, style selection, generation, and job progress.
+Personal accounts select games from their own database even when their browsing
+preferences include other users. Background generation keeps the submitting
+account's storage context; job pages and polling retain their ownership checks.
+
+Run `venv/bin/python -m unittest tests.test_personal_recap_creation` to check the
+web flow, personal game isolation, synchronous fallback, and job access.
+
 Run `venv/bin/python -m unittest tests.test_private_accounts` for registration,
 private storage, account isolation, inactive accounts, cache isolation, Google
 verification, and Apple's signature/nonce/audience/replay checks. Provider tests
