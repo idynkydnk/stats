@@ -1204,6 +1204,7 @@ def inject_base_template():
         'stats_missing_location': active_location_filter()[1],
         'stats_location_url': stats_location_url,
         'is_admin_user': is_admin() if session.get('logged_in') else False,
+        'account_display_name': adminfx.site_user_display_name(session.get('username')) if session.get('logged_in') else '',
     }
 
 

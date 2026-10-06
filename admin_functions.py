@@ -540,6 +540,25 @@ def get_site_user(username):
     return dict(row) if row else None
 
 
+def site_user_display_name(username):
+    """Use the linked roster name for display without changing login identity."""
+    username = (username or '').strip()
+    if not username:
+        return ''
+    user = get_site_user(username) or {}
+    stored = (user.get('player_name') or '').strip()
+    players = list_players_for_site_updates()
+    by_name = {player['name'].casefold(): player['name'] for player in players}
+    if stored:
+        return by_name.get(stored.casefold(), stored)
+    if username.casefold() in by_name:
+        return by_name[username.casefold()]
+    matches = suggested_players_for_username(username, players)
+    if len(matches) == 1:
+        return matches[0]['name']
+    return username.title() if username.islower() or username.isupper() else username
+
+
 def touch_site_user(username, login=False, min_interval_seconds=300):
     """Record that a site user is present. Password logins update last_login_at;
     other authenticated requests only refresh last_seen_at, at most every

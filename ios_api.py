@@ -270,6 +270,7 @@ def register_ios_api(app):
         username = session.get('username')
         return jsonify({
             'username': username,
+            'display_name': S.adminfx.site_user_display_name(username),
             'is_admin': bool(S.is_admin(username)),
             'logged_in': True,
             'is_private': bool(private_database()),

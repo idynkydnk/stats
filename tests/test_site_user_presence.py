@@ -57,6 +57,26 @@ class SiteUserPresenceTests(unittest.TestCase):
         self.assertIsNone(users['kyle']['last_login'])
         self.assertIsNone(users['kyle']['last_seen'])
 
+    def test_display_name_prefers_linked_player_over_other_first_name_matches(self):
+        adminfx.set_site_user_player('tyler', 'tyler weston')
+        players = [{'name': 'Tyler Bird'}, {'name': 'Tyler Weston'}]
+        with mock.patch.object(adminfx, 'list_players_for_site_updates', return_value=players):
+            self.assertEqual(adminfx.site_user_display_name('TYLER'), 'Tyler Weston')
+        self.assertEqual(adminfx.get_site_user('tyler')['username'], 'tyler')
+
+    def test_display_name_matches_players_without_email_and_preserves_spelling(self):
+        players = [{'name': 'Jamie McDonald', 'nickname': 'jm', 'email': ''}]
+        with mock.patch.object(adminfx, 'list_players_for_site_updates', return_value=players):
+            for username in ('jamie', 'jm', 'jamie mcdonald'):
+                self.assertEqual(adminfx.site_user_display_name(username), 'Jamie McDonald')
+
+    def test_display_name_does_not_guess_ambiguous_players(self):
+        players = [{'name': 'Tyler Bird'}, {'name': 'Tyler Weston'}]
+        with mock.patch.object(adminfx, 'list_players_for_site_updates', return_value=players):
+            self.assertEqual(adminfx.site_user_display_name('tyler'), 'Tyler')
+            self.assertEqual(adminfx.site_user_display_name('new user'), 'New User')
+            self.assertEqual(adminfx.site_user_display_name(''), '')
+
     def test_list_site_users_uses_auth_token_as_last_login_fallback(self):
         self._create_auth_tokens_table()
         conn = sqlite3.connect(self.db_path)

@@ -1,7 +1,7 @@
 <ul class="menu-list">
     {% if session.logged_in %}
     <li class="menu-section-label">Account</li>
-    <li class="menu-account-status">Signed in as {{ session.username }}</li>
+    <li class="menu-account-status">Signed in as {{ account_display_name }}</li>
     {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
     <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
     {% else %}

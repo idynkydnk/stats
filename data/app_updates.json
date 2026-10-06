@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-05-account-player-name",
+    "date": "2026-10-05",
+    "subject": "iPhone: Your player name in the account menu",
+    "body": "The account menu and sign-in greeting show your player name, such as Tyler Weston. Accounts without a matching player show a capitalized username."
+  },
+  {
     "id": "ios-2026-10-05-tyler-oasis-default",
     "date": "2026-10-05",
     "subject": "iPhone: The Oasis defaults for Tyler",
