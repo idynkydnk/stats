@@ -1,4 +1,4 @@
-{% if saved_game %}
+{% if saved_game or immediate_saved_game_popup %}
 <style>
 #saved-game-popup { width: min(420px, calc(100% - 48px)); max-height: 80dvh; overflow: auto; padding: 24px; border: 1px solid var(--sr-line); border-radius: 18px; background: var(--sr-panel); color: var(--sr-text); }
 #saved-game-popup::backdrop { background: rgba(0,0,0,.6); }
@@ -12,11 +12,11 @@
 </style>
 <dialog id="saved-game-popup" aria-labelledby="saved-game-title">
     <h2 id="saved-game-title">Game added</h2>
-    <p>{{ saved_game.title }}</p>
-    <div class="saved-side"><span><strong>Winners</strong><br>{{ saved_game.winners }}</span><strong>{{ saved_game.winner_score if saved_game.winner_score is not none else '' }}</strong></div>
-    <div class="saved-side"><span><strong>Losers</strong><br>{{ saved_game.losers }}</span><strong>{{ saved_game.loser_score if saved_game.loser_score is not none else '' }}</strong></div>
-    {% if saved_game.location %}<p class="saved-details">{{ saved_game.location }}</p>{% endif %}
-    {% if saved_game.comment %}<p class="saved-details">{{ saved_game.comment }}</p>{% endif %}
+    <p data-saved-game="title">{{ saved_game.title }}</p>
+    <div class="saved-side"><span><strong>Winners</strong><br><span data-saved-game="winners">{{ saved_game.winners }}</span></span><strong data-saved-game="winner_score">{{ saved_game.winner_score if saved_game.winner_score is not none else '' }}</strong></div>
+    <div class="saved-side"><span><strong>Losers</strong><br><span data-saved-game="losers">{{ saved_game.losers }}</span></span><strong data-saved-game="loser_score">{{ saved_game.loser_score if saved_game.loser_score is not none else '' }}</strong></div>
+    <p class="saved-details" data-saved-game="location" {% if not saved_game.location %}hidden{% endif %}>{{ saved_game.location }}</p>
+    <p class="saved-details" data-saved-game="comment" {% if not saved_game.comment %}hidden{% endif %}>{{ saved_game.comment }}</p>
     <div class="saved-actions">
         <button type="button" class="saved-add" id="saved-game-add-another" autofocus>Add another game</button>
         <button type="button" class="saved-close" id="saved-game-close">Done</button>
@@ -25,12 +25,26 @@
 <script>
 (function () {
     const popup = document.getElementById('saved-game-popup');
-    document.addEventListener('DOMContentLoaded', function () { popup.showModal(); });
+    window.showSavedGamePopup = function (receipt) {
+        popup.querySelectorAll('[data-saved-game]').forEach(function (element) {
+            const key = element.dataset.savedGame;
+            element.textContent = receipt[key] == null ? '' : receipt[key];
+            if (key === 'location' || key === 'comment') element.hidden = !receipt[key];
+        });
+        if (!popup.open) popup.showModal();
+    };
+    {% if saved_game %}popup.showModal();{% endif %}
     document.getElementById('saved-game-close').onclick = function () { popup.close(); };
-    document.getElementById('saved-game-add-another').onclick = function () {
+    document.getElementById('saved-game-add-another').onclick = function (event) {
+        // Keep the page's outside-click handler from closing the newly opened list.
+        event.stopPropagation();
         popup.close();
         const field = document.querySelector('.sr-form-container form input[type="text"]');
-        if (field) { field.focus(); field.scrollIntoView({block: 'center', behavior: 'smooth'}); }
+        if (field) {
+            field.focus();
+            field.dispatchEvent(new Event('focus'));
+            field.scrollIntoView({block: 'center', behavior: 'smooth'});
+        }
     };
     popup.addEventListener('click', function (event) {
         const rect = popup.getBoundingClientRect();

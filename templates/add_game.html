@@ -72,6 +72,7 @@ textarea { resize: vertical; min-height: 60px; }
 </style>
 {% endblock %}
 {% block content %}
+        {% set immediate_saved_game_popup = true %}
         {% include 'partials/saved_game_popup.html' %}
         {% if added or saved or deleted %}
         <div class="sr-success-banner" role="alert">
@@ -499,16 +500,47 @@ function clearAddGameForm() {
     document.querySelectorAll('.autocomplete-list').forEach(function(l) { l.style.display = 'none'; });
     document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
 }
-document.getElementById('add-game-form').addEventListener('submit', function(e) {
+document.getElementById('add-game-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var form = this;
+    if (form.dataset.saving === 'true') return;
+    form.dataset.saving = 'true';
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz) document.getElementById('entered_timezone').value = tz;
-    document.getElementById('add-game-submit-btn').disabled = true;
+    var button = document.getElementById('add-game-submit-btn');
+    button.disabled = true;
+    button.textContent = 'Saving…';
+    var priorityNames = nameFields.map(function(id) { return document.getElementById(id).value.trim(); });
+    try {
+        var response = await fetch(form.action, {
+            method: 'POST', body: new FormData(form), credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        });
+        var result = await response.json();
+        if (!response.ok || !result.saved_game) {
+            alert(result.error || 'Could not save the game. Your entry is still here.');
+            return;
+        }
+        clearAddGameForm();
+        lastGamePlayers = priorityNames;
+        showRematchBtn();
+        applyDoublesPlayerOrderAfterSave(priorityNames);
+        window.showSavedGamePopup(result.saved_game);
+        // The receipt must not wait for stats or autocomplete refreshes.
+        refreshTodaysDoublesDashboard().catch(function() {});
+    } catch (error) {
+        alert('Could not confirm the save. Your entry is still here. Check today’s games before trying again.');
+    } finally {
+        form.dataset.saving = 'false';
+        button.disabled = false;
+        button.textContent = 'Submit';
+    }
 });
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() { var w1 = document.getElementById('winner1'); if (w1 && !document.getElementById('saved-game-popup')) w1.focus(); }, 100);
+    setTimeout(function() { var w1 = document.getElementById('winner1'); var popup = document.getElementById('saved-game-popup'); if (w1 && !(popup && popup.open)) w1.focus(); }, 100);
 });
 function toggleAllGames() {
     var checked = document.getElementById('select-all').checked;

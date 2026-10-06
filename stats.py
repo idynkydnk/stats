@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, flash, redirect, session, jsonify, make_response, send_from_directory, abort
+from flask import Flask, render_template, request, url_for, flash, get_flashed_messages, redirect, session, jsonify, make_response, send_from_directory, abort
 from werkzeug.security import check_password_hash
 # Flask-Caching is optional - the custom caching in stat_functions.py will still work
 try:
@@ -521,8 +521,9 @@ def _refresh_instagram_slides(share_id, html_body='', plain_text_body='', subjec
 
 
 def _email_published_recap(share_id, payload, username):
-    """Notify subscribers after publication; an email failure must not lose the page."""
+    """Email the full recap after publication; email failure must not lose the page."""
     from html import escape
+    import re
 
     try:
         recipients = recap_subscriptions.recipients([])
@@ -530,19 +531,33 @@ def _email_published_recap(share_id, payload, username):
             return
         share_url = _absolute_site_url(f'/recap/{share_id}/')
         subject = payload.get('subject') or 'New AI recap'
-        # A small notification links to the finished recap, including its latest image.
-        html_body = (
-            f'<h1>{escape(subject)}</h1>'
-            f'<p>A new AI recap is ready. <a href="{escape(share_url, quote=True)}">Read the recap</a>.</p>'
+        html_body = payload.get('html_body') or ''
+        plain_text_body = (payload.get('plain_text_body') or '').strip()
+        if not plain_text_body:
+            plain_text_body = plain_text_fallback_from_html(html_body)
+        if not html_body.strip():
+            escaped_text = escape(plain_text_body).replace('\n', '<br>')
+            html_body = f'<h1>{escape(subject)}</h1><p>{escaped_text}</p>'
+        footer = (
+            f'<p><a href="{escape(share_url, quote=True)}">View the recap online</a>.</p>'
             '<p>You received this because you subscribed to AI recaps. '
             f'<a href="{escape(_absolute_site_url("/opt_out_ai_emails"), quote=True)}?email={EMAIL_PLACEHOLDER}">Unsubscribe</a>.</p>'
         )
-        plain_text_body = (
-            f'{subject}\n\nRead the recap: {share_url}\n\n'
+        # Generated recaps are full HTML documents; keep the footer inside the body.
+        closing_body = re.search(r'</body\s*>', html_body, re.IGNORECASE)
+        if closing_body:
+            html_body = html_body[:closing_body.start()] + footer + html_body[closing_body.start():]
+        else:
+            html_body += footer
+        plain_text_body += (
+            f'\n\nView the recap online: {share_url}\n\n'
             'You received this because you subscribed to AI recaps.\n'
             f'Unsubscribe: {_absolute_site_url("/opt_out_ai_emails")}?email={EMAIL_PLACEHOLDER}'
         )
-        messages = [build_ai_summary_message(subject, html_body, plain_text_body, address)
+        messages = [build_ai_summary_message(
+                        subject, html_body, plain_text_body, address,
+                        hero_image_url=payload.get('hero_image_url'),
+                        hero_image_path=payload.get('hero_image_path'))
                     for address in recipients]
         sent, errors = send_messages_with_retry(messages)
         log_activity(
@@ -3903,6 +3918,7 @@ def _add_doubles_game_view(redirect_to):
     """Render and save doubles games."""
     year = str(date.today().year)
     if request.method == 'POST':
+        wants_receipt = request.accept_mimetypes.best == 'application/json'
         winner1 = request.form['winner1'].strip()
         winner2 = request.form['winner2'].strip()
         loser1 = request.form['loser1'].strip()
@@ -3948,12 +3964,17 @@ def _add_doubles_game_view(redirect_to):
                          target_id=new_row['id'] if new_row else None,
                          summary=details, after=new_row)
             update_kobs()
-            session['saved_game_' + redirect_to] = {
+            receipt = {
                 'title': 'Doubles', 'winners': f'{winner1} & {winner2}',
                 'losers': f'{loser1} & {loser2}',
                 'winner_score': winner_score, 'loser_score': loser_score,
                 'location': location, 'comment': comments,
             }
+            if wants_receipt:
+                return jsonify(saved_game=receipt)
+            session['saved_game_' + redirect_to] = receipt
+        if wants_receipt:
+            return jsonify(error=' '.join(get_flashed_messages())), 400
         return redirect(url_for(redirect_to))
     
     current_user = session.get('username')

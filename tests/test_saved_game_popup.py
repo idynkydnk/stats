@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, get_flashed_messages, jsonify, redirect, render_template, request, session, url_for
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,6 +21,7 @@ class SavedGamePopupTests(unittest.TestCase):
         self.write = Mock()
         namespace = dict(app=self.app, date=date, request=request, session=session,
                          flash=flash, redirect=redirect, url_for=url_for,
+                         get_flashed_messages=get_flashed_messages, jsonify=jsonify,
                          render_template=self.render, login_required=lambda fn: fn,
                          parse_client_datetime_for_game=lambda *args: '2026-10-02 10:00:00',
                          _remember_game_location=Mock(), clear_stats_cache=Mock(),
@@ -34,6 +35,7 @@ class SavedGamePopupTests(unittest.TestCase):
                      'todays_vollis_stats', 'other_year_games', 'other_game_names',
                      'other_game_types', 'todays_other_games', 'todays_other_stats'):
             namespace[name] = Mock(return_value=[])
+        self.namespace = namespace
         tree = ast.parse((ROOT / 'stats.py').read_text())
         for name in ('_add_doubles_game_view', 'add_game',
                      'add_vollis_game', 'add_other_game'):
@@ -88,6 +90,36 @@ class SavedGamePopupTests(unittest.TestCase):
             self.assertEqual(receipt['winners'], 'Alice (8)' if scoring == 'individual' else 'Alice')
             self.assertEqual(receipt['losers'], 'Chris (3)' if scoring == 'individual' else 'Chris')
             self.assertIsNone(receipt['winner_score'])
+
+    def test_doubles_receipt_does_not_wait_for_page_stats(self):
+        response = self.client.post('/add_game/', data=self.fields,
+                                    headers={'Accept': 'application/json'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['saved_game']['winners'], 'Alice & Bob')
+        self.assertEqual(response.json['saved_game']['comment'], '<script>comment</script>')
+        self.write.assert_called_once()
+        self.render.assert_not_called()
+        for name in ('all_players_ordered_for_doubles', 'todays_games', 'todays_stats'):
+            self.namespace[name].assert_not_called()
+        with self.client.session_transaction() as saved_session:
+            self.assertNotIn('saved_game_add_game', saved_session)
+
+    def test_doubles_json_validation_preserves_failure(self):
+        response = self.client.post('/add_game/', data=dict(self.fields, winner1=''),
+                                    headers={'Accept': 'application/json'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('required', response.json['error'])
+        self.assertNotIn('saved_game', response.json)
+        self.write.assert_not_called()
+
+    def test_empty_doubles_popup_is_ready_but_not_open(self):
+        with self.app.app_context():
+            html = render_template('partials/saved_game_popup.html',
+                                   saved_game=None, immediate_saved_game_popup=True)
+        self.assertIn('<dialog id="saved-game-popup"', html)
+        self.assertIn('window.showSavedGamePopup', html)
+        self.assertEqual(html.count('popup.showModal();'), 1)
+        self.assertIn('if (!popup.open) popup.showModal();', html)
 
 
 if __name__ == '__main__':

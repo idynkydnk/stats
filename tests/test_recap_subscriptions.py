@@ -11,6 +11,7 @@ from flask import Flask, abort, flash, redirect, request, session, url_for
 from jinja2 import ChoiceLoader, DictLoader
 import admin_functions as adminfx
 import recap_subscriptions
+from email_content import plain_text_fallback_from_html
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +32,7 @@ class RecapSubscriptionTests(unittest.TestCase):
                        flash=flash, redirect=redirect, url_for=url_for, secrets=secrets,
                        recap_subscriptions=recap_subscriptions, adminfx=self.admin,
                        EMAIL_SITE_BASE_URL='https://example.com', render_template=self.render,
+                       plain_text_fallback_from_html=plain_text_fallback_from_html,
                        serialize_recap_list_entry=lambda row, base: dict(row),
                        _is_owner_or_admin=lambda owner: session.get('username') == owner)
         tree = ast.parse((ROOT / 'stats.py').read_text())
@@ -80,15 +82,15 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.ns['_apply_ai_email_opt_out']('FAN@example.com')
         self.assertEqual(recap_subscriptions.recipients([]), [])
 
-    def publish(self, sender=None):
+    def publish(self, sender=None, payload=None):
         self.admin.get_ai_recap_page.return_value = None
         self.ns.update(json=json, EMAIL_PLACEHOLDER='{{EMAIL_PLACEHOLDER}}',
                        _refresh_instagram_slides=Mock(), log_activity=Mock(),
-                       build_ai_summary_message=Mock(side_effect=lambda *args: args),
+                       build_ai_summary_message=Mock(side_effect=lambda *args, **kwargs: args),
                        send_messages_with_retry=sender or Mock(return_value=(1, [])))
         with self.app.app_context():
             return self.ns['_publish_ai_recap'](
-                {'subject': 'A & B recap'}, 'fun', '', [1], username='creator')
+                payload or {'subject': 'A & B recap'}, 'fun', '', [1], username='creator')
 
     def test_publishing_notifies_subscribers_without_a_request_or_manual_send(self):
         recap_subscriptions.subscribe('fan@example.com')
@@ -104,6 +106,39 @@ class RecapSubscriptionTests(unittest.TestCase):
         self.assertIn('/opt_out_ai_emails?email={{EMAIL_PLACEHOLDER}}', html)
         self.ns['log_activity'].assert_called_once()
         self.assertEqual(self.ns['log_activity'].call_args.args[0], 'Sent AI recap to subscribers')
+
+    def test_subscriber_email_contains_full_recap_and_embedded_image_inputs(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        html = ('<html><head><style>p {color: blue}</style></head><body>'
+                '<h1>A &amp; B recap</h1><img src="https://example.com/hero.png">'
+                '<p>Alex and Jesse won the final.</p><table><tr><td>21–18</td></tr></table>'
+                '</body></html>')
+        plain = 'A & B recap\n\nAlex and Jesse won the final.\n21–18'
+        self.publish(payload=dict(subject='A & B recap', html_body=html,
+                                  plain_text_body=plain,
+                                  hero_image_url='https://example.com/hero.png',
+                                  hero_image_path='/tmp/hero.png'))
+        args = self.ns['build_ai_summary_message'].call_args
+        self.assertIn(html.split('</body>')[0], args.args[1])
+        self.assertTrue(args.args[2].startswith(plain))
+        self.assertLess(args.args[1].index('View the recap online'), args.args[1].index('</body>'))
+        self.assertNotIn('A new AI recap is ready', args.args[1])
+        self.assertEqual(args.kwargs, dict(hero_image_url='https://example.com/hero.png',
+                                          hero_image_path='/tmp/hero.png'))
+
+    def test_html_only_recap_has_full_plain_text_alternative(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        self.publish(payload=dict(subject='Recap', html_body='<p>Alex won 21–18.</p>'))
+        args = self.ns['build_ai_summary_message'].call_args.args
+        self.assertIn('Alex won 21–18.', args[2])
+        self.assertIn('Unsubscribe:', args[2])
+
+    def test_plain_text_only_recap_is_visible_and_escaped_in_html(self):
+        recap_subscriptions.subscribe('fan@example.com')
+        self.publish(payload=dict(subject='Recap', plain_text_body='Alex & Jesse won.\n21–18'))
+        args = self.ns['build_ai_summary_message'].call_args.args
+        self.assertIn('Alex &amp; Jesse won.<br>21–18', args[1])
+        self.assertIn('Alex & Jesse won.\n21–18', args[2])
 
     def test_publishing_without_subscribers_does_not_send(self):
         sender = Mock()
