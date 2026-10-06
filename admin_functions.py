@@ -1142,16 +1142,19 @@ def delete_ai_recap_page(share_id):
     return removed
 
 
-def list_ai_recap_pages(page=1, per_page=25, username=None):
+def list_ai_recap_pages(page=1, per_page=25, username=None, usernames=None):
     """Return (page_entries, total) for published AI recap pages, newest first.
 
     If username is set, only pages created by that user are included.
+    If usernames is set, restrict to those creators before counting/pagination.
     Sources: disk JSON/HTML (current + legacy dirs), leftover SQLite rows,
     and completed recap jobs that recorded a share_id.
     """
     page = max(int(page or 1), 1)
     per_page = max(int(per_page or 25), 1)
     filter_username = (username or '').strip().lower()
+    filter_usernames = ({name.strip().casefold() for name in usernames}
+                        if usernames is not None else None)
     entries_by_id = {}
 
     for share_id in _collect_disk_recap_ids():
@@ -1231,6 +1234,9 @@ def list_ai_recap_pages(page=1, per_page=25, username=None):
         pass
 
     pages = list(entries_by_id.values())
+    if filter_usernames is not None:
+        pages = [item for item in pages
+                 if (item.get('username') or '').strip().casefold() in filter_usernames]
     if filter_username:
         pages = [
             item for item in pages

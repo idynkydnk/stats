@@ -21,6 +21,7 @@ class IOSBrowseNavigationTests(unittest.TestCase):
         admin = Mock()
         admin.list_ai_recap_pages.return_value = ([{'share_id': 'public-recap'}], 1)
         service = SimpleNamespace(app=app, adminfx=admin, EMAIL_SITE_BASE_URL='https://example.com',
+                                  _stats_db_path=lambda: ':memory:',
                                   serialize_recap_list_entry=lambda row, base: row)
         namespace = {'app': app, 'jsonify': jsonify, 'request': request, '_S': lambda: service}
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
@@ -29,7 +30,7 @@ class IOSBrowseNavigationTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json['recaps'][0]['share_id'], 'public-recap')
             self.assertTrue(response.json['showing_all'])
-            admin.list_ai_recap_pages.assert_called_with(page=page, per_page=25, username=None)
+            admin.list_ai_recap_pages.assert_called_with(page=page, per_page=25, usernames=None)
 
     def test_default_year_metadata_uses_shared_website_policy(self):
         source = Path(__file__).resolve().parents[1] / 'ios_api.py'

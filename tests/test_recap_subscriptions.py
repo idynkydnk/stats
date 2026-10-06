@@ -34,6 +34,7 @@ class RecapSubscriptionTests(unittest.TestCase):
                        EMAIL_SITE_BASE_URL='https://example.com', render_template=self.render,
                        plain_text_fallback_from_html=plain_text_fallback_from_html,
                        serialize_recap_list_entry=lambda row, base: dict(row),
+                       _stats_db_path=adminfx.stats_db_path,
                        _is_owner_or_admin=lambda owner: session.get('username') == owner)
         tree = ast.parse((ROOT / 'stats.py').read_text())
         names = {'my_ai_recaps', 'inject_recap_subscription_token', 'subscribe_ai_recaps',
@@ -45,7 +46,7 @@ class RecapSubscriptionTests(unittest.TestCase):
 
     def test_public_directory_and_owner_controls(self):
         self.assertEqual(self.client.get('/ai-recaps/?page=bad').status_code, 200)
-        self.admin.list_ai_recap_pages.assert_called_with(page=1, per_page=25, username=None)
+        self.admin.list_ai_recap_pages.assert_called_with(page=1, per_page=25, usernames=None)
         self.assertFalse(self.render.call_args.kwargs['entries'][0]['can_manage'])
         with self.client.session_transaction() as sess:
             sess.update(logged_in=True, username='owner')

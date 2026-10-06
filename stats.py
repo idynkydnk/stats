@@ -2262,11 +2262,12 @@ def ai_summary():
 @app.route('/ai-recaps/')
 def my_ai_recaps():
     """Public directory of published AI recap pages."""
-    username = None
+    from account_stats_views import recap_authors_for_viewer
+    authors = recap_authors_for_viewer(_stats_db_path())
     page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = 25
     entries, total_entries = adminfx.list_ai_recap_pages(
-        page=page, per_page=per_page, username=username,
+        page=page, per_page=per_page, usernames=authors,
     )
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
@@ -2279,7 +2280,7 @@ def my_ai_recaps():
         page=page,
         total_pages=total_pages,
         total_entries=total_entries,
-        showing_all=username is None,
+        showing_all=authors is None,
     )
 
 

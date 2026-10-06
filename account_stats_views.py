@@ -87,6 +87,19 @@ def _database_path(site_path, source):
     return str(root / (source['account_id'] + '.db'))
 
 
+def recap_authors_for_viewer(site_path):
+    """Personal recap directories include the owner and optionally KT Stats."""
+    account = getattr(g, 'private_account', None)
+    if not account:
+        return None
+    username = account['username']
+    authors = {username.casefold()}
+    if any(source['owner'].casefold() == 'kyle' and source['enabled']
+           for source in sources_for_user(site_path, username)):
+        authors.add('kyle')
+    return authors
+
+
 def build_stats_view(site_path, own_path, sources):
     """Ephemeral data-only snapshot. External IDs cannot collide with owned IDs."""
     from private_accounts import DATA_TABLES

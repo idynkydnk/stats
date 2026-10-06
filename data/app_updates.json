@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-05-personal-ai-recaps",
+    "date": "2026-10-05",
+    "subject": "iPhone: Your recaps and Kyle’s summaries",
+    "body": "AI Recaps shows the recaps you created and includes Kyle’s summaries when KT Stats is enabled. Personal accounts can open recap links while signed in."
+  },
+  {
     "id": "ios-2026-10-05-account-player-name",
     "date": "2026-10-05",
     "subject": "iPhone: Your player name in the account menu",

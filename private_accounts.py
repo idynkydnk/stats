@@ -39,6 +39,9 @@ PRIVATE_ENDPOINTS = {
     'api_upload_player_photo', 'api_save_player_ai_image_traits',
     'api_generate_player_ai_image', 'api_ai_summary_game_search',
     'api_ai_roster', 'api_ai_summary_json', 'api_ai_job', 'api_my_recaps',
+    'my_ai_recaps', 'view_ai_recap', 'recap_og_image',
+    'recap_instagram_slide', 'recap_instagram_zip',
+    'subscribe_ai_recaps', 'my_ai_recaps_delete',
 }
 PREVIEW_ENDPOINTS = {
     'api_years', 'api_doubles_stats', 'api_doubles_player',

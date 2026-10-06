@@ -980,18 +980,19 @@ def register_ios_api(app):
 
     @app.route('/api/ai/recaps')
     def api_my_recaps():
+        from account_stats_views import recap_authors_for_viewer
         S = _S()
-        username = session.get('username') if private_database() else None
+        authors = recap_authors_for_viewer(S._stats_db_path())
         page = max(request.args.get('page', 1, type=int) or 1, 1)
         per_page = 25
-        entries, total = S.adminfx.list_ai_recap_pages(page=page, per_page=per_page, username=username)
+        entries, total = S.adminfx.list_ai_recap_pages(page=page, per_page=per_page, usernames=authors)
         site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
         out = [S.serialize_recap_list_entry(entry, site_base) for entry in entries]
         return jsonify({
             'recaps': out,
             'page': page,
             'total': total,
-            'showing_all': username is None,
+            'showing_all': authors is None,
         })
 
     @app.route('/api/flyers', methods=['GET'])
