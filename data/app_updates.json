@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-05-tyler-oasis-default",
+    "date": "2026-10-05",
+    "subject": "iPhone: The Oasis defaults for Tyler",
+    "body": "When Tyler adds a game, the location starts as The Oasis. He can change it for games played elsewhere."
+  },
+  {
     "id": "ios-2026-10-05-personal-stats-sources",
     "date": "2026-10-05",
     "subject": "iPhone: Choose whose stats to include",

@@ -1425,6 +1425,10 @@ with sqlite3.connect(adminfx.stats_db_path(), timeout=30) as location_conn:
     from migrations.tyler_locations_20260916 import backfill_tyler_locations
     backfill_tyler_locations(location_conn)
 location_conn.close()
+# This correction must operate on cloud records, including personal histories.
+if _stats_db_path() == '/home/Idynkydnk/stats/stats.db':
+    from migrations.normalize_tyler_entered_locations import migrate as correct_cloud_locations
+    correct_cloud_locations(_stats_db_path())
 from migrations.normalize_other_game_categories import normalize_other_game_categories
 with sqlite3.connect(_stats_db_path(), timeout=30) as category_conn:
     normalize_other_game_categories(category_conn)
@@ -1452,6 +1456,21 @@ def _remember_game_location(location):
     location = (location or '').strip()
     if location:
         adminfx.remember_user_location(session.get('username'), location)
+
+
+def _new_game_location(location):
+    """Use Tyler's default for blank entries, including older iPhone clients."""
+    location = (location or '').strip()
+    if location.casefold() in {'clearwater, florida', 'clearwater beach'}:
+        return 'Clearwater Beach'
+    if location:
+        return location
+    username = session.get('username') or ''
+    user = adminfx.get_site_user(username) if username else None
+    if username.strip().casefold() == 'tyler' or (
+            (user or {}).get('player_name') or '').strip().casefold() == 'tyler weston':
+        return 'The Oasis'
+    return ''
 
 
 def player_photo_url_for(name):
@@ -3926,7 +3945,7 @@ def _add_doubles_game_view(redirect_to):
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
         comments = request.form.get('comments', '').strip()
-        location = request.form.get('location', '').strip()
+        location = _new_game_location(request.form.get('location'))
 
         if not winner1 or not winner2 or not loser1 or not loser2 or not winner_score or not loser_score:
             flash('All fields required!')
@@ -4009,7 +4028,7 @@ def add_vollis_game():
         loser = request.form['loser'].strip()
         winner_score = request.form['winner_score']
         loser_score = request.form['loser_score']
-        location = request.form.get('location', '').strip()
+        location = _new_game_location(request.form.get('location'))
 
         if not winner or not loser or not winner_score or not loser_score:
             flash('All fields required!')
@@ -4093,7 +4112,7 @@ def add_other_game():
             team_loser_score = None
 
         comment = request.form.get('comment', '')
-        location = request.form.get('location', '').strip()
+        location = _new_game_location(request.form.get('location'))
 
         # Games that have had scores before (by game_name) must have scores on this entry too (unless user chose "No Scores")
         from other_functions import game_name_requires_scores
@@ -5149,7 +5168,7 @@ def api_doubles_create():
         return jsonify({'error': 'winner_score and loser_score must be integers'}), 400
     comments = (data.get('comments') or '').strip()
     entered_timezone = (data.get('entered_timezone') or '').strip() or None
-    location = (data.get('location') or '').strip()
+    location = _new_game_location(data.get('location'))
     if not all([game_date, winner1, winner2, loser1, loser2]):
         return jsonify({'error': 'game_date, winner1, winner2, loser1, loser2 required'}), 400
     if winner_score <= loser_score:

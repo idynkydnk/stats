@@ -29,6 +29,18 @@ jobs:
         -H "Content-Type: application/json" \
         -H "X-Deploy-Token: ${{ secrets.DEPLOY_TOKEN }}" \
         -d '{"ref": "refs/heads/main"}'
+
+    - name: Verify cloud location correction
+      env:
+        PA_USERNAME: ${{ secrets.PA_USERNAME }}
+        PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        EXPECTED_REVISION: ${{ github.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        if git diff --name-only "$BEFORE_SHA" HEAD | grep -q '^migrations/normalize_tyler_entered_locations.py$'; then
+          curl --fail --silent --show-error "https://${{ secrets.PA_DOMAIN }}/locations/" --output /dev/null
+          python3 scripts/verify_tyler_locations_cloud.py
+        fi
         
     - name: Notify deployment success
       if: success()

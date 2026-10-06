@@ -502,7 +502,7 @@ def register_ios_api(app):
             return jsonify({'error': 'winner_score must be greater than loser_score'}), 400
         game_date = _normalize_game_date(data.get('game_date'))
         tz = (data.get('entered_timezone') or '').strip() or session.get('timezone') or None
-        location = (data.get('location') or '').strip()
+        location = S._new_game_location(data.get('location'))
         add_vollis_stats([game_date, winner, loser, winner_score, loser_score, game_date, tz, location], entered_by=session.get('username', ''))
         S._remember_game_location(location)
         S.clear_stats_cache()
@@ -770,6 +770,7 @@ def register_ios_api(app):
         S = _S()
         data = request.get_json(force=True, silent=True) or {}
         p = _other_payload_from_json(data)
+        p['location'] = S._new_game_location(p['location'])
         if not p['game_type'] or not p['game_name'] or not p['winners'] or not p['losers']:
             return jsonify({'error': 'game_type, game_name, winners, and losers required'}), 400
         add_other_stats(

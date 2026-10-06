@@ -26,7 +26,7 @@ class SavedGamePopupTests(unittest.TestCase):
                          parse_client_datetime_for_game=lambda *args: '2026-10-02 10:00:00',
                          _remember_game_location=Mock(), clear_stats_cache=Mock(),
                          log_user_action=Mock(), log_activity=Mock(), update_kobs=Mock(),
-                         adminfx=SimpleNamespace(snapshot_last_row=lambda _: None),
+                         adminfx=SimpleNamespace(snapshot_last_row=lambda _: None, get_site_user=lambda _: {}),
                          _game_location_form_context=lambda: {},
                          add_game_stats=self.write, add_vollis_stats=self.write,
                          add_other_stats=self.write)
@@ -37,7 +37,7 @@ class SavedGamePopupTests(unittest.TestCase):
             namespace[name] = Mock(return_value=[])
         self.namespace = namespace
         tree = ast.parse((ROOT / 'stats.py').read_text())
-        for name in ('_add_doubles_game_view', 'add_game',
+        for name in ('_new_game_location', '_add_doubles_game_view', 'add_game',
                      'add_vollis_game', 'add_other_game'):
             node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
             exec(compile(ast.Module(body=[node], type_ignores=[]), 'stats.py', 'exec'), namespace)
@@ -59,6 +59,24 @@ class SavedGamePopupTests(unittest.TestCase):
                            game_type='Cards', game_name='Sequence', score_type='team',
                            comments='<script>comment</script>', comment='<script>comment</script>',
                            location='Beach')
+
+    def test_tyler_blank_locations_default_and_explicit_locations_survive(self):
+        with self.client.session_transaction() as state:
+            state['username'] = 'Tyler'
+        for path in ('add_game', 'add_vollis_game', 'add_other_game'):
+            for supplied, expected in [('', 'The Oasis'), ('Mission Beach', 'Mission Beach'),
+                                       ('Clearwater, Florida', 'Clearwater Beach')]:
+                with self.subTest(path=path, supplied=supplied):
+                    response = self.client.post('/' + path + '/', data=dict(self.fields, location=supplied))
+                    self.client.get(response.location)
+                    self.assertEqual(self.render.call_args.kwargs['saved_game']['location'], expected)
+                    args = self.write.call_args
+                    self.assertEqual(args.kwargs['location'] if path == 'add_other_game' else args.args[0][-1], expected)
+        with self.client.session_transaction() as state:
+            state['username'] = 'Kyle'
+        response = self.client.post('/add_game/', data=dict(self.fields, location=''))
+        self.client.get(response.location)
+        self.assertEqual(self.render.call_args.kwargs['saved_game']['location'], '')
 
     def test_each_form_shows_exact_result_once_after_save(self):
         for path in ('add_game', 'add_vollis_game', 'add_other_game'):
