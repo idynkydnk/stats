@@ -1,23 +1,7 @@
 {% extends 'base.html' %}
-{% block extra_css %}
-<style>
-#stats-sources-saved {
-    background: var(--sr-panel);
-    color: var(--sr-text);
-    border: 1px solid var(--sr-line);
-    border-radius: 12px;
-    padding: 24px;
-    max-width: min(360px, calc(100vw - 64px));
-}
-#stats-sources-saved::backdrop { background: rgba(0, 0, 0, 0.6); }
-</style>
-{% endblock %}
 {% block content %}
 <div class="container" style="max-width:680px;padding:24px">
 <h1>Stats to include</h1>
-{% if saved %}
-<p>Your choices were saved. <a href="{{ url_for('stats_default') }}">View stats</a></p>
-{% endif %}
 <p>Your own games are always included. Choose other databases to combine with yours for games, stats, and ratings. Their games stay in their own databases and are read-only here.</p>
 <form method="post">
 <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -30,23 +14,5 @@
 {% endif %}
 <button type="submit">Save choices</button>
 </form>
-{% if saved %}
-<dialog id="stats-sources-saved" aria-labelledby="stats-sources-saved-title">
-<h2 id="stats-sources-saved-title">Choices saved</h2>
-<p>Your choices were saved.</p>
-<form method="dialog"><button type="submit" autofocus>OK</button></form>
-</dialog>
-{% endif %}
 </div>
-{% endblock %}
-{% block extra_js %}
-{% if saved %}
-<script>
-const savedDialog = document.getElementById('stats-sources-saved');
-savedDialog.addEventListener('close', function () {
-    window.location.replace({{ url_for('stats_default')|tojson }});
-});
-savedDialog.showModal();
-</script>
-{% endif %}
 {% endblock %}

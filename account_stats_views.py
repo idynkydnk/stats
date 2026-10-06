@@ -5,7 +5,7 @@ import secrets
 import sqlite3
 import tempfile
 
-from flask import g, has_request_context, jsonify, redirect, render_template, request, session, url_for
+from flask import flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
 
 GAME_TABLES = ('games', 'vollis_games', 'other_games')
 SOURCE_ID_STRIDE = 1 << 32
@@ -223,8 +223,7 @@ def register_stats_views(app, service, site_path):
                                  (username, source['owner'], int(source['owner'] in chosen)))
                 conn.execute('UPDATE private_accounts SET show_starter_stats=?, share_stats=? WHERE username=?',
                              (int('kyle' in chosen), int(request.form.get('share_stats') == 'on'), username))
-            session['stats_sources_saved'] = True
-            return redirect(url_for('stats_sources_page'))
+            flash('Your choices were saved.', 'success')
+            return redirect(url_for('stats_default'))
         session.setdefault('stats_sources_csrf', secrets.token_urlsafe(32))
-        return render_template('stats_sources.html', **payload(username), csrf=session['stats_sources_csrf'],
-                               saved=session.pop('stats_sources_saved', False))
+        return render_template('stats_sources.html', **payload(username), csrf=session['stats_sources_csrf'])
