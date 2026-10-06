@@ -735,6 +735,22 @@
         <div class="recap-body-wrap">
             {{ recap_html | safe }}
         </div>
+        {% if can_manage %}
+        <div class="recap-share-actions" style="justify-content:center; margin:20px 0;">
+            {% if not show_creator_view %}
+            <a class="recap-btn recap-btn-secondary" href="{{ url_for('view_ai_recap', share_id=share_id, published=1) }}">
+                <i class="fas fa-pen"></i> Edit recap
+            </a>
+            {% endif %}
+            <form method="post" action="{{ url_for('my_ai_recaps_delete') }}" style="margin:0;">
+                <input type="hidden" name="share_id" value="{{ share_id }}">
+                <button type="submit" class="recap-btn recap-btn-secondary"
+                        onclick="return confirm('Delete this AI recap permanently? The share link will stop working.');">
+                    <i class="fas fa-trash"></i> Delete recap
+                </button>
+            </form>
+        </div>
+        {% endif %}
         {% include 'partials/recap_subscription.html' %}
         <p style="text-align:center;"><a href="{{ url_for('my_ai_recaps') }}">Browse all AI recaps</a></p>
     </main>

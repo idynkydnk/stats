@@ -36,7 +36,7 @@ PRIVATE_ENDPOINTS = {
     'get_other_game_players', 'get_other_game_info', 'get_other_game_common_scores',
     'get_other_game_type', 'api_search_all_players', 'api_add_player',
     'api_update_player_info', 'api_rename_player', 'set_timezone',
-    'private_delete_account', 'private_starter_stats',
+    'private_delete_account', 'private_starter_stats', 'private_display_name',
     'api_upload_player_photo', 'api_save_player_ai_image_traits',
     'api_generate_player_ai_image', 'api_ai_summary_game_search',
     'api_ai_roster', 'api_ai_summary_json', 'api_ai_job', 'api_my_recaps',
@@ -46,6 +46,8 @@ PRIVATE_ENDPOINTS = {
     'my_ai_recaps', 'view_ai_recap', 'recap_og_image',
     'recap_instagram_slide', 'recap_instagram_zip',
     'subscribe_ai_recaps', 'my_ai_recaps_delete',
+    'remake_ai_recap_summary', 'remake_ai_recap_image',
+    'upload_ai_recap_image', 'rebuild_ai_recap_instagram',
 }
 PREVIEW_ENDPOINTS = {
     'api_years', 'api_doubles_stats', 'api_doubles_player',
@@ -54,7 +56,7 @@ PREVIEW_ENDPOINTS = {
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',
 }
 AUTH_ENDPOINTS = {'api_login', 'private_register', 'private_google', 'private_auth_config',
-                  'private_apple', 'private_apple_challenge'}
+                  'private_apple', 'private_apple_challenge', 'web_social_login'}
 
 
 def private_database():
@@ -226,10 +228,24 @@ def register_private_accounts(app, service):
                          (account['username'], 'kyle', int(visible)))
         return jsonify(show_starter_stats=visible)
 
+    @app.put('/api/account/display-name')
+    def private_display_name():
+        account = getattr(g, 'private_account', None)
+        if not account:
+            return jsonify(error='A personal account is required.'), 403
+        body = request.get_json(silent=True)
+        name = clean_display_name(body.get('display_name')) if isinstance(body, dict) else None
+        if not name:
+            return jsonify(error='Enter a name of up to 200 characters without special formatting.'), 400
+        with sqlite3.connect(site_path) as conn:
+            conn.execute('UPDATE site_users SET display_name=? WHERE username=? AND active=1',
+                         (name, account['username']))
+        return jsonify(display_name=name)
+
     def limited():
         return service.login_rate_limited(service._client_ip())
 
-    def social_session(provider, subject, full_name=None):
+    def social_session(provider, subject, full_name=None, complete=issue_session):
         column = {'google': 'google_subject', 'apple': 'apple_subject'}[provider]
         with sqlite3.connect(site_path) as conn:
             row = conn.execute(f'''SELECT a.username FROM private_accounts a
@@ -249,10 +265,15 @@ def register_private_accounts(app, service):
             with sqlite3.connect(site_path) as conn:
                 # Apple supplies the name separately from its token, usually only
                 # on the first authorization. Never erase it on later sign-ins.
-                conn.execute('UPDATE site_users SET display_name=? WHERE username=? AND active=1',
+                # A cached Apple name must not replace a name edited in the app.
+                missing_name = " AND TRIM(COALESCE(display_name, ''))=''" if provider == 'apple' else ''
+                conn.execute('UPDATE site_users SET display_name=? WHERE username=? AND active=1' + missing_name,
                              (display_name, username))
         service.clear_login_failures(service._client_ip())
-        return issue_session(username)
+        return complete(username)
+
+    from web_sign_in import register_web_sign_in
+    register_web_sign_in(app, service, site_path, social_session)
 
     @app.post('/api/auth/register')
     def private_register():
@@ -372,7 +393,8 @@ def register_private_accounts(app, service):
 @contextmanager
 def ai_account_context(app, site_path, username):
     """Resolve worker storage from trusted account identity, never job-supplied paths."""
-    with app.test_request_context():
+    # Isolate g as well as session when called inside an existing web request.
+    with app.app_context(), app.test_request_context():
         account = account_for_user(site_path, username)
         if account:
             g.private_account = account

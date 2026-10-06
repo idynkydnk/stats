@@ -352,6 +352,46 @@ class PrivateAccountTests(unittest.TestCase):
             del g.private_database
             self.assertEqual(account_stat(), 'shared')
 
+    def test_display_name_is_validated_and_only_updates_the_signed_in_account(self):
+        a = self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        response = self.a.put('/api/account/display-name', headers=a,
+                              json={'display_name': '  Alex  O’Neill ', 'username': 'bob'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['display_name'], 'Alex O’Neill')
+        self.assertEqual(self.service.adminfx.get_site_user('alice')['display_name'], 'Alex O’Neill')
+        self.assertIsNone(self.service.adminfx.get_site_user('bob')['display_name'])
+        for name in (None, '', '   ', 123, 'a' * 201, '<b>Alex</b>', 'Alex\x00'):
+            response = self.a.put('/api/account/display-name', headers=a, json={'display_name': name})
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.service.adminfx.get_site_user('alice')['display_name'], 'Alex O’Neill')
+        guest = self.app.test_client()
+        self.assertEqual(guest.put('/api/account/display-name', json={'display_name': 'Guest'}).status_code, 403)
+        self.assertEqual(guest.put('/api/account/display-name', headers={'Authorization': 'Bearer invalid'},
+                                   json={'display_name': 'Guest'}).status_code, 401)
+        self.assertEqual(guest.put('/api/account/display-name', headers={'Authorization': 'Bearer shared-token'},
+                                   json={'display_name': 'Kyle'}).status_code, 403)
+        self.assertEqual(self.a.put('/api/account/display-name', headers={**a, 'X-Stats-Preview': '1'},
+                                   json={'display_name': 'Preview'}).status_code, 403)
+
+    def test_existing_apple_account_can_save_a_name_and_keep_it_after_sign_in(self):
+        import jwt
+        def sign_in(name=None):
+            nonce = self.a.post('/api/auth/apple/challenge').json['nonce']
+            claims = {'sub': 'existing-apple-person', 'nonce': hashlib.sha256(nonce.encode()).hexdigest()}
+            with patch('jwt.PyJWKClient.get_signing_key_from_jwt', return_value=SimpleNamespace(key='test')), \
+                    patch('jwt.decode', return_value=claims):
+                return self.a.post('/api/auth/apple', json={'id_token': 'verified', 'nonce': nonce, 'full_name': name})
+        first = sign_in().json
+        self.assertEqual(first['display_name'], 'Apple account')
+        headers = {'Authorization': 'Bearer ' + first['token']}
+        saved = self.a.put('/api/account/display-name', headers=headers, json={'display_name': 'Alex O’Neill'})
+        self.assertEqual(saved.status_code, 200)
+        for name in (None, 'Old cached name'):
+            returning = sign_in(name).json
+            self.assertEqual(returning['display_name'], 'Alex O’Neill')
+            self.assertEqual(returning['username'], first['username'])
+
     def test_apple_signature_audience_nonce_and_replay(self):
         import jwt
         from cryptography.hazmat.primitives.asymmetric import rsa

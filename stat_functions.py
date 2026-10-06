@@ -120,6 +120,10 @@ def _get_db_path():
 
 def get_players_ordered_from_cache():
     """Player names from doubles_player_last_played (last played first). Returns None if table missing."""
+    from flask import g, has_request_context
+    # Combined views copy games and rosters, not each owner's derived cache.
+    if has_request_context() and getattr(g, 'stats_view_database', None):
+        return None
     try:
         cur = set_cur()
         cur.execute("SELECT player_name FROM doubles_player_last_played ORDER BY last_game_date DESC")

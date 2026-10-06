@@ -26,6 +26,88 @@ class StatsSourceAPITests(unittest.TestCase):
     setUp = account_fixtures.PrivateAccountTests.setUp
     register = account_fixtures.PrivateAccountTests.register
 
+    def test_combined_doubles_suggestions_include_players_without_profiles(self):
+        from stat_functions import all_players_ordered_for_doubles
+        from flask import session
+        with sqlite3.connect(self.path) as conn:
+            conn.executescript('''
+                DROP TABLE games;
+                CREATE TABLE games (id INTEGER PRIMARY KEY, game_date TEXT,
+                    winner1 TEXT, winner2 TEXT, winner_score INTEGER,
+                    loser1 TEXT, loser2 TEXT, loser_score INTEGER, updated_by TEXT);
+                INSERT INTO games VALUES (1, '2026-10-06', 'KT One', 'KT Two', 21,
+                    'KT Three', 'KT Four', 15, 'Kyle');
+                CREATE TABLE doubles_player_last_played (player_name TEXT, last_game_date TEXT);
+                INSERT INTO doubles_player_last_played VALUES ('KT One', '2026-10-06');
+            ''')
+
+        @self.app.get('/api/doubles_players', endpoint='api_doubles_players')
+        def players():
+            return jsonify(all_players_ordered_for_doubles(session.get('username')))
+
+        headers = {**self.register(self.a, 'alice'), 'X-Stats-Combined': '1'}
+        with patch('stat_functions.set_cur', side_effect=lambda: connect_data(self.path).cursor()), \
+             patch('player_functions._players_db_connection', side_effect=lambda: connect_data(self.path)):
+            response = self.a.get('/api/doubles_players', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, ['KT One', 'KT Two', 'KT Three', 'KT Four', 'Shared player'])
+
+    def test_add_game_player_suggestions_follow_enabled_sources(self):
+        # Exercise the routing used by each iPhone autocomplete endpoint.
+        paths = ['/api/doubles_players', '/api/vollis_players', '/api/other_game_players/Sequence']
+        endpoints = ['api_doubles_players', 'api_vollis_players', 'get_other_game_players']
+
+        def players():
+            with connect_data(self.path) as conn:
+                return jsonify([row[0] for row in conn.execute('SELECT full_name FROM players ORDER BY full_name')])
+
+        for path, endpoint in zip(paths, endpoints):
+            self.app.add_url_rule(path, endpoint, players)
+
+        own_headers = self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        alice = account_for_user(self.path, 'alice')
+        bob = account_for_user(self.path, 'bob')
+        with sqlite3.connect(provision_database(self.path, bob['id'])) as conn:
+            conn.execute("INSERT INTO players VALUES (1, 'Bob private player')")
+        headers = {**own_headers, 'X-Stats-Combined': '1'}
+        self.assertTrue(self.a.get('/api/account/stats-sources', headers=own_headers).json['sources'][0]['enabled'])
+
+        for path in paths:
+            with self.subTest(path=path, state='new account'):
+                response = self.a.get(path, headers=headers)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json, ['Shared player'])
+                self.assertEqual(response.headers['Cache-Control'], 'no-store')
+                self.assertEqual(self.a.get(path, headers=own_headers).json, [])
+
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            self.assertEqual(conn.execute('SELECT * FROM players').fetchall(), [])
+            conn.executemany('INSERT INTO players VALUES (?, ?)', [(1, 'Alice player'), (2, 'Shared player')])
+
+        for enabled, expected in [(False, ['Alice player', 'Shared player']),
+                                  (True, ['Alice player', 'Shared player'])]:
+            # A duplicate own/KT name appears once. Disabling KT keeps owned names.
+            self.a.put('/api/account/stats-sources', headers=own_headers, json={'owner': 'kyle', 'enabled': enabled})
+            for path in paths:
+                self.assertEqual(self.a.get(path, headers=headers).json, expected)
+
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            conn.execute("DELETE FROM players WHERE full_name='Shared player'")
+        self.a.put('/api/account/stats-sources', headers=own_headers, json={'owner': 'kyle', 'enabled': False})
+        for path in paths:
+            self.assertEqual(self.a.get(path, headers=headers).json, ['Alice player'])
+        self.a.put('/api/account/stats-sources', headers=own_headers, json={'owner': 'kyle', 'enabled': True})
+        for path in paths:
+            self.assertEqual(self.a.get(path, headers=headers).json, ['Alice player', 'Shared player'])
+
+        # Even with Combined on the request, writes remain in the owned database.
+        self.a.post('/api/games', headers=headers, json={'name': 'Shared player'})
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [(2, 'Shared player')])
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [(1, 'Shared player')])
+
     def test_current_users_use_full_roster_names_and_kt_stays_unchanged(self):
         self.register(self.a, 'tyler')
         self.register(self.b, 'jen')

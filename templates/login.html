@@ -22,6 +22,18 @@
     .sr-login-footer a { color: var(--sr-accent); text-decoration: none; font-size: 14px; transition: all 0.2s; }
     .sr-login-footer a:hover { filter: brightness(1.2); }
     .sr-login-footer a i { margin-right: 6px; }
+    .sr-social-login { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    .sr-social-button { width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid #747775; border-radius: 4px; font: 500 15px system-ui, sans-serif; cursor: pointer; background: white; color: #1f1f1f; }
+    .sr-social-button i { margin-right: 10px; }
+    .sr-social-button:disabled { opacity: .55; cursor: not-allowed; }
+    .sr-social-button:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: 3px; }
+    .sr-apple-button { background: #000; color: #fff; border-color: #888; }
+    .sr-social-note { color: var(--sr-muted); font-size: 13px; line-height: 1.5; margin: 0; text-align: center; }
+    .sr-login-divider { display: flex; align-items: center; gap: 12px; color: var(--sr-muted); font-size: 13px; margin: 20px 0; }
+    .sr-login-divider::before, .sr-login-divider::after { content: ''; flex: 1; height: 1px; background: var(--sr-line); }
+    #sr-social-error { color: var(--sr-text); font-size: 14px; line-height: 1.5; }
+    #sr-google-button { display: flex; justify-content: center; min-height: 44px; }
+    #sr-google-button[hidden] { display: none; }
 </style>
 {% endblock %}
 {% block content %}
@@ -34,19 +46,39 @@
         <div class="sr-login-card">
             <div class="sr-login-header">
                 <h1><i class="fas fa-lock" style="margin-right: 10px; color: var(--sr-accent);"></i>Login</h1>
-                <p>Sign in to access admin features</p>
+                <p>Sign in to your stats</p>
             </div>
+            <div class="sr-social-login" id="sr-social-login">
+                <button type="button" class="sr-social-button sr-apple-button" id="sr-apple-button" disabled>
+                    <i class="fab fa-apple" aria-hidden="true"></i>Continue with Apple
+                </button>
+                <div id="sr-google-button" hidden></div>
+                <button type="button" class="sr-social-button" id="sr-google-placeholder" disabled>
+                    <i class="fab fa-google" aria-hidden="true"></i>Continue with Google
+                </button>
+                <p class="sr-social-note">Use the same Apple or Google account as the iPhone app to access your stats. New here? Continuing creates an account.</p>
+                {% if not web_sign_in.apple_client_id or not web_sign_in.apple_redirect_uri %}
+                <p class="sr-social-note">Apple sign-in is not available on the website yet.</p>
+                {% endif %}
+                {% if not web_sign_in.google_client_id %}
+                <p class="sr-social-note">Google sign-in is not available on the website yet.</p>
+                {% endif %}
+                <p id="sr-social-status" class="sr-social-note" role="status"></p>
+                <p id="sr-social-error" role="alert" hidden></p>
+                <noscript><p class="sr-social-note">Enable JavaScript to sign in with Apple or Google, or use your password below.</p></noscript>
+            </div>
+            <div class="sr-login-divider">or use your password</div>
             <form method="POST" class="sr-login-form">
                 {% if request.args.get('next') %}
                 <input type="hidden" name="next" value="{{ request.args.get('next') }}">
                 {% endif %}
                 <div class="sr-form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required autofocus placeholder="Enter username">
+                    <input type="text" id="username" name="username" required autocomplete="username" placeholder="Enter username">
                 </div>
                 <div class="sr-form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required placeholder="Enter password">
+                    <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Enter password">
                 </div>
                 <div class="sr-checkbox-group">
                     <input type="checkbox" id="remember_me" name="remember_me" checked>
@@ -61,4 +93,8 @@
             </div>
         </div>
     </div>
+{% endblock %}
+{% block extra_js %}
+<script type="application/json" id="sr-sign-in-config">{{ web_sign_in|tojson }}</script>
+<script src="{{ url_for('static', filename='js/sign-in.js', v='20261006') }}" defer></script>
 {% endblock %}

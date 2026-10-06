@@ -1,5 +1,23 @@
 [
   {
+    "id": "ios-2026-10-06-players-loading",
+    "date": "2026-10-06",
+    "subject": "iPhone: See when players are loading",
+    "body": "The Players screen shows a spinner and Loading players message while it fetches the list, so you know players are on their way when you open it."
+  },
+  {
+    "id": "ios-2026-10-06-apple-menu-name",
+    "date": "2026-10-06",
+    "subject": "iPhone: Your name instead of Apple account",
+    "body": "If Apple did not share your name, use Add your name in the account menu to save it. Your name appears in the menu and stays saved for later sign-ins; use Edit name to change it."
+  },
+  {
+    "id": "ios-2026-10-06-kt-player-suggestions",
+    "date": "2026-10-06",
+    "subject": "iPhone: KT Stats players when adding games",
+    "body": "New accounts can choose KT Stats players when adding Doubles, Vollis, or Other games while KT Stats is enabled. Player suggestions follow your Stats to include choices, and games you add stay in your own account."
+  },
+  {
     "id": "ios-2026-10-06-social-account-names",
     "date": "2026-10-06",
     "subject": "iPhone: Names for Google and Apple accounts",

@@ -33,7 +33,8 @@ BROWSE_ENDPOINTS = {
     'api_doubles_get', 'api_vollis_stats', 'api_vollis_player', 'api_vollis_list',
     'api_vollis_get', 'api_other_stats', 'api_other_player', 'api_other_list',
     'api_other_get', 'api_other_game_types', 'api_volleyball_stats', 'api_players',
-    'api_search_all_players',
+    'api_search_all_players', 'api_doubles_players', 'api_vollis_players',
+    'get_other_game_players',
 } | (PERSONAL_WEB_ENDPOINTS - {
     'login', 'logout', 'static', 'add_game', 'add_vollis_game', 'add_other_game',
     'edit_stats', 'edit_games', 'edit_games_default', 'edit_vollis_games',

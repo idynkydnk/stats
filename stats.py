@@ -1150,7 +1150,7 @@ def _is_owner_or_admin(owner_username):
     """True if the current user created the item, or is an admin."""
     current = (session.get('username') or '').strip()
     owner = (owner_username or '').strip()
-    if current and owner and current == owner:
+    if current and owner and current.casefold() == owner.casefold():
         return True
     return is_admin()
 
@@ -2289,7 +2289,7 @@ def ai_summary():
 def my_ai_recaps():
     """Public directory of published AI recap pages."""
     from account_stats_views import recap_authors_for_viewer
-    authors = recap_authors_for_viewer(_stats_db_path())
+    authors = None if is_admin() else recap_authors_for_viewer(_stats_db_path())
     page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = 25
     entries, total_entries = adminfx.list_ai_recap_pages(
@@ -2338,7 +2338,7 @@ def subscribe_ai_recaps():
 def my_ai_recaps_delete():
     """Delete one of the current user's published AI recap pages."""
     share_id = (request.form.get('share_id') or '').strip()
-    page = max(int(request.form.get('page', 1) or 1), 1)
+    page = max(request.form.get('page', 1, type=int) or 1, 1)
     if not share_id:
         flash('No recap selected.', 'error')
         return redirect(url_for('my_ai_recaps', page=page))
@@ -3261,6 +3261,7 @@ def view_ai_recap(share_id):
         delete_solo_image_files(filter_existing_solo_images(legacy_solos))
         adminfx.update_ai_recap_page(share_id, solo_images_json='[]')
 
+    can_manage = bool(session.get('logged_in') and _is_owner_or_admin(row.get('username')))
     show_creator_view = request.args.get('published') == '1'
 
     created_at = row.get('created_at') or ''
@@ -3269,11 +3270,7 @@ def view_ai_recap(share_id):
     else:
         created_at_fmt = str(created_at)
 
-    can_remake = bool(
-        show_creator_view
-        and session.get('logged_in')
-        and _is_owner_or_admin(row.get('username'))
-    )
+    can_remake = show_creator_view and can_manage
 
     remake_summary_prompt = ''
     remake_scene_prompt = ''
@@ -3302,9 +3299,11 @@ def view_ai_recap(share_id):
             game_ids = []
         if game_ids:
             try:
-                games_for_prompt, players, game_name, recap_location = _load_games_and_players_for_recap(
-                    game_type, game_ids,
-                )
+                from private_accounts import ai_account_context
+                with ai_account_context(app, _stats_db_path(), row.get('username') or ''):
+                    games_for_prompt, players, game_name, recap_location = _load_games_and_players_for_recap(
+                        game_type, game_ids,
+                    )
             except Exception:
                 games_for_prompt, players, game_name, recap_location = [], [], None, ''
 
@@ -3427,6 +3426,7 @@ def view_ai_recap(share_id):
         og_url=og_url,
         share_id=share_id,
         show_creator_view=show_creator_view,
+        can_manage=can_manage,
         can_remake=can_remake,
         hero_image_url=hero_image_url,
         og_image_url=og_image_url,
@@ -3650,47 +3650,49 @@ def remake_ai_recap_image(share_id):
     legacy_solos = filter_existing_solo_images(old_solos)
 
     try:
-        games, players, game_name, recap_location = _load_games_and_players_for_recap(game_type, game_ids)
-        if not games:
-            raise ValueError('None of the saved games were found.')
-        if not players:
-            raise ValueError('No players found for the saved games.')
+        from private_accounts import ai_account_context
+        with ai_account_context(app, _stats_db_path(), row.get('username') or ''):
+            games, players, game_name, recap_location = _load_games_and_players_for_recap(game_type, game_ids)
+            if not games:
+                raise ValueError('None of the saved games were found.')
+            if not players:
+                raise ValueError('No players found for the saved games.')
 
-        illustration_players = list(players)
+            illustration_players = list(players)
 
-        from email_content import (
-            build_scene_image_prompt,
-            _image_labels_for_players,
-            session_stats_for_illustration,
-        )
-        player_stats = session_stats_for_illustration(game_type, games)
-
-        if not scene_prompt:
-            labels = _image_labels_for_players(
-                illustration_players, player_stats=player_stats,
+            from email_content import (
+                build_scene_image_prompt,
+                _image_labels_for_players,
+                session_stats_for_illustration,
             )
-            scene_prompt = build_scene_image_prompt(
-                game_type, illustration_players, game_name=game_name,
-                image_details=image_details, labels_by_name=labels,
-                player_stats=player_stats,
-                location=recap_location,
-            )
+            player_stats = session_stats_for_illustration(game_type, games)
 
-        new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
-            _try_generate_email_hero_image(
-                api_key,
-                game_type,
-                games,
-                players,
-                game_name=game_name,
-                image_mode=image_mode,
-                image_details=image_details,
-                custom_scene_prompt=scene_prompt,
-                selected_players=illustration_players,
-                player_stats=player_stats,
-                location=recap_location,
+            if not scene_prompt:
+                labels = _image_labels_for_players(
+                    illustration_players, player_stats=player_stats,
+                )
+                scene_prompt = build_scene_image_prompt(
+                    game_type, illustration_players, game_name=game_name,
+                    image_details=image_details, labels_by_name=labels,
+                    player_stats=player_stats,
+                    location=recap_location,
+                )
+
+            new_url, _new_path, hero_err, _image_prompt, illustration_meta = (
+                _try_generate_email_hero_image(
+                    api_key,
+                    game_type,
+                    games,
+                    players,
+                    game_name=game_name,
+                    image_mode=image_mode,
+                    image_details=image_details,
+                    custom_scene_prompt=scene_prompt,
+                    selected_players=illustration_players,
+                    player_stats=player_stats,
+                    location=recap_location,
+                )
             )
-        )
     except Exception as e:
         app.logger.exception('AI recap remake image failed')
         flash(f'Failed to remake picture: {str(e)}', 'error')
@@ -3865,14 +3867,16 @@ def remake_ai_recap_summary(share_id):
         prompt_style = 'default'
 
     try:
-        payload = _build_ai_summary_payload(
-            game_type,
-            game_ids,
-            prompt_style,
-            custom_prompt,
-            image_mode='none',
-            image_details=row.get('image_details') or '',
-        )
+        from private_accounts import ai_account_context
+        with ai_account_context(app, _stats_db_path(), row.get('username') or ''):
+            payload = _build_ai_summary_payload(
+                game_type,
+                game_ids,
+                prompt_style,
+                custom_prompt,
+                image_mode='none',
+                image_details=row.get('image_details') or '',
+            )
     except Exception as e:
         app.logger.exception('AI recap remake summary failed')
         flash(f'Failed to remake summary: {str(e)}', 'error')
@@ -5036,8 +5040,9 @@ def player_game_stats(year, game_name, player_name):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    from web_sign_in import safe_login_next
     # Get the 'next' parameter for redirect after login
-    next_url = request.args.get('next')
+    next_url = safe_login_next(request.args.get('next'))
     
     # Check if user is already logged in via remember me cookie
     if not session.get('logged_in'):
@@ -5054,7 +5059,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         remember_me = request.form.get('remember_me') == 'on'
-        next_url = request.form.get('next')  # Get from hidden form field
+        next_url = safe_login_next(request.form.get('next'))
 
         ip = _client_ip()
         if login_rate_limited(ip):
