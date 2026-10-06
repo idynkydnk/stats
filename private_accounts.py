@@ -18,7 +18,7 @@ from werkzeug.security import generate_password_hash
 
 
 DATA_TABLES = {
-    'games', 'vollis_games', 'other_games', 'players', 'tournaments',
+    'games', 'vollis_games', 'other_games', 'players',
     'doubles_player_last_played', 'deleted_records', 'sessions', 'trueskill_rankings',
 }
 GOOGLE_IOS_CLIENT_ID = '195048170299-63t84plh4cae8a7r5nk70d8l8hkr3t8p.apps.googleusercontent.com'
@@ -30,7 +30,7 @@ PRIVATE_ENDPOINTS = {
     'api_vollis_get', 'api_vollis_create', 'api_vollis_update', 'api_vollis_delete',
     'api_other_stats', 'api_other_player', 'api_other_list', 'api_other_game_types',
     'api_other_get', 'api_other_create', 'api_other_update', 'api_other_delete',
-    'api_volleyball_stats', 'api_players', 'api_tournaments_list', 'api_tournaments_create',
+    'api_volleyball_stats', 'api_players',
     'api_doubles_players', 'api_vollis_players', 'api_todays_doubles_dashboard',
     'get_other_game_players', 'get_other_game_info', 'get_other_game_common_scores',
     'get_other_game_type', 'api_search_all_players', 'api_add_player',
@@ -55,7 +55,7 @@ def private_database():
 
 
 def data_path(default):
-    return private_database() or default
+    return (getattr(g, 'stats_view_database', None) if has_request_context() else None) or private_database() or default
 
 
 def connect_data(path, *args, **kwargs):
@@ -96,6 +96,9 @@ def provision_database(site_path, account_id):
                 str(Path(site_path).resolve().parent / 'private_data'))
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     destination = root / (account_id + '.db')
+    # Existing databases need no schema write lock on ordinary requests.
+    if destination.exists():
+        return str(destination)
     with sqlite3.connect(site_path) as source, sqlite3.connect(destination) as target:
         target.execute('BEGIN IMMEDIATE')
         for name, ddl in source.execute("SELECT name, sql FROM sqlite_master WHERE type='table'"):
@@ -132,9 +135,13 @@ def create_account(path, username, password=None, google_subject=None, apple_sub
 def register_private_accounts(app, service):
     site_path = service._stats_db_path()
     init_accounts(site_path)
+    from account_stats_views import init_stats_views, register_stats_views, PERSONAL_WEB_ENDPOINTS
+    init_stats_views(site_path)
 
     @app.before_request
     def scope_personal_account():
+        if (Path(site_path).resolve().parent / '.personal-migration-maintenance').exists() and request.endpoint != 'static':
+            return jsonify(error='Stats are being updated. Please try again in a few minutes.'), 503
         preview = request.headers.get('X-Stats-Preview') == '1'
         if preview and (request.method != 'GET' or request.endpoint not in PREVIEW_ENDPOINTS):
             return jsonify(error="KT Stats is read-only."), 403
@@ -154,8 +161,8 @@ def register_private_accounts(app, service):
             username = session.get('username')
         elif request.cookies.get('remember_token'):
             username = service.validate_auth_token(request.cookies['remember_token'])
-        if preview:
-            # Explicit public browsing never selects or modifies an account DB.
+        if preview and not username:
+            # Signed-out previews show Kyle only; signed-in views respect choices.
             return None
         if not username:
             return None
@@ -165,16 +172,18 @@ def register_private_accounts(app, service):
             return jsonify(error='This account is inactive.'), 401
         account = account_for_user(site_path, username)
         if account:
-            if request.endpoint not in PRIVATE_ENDPOINTS:
+            if request.endpoint not in PRIVATE_ENDPOINTS | PERSONAL_WEB_ENDPOINTS | {'account_stats_sources', 'account_stats_sharing', 'stats_sources_page'}:
                 return jsonify(error='This feature is not available for personal accounts.'), 403
             g.private_account = account
             g.private_database = provision_database(site_path, account['id'])
-        if authorization:
+        if authorization or not session.get('logged_in'):
             service.establish_user_session(username)
+
+    register_stats_views(app, service, site_path)
 
     @app.after_request
     def private_response(response):
-        if private_database() or request.headers.get('X-Stats-Account-Required') == '1':
+        if private_database() or getattr(g, 'stats_view_database', None) or request.headers.get('X-Stats-Account-Required') == '1':
             response.headers['Cache-Control'] = 'no-store'
             response.vary.add('Authorization')
         return response
@@ -200,6 +209,8 @@ def register_private_accounts(app, service):
         with sqlite3.connect(site_path) as conn:
             conn.execute('UPDATE private_accounts SET show_starter_stats=? WHERE id=?',
                          (int(visible), account['id']))
+            conn.execute('INSERT INTO account_stats_sources VALUES (?, ?, ?) ON CONFLICT(viewer,owner) DO UPDATE SET enabled=excluded.enabled',
+                         (account['username'], 'kyle', int(visible)))
         return jsonify(show_starter_stats=visible)
 
     def limited():

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container" style="max-width:680px;padding:24px">
+<h1>Stats to include</h1>
+<p>Your own games are always included. Choose other databases to combine with yours for games, stats, and ratings. Their games stay in their own databases and are read-only here.</p>
+<form method="post">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% for source in sources %}
+<p><label><input type="checkbox" name="owner" value="{{ source.owner }}" {% if source.enabled %}checked{% endif %}> {{ source.title }}</label></p>
+{% endfor %}
+{% if is_private %}
+<hr><p><label><input type="checkbox" name="share_stats" {% if share_stats %}checked{% endif %}> Let other signed-in users include my stats</label></p>
+<p>Kyle can include your stats as the administrator. Turning sharing off removes access for other users.</p>
+{% endif %}
+<button type="submit">Save choices</button>
+</form>
+</div>
+{% endblock %}

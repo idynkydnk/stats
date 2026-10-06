@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-05-personal-stats-sources",
+    "date": "2026-10-05",
+    "subject": "iPhone: Choose whose stats to include",
+    "body": "Your games stay in your own account. Use Stats to include to combine them with KT Stats or shared accounts, and choose whether other users can include yours. Kyle can include each user’s stats separately."
+  },
+  {
     "id": "ios-2026-10-05-friendly-outage-messages",
     "date": "2026-10-05",
     "subject": "iPhone: Clearer messages during an outage",

@@ -1,38 +1,57 @@
 # Personal iPhone accounts
 
-New accounts start with an empty, private game history and a separate read-only
-preview of KT Stats. Visitors can browse that preview before signing
-in. Personal accounts can switch between KT Stats and their own, or choose
-Hide KT Stats. This saves a per-account visibility preference; no shared or
-personal records are deleted. More offers a toggle to show the preview again.
-Add always uses personal game data. Username/password,
-Google, and Apple sign-in all provision personal accounts. Existing website
-accounts retain their shared website access. These are distinct sign-in methods;
-accounts are not automatically merged based on email addresses.
+Every non-Kyle account owns a separate game database. New accounts start empty;
+existing accounts are migrated by `entered_by`, never by player participation or
+last editor. Missing or unknown entry ownership remains with KT Stats. Passwords,
+usernames, active status, and sign-in tokens remain in the identity database.
+Tournaments are not part of personal storage or this migration.
 
-## Server deployment
+Stats to include changes a browsing preference, never stored game ownership.
+Kyle can include individual users as admin. Personal accounts can include KT
+Stats and accounts whose owners opt into sharing. Sharing is off by default;
+revoking it immediately removes access even if a viewer previously selected it.
+Public visitors see only KT Stats. The migration initially enables all existing
+accounts for Kyle so his combined historical totals are preserved.
 
-Deploy the website changes and install `requirements.txt` before distributing
-the updated app. The app verifies account scope before opening the main screens
-and cannot sign in against an older server without this update.
+Combined views recalculate stats and ratings from the selected game histories.
+A request-local, data-only snapshot keeps authentication tables out of the view.
+External game IDs are namespaced above 2^32 so overlapping personal IDs cannot
+collide; external games are read-only in that view, including for Kyle. Saves,
+edits, deletes, add-screen lookups, and AI selection stay in the signed-in owner's
+database. Authenticated browsing uses selected sources by default, including older app
+builds. The updated app sends `X-Stats-Combined: 1` for browsing and
+`X-Stats-Owned: 1` for add-screen lookups. Existing signed-in
+`X-Stats-Preview: 1` reads also use the user's selected combined view, while
+signed-out previews remain KT-only.
 
-The server creates `private_accounts` and `private_auth_challenges` in its
-existing identity database. New personal databases are created under
-`private_data/`, alongside the site database, or at `STATS_PRIVATE_DATA_DIR`.
-This directory must be writable by the web worker and must not be served as
-static files. Include it in secure server backups. No games, players, photos,
-or credentials are copied from the shared database: only game-table schemas
-are copied. Future schema migrations must also cover existing personal databases.
+## Backup and cloud migration
 
-Private-account requests can use only the explicitly listed personal API routes.
-An explicit `X-Stats-Preview: 1` request can read only allowlisted public stats
-endpoints. Preview writes and privileged routes are rejected. Normal authenticated
-requests always select the personal database regardless of preview preferences.
-Game queries, player queries, ratings, tournaments, and deletion markers use the
-authenticated account's database. In-memory stats caching is bypassed for these
-requests. Personal games are not written into the shared activity log. Shared
-AI publishing, public links, public photos, and admin tools are unavailable in
-personal accounts. The website's public shared stats remain public.
+Stop website and AI writers during migration. Run from the deployed repository:
+
+```sh
+python migrations/separate_existing_accounts.py --database /home/Idynkydnk/stats/stats.db
+python migrations/separate_existing_accounts.py --database /home/Idynkydnk/stats/stats.db --apply
+```
+
+The first command is a read-only ownership report. Applying first creates and
+integrity-checks SQLite backups of the identity database and every existing
+personal database under `backups/before-personal-databases-*`. Account moves use
+attached databases in rollback-journal transactions: inserts, source removals,
+and completion markers commit together per account. Conflicting IDs stop that
+account's transaction without overwriting games. Re-running skips completed
+accounts. Original game IDs, scores, dates, comments, entry ownership, division,
+and associated player metadata are retained. Derived rankings are cleared.
+
+Back up `private_data/` (or `STATS_PRIVATE_DATA_DIR`) and uploaded/generated media
+alongside the identity database. Never serve personal database files publicly.
+Future schema migrations must explicitly cover all existing personal databases;
+ordinary requests no longer run schema provisioning on an existing file.
+
+Deploy the backend and run the migration before distributing the updated app.
+Verify Kyle's combined totals, each user's owned-only totals, read-only foreign
+games, new game writes, source toggles, and sharing revocation before ending
+maintenance. For rollback, stop writers, restore the matching backup databases
+and backend code together; preserve any games saved after migration separately.
 
 ## Google sign-in
 

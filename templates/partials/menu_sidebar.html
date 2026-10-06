@@ -37,6 +37,7 @@
 
     {% if session.logged_in %}
     <li class="menu-section-label">Browse</li>
+    <li><a href="{{ url_for('stats_sources_page') }}"><i class="fas fa-layer-group"></i> Stats to include</a></li>
     <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
     <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>

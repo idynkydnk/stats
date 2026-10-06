@@ -19,7 +19,8 @@ def cached(ttl=CACHE_TTL):
     def decorator(func):
         def wrapper(*args, **kwargs):
             from private_accounts import private_database
-            if private_database():
+            from flask import g, has_request_context
+            if private_database() or (has_request_context() and getattr(g, 'stats_view_database', None)):
                 return func(*args, **kwargs)
             # Create cache key from function name and arguments
             key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())

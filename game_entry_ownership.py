@@ -5,7 +5,8 @@ def editable_game_ids(conn, table, game_ids, username, admin=False):
     """Only the original entrant or an admin can edit a game."""
     if table not in {'games', 'vollis_games', 'other_games'}:
         raise ValueError('Unsupported game table')
-    ids = set(game_ids)
+    # Combined-view IDs cannot be edited through the owner database.
+    ids = {i for i in game_ids if 0 < i < (1 << 32)}
     username = (username or '').strip()
     if not username or not ids:
         return set()

@@ -53,6 +53,7 @@ class PrivateAccountTests(unittest.TestCase):
             return value
         self.service = SimpleNamespace(
             _stats_db_path=lambda: self.path,
+            is_admin=lambda username=None: (username or '').casefold() == 'kyle',
             adminfx=SimpleNamespace(get_site_user=user),
             validate_auth_token=self.tokens.get,
             establish_user_session=establish,
@@ -99,7 +100,7 @@ class PrivateAccountTests(unittest.TestCase):
     def register(self, client, name):
         response = client.post('/api/auth/register', json={'username': name, 'password': 'a strong password'})
         self.assertEqual(response.status_code, 201, response.json)
-        return {'Authorization': 'Bearer ' + response.json['token'], 'X-Stats-Account-Required': '1'}
+        return {'Authorization': 'Bearer ' + response.json['token'], 'X-Stats-Account-Required': '1', 'X-Stats-Owned': '1'}
 
     def test_private_read_write_delete_and_public_isolation(self):
         a = self.register(self.a, 'alice')
@@ -149,7 +150,7 @@ class PrivateAccountTests(unittest.TestCase):
             self.assertEqual(conn.execute('SELECT * FROM players').fetchall(), [])
             self.assertIsNone(conn.execute("SELECT name FROM sqlite_master WHERE name='site_users'").fetchone())
 
-    def test_starter_preview_is_public_read_only_and_separate_from_personal_games(self):
+    def test_starter_preview_is_public_read_only_and_combines_for_signed_in_users(self):
         preview = {'X-Stats-Preview': '1', 'X-Stats-Account-Required': '1'}
         guest = self.app.test_client()
         self.assertEqual(guest.get('/api/games', headers=preview).json['rows'], [[1, 'Shared player']])
@@ -157,7 +158,7 @@ class PrivateAccountTests(unittest.TestCase):
         self.assertEqual(guest.get('/admin', headers=preview).status_code, 403)
         a = self.register(self.a, 'alice')
         self.a.post('/api/games', headers=a, json={'name': 'Private player'})
-        self.assertEqual(self.a.get('/api/games', headers={**a, **preview}).json['rows'], [[1, 'Shared player']])
+        self.assertEqual(self.a.get('/api/games', headers={**a, **preview}).json['rows'], [[2, 'Private player'], [(1 << 32) + 1, 'Shared player']])
         self.assertEqual(self.a.delete('/api/games', headers={**a, **preview}).status_code, 403)
         self.assertEqual(self.a.get('/api/games', headers=a).json['rows'], [[2, 'Private player']])
 
@@ -296,7 +297,7 @@ class PrivateAccountTests(unittest.TestCase):
                     new_account = account_for_user(self.path, fresh.json['username'])
                     self.assertNotEqual(new_account['id'], old_account['id'])
                     self.assertEqual(new_account[provider + '_subject'], subject)
-                    fresh_headers = {'Authorization': 'Bearer ' + fresh.json['token']}
+                    fresh_headers = {'Authorization': 'Bearer ' + fresh.json['token'], 'X-Stats-Owned': '1'}
                     self.assertEqual(self.a.get('/api/games', headers=fresh_headers).json['rows'], [])
                     self.assertEqual(sign_in().json['username'], fresh.json['username'])
                     self.assertEqual(self.a.get('/api/games', headers=old_headers).status_code, 401)
