@@ -312,7 +312,10 @@ def register_private_accounts(app, service):
         try:
             from google.auth.transport.requests import Request
             from google.oauth2.id_token import verify_oauth2_token
-            claims = verify_oauth2_token(body['id_token'], Request(), client_id)
+            # The app exchanges a newly issued token immediately. Allow a small
+            # difference between Google's clock and this server's clock.
+            claims = verify_oauth2_token(body['id_token'], Request(), client_id,
+                                        clock_skew_in_seconds=30)
             subject = claims.get('sub')
             if not subject or claims.get('email_verified') is not True:
                 raise ValueError('Unverified account')

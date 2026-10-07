@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-06-google-sign-in-timing",
+    "date": "2026-10-06",
+    "subject": "iPhone: More reliable Google sign-in",
+    "body": "Google sign-in accepts small differences between Google’s clock and Stats, so a freshly completed sign-in is not rejected just because the clocks are a few seconds apart."
+  },
+  {
+    "id": "ios-2026-10-06-sign-in-errors",
+    "date": "2026-10-06",
+    "subject": "iPhone: Clearer sign-in errors",
+    "body": "If Google or Apple sign-in is rejected, the app shows the reason from Stats instead of only saying Please log in."
+  },
+  {
     "id": "ios-2026-10-06-players-loading",
     "date": "2026-10-06",
     "subject": "iPhone: See when players are loading",
