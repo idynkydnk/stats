@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-07-instant-player-choices",
+    "date": "2026-10-07",
+    "subject": "iPhone: Faster player choices when adding a game",
+    "body": "Doubles player choices load ahead of time, and saved names appear immediately in Winner 1 and the other player fields while the list refreshes."
+  },
+  {
     "id": "ios-2026-10-07-recap-share-link",
     "date": "2026-10-07",
     "subject": "iPhone: Share a recap from the top of the page",
