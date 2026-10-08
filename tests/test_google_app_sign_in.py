@@ -66,6 +66,32 @@ class GoogleAppSignInTests(unittest.TestCase):
     def test_google_handoff_works_without_cookies(self):
         self.assert_app_session(self.sign_in())
 
+    def test_google_signup_after_admin_deletes_account(self):
+        import admin_functions
+        from private_accounts import account_for_user
+
+        first = self.sign_in()
+        self.assert_app_session(first)
+        old_name = first.json['username']
+        old_account = account_for_user(self.path, old_name)
+        old_headers = {'Authorization': 'Bearer ' + first.json['token'],
+                       'X-Stats-Account-Required': '1', 'X-Stats-Owned': '1'}
+        self.client.post('/api/games', headers=old_headers, json={'name': 'Old private game'})
+        with patch.object(admin_functions, 'stats_db_path', return_value=self.path):
+            self.assertTrue(admin_functions.delete_site_user(old_name))
+
+        fresh = self.sign_in()
+        self.assert_app_session(fresh)
+        self.assertNotEqual(fresh.json['username'], old_name)
+        new_account = account_for_user(self.path, fresh.json['username'])
+        self.assertNotEqual(new_account['id'], old_account['id'])
+        self.assertIsNone(account_for_user(self.path, old_name)['google_subject'])
+        fresh_headers = {'Authorization': 'Bearer ' + fresh.json['token'],
+                         'X-Stats-Account-Required': '1', 'X-Stats-Owned': '1'}
+        self.assertEqual(self.client.get('/api/games', headers=fresh_headers).json['rows'], [])
+        self.assertEqual(self.client.get('/api/me', headers=old_headers).status_code, 401)
+        self.assertEqual(self.sign_in().json['username'], fresh.json['username'])
+
     def test_fresh_google_token_tolerates_small_server_clock_difference(self):
         self.assert_app_session(self.sign_in(iat=int(time.time()) + 5))
 

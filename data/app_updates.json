@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-07-apple-name-prompt",
+    "date": "2026-10-07",
+    "subject": "iPhone: Add a missing name after Apple sign-in",
+    "body": "If your Apple account has no saved name, the app asks for it after sign-in and remembers it for future logins. Your saved name appears in the sign-in message and account menu."
+  },
+  {
+    "id": "ios-2026-10-07-social-signup-after-deletion",
+    "date": "2026-10-07",
+    "subject": "iPhone: Sign up again after an account is removed",
+    "body": "Google and Apple sign-up can create a fresh account after the previous account was removed from the admin Users screen, instead of showing This account is inactive. The new account starts with its own empty game history."
+  },
+  {
     "id": "ios-2026-10-07-player-game-order",
     "date": "2026-10-07",
     "subject": "iPhone: Newest games first on player profiles",

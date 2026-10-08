@@ -127,14 +127,19 @@ def create_account(path, username, password=None, google_subject=None, apple_sub
         conn.execute('BEGIN IMMEDIATE')
         if conn.execute('SELECT 1 FROM site_users WHERE lower(username)=lower(?)', (username,)).fetchone():
             raise ValueError('That username is already taken.')
-        # Older deletions kept social identities attached to inactive accounts.
+        # Older deletions kept social identities attached to inactive accounts;
+        # admin deletions can leave the link with no site_users row at all.
         # Release that link in the same transaction as creating the replacement;
         # never reactivate the old username, database, or authentication tokens.
         for column, subject in [('google_subject', google_subject), ('apple_subject', apple_subject)]:
             if subject is not None:
                 conn.execute(f'''UPDATE private_accounts SET {column}=NULL
-                    WHERE {column}=? AND username IN
-                    (SELECT username FROM site_users WHERE active=0)''', (subject,))
+                    WHERE {column}=? AND (
+                        EXISTS (SELECT 1 FROM site_users u
+                            WHERE u.username=private_accounts.username COLLATE NOCASE AND u.active=0)
+                        OR NOT EXISTS (SELECT 1 FROM site_users u
+                            WHERE u.username=private_accounts.username COLLATE NOCASE)
+                    )''', (subject,))
         conn.execute('INSERT INTO site_users (username, password_hash, is_admin) VALUES (?, ?, 0)',
                      (username, generate_password_hash(password or secrets.token_urlsafe(48))))
         conn.execute('INSERT INTO private_accounts (id, username, google_subject, apple_subject) VALUES (?, ?, ?, ?)',

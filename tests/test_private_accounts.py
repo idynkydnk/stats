@@ -292,7 +292,7 @@ class PrivateAccountTests(unittest.TestCase):
 
     def test_social_signup_after_deletion_uses_new_empty_account(self):
         for provider in ('apple', 'google'):
-            for legacy_link in (False, True):
+            for legacy_link in (False, True, 'admin-deleted'):
                 with self.subTest(provider=provider, legacy_link=legacy_link):
                     subject = f'{provider}-deleted-{legacy_link}'
                     def sign_in():
@@ -313,9 +313,16 @@ class PrivateAccountTests(unittest.TestCase):
                     self.a.post('/api/games', headers=old_headers, json={'name': 'Deleted private game'})
                     with sqlite3.connect(self.path) as conn:
                         conn.execute('INSERT INTO auth_tokens VALUES (?, ?)', (old_name, 'old-hash'))
-                    self.assertEqual(self.a.delete('/api/account', headers=old_headers).status_code, 200)
-                    self.assertIsNone(account_for_user(self.path, old_name)[provider + '_subject'])
-                    if legacy_link:
+                    if legacy_link == 'admin-deleted':
+                        import admin_functions
+                        with patch.object(admin_functions, 'stats_db_path', return_value=self.path):
+                            self.assertTrue(admin_functions.delete_site_user(old_name))
+                        # Mirror deletion's token revocation in the fixture's token map.
+                        self.tokens.pop(first.json['token'])
+                    else:
+                        self.assertEqual(self.a.delete('/api/account', headers=old_headers).status_code, 200)
+                        self.assertIsNone(account_for_user(self.path, old_name)[provider + '_subject'])
+                    if legacy_link is True:
                         # Reproduce accounts deleted before identities were released.
                         with sqlite3.connect(self.path) as conn:
                             conn.execute(f'UPDATE private_accounts SET {provider}_subject=? WHERE username=?',
@@ -331,7 +338,11 @@ class PrivateAccountTests(unittest.TestCase):
                     self.assertEqual(self.a.get('/api/games', headers=fresh_headers).json['rows'], [])
                     self.assertEqual(sign_in().json['username'], fresh.json['username'])
                     self.assertEqual(self.a.get('/api/games', headers=old_headers).status_code, 401)
-                    self.assertFalse(self.service.adminfx.get_site_user(old_name)['active'])
+                    old_user = self.service.adminfx.get_site_user(old_name)
+                    if legacy_link == 'admin-deleted':
+                        self.assertIsNone(old_user)
+                    else:
+                        self.assertFalse(old_user['active'])
                     with sqlite3.connect(self.path) as conn:
                         self.assertEqual(conn.execute('SELECT * FROM auth_tokens WHERE username=?', (old_name,)).fetchall(), [])
                         self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [(1, 'Shared player')])
