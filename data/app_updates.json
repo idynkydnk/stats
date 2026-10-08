@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-08-compact-stats-updating",
+    "date": "2026-10-08",
+    "subject": "iPhone: More room for stats while updating",
+    "body": "Loading and updating messages now appear on one line in place of the Stats heading. The extra banner is gone, so refreshing stats leaves more room for results."
+  },
+  {
     "id": "ios-2026-10-08-other-game-field-suggestions",
     "date": "2026-10-08",
     "subject": "iPhone: Matching dropdowns for game names and types",
