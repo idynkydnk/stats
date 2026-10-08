@@ -46,8 +46,9 @@ PRIVATE_ENDPOINTS = {
     'ai_summary_job_status', 'api_ai_summary_job_status',
     'my_ai_recaps', 'view_ai_recap', 'recap_og_image',
     'recap_instagram_slide', 'recap_instagram_zip',
-    'subscribe_ai_recaps', 'my_ai_recaps_delete',
-    'pin_ai_library_item', 'api_pin_ai_library_item',
+    'subscribe_ai_recaps', 'api_subscribe_ai_recaps', 'my_ai_recaps_delete',
+    'pin_ai_library_item', 'api_pin_ai_library_item', 'api_edit_ai_library_item',
+    'view_flyer', 'remake_flyer_image',
     'remake_ai_recap_summary', 'remake_ai_recap_image',
     'upload_ai_recap_image', 'rebuild_ai_recap_instagram',
 }

@@ -845,7 +845,7 @@ def serialize_flyer_list_entry(entry, site_base=''):
     """Absolute image/download URLs plus display fields for a flyer list row."""
     share_id = (entry.get('share_id') or '').strip()
     image = adminfx.absolutize_hero_image_url(entry.get('flyer_image_url') or '', site_base)
-    title = _flyer_sport_label(entry.get('game_type'), entry.get('game_name')) + ' Flyer'
+    title = entry.get('title') or _flyer_sport_label(entry.get('game_type'), entry.get('game_name')) + ' Flyer'
     out = dict(entry)
     out['flyer_image_url'] = image
     out['title'] = title
@@ -3007,7 +3007,7 @@ def view_flyer(share_id):
         )
 
     share_url = url_for('view_flyer', share_id=share_id, _external=True)
-    flyer_title = _flyer_sport_label(game_type, game_name) + ' Flyer'
+    flyer_title = row.get('title') or _flyer_sport_label(game_type, game_name) + ' Flyer'
 
     return render_template(
         'flyer.html',
@@ -3056,6 +3056,15 @@ def download_flyer(share_id):
 @login_required
 def remake_flyer_image(share_id):
     """Regenerate the group flyer using uploaded player face photos."""
+    from ai_library_edit import remake_response
+    def respond(message, success=False, status=400):
+        return remake_response(message, 'view_flyer', share_id, success=success, status=status)
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and request.is_json:
+        return respond('Enter valid remake instructions.')
+    for field in ('scene_prompt', 'custom_prompt'):
+        if field in data and not isinstance(data[field], str):
+            return respond('Enter valid remake instructions.')
     import flyer_functions as flyerfx
     from email_content import (
         ImageGenerationError,
@@ -3069,38 +3078,36 @@ def remake_flyer_image(share_id):
     if not row:
         abort(404)
     if not _is_owner_or_admin(row.get('username')):
-        flash('Only the creator can remake this flyer.', 'error')
-        return redirect(url_for('view_flyer', share_id=share_id))
+        return respond('Only the creator or an admin can remake this flyer.', status=403)
 
     try:
         api_key = require_ai_api_key()
     except ValueError:
-        flash(ai_api_key_error_message(), 'error')
-        return redirect(url_for('view_flyer', share_id=share_id))
+        return respond(ai_api_key_error_message())
 
     players = row.get('players') or []
     if not players:
-        flash('This flyer has no players to remake.', 'error')
-        return redirect(url_for('view_flyer', share_id=share_id))
+        return respond('This flyer has no players to remake.')
 
-    scene_prompt = (request.form.get('scene_prompt') or '').strip()
+    scene_prompt = (data.get('scene_prompt') or '').strip()
     old_url = row.get('flyer_image_url') or ''
     old_solos = row.get('solo_images') or []
 
     try:
-        new_url, _path, _prompt, _solo_images, used_scene = generate_flyer_image(
-            api_key,
-            players,
-            row.get('game_type') or 'doubles',
-            event_date=row.get('event_date') or '',
-            event_time=row.get('event_time') or '',
-            location=row.get('location') or '',
-            game_name=row.get('game_name') or None,
-            image_details=row.get('image_details') or '',
-            custom_scene_prompt=scene_prompt or None,
-        )
+        from private_accounts import ai_account_context
+        with ai_account_context(app, _stats_db_path(), row.get('username') or ''):
+            new_url, _path, _prompt, _solo_images, used_scene = generate_flyer_image(
+                api_key,
+                players,
+                row.get('game_type') or 'doubles',
+                event_date=row.get('event_date') or '',
+                event_time=row.get('event_time') or '',
+                location=row.get('location') or '',
+                game_name=row.get('game_name') or None,
+                image_details=row.get('image_details') or '',
+                custom_scene_prompt=scene_prompt or None,
+            )
     except ImageGenerationError as e:
-        flash(f'Failed to remake flyer: {e}', 'error')
         flyerfx.update_flyer_page(
             share_id,
             flyer_image_error=str(e),
@@ -3108,11 +3115,10 @@ def remake_flyer_image(share_id):
             solo_images=[],
         )
         delete_solo_image_files(old_solos)
-        return redirect(url_for('view_flyer', share_id=share_id))
+        return respond(f'Failed to remake flyer: {e}')
     except Exception as e:
         app.logger.exception('Flyer remake failed')
-        flash(f'Failed to remake flyer: {e}', 'error')
-        return redirect(url_for('view_flyer', share_id=share_id))
+        return respond(f'Failed to remake flyer: {e}')
 
     delete_solo_image_files(old_solos)
 
@@ -3133,8 +3139,7 @@ def remake_flyer_image(share_id):
                 pass
 
     log_activity('Remade flyer', summary=f'Regenerated flyer /flyer/{share_id}')
-    flash('Flyer remade.', 'success')
-    return redirect(url_for('view_flyer', share_id=share_id))
+    return respond('Flyer remade.', success=True)
 
 
 @app.route('/flyer/<share_id>/remake-solo/', methods=['POST'])
@@ -3637,13 +3642,21 @@ def rebuild_ai_recap_instagram(share_id):
 @login_required
 def remake_ai_recap_image(share_id):
     """Regenerate the hero illustration for a published AI recap page."""
+    from ai_library_edit import remake_response
+    def respond(message, success=False, status=400):
+        return remake_response(message, 'view_ai_recap', share_id, success=success, status=status)
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and request.is_json:
+        return respond('Enter valid remake instructions.')
+    for field in ('scene_prompt', 'custom_prompt'):
+        if field in data and not isinstance(data[field], str):
+            return respond('Enter valid remake instructions.')
     row = adminfx.get_ai_recap_page(share_id)
     if not row:
         abort(404)
 
     if not _is_owner_or_admin(row.get('username')):
-        flash('Only the creator can remake this picture.', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond('Only the creator or an admin can remake this picture.', status=403)
 
     from email_content import (
         ai_api_key_error_message,
@@ -3655,20 +3668,18 @@ def remake_ai_recap_image(share_id):
     try:
         api_key = require_ai_api_key()
     except ValueError:
-        flash(ai_api_key_error_message(), 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond(ai_api_key_error_message())
 
     try:
         game_ids = json.loads(row.get('game_ids_json') or '[]')
     except (json.JSONDecodeError, TypeError):
         game_ids = []
     if not game_ids:
-        flash('This recap has no saved games to remake the picture from.', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond('This recap has no saved games to remake the picture from.')
 
     game_type = row.get('game_type') or 'doubles'
     # Prefer the edited full scene prompt; fall back to the saved prompt/details.
-    scene_prompt = (request.form.get('scene_prompt') or '').strip()
+    scene_prompt = (data.get('scene_prompt') or '').strip()
     image_details = (row.get('image_details') or '').strip()
     image_mode = 'image'
 
@@ -3724,17 +3735,15 @@ def remake_ai_recap_image(share_id):
             )
     except Exception as e:
         app.logger.exception('AI recap remake image failed')
-        flash(f'Failed to remake picture: {str(e)}', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond(f'Failed to remake picture: {str(e)}')
 
     if not new_url:
-        flash(hero_err or 'Failed to remake picture.', 'error')
         adminfx.update_ai_recap_page(
             share_id,
             hero_image_error=hero_err or 'Failed to remake picture.',
             scene_prompt=scene_prompt,
         )
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond(hero_err or 'Failed to remake picture.')
 
     old_url = row.get('hero_image_url') or ''
     updated_html = replace_recap_hero_image(row.get('html_body') or '', new_url)
@@ -3782,11 +3791,7 @@ def remake_ai_recap_image(share_id):
         'Remade AI recap picture',
         summary=f'Regenerated illustration for /recap/{share_id}',
     )
-    flash(
-        'Picture remade. Copy the share link again so WhatsApp shows the new thumbnail.',
-        'success',
-    )
-    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    return respond('Picture remade.', success=True)
 
 
 def _require_recap_creator(share_id):
@@ -3864,25 +3869,32 @@ def upload_ai_recap_image(share_id):
 @login_required
 def remake_ai_recap_summary(share_id):
     """Regenerate the written summary for a published AI recap page (keeps existing picture)."""
+    from ai_library_edit import remake_response
+    def respond(message, success=False, status=400):
+        return remake_response(message, 'view_ai_recap', share_id, success=success, status=status)
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and request.is_json:
+        return respond('Enter valid remake instructions.')
+    for field in ('scene_prompt', 'custom_prompt'):
+        if field in data and not isinstance(data[field], str):
+            return respond('Enter valid remake instructions.')
     row = adminfx.get_ai_recap_page(share_id)
     if not row:
         abort(404)
 
     if not _is_owner_or_admin(row.get('username')):
-        flash('Only the creator can remake this summary.', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond('Only the creator or an admin can remake this summary.', status=403)
 
     try:
         game_ids = json.loads(row.get('game_ids_json') or '[]')
     except (json.JSONDecodeError, TypeError):
         game_ids = []
     if not game_ids:
-        flash('This recap has no saved games to remake the summary from.', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond('This recap has no saved games to remake the summary from.')
 
     game_type = row.get('game_type') or 'doubles'
-    if 'custom_prompt' in request.form:
-        custom_prompt = (request.form.get('custom_prompt') or '').strip()
+    if 'custom_prompt' in data:
+        custom_prompt = (data.get('custom_prompt') or '').strip()
     else:
         custom_prompt = (
             (row.get('style_instructions') or '').strip()
@@ -3908,8 +3920,7 @@ def remake_ai_recap_summary(share_id):
             )
     except Exception as e:
         app.logger.exception('AI recap remake summary failed')
-        flash(f'Failed to remake summary: {str(e)}', 'error')
-        return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+        return respond(f'Failed to remake summary: {str(e)}')
 
     html_body = payload.get('html_body') or ''
     old_hero = (row.get('hero_image_url') or '').strip()
@@ -3945,8 +3956,7 @@ def remake_ai_recap_summary(share_id):
         'Remade AI recap summary',
         summary=f'Regenerated summary for /recap/{share_id} (style "{prompt_style}")',
     )
-    flash('Summary remade.', 'success')
-    return redirect(url_for('view_ai_recap', share_id=share_id, published=1))
+    return respond('Summary remade.', success=True)
 
 
 @app.route('/api/generate_and_send_ai_summary/', methods=['POST'])

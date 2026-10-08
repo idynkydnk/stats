@@ -14,6 +14,9 @@ from flask import abort, flash, jsonify, redirect, request, session, url_for
 from jinja2 import ChoiceLoader, DictLoader, Environment, FileSystemLoader
 
 import admin_functions as admin
+import flyer_functions as flyerfx
+import ios_api
+from datetime import date
 from tests import test_private_accounts as account_fixtures
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,12 +29,16 @@ class PersonalRecapAccessTests(unittest.TestCase):
         account_fixtures.PrivateAccountTests.setUp(self)
         storage = Path(self.directory.name) / 'recaps'
         storage.mkdir()
+        flyers = Path(self.directory.name) / 'flyers'
+        flyers.mkdir()
         for replacement in (
             patch.object(admin, 'stats_db_path', return_value=self.path),
             patch.object(admin, '_recap_storage_dir', return_value=str(storage)),
             patch.object(admin, '_legacy_recap_dir', return_value=str(storage / 'legacy')),
             patch.dict(sys.modules, {'ai_auto_send_jobs': SimpleNamespace(list_jobs_with_share_ids=lambda **kw: [])}),
             patch('email_content.cleanup_expired_solo_images'),
+            patch.object(flyerfx, '_flyer_storage_dir', return_value=str(flyers)),
+            patch.object(ios_api, '_S', return_value=self.service),
         ):
             replacement.start()
             self.addCleanup(replacement.stop)
@@ -49,6 +56,7 @@ class PersonalRecapAccessTests(unittest.TestCase):
         self.generate_image = Mock()
         namespace = dict(
             app=self.app, request=request, session=session, jsonify=jsonify,
+            date=date, api_login_required=ios_api.api_login_required,
             abort=abort, flash=flash, redirect=redirect, url_for=url_for, json=json, adminfx=admin, secrets=secrets,
             _stats_db_path=lambda: self.path, _S=lambda: self.service,
             EMAIL_SITE_BASE_URL=self.service.EMAIL_SITE_BASE_URL,
@@ -69,13 +77,136 @@ class PersonalRecapAccessTests(unittest.TestCase):
                           '_is_owner_or_admin', 'my_ai_recaps_delete', 'login_required',
                           'remake_ai_recap_summary', 'remake_ai_recap_image',
                           'upload_ai_recap_image', '_require_recap_creator',
-                          'rebuild_ai_recap_instagram', 'pin_ai_library_item'}),
-            ('ios_api.py', {'api_my_recaps'}),
+                          'rebuild_ai_recap_instagram', 'pin_ai_library_item', 'remake_flyer_image'}),
+            ('ios_api.py', {'api_my_recaps', 'api_subscribe_ai_recaps', 'api_edit_ai_library_item'}),
         ]:
             tree = ast.parse((ROOT / filename).read_text())
             nodes = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name in names]
             exec(compile(ast.Module(body=nodes, type_ignores=[]), filename, 'exec'), namespace)
         self.app.add_url_rule('/login/', 'login', lambda: 'Sign in')
+        self.app.add_url_rule('/flyer/<share_id>/', 'view_flyer', lambda share_id: 'Flyer')
+        self.service._is_owner_or_admin = namespace['_is_owner_or_admin']
+        self.service.log_activity = Mock()
+        self.service.note_user_presence = Mock()
+        self.service._refresh_instagram_slides = Mock()
+
+    def test_native_item_permissions_for_owner_other_admin_and_signed_out(self):
+        alice = self.register(self.a, 'alice')
+        bob = self.register(self.b, 'bob')
+        admin_headers = {'Authorization': 'Bearer shared-token'}
+        anonymous = self.app.test_client()
+        for kind in ('recap', 'flyer'):
+            if kind == 'flyer':
+                flyerfx.insert_flyer_page('alice-own', 'alice', ['Alice'], 'doubles', '', '', '')
+            path = f'/api/ai-library/{kind}/alice-own'
+            self.assertEqual(anonymous.get(path).status_code, 401)
+            for method in ('get', 'put', 'delete'):
+                kwargs = {'json': {'title': 'Stolen'}} if method == 'put' else {}
+                self.assertEqual(getattr(self.b, method)(path, headers=bob, **kwargs).status_code, 403)
+            for headers in (alice, admin_headers):
+                self.assertEqual(self.a.get(path, headers=headers).status_code, 200)
+                response = self.a.put(path, headers=headers, json={'title': 'Edited title'})
+                self.assertEqual(response.status_code, 200, response.json)
+            self.assertEqual(self.a.delete(path, headers=admin_headers).status_code, 200)
+            self.assertEqual(self.a.get(path, headers=alice).status_code, 404)
+
+    def test_native_recap_text_edit_preserves_images_tables_and_escapes_html(self):
+        from ai_library_edit import recap_summary
+        headers = self.register(self.a, 'alice')
+        html = '<h1>Old</h1><img src="/image.jpg"><div class="summary-text"><p>First <b>story</b>.</p></div><table><tr><td>21–18</td></tr></table>'
+        admin.update_ai_recap_page('alice-own', html_body=html, subject='Old')
+        path = '/api/ai-library/recap/alice-own'
+        existing = self.a.get(path, headers=headers).json
+        self.assertEqual(existing['summary'], 'First story.')
+        # Saving untouched fields must not flatten existing rich text.
+        self.a.put(path, headers=headers, json={'title': existing['title'], 'summary': existing['summary']})
+        self.assertEqual(admin.get_ai_recap_page('alice-own')['html_body'], html)
+        response = self.a.put(path, headers=headers, json={'title': '<script>title</script>', 'summary': 'New <b>literal</b> text\nSecond paragraph'})
+        self.assertEqual(response.status_code, 200)
+        row = admin.get_ai_recap_page('alice-own')
+        self.assertIn('<img src="/image.jpg"', row['html_body'])
+        self.assertIn('<table>', row['html_body'])
+        self.assertNotIn('<script>', row['html_body'])
+        self.assertIn('&lt;b&gt;literal&lt;/b&gt;', row['html_body'])
+        self.assertEqual(recap_summary(row), 'New <b>literal</b> text\nSecond paragraph')
+        self.assertEqual(row['username'], 'alice')
+        self.service._refresh_instagram_slides.assert_called_once()
+        self.assertEqual(self.a.put(path, headers=headers, json={'username': 'bob'}).status_code, 400)
+        self.assertEqual(self.a.delete(path, headers=headers).status_code, 200)
+
+    def test_native_flyer_details_validation_and_owner_delete(self):
+        headers = self.register(self.a, 'alice')
+        flyerfx.insert_flyer_page('alice-flyer', 'alice', ['Alice'], 'doubles', '', '', '')
+        path = '/api/ai-library/flyer/alice-flyer'
+        data = {'title': 'Friday games', 'event_date': '2026-10-09', 'event_time': '18:30', 'location': 'The beach', 'image_details': 'Sunset'}
+        self.assertEqual(self.a.put(path, headers=headers, json=data).status_code, 200)
+        saved = flyerfx.get_flyer_page('alice-flyer')
+        for key, value in data.items():
+            self.assertEqual(saved[key], value)
+        self.assertEqual(self.a.put(path, headers=headers, json={'event_date': 'bad'}).status_code, 400)
+        self.assertEqual(flyerfx.get_flyer_page('alice-flyer')['event_date'], '2026-10-09')
+        self.assertEqual(self.a.delete(path, headers=headers).status_code, 200)
+
+    def test_native_remake_rejects_other_users_and_returns_json_for_owner_and_admin(self):
+        alice = self.register(self.a, 'alice')
+        bob = self.register(self.b, 'bob')
+        flyerfx.insert_flyer_page('alice-own', 'alice', ['Alice'], 'doubles', '', '', '')
+        admin.update_ai_recap_page('alice-own', game_ids_json='[1]')
+        paths = ['/recap/alice-own/remake-summary/', '/recap/alice-own/remake-image/', '/flyer/alice-own/remake-image/']
+        for path in paths:
+            self.assertEqual(self.b.post(path, headers=bob, json={}).status_code, 403)
+        for headers in (alice, {'Authorization': 'Bearer shared-token'}):
+            response = self.a.post(paths[0], headers=headers, json={'custom_prompt': 'Friendly'})
+            self.assertEqual(response.status_code, 200, response.json)
+            self.assertEqual(response.json['message'], 'Summary remade.')
+            with patch('email_content.require_ai_api_key', side_effect=ValueError('No key')):
+                for path in paths[1:]:
+                    response = self.a.post(path, headers=headers, json={'scene_prompt': 'Beach'})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn('error', response.json)
+        self.assertEqual(self.a.post(paths[0], headers=alice, json={'custom_prompt': []}).status_code, 400)
+
+    def test_native_flyer_remake_uses_owner_data_even_for_admin(self):
+        from private_accounts import private_database, account_for_user, provision_database
+        self.register(self.a, 'alice')
+        owner_path = provision_database(self.path, account_for_user(self.path, 'alice')['id'])
+        flyerfx.insert_flyer_page('alice-own', 'alice', ['Alice'], 'doubles', '2026-10-09', '18:30', 'Beach')
+        def generate(*args, **kwargs):
+            self.assertEqual(private_database(), owner_path)
+            self.assertEqual(session['username'], 'alice')
+            self.assertEqual(kwargs['custom_scene_prompt'], 'Sunset')
+            return '/new-picture.jpg', '', '', [], 'Sunset'
+        with patch('email_content.require_ai_api_key', return_value='test'), \
+             patch('email_content.generate_flyer_image', side_effect=generate):
+            response = self.a.post('/flyer/alice-own/remake-image/',
+                headers={'Authorization': 'Bearer shared-token'}, json={'scene_prompt': 'Sunset'})
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual(response.json['message'], 'Flyer remade.')
+        self.assertEqual(flyerfx.get_flyer_page('alice-own')['flyer_image_url'], '/new-picture.jpg')
+
+    def test_native_subscription_is_public_and_shared_with_personal_accounts(self):
+        import recap_subscriptions
+        path = '/api/ai/recaps/subscribe'
+        response = self.a.post(path, json={'email': ' Fan@Example.com '})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("You're subscribed", response.json['message'])
+        headers = self.register(self.a, 'alice')
+        response = self.a.post(path, json={'email': 'fan@example.com'}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(recap_subscriptions.recipients([]), ['fan@example.com'])
+
+    def test_native_subscription_rejects_invalid_addresses_and_form_posts(self):
+        import recap_subscriptions
+        path = '/api/ai/recaps/subscribe'
+        for payload in [None, [], {}, {'email': 123}, {'email': ''},
+                        {'email': 'bad'}, {'email': 'a@example.com,b@example.com'},
+                        {'email': 'a' * 255 + '@example.com'}]:
+            response = self.a.post(path, data=json.dumps(payload), content_type='application/json')
+            self.assertEqual(response.status_code, 400, payload)
+            self.assertIn('error', response.json)
+        response = self.a.post(path, data={'email': 'fan@example.com'})
+        self.assertEqual(response.status_code, 415)
+        self.assertEqual(recap_subscriptions.recipients([]), [])
 
     def test_web_favorite_requires_owner_and_form_token(self):
         self.register(self.a, 'alice')

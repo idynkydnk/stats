@@ -978,6 +978,21 @@ def register_ios_api(app):
 
     # ----- AI -----
 
+    @app.route('/api/ai/recaps/subscribe', methods=['POST'])
+    def api_subscribe_ai_recaps():
+        import recap_subscriptions
+        # Accept only JSON, so cross-site HTML forms cannot submit subscriptions.
+        if not request.is_json:
+            return jsonify({'error': 'Send the email address as JSON.'}), 415
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not isinstance(data.get('email'), str):
+            return jsonify({'error': 'Enter a valid email address.'}), 400
+        try:
+            recap_subscriptions.subscribe(data['email'])
+        except ValueError as exc:
+            return jsonify({'error': str(exc)}), 400
+        return jsonify({'message': "You're subscribed to future AI recap emails. You can unsubscribe from any recap email."})
+
     @app.route('/api/ai/recaps')
     def api_my_recaps():
         from account_stats_views import recap_authors_for_viewer
@@ -1028,6 +1043,69 @@ def register_ios_api(app):
         except PermissionError as exc:
             return jsonify({'error': str(exc)}), 403
         return jsonify({'ok': True, 'pinned': data['pinned']})
+
+    @app.route('/api/ai-library/<kind>/<share_id>', methods=['GET', 'PUT', 'DELETE'])
+    @api_login_required
+    def api_edit_ai_library_item(kind, share_id):
+        from ai_library_edit import recap_summary, edit_recap
+        from ai_library import serialized
+        import flyer_functions as flyerfx
+        S = _S()
+        if kind not in ('recap', 'flyer'):
+            return jsonify(error='Item not found.'), 404
+
+        @serialized
+        def perform():
+            row = S.adminfx.get_ai_recap_page(share_id) if kind == 'recap' else flyerfx.get_flyer_page(share_id)
+            if not row:
+                return jsonify(error='Item not found.'), 404
+            if not S._is_owner_or_admin(row.get('username')):
+                return jsonify(error='Only the creator or an admin can change this item.'), 403
+            if request.method == 'DELETE':
+                if kind == 'recap':
+                    S.adminfx.delete_ai_recap_page(share_id)
+                else:
+                    flyerfx.delete_flyer_page(share_id)
+                S.log_activity('Deleted AI ' + kind, target=share_id)
+                return jsonify(ok=True)
+            if request.method == 'GET':
+                return jsonify(
+                    title=row.get('subject', '') if kind == 'recap' else row.get('title', ''),
+                    summary=recap_summary(row) if kind == 'recap' else '',
+                    custom_prompt=row.get('style_instructions') or row.get('custom_prompt') or '',
+                    scene_prompt=row.get('scene_prompt') or '',
+                    event_date=row.get('event_date') or '', event_time=row.get('event_time') or '',
+                    location=row.get('location') or '', image_details=row.get('image_details') or '',
+                )
+            data = request.get_json(silent=True)
+            allowed = {'title', 'summary'} if kind == 'recap' else {'title', 'event_date', 'event_time', 'location', 'image_details'}
+            if not isinstance(data, dict) or not data or set(data) - allowed:
+                return jsonify(error='Choose valid fields to edit.'), 400
+            if any(not isinstance(value, str) or len(value) > (50000 if key == 'summary' else 5000)
+                   for key, value in data.items()):
+                return jsonify(error='Enter valid text for each field.'), 400
+            try:
+                if kind == 'recap':
+                    updates = edit_recap(row, data)
+                    if updates:
+                        S.adminfx.update_ai_recap_page(share_id, **updates)
+                        S._refresh_instagram_slides(share_id, html_body=updates['html_body'],
+                            plain_text_body=updates['plain_text_body'], subject=updates.get('subject', row.get('subject', '')),
+                            hero_image_url=row.get('hero_image_url') or '', force=True)
+                else:
+                    updates = {key: value.strip() for key, value in data.items()}
+                    if updates.get('event_date'):
+                        date.fromisoformat(updates['event_date'])
+                    if updates.get('event_time'):
+                        from datetime import time
+                        time.fromisoformat(updates['event_time'])
+                    flyerfx.update_flyer_page(share_id, **updates)
+            except ValueError as exc:
+                return jsonify(error=str(exc)), 400
+            S.log_activity('Edited AI ' + kind, target=share_id)
+            return jsonify(message='Changes saved.')
+
+        return perform()
 
     @app.route('/api/flyers/<share_id>', methods=['DELETE'])
     @api_login_required

@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-08-edit-owned-ai-library",
+    "date": "2026-10-08",
+    "subject": "iPhone: Edit and delete your recaps and flyers",
+    "body": "Use Manage to edit recap titles and summaries or flyer event details, change instructions and remake summaries or pictures, or delete an item. Creators can manage their own items, and Kyle and other admins can manage everyone's."
+  },
+  {
+    "id": "ios-2026-10-08-native-recap-email-signup",
+    "date": "2026-10-08",
+    "subject": "iPhone: Sign up for recap emails in the app",
+    "body": "Get recaps by email now opens a signup screen that matches your app appearance. Enter your email and subscribe without signing in, with confirmation or any errors shown right on the screen."
+  },
+  {
     "id": "ios-2026-10-08-ai-library-favorites",
     "date": "2026-10-08",
     "subject": "iPhone: Keep favorite recaps and flyers",

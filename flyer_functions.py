@@ -138,6 +138,7 @@ def list_flyer_pages(page=1, per_page=25, username=None):
         seen.add(sid)
         entries.append({
             'share_id': sid,
+            'title': meta.get('title') or '',
             'pinned': bool(meta.get('pinned')),
             'created_at': created_at,
             'username': owner,
