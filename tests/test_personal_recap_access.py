@@ -2,6 +2,7 @@
 import ast
 import json
 import os
+import secrets
 from pathlib import Path
 import sqlite3
 import sys
@@ -48,7 +49,7 @@ class PersonalRecapAccessTests(unittest.TestCase):
         self.generate_image = Mock()
         namespace = dict(
             app=self.app, request=request, session=session, jsonify=jsonify,
-            abort=abort, flash=flash, redirect=redirect, url_for=url_for, json=json, adminfx=admin,
+            abort=abort, flash=flash, redirect=redirect, url_for=url_for, json=json, adminfx=admin, secrets=secrets,
             _stats_db_path=lambda: self.path, _S=lambda: self.service,
             EMAIL_SITE_BASE_URL=self.service.EMAIL_SITE_BASE_URL,
             serialize_recap_list_entry=self.service.serialize_recap_list_entry,
@@ -68,13 +69,26 @@ class PersonalRecapAccessTests(unittest.TestCase):
                           '_is_owner_or_admin', 'my_ai_recaps_delete', 'login_required',
                           'remake_ai_recap_summary', 'remake_ai_recap_image',
                           'upload_ai_recap_image', '_require_recap_creator',
-                          'rebuild_ai_recap_instagram'}),
+                          'rebuild_ai_recap_instagram', 'pin_ai_library_item'}),
             ('ios_api.py', {'api_my_recaps'}),
         ]:
             tree = ast.parse((ROOT / filename).read_text())
             nodes = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name in names]
             exec(compile(ast.Module(body=nodes, type_ignores=[]), filename, 'exec'), namespace)
         self.app.add_url_rule('/login/', 'login', lambda: 'Sign in')
+
+    def test_web_favorite_requires_owner_and_form_token(self):
+        self.register(self.a, 'alice')
+        with self.a.session_transaction() as state:
+            state['recap_subscription_token'] = 'test-token'
+        path = '/ai-library/recap/alice-own/pin'
+        self.assertEqual(self.a.post(path, data={'pinned': '1'}).status_code, 400)
+        data = {'pinned': '1', 'subscription_token': 'test-token'}
+        self.assertEqual(self.a.post('/ai-library/recap/bob-own/pin', data=data).status_code, 403)
+        self.assertEqual(self.a.post(path, data=data).status_code, 302)
+        self.assertTrue(admin.get_ai_recap_page('alice-own')['pinned'])
+        self.assertEqual(self.a.post(path, data={**data, 'pinned': '0'}).status_code, 302)
+        self.assertFalse(admin.get_ai_recap_page('alice-own')['pinned'])
 
     def test_web_and_api_filter_before_pagination_and_follow_kt_preferences(self):
         headers = self.register(self.a, 'alice')
@@ -257,7 +271,9 @@ class PersonalRecapAccessTests(unittest.TestCase):
         ]))
         environment.globals.update(url_for=lambda endpoint, **kw: '/' + endpoint,
                                    get_flashed_messages=lambda **kw: [],
-                                   request=SimpleNamespace(args={}))
+                                   request=SimpleNamespace(args={}),
+                                   recap_subscription_token=lambda: 'token',
+                                   ai_library_limits={'recap': 100, 'flyer': 50})
         for allowed in [False, True]:
             entry = dict(share_id='recap', can_manage=allowed, subject='Recap')
             context = dict(base_template='base.html', entries=[entry], page=1, total_pages=1,

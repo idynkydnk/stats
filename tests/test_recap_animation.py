@@ -29,7 +29,7 @@ def sample_sheet():
 
 
 class RecapAnimationTests(unittest.TestCase):
-    def test_website_and_app_queue_animation_and_correct_action(self):
+    def test_website_and_app_downgrade_old_animation_requests_to_stills(self):
         # Load the real handlers without the production app's startup DB writes.
         root = Path(__file__).resolve().parents[1]
         for native in (False, True):
@@ -52,8 +52,8 @@ class RecapAnimationTests(unittest.TestCase):
                 client = app.test_client()
                 response = client.post('/api/ai/summary', json=payload) if native else client.post('/preview_ai_summary_with_prompt/', data=payload)
                 self.assertIn(response.status_code, (200, 302))
-                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_mode'], 'animation')
-                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_details'], 'Moving player: Sam\nAction: wave')
+                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_mode'], 'image')
+                self.assertEqual(jobs.enqueue_job.call_args.kwargs['image_details'], payload['image_details'])
 
     def test_twelve_frames_in_order_with_loop_and_portrait_dimensions(self):
         sheet, colors = sample_sheet()
@@ -122,13 +122,13 @@ class RecapAnimationTests(unittest.TestCase):
         self.assertIn('hero-image-card', _email_hero_html(result[0]))
 
     def test_mode_dispatch_and_generation_failure_preserve_recap_contract(self):
-        self.assertEqual(_normalize_image_mode('animation'), 'animation')
+        self.assertEqual(_normalize_image_mode('animation'), 'image')
         with (
             patch('email_content._illustration_meta', return_value={'api_calls': 1}),
             patch('email_content.generate_email_hero_image', side_effect=ValueError('bad sheet')) as generate,
         ):
             result = _try_generate_email_hero_image('unused', 'doubles', [], ['Sam'], image_mode='animation')
-        self.assertTrue(generate.call_args.kwargs['animation'])
+        self.assertNotIn('animation', generate.call_args.kwargs)
         self.assertIsNone(result[0])
         self.assertTrue(result[2])
 

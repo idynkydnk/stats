@@ -47,6 +47,7 @@ PRIVATE_ENDPOINTS = {
     'my_ai_recaps', 'view_ai_recap', 'recap_og_image',
     'recap_instagram_slide', 'recap_instagram_zip',
     'subscribe_ai_recaps', 'my_ai_recaps_delete',
+    'pin_ai_library_item', 'api_pin_ai_library_item',
     'remake_ai_recap_summary', 'remake_ai_recap_image',
     'upload_ai_recap_image', 'rebuild_ai_recap_instagram',
 }

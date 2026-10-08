@@ -39,7 +39,7 @@ class RecapSubscriptionTests(unittest.TestCase):
                        EMAIL_SITE_BASE_URL='https://example.com', render_template=self.render,
                        plain_text_fallback_from_html=plain_text_fallback_from_html,
                        serialize_recap_list_entry=lambda row, base: dict(row),
-                       _stats_db_path=adminfx.stats_db_path,
+                       _stats_db_path=adminfx.stats_db_path, is_admin=lambda: False,
                        _is_owner_or_admin=lambda owner: session.get('username') == owner)
         tree = ast.parse((ROOT / 'stats.py').read_text())
         names = {'my_ai_recaps', 'inject_recap_subscription_token', 'subscribe_ai_recaps',
@@ -203,7 +203,8 @@ class RecapSubscriptionTests(unittest.TestCase):
     def test_public_menu_and_subscription_templates(self):
         with self.app.test_request_context('/'):
             self.app.jinja_env.globals.update(url_for=lambda endpoint, **kw: '/' + endpoint,
-                                             recap_subscription_token=lambda: 'token')
+                                             recap_subscription_token=lambda: 'token',
+                                             ai_library_limits={'recap': 100, 'flyer': 50})
             menu = self.app.jinja_env.get_template('partials/menu_sidebar.html').render(session={})
             self.assertIn('/my_ai_recaps', menu)
             self.assertNotIn('/ai_summary', menu)
@@ -216,7 +217,7 @@ class RecapSubscriptionTests(unittest.TestCase):
                 html = template.render(base_template='test_base.html', session={'logged_in': manageable},
                                        entries=[dict(share_id='abc', subject='Recap', can_manage=manageable)],
                                        page=1, total_pages=1)
-                self.assertEqual('Creator view' in html, manageable)
+                self.assertEqual('> Edit' in html, manageable)
                 self.assertEqual('> Delete' in html, manageable)
             self.app.jinja_env.get_template('recap.html')
             form = self.app.jinja_env.get_template('partials/recap_subscription.html').render()

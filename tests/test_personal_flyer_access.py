@@ -56,7 +56,7 @@ class PersonalFlyerAccessTests(unittest.TestCase):
                           '_validate_flyer_payload', '_flyer_sport_label',
                           'run_flyer_job', 'download_flyer'}),
             ('ios_api.py', {'api_login_required', 'api_my_flyers',
-                            'api_create_flyer', 'api_delete_flyer'}),
+                            'api_create_flyer', 'api_delete_flyer', 'api_pin_ai_library_item'}),
         ]:
             tree = ast.parse((ROOT / filename).read_text())
             nodes = [node for node in ast.walk(tree)
@@ -85,6 +85,20 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         self.assertEqual(self.a.get('/api/flyers', headers=headers).json['flyers'], [])
         admin = self.app.test_client().get('/api/flyers', headers={'Authorization': 'Bearer shared-token'})
         self.assertEqual(admin.json['total'], 2)
+
+    def test_favorites_require_owner_or_admin_and_boolean_setting(self):
+        headers = self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        path = '/api/ai-library/flyer/alice-own/pin'
+        self.assertEqual(self.app.test_client().post(path, json={'pinned': True}).status_code, 401)
+        self.assertEqual(self.a.post(path, headers=headers, json={'pinned': 'true'}).status_code, 400)
+        self.assertEqual(self.a.post(path, headers=headers, json=['pinned']).status_code, 400)
+        self.assertEqual(self.a.post('/api/ai-library/flyer/bob-own/pin', headers=headers, json={'pinned': True}).status_code, 403)
+        self.assertEqual(self.a.post(path, headers=headers, json={'pinned': True}).status_code, 200)
+        self.assertTrue(self.a.get('/api/flyers', headers=headers).json['flyers'][0]['pinned'])
+        self.assertEqual(self.app.test_client().post(path, headers={'Authorization': 'Bearer shared-token'}, json={'pinned': False}).status_code, 200)
+        self.assertFalse(flyers.get_flyer_page('alice-own')['pinned'])
+        self.assertEqual(self.a.post('/api/ai-library/flyer/missing/pin', headers=headers, json={'pinned': True}).status_code, 404)
 
     def test_create_requires_login_and_queues_for_current_account(self):
         self.assertEqual(self.a.get('/api/flyers').status_code, 401)

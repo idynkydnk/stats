@@ -125,6 +125,7 @@
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
+<p style="color:var(--sr-muted);margin:16px 0;">Keeps the latest {{ ai_library_limits.flyer }} flyers per account after successful creation. Pinned favorites and flyers for today or later are protected. Protected items may exceed the limit. Removed items and their links expire.</p>
 
 <div class="adm-section">
     <p class="flyer-help-desktop" style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
@@ -179,6 +180,12 @@
                     <a class="adm-btn" href="{{ url_for('view_flyer', share_id=e.share_id) }}">
                         <i class="fas fa-eye"></i> Open
                     </a>
+                    <form method="POST" action="{{ url_for('pin_ai_library_item', kind='flyer', share_id=e.share_id) }}" style="display:inline;margin:0;">
+                        <input type="hidden" name="subscription_token" value="{{ recap_subscription_token() }}">
+                        <input type="hidden" name="pinned" value="{{ '0' if e.pinned else '1' }}">
+                        <input type="hidden" name="page" value="{{ page }}">
+                        <button type="submit" class="adm-btn"><i class="fas fa-thumbtack"></i> {{ 'Unpin favorite' if e.pinned else 'Pin favorite' }}</button>
+                    </form>
                     <form method="POST" action="{{ url_for('my_ai_flyers_delete') }}" style="display:inline;margin:0;">
                         <input type="hidden" name="share_id" value="{{ e.share_id }}">
                         <input type="hidden" name="page" value="{{ page }}">

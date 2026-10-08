@@ -1,6 +1,7 @@
 """Disk persistence for shareable AI flyer pages (mirrors recap storage)."""
 import json
 import os
+from ai_library import serialized
 from datetime import datetime, timezone
 
 
@@ -30,6 +31,7 @@ def _write_json_atomic(path, payload):
     os.replace(tmp_path, path)
 
 
+@serialized
 def insert_flyer_page(
     share_id,
     username,
@@ -80,10 +82,13 @@ def get_flyer_page(share_id):
         return json.load(handle)
 
 
+@serialized
 def update_flyer_page(share_id, **meta_updates):
     """Update flyer metadata fields on disk."""
     safe_id = _safe_flyer_share_id(share_id)
-    meta = get_flyer_page(safe_id) or {'share_id': safe_id}
+    meta = get_flyer_page(safe_id)
+    if not meta:
+        raise ValueError('Flyer no longer exists.')
     for key, value in meta_updates.items():
         if value is None:
             continue
@@ -133,6 +138,7 @@ def list_flyer_pages(page=1, per_page=25, username=None):
         seen.add(sid)
         entries.append({
             'share_id': sid,
+            'pinned': bool(meta.get('pinned')),
             'created_at': created_at,
             'username': owner,
             'players': list(meta.get('players') or []),
@@ -158,6 +164,8 @@ def list_flyer_pages(page=1, per_page=25, username=None):
             if filter_username and owner.strip().lower() != filter_username:
                 continue
             meta = get_flyer_page(sid) or {}
+            if not meta:
+                continue
             if meta:
                 owner = meta.get('username') or owner
             if filter_username and (owner or '').strip().lower() != filter_username:
@@ -165,6 +173,7 @@ def list_flyer_pages(page=1, per_page=25, username=None):
             seen.add(sid)
             entries.append({
                 'share_id': sid,
+                'pinned': bool(meta.get('pinned')),
                 'created_at': meta.get('created_at') or job.get('completed_at') or job.get('created_at') or '',
                 'username': owner,
                 'players': list(meta.get('players') or []),
@@ -188,18 +197,22 @@ def list_flyer_pages(page=1, per_page=25, username=None):
     return entries[start:start + per_page], total
 
 
+@serialized
 def delete_flyer_page(share_id):
     """Remove a flyer page meta JSON from disk.
 
-    Returns True if deleted, False if not found. Image files in
-    static/email_images/ are left alone (clean up via AI Images).
+    Returns True if deleted, False if not found. Unused image files
+    and previews are removed, preserving images used by other pages.
     """
     try:
         safe_id = _safe_flyer_share_id(share_id)
     except ValueError:
         return False
+    row = get_flyer_page(safe_id)
     try:
         os.remove(_flyer_meta_path(safe_id))
+        from ai_library import cleanup_images
+        cleanup_images(row)
         return True
     except FileNotFoundError:
         return False

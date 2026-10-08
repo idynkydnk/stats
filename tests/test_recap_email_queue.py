@@ -60,6 +60,7 @@ class RecapEmailQueueTests(unittest.TestCase):
         self.assertEqual(saved['hero_image_url'], '/static/new.png')
 
     def test_metadata_only_edits_do_not_delay_and_sent_mail_is_not_requeued(self):
+        admin.insert_ai_recap_page('recap', 'kyle', 'doubles', '<p>First</p>')
         queue.schedule('recap', 'kyle', 'doubles', [1])
         self.clock.return_value = 2000
         admin.update_ai_recap_page('recap', scene_prompt='Try again', hero_image_error='Failed')
@@ -67,6 +68,7 @@ class RecapEmailQueueTests(unittest.TestCase):
         self.assertEqual(queue.claim_due(), 'recap')
         queue.finish('recap', 'sent')
         admin.update_ai_recap_page('recap', html_body='<p>Later edit</p>')
+        admin.write_recap_html_file('legacy', '<p>Old recap</p>')
         admin.update_ai_recap_page('legacy', html_body='<p>Old recap</p>')
         self.clock.return_value = 10000
         self.assertIsNone(queue.claim_due())

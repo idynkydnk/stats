@@ -1013,6 +1013,22 @@ def register_ios_api(app):
             'showing_all': username is None,
         })
 
+    @app.route('/api/ai-library/<kind>/<share_id>/pin', methods=['POST'])
+    @api_login_required
+    def api_pin_ai_library_item(kind, share_id):
+        from ai_library import set_pin
+        S = _S()
+        data = request.get_json(silent=True) or {}
+        if kind not in ('recap', 'flyer') or not isinstance(data, dict) or not isinstance(data.get('pinned'), bool):
+            return jsonify({'error': 'Choose a recap or flyer and a favorite setting.'}), 400
+        try:
+            set_pin(kind, share_id, data['pinned'], S._is_owner_or_admin)
+        except KeyError:
+            return jsonify({'error': 'Item not found'}), 404
+        except PermissionError as exc:
+            return jsonify({'error': str(exc)}), 403
+        return jsonify({'ok': True, 'pinned': data['pinned']})
+
     @app.route('/api/flyers/<share_id>', methods=['DELETE'])
     @api_login_required
     def api_delete_flyer(share_id):

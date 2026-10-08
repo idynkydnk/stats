@@ -52,3 +52,24 @@ Pushing to `main` triggers `.github/workflows/deploy-to-pythonanywhere.yml`, whi
 - `EMAIL_SETUP.md` / `PYTHONANYWHERE_EMAIL_SETUP.md` — email configuration
 - `GEMINI_SETUP.md` — AI summary setup (OpenAI preferred; Gemini fallback)
 - `GITHUB_ACTIONS_SETUP.md` — deploy pipeline
+
+## AI recap and flyer retention
+
+After a successful new publication, each account keeps a target of 100 recaps
+and 50 flyers. The oldest eligible items are removed first. Pin favorites from
+the website or iPhone app to protect them. Flyers dated today or later (Pacific
+time), and legacy flyers with unrecognized dates, are also protected. Protected
+items count toward the target and can exceed it; cleanup never removes the item
+just created. Failed generation, browsing, and deployment do not trigger cleanup.
+
+Set `AI_RECAP_LIMIT` and `AI_FLYER_LIMIT` to positive integers to adjust the
+per-account targets. Unpinning takes effect on the next successful creation.
+Deletion retires the page link, removes its carousel slides, and removes its main
+images and previews only when no other published recap or flyer references them.
+Historical prompt logs do not keep deleted-page images alive. Recaps currently
+being emailed are protected; deleting a recap cancels its pending email. Existing
+unused files from older deletions can still be reviewed under Admin → AI Images,
+which also shows image storage usage.
+
+New recaps offer text only or a still illustration. Requests from older clients
+for animations use a still illustration; existing animated recaps remain viewable.

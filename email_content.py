@@ -46,9 +46,9 @@ OG_IMAGE_PREFIX = 'og_'
 OG_IMAGE_MAX_BYTES = 500 * 1024
 OG_IMAGE_MAX_WIDTH = 1200
 
-IMAGE_MODES = ('none', 'image', 'animation')
+IMAGE_MODES = ('none', 'image')
 DEFAULT_IMAGE_MODE = 'none'
-_LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image'}
+_LEGACY_IMAGE_MODES = {'single': 'image', 'two_pass': 'image', 'animation': 'image'}
 
 
 class ImageGenerationError(Exception):
@@ -73,7 +73,6 @@ def image_mode_label(mode):
     labels = {
         'none': 'text only',
         'image': 'with illustration',
-        'animation': 'with animation',
     }
     return labels.get(_normalize_image_mode(mode), labels[DEFAULT_IMAGE_MODE])
 
@@ -4006,7 +4005,6 @@ def _try_generate_email_hero_image(
             selected_players=selected_players,
             player_stats=player_stats,
             location=location,
-            **({'animation': True} if mode == 'animation' else {}),
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:

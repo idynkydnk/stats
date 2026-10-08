@@ -599,51 +599,55 @@ def send_due_recap_email():
 
 def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=None):
     """Save a generated AI recap as a public shareable page."""
-    illustration_meta = payload.get('illustration_meta') or {}
-    solo_images = illustration_meta.get('solo_images') or []
-    scene_prompt = (illustration_meta.get('scene_prompt') or '').strip()
-    illustrated_players = illustration_meta.get('illustrated_players') or []
-    style_instructions = (payload.get('style_instructions') or '').strip()
-    # Prefer the resolved style for later remakes; fall back to the typed custom prompt.
-    saved_custom = style_instructions or (custom_prompt or '').strip()
-    share_id = secrets.token_urlsafe(9)
-    while adminfx.get_ai_recap_page(share_id):
+    from ai_library import library_lock
+    with library_lock():
+        illustration_meta = payload.get('illustration_meta') or {}
+        solo_images = illustration_meta.get('solo_images') or []
+        scene_prompt = (illustration_meta.get('scene_prompt') or '').strip()
+        illustrated_players = illustration_meta.get('illustrated_players') or []
+        style_instructions = (payload.get('style_instructions') or '').strip()
+        # Prefer the resolved style for later remakes; fall back to the typed custom prompt.
+        saved_custom = style_instructions or (custom_prompt or '').strip()
         share_id = secrets.token_urlsafe(9)
-    html_body = payload.get('html_body') or ''
-    plain_text_body = payload.get('plain_text_body') or ''
-    subject = payload.get('subject') or ''
-    hero_image_url = payload.get('hero_image_url') or ''
-    adminfx.insert_ai_recap_page(
-        share_id=share_id,
-        username=username or session.get('username') or 'unknown',
-        game_type=payload.get('game_type') or 'doubles',
-        subject=subject,
-        html_body=html_body,
-        plain_text_body=plain_text_body,
-        hero_image_url=hero_image_url,
-        hero_image_error=payload.get('hero_image_error') or '',
-        game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
-        prompt_style=prompt_style or '',
-        custom_prompt=saved_custom,
-        style_instructions=style_instructions,
-        solo_images_json=json.dumps(solo_images) if solo_images else '',
-        image_details=payload.get('image_details') or '',
-        image_mode=payload.get('image_mode') or 'none',
-        scene_prompt=scene_prompt,
-        illustrated_players_json=json.dumps(illustrated_players) if illustrated_players else '',
-    )
-    _refresh_instagram_slides(
-        share_id,
-        html_body=html_body,
-        plain_text_body=plain_text_body,
-        subject=subject,
-        hero_image_url=hero_image_url,
-        force=True,
-    )
-    recap_email_queue.schedule(
-        share_id, username or session.get('username') or 'unknown',
-        payload.get('game_type') or 'doubles', game_ids)
-    return share_id
+        while adminfx.get_ai_recap_page(share_id):
+            share_id = secrets.token_urlsafe(9)
+        html_body = payload.get('html_body') or ''
+        plain_text_body = payload.get('plain_text_body') or ''
+        subject = payload.get('subject') or ''
+        hero_image_url = payload.get('hero_image_url') or ''
+        adminfx.insert_ai_recap_page(
+            share_id=share_id,
+            username=username or session.get('username') or 'unknown',
+            game_type=payload.get('game_type') or 'doubles',
+            subject=subject,
+            html_body=html_body,
+            plain_text_body=plain_text_body,
+            hero_image_url=hero_image_url,
+            hero_image_error=payload.get('hero_image_error') or '',
+            game_ids_json=json.dumps(list(game_ids), default=str) if game_ids else '[]',
+            prompt_style=prompt_style or '',
+            custom_prompt=saved_custom,
+            style_instructions=style_instructions,
+            solo_images_json=json.dumps(solo_images) if solo_images else '',
+            image_details=payload.get('image_details') or '',
+            image_mode=payload.get('image_mode') or 'none',
+            scene_prompt=scene_prompt,
+            illustrated_players_json=json.dumps(illustrated_players) if illustrated_players else '',
+        )
+        _refresh_instagram_slides(
+            share_id,
+            html_body=html_body,
+            plain_text_body=plain_text_body,
+            subject=subject,
+            hero_image_url=hero_image_url,
+            force=True,
+        )
+        recap_email_queue.schedule(
+            share_id, username or session.get('username') or 'unknown',
+            payload.get('game_type') or 'doubles', game_ids)
+        from ai_library import after_publish
+        after_publish('recap', share_id)
+        return share_id
 
 
 def _load_games_and_players_for_recap(game_type, game_ids):
@@ -890,27 +894,31 @@ def serialize_recap_list_entry(entry, site_base=''):
 def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_images=None,
                         scene_prompt=''):
     """Create a shareable flyer page from form payload + generation results."""
-    import flyer_functions as flyerfx
+    from ai_library import library_lock
+    with library_lock():
+        import flyer_functions as flyerfx
 
-    share_id = secrets.token_urlsafe(9)
-    while flyerfx.get_flyer_page(share_id):
         share_id = secrets.token_urlsafe(9)
-    flyerfx.insert_flyer_page(
-        share_id=share_id,
-        username=username or 'unknown',
-        players=payload.get('players') or [],
-        game_type=payload.get('game_type') or 'doubles',
-        game_name=payload.get('game_name') or '',
-        event_date=payload.get('event_date') or '',
-        event_time=payload.get('event_time') or '',
-        location=payload.get('location') or '',
-        image_details=payload.get('image_details') or '',
-        flyer_image_url=flyer_url or '',
-        flyer_image_error=flyer_error or '',
-        solo_images=solo_images or [],
-        scene_prompt=scene_prompt or '',
-    )
-    return share_id
+        while flyerfx.get_flyer_page(share_id):
+            share_id = secrets.token_urlsafe(9)
+        flyerfx.insert_flyer_page(
+            share_id=share_id,
+            username=username or 'unknown',
+            players=payload.get('players') or [],
+            game_type=payload.get('game_type') or 'doubles',
+            game_name=payload.get('game_name') or '',
+            event_date=payload.get('event_date') or '',
+            event_time=payload.get('event_time') or '',
+            location=payload.get('location') or '',
+            image_details=payload.get('image_details') or '',
+            flyer_image_url=flyer_url or '',
+            flyer_image_error=flyer_error or '',
+            solo_images=solo_images or [],
+            scene_prompt=scene_prompt or '',
+        )
+        from ai_library import after_publish
+        after_publish('flyer', share_id)
+        return share_id
 
 
 def run_flyer_job(username, payload):
@@ -2342,6 +2350,32 @@ def subscribe_ai_recaps():
     return redirect(url_for('my_ai_recaps'))
 
 
+@app.context_processor
+def inject_ai_library_limits():
+    from ai_library import limits
+    return {'ai_library_limits': limits()}
+
+
+@app.route('/ai-library/<kind>/<share_id>/pin', methods=['POST'])
+@login_required
+def pin_ai_library_item(kind, share_id):
+    from ai_library import set_pin
+    token = request.form.get('subscription_token', '')
+    if not token or not secrets.compare_digest(token.encode(), session.get('recap_subscription_token', '').encode()):
+        abort(400)
+    if kind not in ('recap', 'flyer') or request.form.get('pinned') not in ('0', '1'):
+        abort(400)
+    try:
+        set_pin(kind, share_id, request.form['pinned'] == '1', _is_owner_or_admin)
+    except KeyError:
+        abort(404)
+    except PermissionError:
+        abort(403)
+    flash('Favorite protected.' if request.form['pinned'] == '1' else 'Favorite unpinned. It can be removed after a future creation.', 'success')
+    return redirect(url_for('my_ai_recaps' if kind == 'recap' else 'my_ai_flyers',
+                            page=max(request.form.get('page', 1, type=int) or 1, 1)))
+
+
 @app.route('/ai-recaps/delete', methods=['POST'])
 @login_required
 def my_ai_recaps_delete():
@@ -2539,7 +2573,6 @@ def select_ai_prompt():
 @login_required
 def select_ai_style():
     """Show writing style + illustration options after roster review."""
-    from email_content import filter_illustratable_players
     selected_game_ids = request.form.getlist('game_ids')
     game_type = request.form.get('game_type', 'doubles')
     if not selected_game_ids:
@@ -2550,16 +2583,14 @@ def select_ai_style():
         game_ids=selected_game_ids,
         game_type=game_type,
         worker_alive=ai_jobs.daemon_is_alive(),
-        animation_players=filter_illustratable_players(_roster_players_for_games(selected_game_ids, game_type)),
     )
 
 
 def _render_select_ai_prompt(
     game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
-    illustration_players=None, error=None, animation_details='', animation_player='',
+    illustration_players=None, error=None,
 ):
     """Re-show the style picker with prior selections after a recoverable error."""
-    from email_content import filter_illustratable_players
     if error:
         flash(str(error), 'error')
     style = _normalize_prompt_style(prompt_style) if prompt_style else ''
@@ -2572,9 +2603,6 @@ def _render_select_ai_prompt(
         selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
-        animation_details_value=animation_details or '',
-        animation_player_value=animation_player,
-        animation_players=filter_illustratable_players(_roster_players_for_games(game_ids, game_type)),
         worker_alive=ai_jobs.daemon_is_alive(),
     )
 
@@ -2593,11 +2621,7 @@ def preview_ai_summary_with_prompt():
     game_type = request.form.get('game_type', 'doubles')
     image_mode = _normalize_image_mode(request.form.get('image_mode'))
     illustration_details = (request.form.get('image_details') or '').strip()
-    animation_details = (request.form.get('animation_details') or '').strip()
-    animation_player = (request.form.get('animation_player') or '').strip()
-    image_details = animation_details if image_mode == 'animation' else illustration_details
-    if image_mode == 'animation' and animation_player:
-        image_details = f'Moving player: {animation_player}\nAction: {animation_details}'
+    image_details = illustration_details
     illustration_players = []
     
     if not selected_game_ids:
@@ -2611,8 +2635,6 @@ def preview_ai_summary_with_prompt():
             prompt_style=prompt_style,
             custom_prompt=custom_prompt,
             image_details=illustration_details,
-            animation_details=animation_details,
-            animation_player=animation_player,
             error=error,
         )
 
@@ -3447,7 +3469,6 @@ def view_ai_recap(share_id):
         game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,
         remake_scene_prompt=remake_scene_prompt,
-        is_animation=row.get('image_mode') == 'animation',
         og_description=og_description,
         instagram_slides=instagram_slides,
         ig_slide_data=ig_slide_data,
@@ -3649,8 +3670,7 @@ def remake_ai_recap_image(share_id):
     # Prefer the edited full scene prompt; fall back to the saved prompt/details.
     scene_prompt = (request.form.get('scene_prompt') or '').strip()
     image_details = (row.get('image_details') or '').strip()
-    # Keep animated recaps animated when remaking their hero.
-    image_mode = 'animation' if row.get('image_mode') == 'animation' else 'image'
+    image_mode = 'image'
 
     try:
         old_solos = json.loads(row.get('solo_images_json') or '[]')

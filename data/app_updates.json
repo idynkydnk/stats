@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-08-ai-library-favorites",
+    "date": "2026-10-08",
+    "subject": "iPhone: Keep favorite recaps and flyers",
+    "body": "Pin favorite recaps and flyers to protect them from automatic cleanup. Each account keeps up to 100 recaps and 50 flyers, with pinned favorites and upcoming flyers protected; AI recap creation now offers text or a still illustration."
+  },
+  {
     "id": "ios-2026-10-08-instant-other-game-choices",
     "date": "2026-10-08",
     "subject": "iPhone: Game names ready when opening Other",

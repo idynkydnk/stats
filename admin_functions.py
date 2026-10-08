@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sqlite3
+from ai_library import serialized
 import subprocess
 from datetime import datetime, timezone
 from site_update_notes import parse_site_update_note
@@ -87,6 +88,7 @@ def _recap_list_entry(share_id, source=None):
         'hero_image_url': source.get('hero_image_url') or '',
         'hero_image_error': source.get('hero_image_error') or '',
         'image_mode': source.get('image_mode') or '',
+        'pinned': bool(source.get('pinned')),
     }
 
 
@@ -123,6 +125,7 @@ def write_recap_html_file(share_id, html_body):
     return path
 
 
+@serialized
 def update_ai_recap_page(share_id, html_body=None, **meta_updates):
     """Update a published recap's HTML and/or JSON metadata on disk."""
     from contextlib import nullcontext
@@ -130,12 +133,17 @@ def update_ai_recap_page(share_id, html_body=None, **meta_updates):
 
     safe_id = _safe_recap_share_id(share_id)
     # Prompt-only changes and failed image attempts do not postpone mail.
+    meta = _read_recap_meta_file(safe_id) or get_ai_recap_page(safe_id)
+    if not meta:
+        raise ValueError('Recap no longer exists.')
     content_changed = html_body is not None or any(
         key in meta_updates for key in ('subject', 'plain_text_body', 'hero_image_url'))
     with recap_email_queue.updating(safe_id) if content_changed else nullcontext():
-        meta = _read_recap_meta_file(safe_id) or {'share_id': safe_id}
         if html_body is not None:
             write_recap_html_file(safe_id, html_body)
+        elif meta.get('html_body') and read_recap_html_file(safe_id) is None:
+            # Preserve the body when an old SQLite-only recap first gains metadata.
+            write_recap_html_file(safe_id, meta['html_body'])
         for key, value in meta_updates.items():
             if value is None:
                 continue
@@ -872,6 +880,7 @@ def init_ai_recap_pages_db():
     conn.close()
 
 
+@serialized
 def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          plain_text_body='', hero_image_url='', hero_image_error='',
                          game_ids_json='[]', prompt_style='', solo_images_json='',
@@ -1090,53 +1099,59 @@ def ensure_recap_hero_image_url(share_id, row=None):
     return hero
 
 
+@serialized
 def delete_ai_recap_page(share_id):
-    """Remove a published AI recap from disk (and legacy SQLite if present).
+    """Delete a recap and unused images; cancel mail that has not been sent.
 
-    Returns True if anything was deleted, False if the recap was not found.
-    Illustration files in static/email_images/ are left alone (clean up via AI Images).
+    A recap currently being emailed is protected until sending finishes.
     """
     import shutil
+    from ai_library import cleanup_images
 
     try:
         safe_id = _safe_recap_share_id(share_id)
     except ValueError:
         return False
-
+    row = get_ai_recap_page(safe_id)
     removed = False
-    for path in (
-        _recap_html_path(safe_id),
-        _recap_meta_path(safe_id),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recaps', f'{safe_id}.html'),
-    ):
+    conn = _connect()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if 'recap_email_queue' in tables:
+            mail = conn.execute('SELECT status FROM recap_email_queue WHERE share_id = ?', (safe_id,)).fetchone()
+            if mail and mail['status'] == 'sending':
+                return False
+            conn.execute("UPDATE recap_email_queue SET status = 'cancelled' WHERE share_id = ? AND status = 'pending'", (safe_id,))
+        for path in (
+            _recap_html_path(safe_id),
+            os.path.join(_legacy_recap_dir(), f'{safe_id}.html'),
+            os.path.join(_legacy_recap_dir(), f'{safe_id}.json'),
+        ):
+            try:
+                os.remove(path)
+                removed = True
+            except FileNotFoundError:
+                pass
+        ig_dir = os.path.join(_recap_storage_dir(), safe_id)
+        if os.path.isdir(ig_dir):
+            shutil.rmtree(ig_dir)
+            removed = True
         try:
-            os.remove(path)
+            os.remove(_recap_meta_path(safe_id))
             removed = True
         except FileNotFoundError:
             pass
-        except OSError:
-            pass
-
-    # Instagram carousel slides live in static/recaps/<share_id>/
-    ig_dir = os.path.join(_recap_storage_dir(), safe_id)
-    if os.path.isdir(ig_dir):
-        try:
-            shutil.rmtree(ig_dir)
-            removed = True
-        except OSError:
-            pass
-
-    conn = _connect()
-    try:
-        cur = conn.execute('DELETE FROM ai_recap_pages WHERE share_id = ?', (safe_id,))
+        if 'ai_recap_pages' in tables:
+            cur = conn.execute('DELETE FROM ai_recap_pages WHERE share_id = ?', (safe_id,))
+            removed = bool(cur.rowcount) or removed
         conn.commit()
-        if cur.rowcount:
-            removed = True
-    except sqlite3.OperationalError:
-        pass
+    except OSError:
+        return False
     finally:
         conn.close()
-
+    if removed:
+        cleanup_images(row)
     return removed
 
 
@@ -1300,7 +1315,8 @@ def _email_image_filenames_from_text(text):
 
 def referenced_email_image_filenames():
     """Filenames still referenced by published recaps or the AI prompt log."""
-    referenced = set()
+    from ai_library import live_image_filenames
+    referenced = live_image_filenames()
     recap_dir = _recap_storage_dir()
     if os.path.isdir(recap_dir):
         for name in os.listdir(recap_dir):
