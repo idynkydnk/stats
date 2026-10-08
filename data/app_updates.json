@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-07-player-game-order",
+    "date": "2026-10-07",
+    "subject": "iPhone: Newest games first on player profiles",
+    "body": "A player's doubles games appear from newest to oldest by when they were played, even when older games are entered later. Recent form and streaks also follow the game dates."
+  },
+  {
+    "id": "ios-2026-10-07-saved-stats",
+    "date": "2026-10-07",
+    "subject": "iPhone: Faster return visits to stats and games",
+    "body": "Previously viewed stats and game lists stay saved on your phone and appear while fresh results load. Recent results are reused to avoid repeated waits; pull down to refresh whenever you want the latest results."
+  },
+  {
     "id": "ios-2026-10-06-google-sign-in-timing",
     "date": "2026-10-06",
     "subject": "iPhone: More reliable Google sign-in",

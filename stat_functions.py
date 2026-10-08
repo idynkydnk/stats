@@ -851,12 +851,13 @@ def find_game(id):
 	return row
 
 def games_from_player_by_year(year, name):
+	"""Return games oldest first for recent form and newest-first display reversal."""
 	cur = set_cur()
 	name = (name or '').strip()
 	if year == 'All years':
-		cur.execute("SELECT * FROM games WHERE (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?)", (name, name, name, name))
+		cur.execute("SELECT * FROM games WHERE (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?) ORDER BY game_date ASC, id ASC", (name, name, name, name))
 	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?)", (year, name, name, name, name))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?) ORDER BY game_date ASC, id ASC", (year, name, name, name, name))
 	row = cur.fetchall()
 	row = convert_ampm(row)
 	return row
