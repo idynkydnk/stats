@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-08-instant-other-game-choices",
+    "date": "2026-10-08",
+    "subject": "iPhone: Game names ready when opening Other",
+    "body": "Opening Other focuses Game name and shows saved game choices while the list refreshes. Game names load ahead of time, and the temporary Vollis-only choice no longer flashes while waiting."
+  },
+  {
+    "id": "ios-2026-10-08-recent-game-name-order",
+    "date": "2026-10-08",
+    "subject": "iPhone: Recent games first when adding an Other game",
+    "body": "The Game name dropdown shows recent games first instead of sorting alphabetically. Saving a game moves its name to the top for the next entry."
+  },
+  {
     "id": "ios-2026-10-08-calmer-stats-refresh",
     "date": "2026-10-08",
     "subject": "iPhone: Fewer interruptions when checking stats",
