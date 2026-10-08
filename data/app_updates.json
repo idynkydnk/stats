@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-07-next-game-winner-focus",
+    "date": "2026-10-07",
+    "subject": "iPhone: Start the next doubles game at Winner 1",
+    "body": "After saving a doubles game, the form clears and returns to Winner 1 with the keyboard and player choices ready for the next game."
+  },
+  {
+    "id": "ios-2026-10-07-game-author-names",
+    "date": "2026-10-07",
+    "subject": "iPhone: Full names on games",
+    "body": "Games show the person’s saved full name in the byline instead of a Google or Apple account ID."
+  },
+  {
     "id": "ios-2026-10-07-instant-player-choices",
     "date": "2026-10-07",
     "subject": "iPhone: Faster player choices when adding a game",

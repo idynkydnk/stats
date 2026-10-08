@@ -1834,6 +1834,7 @@ def _api_get_db():
 
 def _api_game_row_to_dict(row):
     """Convert a games row (tuple or Row) to JSON-serializable dict."""
+    from flask import g
     if hasattr(row, 'keys'):
         d = dict(row)
     else:
@@ -1847,6 +1848,13 @@ def _api_game_row_to_dict(row):
     for key in ('game_date', 'updated_at'):
         if key in d and d[key] is not None and hasattr(d[key], 'isoformat'):
             d[key] = d[key].isoformat()
+    # Keep ownership keys intact; resolve the visible name from the identity DB.
+    # A games response can contain many rows from the same account.
+    username = (d.get('updated_by') or '').strip()
+    names = g.setdefault('_game_author_names', {})
+    if username and username.casefold() not in names:
+        names[username.casefold()] = adminfx.site_user_display_name(username)
+    d['updated_by_display_name'] = names.get(username.casefold(), '')
     return d
 
 @app.route('/')
