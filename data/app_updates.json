@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-08-other-game-field-suggestions",
+    "date": "2026-10-08",
+    "subject": "iPhone: Matching dropdowns for game names and types",
+    "body": "When adding an Other game, Game name and Game type show previous entries beneath the field, just like Winner 1. Type to narrow the choices, select an entry, or enter a new name or type."
+  },
+  {
     "id": "ios-2026-10-07-next-game-winner-focus",
     "date": "2026-10-07",
     "subject": "iPhone: Start the next doubles game at Winner 1",
