@@ -403,7 +403,7 @@ def register_ios_api(app):
             'partner_min_games': min_games,
             'partners': partners,
             'opponents': opponents,
-            'games': [_doubles_game_dict(g) for g in (games or [])],
+            'games': [_doubles_game_dict(g) for g in reversed(games or [])],
             'photo_url': _abs(avatar.get('player_photo_url')),
             'nickname': avatar.get('player_nickname') or '',
             'height': avatar.get('player_height') or '',
