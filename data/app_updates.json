@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-07-recap-share-link",
+    "date": "2026-10-07",
+    "subject": "iPhone: Share a recap from the top of the page",
+    "body": "Tap Link at the top of an AI recap to copy its address and share it, including when signed in to a personal account. The link follows the recap you are currently viewing."
+  },
+  {
     "id": "ios-2026-10-07-flyers-menu",
     "date": "2026-10-07",
     "subject": "iPhone: Flyers in Browse and Create",
