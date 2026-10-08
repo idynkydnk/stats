@@ -40,6 +40,7 @@ PRIVATE_ENDPOINTS = {
     'api_upload_player_photo', 'api_save_player_ai_image_traits',
     'api_generate_player_ai_image', 'api_ai_summary_game_search',
     'api_ai_roster', 'api_ai_summary_json', 'api_ai_job', 'api_my_recaps',
+    'api_my_flyers', 'api_create_flyer', 'api_delete_flyer', 'download_flyer',
     'ai_summary', 'select_ai_prompt', 'select_ai_style',
     'preview_ai_summary_with_prompt', 'api_generate_and_send_ai_summary',
     'ai_summary_job_status', 'api_ai_summary_job_status',

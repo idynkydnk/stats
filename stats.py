@@ -915,7 +915,8 @@ def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_im
 
 def run_flyer_job(username, payload):
     """Background worker: generate flyer image and publish the share page."""
-    with app.app_context():
+    from private_accounts import ai_account_context
+    with ai_account_context(app, _stats_db_path(), username):
         try:
             share_id = _generate_and_publish_flyer(username, payload or {})
             share_url = _absolute_site_url(f'/flyer/{share_id}/')

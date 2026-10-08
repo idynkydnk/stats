@@ -1,9 +1,21 @@
 [
   {
+    "id": "ios-2026-10-07-flyers-menu",
+    "date": "2026-10-07",
+    "subject": "iPhone: Flyers in Browse and Create",
+    "body": "Signed-in personal accounts can now open Flyers under Browse and Flyer under Create in the More menu. Browse your saved flyers or start a new one from the same menu."
+  },
+  {
+    "id": "ios-2026-10-07-other-game-dropdown",
+    "date": "2026-10-07",
+    "subject": "iPhone: Choose previous games from the game name dropdown",
+    "body": "In Add → Other, use the arrow beside Game name to see all previous game names. Vollis is included in the same list instead of appearing as a separate button, and you can still type a new game name."
+  },
+  {
     "id": "ios-2026-10-07-apple-name-prompt",
     "date": "2026-10-07",
-    "subject": "iPhone: Add a missing name after Apple sign-in",
-    "body": "If your Apple account has no saved name, the app asks for it after sign-in and remembers it for future logins. Your saved name appears in the sign-in message and account menu."
+    "subject": "iPhone: Use your saved name after Apple sign-in",
+    "body": "The app uses the name saved from Apple sign-in in the sign-in message and account menu, without asking you to enter a name. If no name is available, it simply shows Signed in."
   },
   {
     "id": "ios-2026-10-07-social-signup-after-deletion",
