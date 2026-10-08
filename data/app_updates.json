@@ -6,6 +6,12 @@
     "body": "Tap Link at the top of an AI recap to copy its address and share it, including when signed in to a personal account. The link follows the recap you are currently viewing."
   },
   {
+    "id": "ios-2026-10-07-native-recap-browsing",
+    "date": "2026-10-07",
+    "subject": "iPhone: A cleaner way to browse and read AI recaps",
+    "body": "Browse recaps in illustrated cards, whether signed in or signed out, and load older stories as you go. Recaps have larger reading text, more comfortable spacing, and colors that match your app appearance."
+  },
+  {
     "id": "ios-2026-10-07-flyers-menu",
     "date": "2026-10-07",
     "subject": "iPhone: Flyers in Browse and Create",
