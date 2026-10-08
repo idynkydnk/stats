@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-08-calmer-stats-refresh",
+    "date": "2026-10-08",
+    "subject": "iPhone: Fewer interruptions when checking stats",
+    "body": "Stats and game lists reuse recent results for five minutes, and adding, editing, or deleting a game prompts fresh results when you view them. Existing results stay visible while updates load, unrelated actions no longer restart stats loading, and you can still pull down to refresh anytime."
+  },
+  {
     "id": "ios-2026-10-08-compact-stats-updating",
     "date": "2026-10-08",
     "subject": "iPhone: More room for stats while updating",
