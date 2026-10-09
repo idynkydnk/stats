@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-09-face-photo-upload",
+    "date": "2026-10-09",
+    "subject": "iPhone: More reliable face photo uploads",
+    "body": "Face photos and uploaded AI characters are prepared in a compatible size and format before saving. Face uploads show progress, report problems so you can retry, and refresh the picture after saving; personal accounts can also see their saved face photos."
+  },
+  {
     "id": "ios-2026-10-09-player-recent-form-label",
     "date": "2026-10-09",
     "subject": "iPhone: Clearer recent results on player pages",
