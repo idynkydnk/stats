@@ -10,8 +10,12 @@ base = 'https://www.pythonanywhere.com/api/v0/user/' + os.environ['PA_USERNAME']
 headers = {'Authorization': 'Token ' + os.environ['PA_API_TOKEN']}
 # Touching WSGI may leave old workers running; use the hosting reload API.
 reload_request = Request(base + '/webapps/idynkydnk.pythonanywhere.com/reload/', data=b'', headers=headers)
-with urlopen(reload_request, timeout=30) as response:
-    print('Hosting reload status:', response.status)
+try:
+    with urlopen(reload_request, timeout=30) as response:
+        print('Hosting reload status:', response.status)
+except TimeoutError:
+    # The hosting operation can continue after the HTTP client times out.
+    print('Hosting reload is still pending; checking its saved result.')
 request = Request(base + '/files/path' + path, headers=headers)
 for attempt in range(24):
     try:
