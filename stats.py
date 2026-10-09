@@ -1464,6 +1464,8 @@ location_conn.close()
 if _stats_db_path() == '/home/Idynkydnk/stats/stats.db':
     from migrations.normalize_tyler_entered_locations import migrate as correct_cloud_locations
     correct_cloud_locations(_stats_db_path())
+    from migrations.correct_john_russian_max import migrate as correct_john_max
+    correct_john_max(_stats_db_path())
 from migrations.normalize_other_game_categories import normalize_other_game_categories
 with sqlite3.connect(_stats_db_path(), timeout=30) as category_conn:
     normalize_other_game_categories(category_conn)
