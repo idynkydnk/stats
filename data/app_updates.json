@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-09-player-recent-form-label",
+    "date": "2026-10-09",
+    "subject": "iPhone: Clearer recent results on player pages",
+    "body": "The Last 10 label stays together above the recent win and loss badges. On narrower screens, swipe the badges sideways to see every result."
+  },
+  {
+    "id": "ios-2026-10-09-player-year-selector",
+    "date": "2026-10-09",
+    "subject": "iPhone: Choose the year on player pages",
+    "body": "Choose a year or All at the top of an individual player's page to see their stats for that period. Opening a partner or opponent and copying the player link keeps your selected year."
+  },
+  {
     "id": "ios-2026-10-09-faster-all-years-stats",
     "date": "2026-10-09",
     "subject": "iPhone: Faster all-years standings",
