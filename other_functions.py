@@ -270,71 +270,15 @@ def readable_games_data(games):
     return [_build_other_game_display(game, include_time=False) for game in games]
 
 def other_stats_per_year(year, minimum_games):
-    games = other_year_games(year)
-    players = all_other_players(games)
-    stats = []
-    for player in players:
-        wins, losses = 0, 0
-        for game in games:
-            # Get all valid winner names from the game
-            winner_names = []
-            for i in range(1, 16):
-                val = game.get(f'winner{i}')
-                if _is_valid_player_name(val):
-                    winner_names.append(val)
-            
-            # Get all valid loser names from the game
-            loser_names = []
-            for i in range(1, 16):
-                val = game.get(f'loser{i}')
-                if _is_valid_player_name(val):
-                    loser_names.append(val)
-            
-            if player in winner_names:
-                wins += 1
-            elif player in loser_names:
-                losses += 1
-        if wins + losses == 0:
-            continue
-        win_percentage = wins / (wins + losses)
-        if wins + losses >= minimum_games:
-            stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[3], reverse=True)
-    return stats
+    return [row[:4] for row in total_game_name_stats(other_year_games(year))
+            if row[4] >= minimum_games]
+
 
 def rare_other_stats_per_year(year, minimum_games):
-    """Get stats for players below the minimum games threshold"""
-    games = other_year_games(year)
-    players = all_other_players(games)
-    stats = []
-    for player in players:
-        wins, losses = 0, 0
-        for game in games:
-            # Get all valid winner names from the game
-            winner_names = []
-            for i in range(1, 16):
-                val = game.get(f'winner{i}')
-                if _is_valid_player_name(val):
-                    winner_names.append(val)
-            
-            # Get all valid loser names from the game
-            loser_names = []
-            for i in range(1, 16):
-                val = game.get(f'loser{i}')
-                if _is_valid_player_name(val):
-                    loser_names.append(val)
-            
-            if player in winner_names:
-                wins += 1
-            elif player in loser_names:
-                losses += 1
-        if wins + losses == 0:
-            continue
-        win_percentage = wins / (wins + losses)
-        if wins + losses < minimum_games:
-            stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[3], reverse=True)
-    return stats
+    """Get stats for players below the minimum games threshold."""
+    return [row[:4] for row in total_game_name_stats(other_year_games(year))
+            if row[4] < minimum_games]
+
 
 def _is_valid_player_name(value):
     """Check if a value is a valid player name (not a score, timestamp, or round sequence)."""
@@ -1051,36 +995,23 @@ def game_name_years(game_name):
     return years
 
 def total_game_name_stats(games):
-    players = all_other_players(games)
-    stats = []
-    for player in players:
-        wins, losses = 0, 0
-        for game in games:
-            # Get all valid winner names from the game
-            winner_names = []
-            for i in range(1, 16):
-                val = game.get(f'winner{i}')
-                if _is_valid_player_name(val):
-                    winner_names.append(val)
-            
-            # Get all valid loser names from the game
-            loser_names = []
-            for i in range(1, 16):
-                val = game.get(f'loser{i}')
-                if _is_valid_player_name(val):
-                    loser_names.append(val)
-            
-            if player in winner_names:
-                wins += 1
-            elif player in loser_names:
-                losses += 1
-        total_games = wins + losses
-        if total_games == 0:
-            continue
-        win_percentage = wins / total_games
-        stats.append([player, wins, losses, win_percentage, total_games])
-    stats.sort(key=lambda x: x[3], reverse=True)
+    """Count every player's results in one pass, preserving tie order."""
+    counts = {}
+    for game in games:
+        winners = dict.fromkeys(game.get(f'winner{i}') for i in range(1, 16)
+                                if _is_valid_player_name(game.get(f'winner{i}')))
+        losers = dict.fromkeys(game.get(f'loser{i}') for i in range(1, 16)
+                               if _is_valid_player_name(game.get(f'loser{i}')))
+        for player in winners:
+            counts.setdefault(player, [0, 0])[0] += 1
+        for player in losers:
+            if player not in winners:
+                counts.setdefault(player, [0, 0])[1] += 1
+    stats = [[player, wins, losses, wins / (wins + losses), wins + losses]
+             for player, (wins, losses) in counts.items()]
+    stats.sort(key=lambda row: row[3], reverse=True)
     return stats
+
 
 def game_name_games(year, game_name):
     games = other_year_games(year)

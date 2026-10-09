@@ -4,7 +4,7 @@ from doubles_division import active_doubles_division
 from stats_location_filter import active_location_filter, filter_stats_connection
 from database_functions import *
 from datetime import datetime, date
-from functools import lru_cache
+from functools import lru_cache, wraps
 import re
 import time
 from time_display import format_game_time
@@ -17,13 +17,22 @@ CACHE_TTL = 1800  # 30 minutes - increased for better performance
 def cached(ttl=CACHE_TTL):
     """Decorator for caching function results with TTL"""
     def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             from private_accounts import private_database
             from flask import g, has_request_context
-            if private_database() or (has_request_context() and getattr(g, 'stats_view_database', None)):
-                return func(*args, **kwargs)
             # Create cache key from function name and arguments
             key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())
+            if has_request_context() and (private_database() or getattr(g, 'stats_view_database', None)
+                                          or getattr(g, 'stats_response_ticket', None)):
+                # Reuse calculations within this authorized request, never
+                # across accounts. API cache misses must read current games,
+                # not a worker's older in-memory standings.
+                memo = g.setdefault('stats_calculations', {})
+                scoped_key = (private_database(), getattr(g, 'stats_view_database', None), key)
+                if scoped_key not in memo:
+                    memo[scoped_key] = func(*args, **kwargs)
+                return memo[scoped_key]
             current_time = time.time()
             
             # Check if cached and not expired
@@ -44,6 +53,12 @@ def clear_stats_cache():
     global _cache, _cache_timestamps
     _cache = {}
     _cache_timestamps = {}
+    from flask import current_app, g, has_app_context
+    if has_app_context():
+        g.pop('stats_calculations', None)
+        response_cache = current_app.extensions.get('stats_response_cache')
+        if response_cache:
+            response_cache.clear()
 
 @cached(ttl=1800)
 def get_player_wins_losses(year):
@@ -55,8 +70,10 @@ def get_player_wins_losses(year):
     
     player_wins_losses = {}
     for game in games:
-        winners = [game[2], game[3]]
-        losers = [game[5], game[6]]
+        # Preserve the old standings' if/elif semantics for legacy rows with
+        # duplicate names: count a player once, and a win takes precedence.
+        winners = list(dict.fromkeys([game[2], game[3]]))
+        losers = [p for p in dict.fromkeys([game[5], game[6]]) if p not in winners]
         winners = [w for w in winners if '?' not in w]
         losers = [l for l in losers if '?' not in l]
         
@@ -191,41 +208,20 @@ def set_cur():
 
 @cached(ttl=1800)
 def stats_per_year(year, minimum_games):
-    if year == 'All years':
-        games = all_games()
-    else:
-        games = year_games(year)
-    
-    # Calculate TrueSkill ratings
-    trueskill_rankings = calculate_trueskill_rankings(year)
-    rating_map = {r['player']: r['rating'] for r in trueskill_rankings}
-    
-    players = all_players(games)
-    stats = []
-    no_wins = []
-    for player in players:
-        # Filter out players with question marks for doubles stats page
-        if '?' in player:
-            continue
-        wins, losses = 0, 0
-        for game in games:
-            if player == game[2] or player == game[3]:
-                wins += 1
-            elif player == game[5] or player == game[6]:
-                losses += 1
-        win_percentage = wins / (wins + losses)
-        rating = rating_map.get(player, 0)  # Get TrueSkill rating, default to 0
-        if wins + losses >= minimum_games:
-            if wins == 0:
-                no_wins.append([player, wins, losses, win_percentage, rating])
-            else:
-                stats.append([player, wins, losses, win_percentage, rating])
-    # Sort by rating instead of win percentage
-    stats.sort(key=lambda x: x[4], reverse=True)
-    no_wins.sort(key=lambda x: x[4], reverse=True)
-    for stat in no_wins:
-        stats.append(stat)
-    return stats
+    return [row for row in _doubles_standings(year) if row[1] + row[2] >= minimum_games]
+
+
+@cached(ttl=1800)
+def _doubles_standings(year):
+    """One count and one rating calculation shared by both standings tables."""
+    rating_map = {r['player']: r['rating'] for r in calculate_trueskill_rankings(year)}
+    rows = []
+    for player, counts in get_player_wins_losses(year).items():
+        wins, losses = counts['wins'], counts['losses']
+        rows.append([player, wins, losses, wins / (wins + losses), rating_map.get(player, 0)])
+    # Stable ordering matches the existing rating sort with winless rows last.
+    rows.sort(key=lambda row: (row[1] == 0, -row[4]))
+    return rows
 
 def team_stats_per_year(year, minimum_games, games):
     """Calculate team stats - uses cached helper for expensive computation"""
@@ -562,41 +558,7 @@ def search_games_by_player(year, player_name):
 	
 @cached(ttl=1800)
 def rare_stats_per_year(year, minimum_games):
-    if year == 'All years':
-        games = all_games()
-    else:
-        games = year_games(year)
-    
-    # Calculate TrueSkill ratings
-    trueskill_rankings = calculate_trueskill_rankings(year)
-    rating_map = {r['player']: r['rating'] for r in trueskill_rankings}
-    
-    players = all_players(games)
-    stats = []
-    no_wins = []
-    for player in players:
-        # Filter out players with question marks for doubles stats page
-        if '?' in player:
-            continue
-        wins, losses = 0, 0
-        for game in games:
-            if player == game[2] or player == game[3]:
-                wins += 1
-            elif player == game[5] or player == game[6]:
-                losses += 1
-        win_percentage = wins / (wins + losses)
-        rating = rating_map.get(player, 0)  # Get TrueSkill rating, default to 0
-        if wins + losses < minimum_games:
-            if wins == 0:
-                no_wins.append([player, wins, losses, win_percentage, rating])
-            else:
-                stats.append([player, wins, losses, win_percentage, rating])
-    # Sort by rating instead of win percentage
-    stats.sort(key=lambda x: x[4], reverse=True)
-    no_wins.sort(key=lambda x: x[4], reverse=True)
-    for stat in no_wins:
-        stats.append(stat)
-    return stats
+    return [row for row in _doubles_standings(year) if row[1] + row[2] < minimum_games]
 
 def winners_scores():
 	scores = [21,22,23]
@@ -607,17 +569,7 @@ def losers_scores():
 	return scores
 
 def all_players(games):
-	players = []
-	for game in games:
-		if game[2] not in players:
-			players.append(game[2])
-		if game[3] not in players:
-			players.append(game[3])
-		if game[5] not in players:
-			players.append(game[5])
-		if game[6] not in players:
-			players.append(game[6])
-	return players
+	return list(dict.fromkeys(player for game in games for player in (game[2], game[3], game[5], game[6])))
 
 def _games_for_player_order():
 	"""Fetch all games by most recent first, no cache (so add-game dropdown is always fresh)."""

@@ -310,24 +310,23 @@ def register_ios_api(app):
     @app.route('/api/doubles/stats')
     def api_doubles_stats():
         from stat_functions import (
-            year_games, grab_all_years, stats_per_year, rare_stats_per_year,
+            year_games_count, grab_all_years, stats_per_year, rare_stats_per_year,
             todays_stats, todays_games,
         )
         year = _year_arg(str(date.today().year))
         current_year = str(date.today().year)
         display_year = year
         showing_previous_year = False
-        games = year_games(year)
-        minimum_games = 1 if not games or len(games) < 30 else len(games) // 30
+        game_count = year_games_count(year)
+        minimum_games = max(1, game_count // 30)
         all_years = grab_all_years()
         stats = stats_per_year(year, minimum_games)
         if not stats and year == current_year and all_years:
             previous_year = str(int(current_year) - 1)
             if previous_year in all_years:
-                previous_games = year_games(previous_year)
-                if previous_games:
-                    games = previous_games
-                    minimum_games = max(1, len(games) // 30)
+                previous_game_count = year_games_count(previous_year)
+                if previous_game_count:
+                    minimum_games = max(1, previous_game_count // 30)
                     stats = stats_per_year(previous_year, minimum_games)
                     display_year = previous_year
                     showing_previous_year = True

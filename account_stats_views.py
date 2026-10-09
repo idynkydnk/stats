@@ -154,10 +154,36 @@ def build_stats_view(site_path, own_path, sources):
 
 
 def register_stats_views(app, service, site_path):
+    from stats_response_cache import StatsResponseCache, STATS_ENDPOINTS
+    from doubles_division import active_doubles_division
+    response_cache = StatsResponseCache(
+        app.config.get('STATS_RESPONSE_CACHE_DIR') or
+        str(Path(os.environ.get('STATS_PRIVATE_DATA_DIR') or
+                 str(Path(site_path).resolve().parent / 'private_data')) / 'stats_cache'))
+    app.extensions['stats_response_cache'] = response_cache
     signer = URLSafeSerializer(app.secret_key, salt='shared-stats-view-v1')
 
     def current_user():
         return session.get('username') if session.get('logged_in') else None
+
+    def prepared_stats(base_path, sources):
+        # This runs only after identity, share permissions and selected sources
+        # have been resolved. A cache hit can then skip the expensive snapshot.
+        if request.method != 'GET' or request.endpoint not in STATS_ENDPOINTS:
+            return None
+        databases = [(base_path, 0)] + [(_database_path(site_path, source), source['number'])
+                                      for source in sources if source['enabled']]
+        try:
+            ticket = response_cache.prepare(databases, current_user(), request.endpoint,
+                                            list(request.args.items(multi=True)), active_doubles_division())
+            g.stats_response_ticket = ticket
+            body = response_cache.load(ticket)
+        except OSError:
+            return None
+        if body is not None:
+            g.stats_response_hit = True
+            return app.response_class(body, mimetype='application/json')
+        return None
 
     def share_selection(username, sources):
         from private_accounts import account_for_user
@@ -240,7 +266,10 @@ def register_stats_views(app, service, site_path):
                 # Public KT links must also override a signed-in recipient's
                 # personal database, without copying the whole public archive.
                 g.private_database = None
-                return
+                return prepared_stats(site_path, [])
+            cached = prepared_stats(_database_path(site_path, base), sources)
+            if cached is not None:
+                return cached
             g.stats_view_database = build_stats_view(site_path, _database_path(site_path, base), sources)
             return
         # Foreign game IDs are view-only, including for admins.
@@ -251,7 +280,7 @@ def register_stats_views(app, service, site_path):
         if request.endpoint not in BROWSE_ENDPOINTS:
             return
         if request.path.startswith('/api/') and request.headers.get('X-Stats-Owned') == '1' and request.headers.get('X-Stats-Combined') != '1' and request.headers.get('X-Stats-Preview') != '1':
-            return
+            return prepared_stats(private_database() or site_path, [])
         username = current_user()
         sources = sources_for_user(site_path, username, service.is_admin(username)) if username else []
         if not request.path.startswith('/api/'):
@@ -262,11 +291,22 @@ def register_stats_views(app, service, site_path):
                 # filter (including repeated query arguments) on the URL.
                 args = list(request.args.items(multi=True)) + [('view', token)]
                 return redirect(request.path + '?' + urlencode(args))
+        cached = prepared_stats(private_database() or site_path, sources)
+        if cached is not None:
+            return cached
         if any(s['enabled'] for s in sources):
             g.stats_view_database = build_stats_view(site_path, private_database() or site_path, sources)
 
     @app.after_request
     def protect_share_link(response):
+        ticket = getattr(g, 'stats_response_ticket', None)
+        if ticket:
+            # The server cache is private; browsers/proxies must not reuse an
+            # authenticated response outside its authorized source selection.
+            response.headers['Cache-Control'] = 'no-store'
+            response.vary.add('Authorization')
+            if not getattr(g, 'stats_response_hit', False) and response.status_code == 200 and response.is_json:
+                response_cache.save(ticket, response.get_data())
         if getattr(g, 'stats_share_token', None):
             response.headers['Referrer-Policy'] = 'same-origin'
             response.headers['Cache-Control'] = 'no-store'

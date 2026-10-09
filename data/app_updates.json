@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-09-faster-all-years-stats",
+    "date": "2026-10-09",
+    "subject": "iPhone: Faster all-years standings",
+    "body": "All-years standings load faster, and repeat visits reuse saved results. Adding, editing, or deleting games and changing your selected stats sources refreshes the results for your next load."
+  },
+  {
     "id": "ios-2026-10-08-edit-owned-ai-library",
     "date": "2026-10-08",
     "subject": "iPhone: Edit and delete your recaps and flyers",

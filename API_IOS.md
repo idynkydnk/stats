@@ -33,6 +33,29 @@ Send `Authorization: Bearer <token>` on write endpoints. Session cookies still w
 - `GET /api/players`
 - `GET /api/search_all_players?q=`
 
+### Prepared standings
+
+The four `/stats` endpoints reuse private server-side JSON results for up to
+30 minutes. Authentication, sharing permissions and source selection are
+resolved before cache lookup; a hit skips rebuilding the combined database.
+Keys separate viewers, selected source databases, endpoint, query filters,
+default doubles division, date and calculation-code revision. Responses keep
+`Cache-Control: no-store` so HTTP intermediaries cannot reuse private results.
+
+On first use, each source database gets a small `stats_cache_revision` table
+and triggers on `games`, `vollis_games`, `other_games` and `players`. Additions,
+edits and deletions (including imports and WAL writes) change the revision;
+login activity and derived-rating writes do not. Changed sources are calculated
+again on the next request. No cache entry is saved if a source changes during
+calculation. Read-only or busy sources fall back to database/WAL file revisions.
+
+The shared cache lives in `private_data/stats_cache/responses.db`, or under
+`STATS_PRIVATE_DATA_DIR` when set. Flask's `STATS_RESPONSE_CACHE_DIR` config can
+override its directory. The directory is private to the server user; storage is
+limited to 256 responses of at most 2 MiB each. Unavailable cache storage falls
+back to normal calculation. The existing clear-cache action clears these
+results across workers too. No iPhone binary update or background job is needed.
+
 ## Writes (Bearer)
 
 - Doubles: existing `POST/PUT/DELETE /api/doubles/games`

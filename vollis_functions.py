@@ -40,30 +40,21 @@ def get_vollis_dashboard_data(year):
     }
 
 def vollis_stats_per_year(year, minimum_games):
-    games = vollis_year_games(year)
-    players = all_vollis_players(games)
-    stats = []
-    for player in players:
-        wins, losses = 0, 0
-        for game in games:
-            if player == game[2]:
-                wins += 1
-            elif player == game[4]:
-                losses += 1
-        win_percentage = wins / (wins + losses)
-        if wins + losses >= minimum_games:
-            stats.append([player, wins, losses, win_percentage])
-    stats.sort(key=lambda x: x[3], reverse=True)
+    counts = {}
+    for game in vollis_year_games(year):
+        winner, loser = game[2], game[4]
+        counts.setdefault(winner, [0, 0])[0] += 1
+        if loser != winner:
+            counts.setdefault(loser, [0, 0])[1] += 1
+    stats = [[player, wins, losses, wins / (wins + losses)]
+             for player, (wins, losses) in counts.items()
+             if wins + losses >= minimum_games]
+    stats.sort(key=lambda row: row[3], reverse=True)
     return stats
 
+
 def all_vollis_players(games):
-    players = []
-    for game in games:
-        if game[2] not in players:
-            players.append(game[2])
-        if game[4] not in players:
-            players.append(game[4])
-    return players
+    return list(dict.fromkeys(player for game in games for player in (game[2], game[4])))
 
 
 def vollis_year_games(year):

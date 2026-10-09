@@ -64,7 +64,8 @@ class IOSBrowseNavigationTests(unittest.TestCase):
         }
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         with ExitStack() as stack:
-            for name in ['year_games', 'stats_per_year', 'rare_stats_per_year', 'todays_stats', 'todays_games']:
+            stack.enter_context(patch('stat_functions.year_games_count', return_value=0))
+            for name in ['stats_per_year', 'rare_stats_per_year', 'todays_stats', 'todays_games']:
                 stack.enter_context(patch('stat_functions.' + name, return_value=[]))
             stack.enter_context(patch('stat_functions.grab_all_years', return_value=[current, previous, 'All years']))
             response = app.test_client().get('/api/doubles/stats?division=women')

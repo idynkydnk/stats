@@ -21,9 +21,12 @@ class AppUpdateTests(unittest.TestCase):
         shared = 'ios-2026-09-07-save-confirmation'
         raw = ('web\x1f2026-09-06\x1fTechnical title\x1f'
                'Site-Update: A website fix\nEasier browsing.\x1e')
+        # This tests merging/sharing, not the 80-item display limit. Keep the
+        # fixture's older website item as the real app-note history grows.
+        note_count = len(json.loads((Path(adminfx.__file__).parent / 'data/app_updates.json').read_text()))
         with patch.object(adminfx, 'shared_update_shas', return_value={shared}), \
              patch.object(adminfx.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, raw, '')):
-            changes, error = adminfx.list_recent_site_changes()
+            changes, error = adminfx.list_recent_site_changes(limit=note_count + 1)
         self.assertIsNone(error)
         self.assertEqual(changes[-1]['sha'], 'web')
         selected = [item for item in changes if item['sha'] == shared]
