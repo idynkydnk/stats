@@ -67,10 +67,11 @@ try {
       });
       const layout = await checkLayout();
       if (name === 'doubles') {
+        if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles.png`, animations: 'disabled' });
         await page.evaluate(() => document.documentElement.classList.add('sr-light'));
         const light = await checkLayout();
         if (light.issues.length) failures.push({ width, theme: 'light', ...light });
-        if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles-light.png` });
+        if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles-light.png`, animations: 'disabled' });
         await page.evaluate(() => document.documentElement.classList.remove('sr-light'));
       }
       const performance = await page.evaluate(() => {
@@ -83,8 +84,8 @@ try {
       reports.push(report);
       if (response.status() !== 200 || layout.issues.length) failures.push(report);
       if (name === 'doubles' && !layout.today) failures.push({ width, error: 'No live today stats to verify' });
-      if ([375, 1440].includes(width) || name === 'doubles') {
-        await page.screenshot({ path: `${out}/${engine}-${width}-${name}.png`, fullPage: false });
+      if (name !== 'doubles' && [375, 1440].includes(width)) {
+        await page.screenshot({ path: `${out}/${engine}-${width}-${name}.png`, fullPage: false, animations: 'disabled' });
       }
       if (name === 'doubles') {
         for (const sort of ['wins', 'losses', 'winpct', 'plusminus', 'rating']) {

@@ -60,3 +60,30 @@ available, so visual inspection, large-text device rendering, and real hosted
 first-paint measurements remain unverified. The full Python suite has one existing
 failure in `test_location_is_in_default_and_custom_image_prompts`; it also fails
 unchanged at `251c632`, because it expects the old “LOCATION CONTEXT” prompt wording.
+
+
+## Live cloud-browser follow-up
+
+The October 9 mobile regression came from a 480px minimum table width. It has
+been removed. Rankings reserve room for every numeric column; below 360px,
+names occupy their own row. No metric is hidden or clipped. The iPhone table
+also avoids horizontal scrolling and falls back to labeled, wrapping stats
+when a screen or larger text cannot fit the regular row.
+
+[Cloud browser run](https://github.com/idynkydnk/stats/actions/runs/38020663272)
+checked seven public live page types at 320, 375, 390, 430, 768, and 1440 pixels
+in Chromium and WebKit (84 page visits). This pre-deployment run applied the
+candidate stylesheet over the live responses. All returned 200, with no page
+or standings overflow and no clipped numeric cells. Today's sorting was checked
+for all five metrics, and its light appearance was checked too. Screenshots
+revealed one further small-screen rank stacking issue, corrected before release.
+
+Sample median full-load times in Chromium: current standings 760ms, all-years
+standings 1478ms, all-years player 935ms, games 620ms, Vollis 522ms, Other 672ms,
+and Volleyball 670ms. WebKit medians were 738–1372ms. These are unthrottled
+cloud-runner measurements, not cellular-device guarantees. The check is available
+as the manual “Check live mobile and desktop layout” workflow; leave candidate
+preview off to verify the actual deployment. Screenshots/reports last seven days.
+
+The iPhone correction passed an unsigned device build. Native large-text visual
+inspection still requires a cloud iPhone simulator or physical-device testing.

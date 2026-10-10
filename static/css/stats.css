@@ -1742,6 +1742,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         width: auto;
         min-width: 0;
         position: static;
+        z-index: auto;
         box-shadow: none;
     }
     .sr-table:has(th[data-column="player"]) th[data-sort] { position: relative; }
@@ -1817,5 +1818,5 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     .sr-table:has(th[data-column="player"]) th[data-sort] { width: auto; }
 }
 @media (max-width: 768px) {
-    .sr-table:has(th[data-column="player"]) tbody tr td:nth-child(-n+2) { background: transparent; }
+    .sr-table:has(th[data-column="player"]) tbody tr:nth-child(n) td:nth-child(-n+2) { background: transparent; }
 }
