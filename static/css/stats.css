@@ -1685,8 +1685,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 .sr-rating-help { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: -6px 0 12px; }
 .sr-rating-help summary { cursor: pointer; padding: 6px 0; }
 
-/* Readable controls and tables across screen sizes. Keep player names pinned
-   when a narrow screen needs horizontal scrolling instead of shrinking text. */
+/* Readable controls and tables across screen sizes. */
 .sr-link-btn, .sr-section-tab, .sr-year-select, .menu-toggle {
     min-height: 44px;
     box-sizing: border-box;
@@ -1703,7 +1702,6 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 .sr-card { border-radius: 16px; }
 .sr-card-compact { padding: 16px; }
 .sr-table-wrap { overflow-x: auto; }
-.sr-table:has(th:nth-child(6)) { min-width: 480px; }
 .sr-table td:nth-child(2), .sr-table th:nth-child(2) {
     min-width: 140px;
     box-shadow: 1px 0 0 var(--sr-line);
@@ -1726,7 +1724,45 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 @media (max-width: 768px) {
     .sr-table th { padding: 12px 8px; font-size: 12px; }
     .sr-table td { padding: 13px 8px; font-size: 14px; }
-    .sr-table td:nth-child(2), .sr-table th:nth-child(2) { width: 140px; }
+    /* Standings must fit every stat on screen. Let names wrap, not numbers.
+       Limit these rules to rankings; game-history tables have other columns. */
+    .sr-table:has(th[data-column="player"]) { table-layout: fixed; }
+    .sr-table:has(th[data-column="player"]) :is(th, td) {
+        padding-left: 3px;
+        padding-right: 3px;
+        box-sizing: border-box;
+    }
+    .sr-table:has(th[data-column="player"]) :is(th, td):first-child {
+        width: 24px;
+        min-width: 0;
+        max-width: none;
+        position: static;
+    }
+    .sr-table:has(th[data-column="player"]) :is(th, td):nth-child(2) {
+        width: auto;
+        min-width: 0;
+        position: static;
+        box-shadow: none;
+    }
+    .sr-table:has(th[data-column="player"]) th[data-sort] { position: relative; }
+    .sr-table:has(th[data-column="player"]) th[data-sort="rating"] { width: 58px; }
+    .sr-table:has(th[data-column="player"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 40px; }
+    .sr-table:has(th[data-column="player"]) th[data-sort="winpct"] { width: 46px; }
+    .sr-table:has(th[data-column="player"]) th[data-sort="plusminus"] { width: 40px; }
+    .sr-table:has(th[data-sort="plusminus"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 28px; }
+    .sr-table:has(th[data-column="player"]) td.sr-numeric { white-space: nowrap; }
+    /* Sorting must not take room away from the numbers or widen a column. */
+    .sr-table:has(th[data-column="player"]) .sr-sort-arrow {
+        position: absolute;
+        right: 3px;
+        bottom: 1px;
+        margin: 0;
+    }
+    .sr-table:has(th[data-column="player"]) .sr-rating-header { display: block; position: static; }
+    .sr-table:has(th[data-column="player"]) .sr-rating-info-btn {
+        display: flex;
+        margin: 2px 0 0 auto;
+    }
 }
 @media (max-width: 480px) {
     .sr-container { padding: 0 12px; }
