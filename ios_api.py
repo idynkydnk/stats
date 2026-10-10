@@ -350,12 +350,12 @@ def register_ios_api(app):
         from stat_functions import (
             games_from_player_by_year, all_years_player, total_stats,
             player_matchup_min_games, partner_stats_by_year, opponent_stats_by_year,
-            calculate_trueskill_rankings,
+            calculate_trueskill_rankings, convert_ampm,
         )
         S = _S()
         year = _year_arg(str(date.today().year))
         name = name.strip()
-        games = games_from_player_by_year(year, name)
+        games = games_from_player_by_year(year, name, raw=True)
         all_years = all_years_player(name)
         stats = total_stats(games, name) if games else []
         n_games = len(games) if games else 0
@@ -388,6 +388,13 @@ def register_ios_api(app):
                     break
             current_streak = {'type': streak_type, 'length': streak_len}
         recent_form = ['W' if name in (g[2], g[3]) else 'L' for g in (games or [])[-10:]]
+        # Older clients retain the complete history; new clients request pages.
+        limit = request.args.get('game_limit', type=int)
+        offset = max(0, request.args.get('game_offset', 0, type=int)) if limit is not None else 0
+        limit = min(100, max(1, limit)) if limit is not None else n_games
+        end = max(0, n_games - offset)
+        history = convert_ampm(games[max(0, end - limit):end])
+        next_offset = offset + len(history) if offset + len(history) < n_games else None
         avatar = S.player_avatar_context(name)
         return jsonify({
             'name': name,
@@ -402,7 +409,8 @@ def register_ios_api(app):
             'partner_min_games': min_games,
             'partners': partners,
             'opponents': opponents,
-            'games': [_doubles_game_dict(g) for g in reversed(games or [])],
+            'games': [_doubles_game_dict(g) for g in reversed(history)],
+            'games_total': n_games, 'games_next_offset': next_offset,
             'photo_url': _abs(avatar.get('player_photo_url')),
             'nickname': avatar.get('player_nickname') or '',
             'height': avatar.get('player_height') or '',

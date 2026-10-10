@@ -26,9 +26,9 @@
     
     .sr-search-dropdown-header {
         padding: 8px 12px;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
-        text-transform: uppercase;
+        text-transform: none;
         letter-spacing: 0.5px;
         color: var(--sr-muted);
         border-bottom: 1px solid var(--sr-line);
@@ -244,5 +244,5 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js', v='20261006-sharing') }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20261009-readable-sorting') }}"></script>
 {% endblock %}

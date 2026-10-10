@@ -56,6 +56,7 @@ def clear_stats_cache():
     from flask import current_app, g, has_app_context
     if has_app_context():
         g.pop('stats_calculations', None)
+        g.pop('read_calculations', None)
         response_cache = current_app.extensions.get('stats_response_cache')
         if response_cache:
             response_cache.clear()
@@ -802,7 +803,7 @@ def find_game(id):
 	row = cur.fetchall()
 	return row
 
-def games_from_player_by_year(year, name):
+def games_from_player_by_year(year, name, raw=False):
 	"""Return games oldest first for recent form and newest-first display reversal."""
 	cur = set_cur()
 	name = (name or '').strip()
@@ -811,8 +812,7 @@ def games_from_player_by_year(year, name):
 	else:
 		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? AND (TRIM(winner1)=? OR TRIM(winner2)=? OR TRIM(loser1)=? OR TRIM(loser2)=?) ORDER BY game_date ASC, id ASC", (year, name, name, name, name))
 	row = cur.fetchall()
-	row = convert_ampm(row)
-	return row
+	return row if raw else convert_ampm(row)
 
 def minimum_games_threshold(num_games):
 	"""Same formula as doubles/other leaderboards: qualify at ~1/30 of the pool."""

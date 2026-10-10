@@ -257,6 +257,12 @@ function initTableSorting(table) {
     tableSortState.set(table, state);
 
     headers.forEach((header) => {
+        header.tabIndex = 0;
+        header.addEventListener('keydown', function(e) {
+            if (e.target !== this || (e.key !== 'Enter' && e.key !== ' ')) return;
+            e.preventDefault();
+            this.click();
+        });
         header.addEventListener('click', function(e) {
             if (e.target.closest('.sr-rating-info-btn')) return;
 
@@ -464,6 +470,8 @@ function sortTable(table, columnIndex, direction, isNumeric) {
 
 function updateSortIndicators(headers, activeHeader, direction) {
     headers.forEach((header) => {
+        header.setAttribute('aria-sort', header === activeHeader
+            ? (direction === 'asc' ? 'ascending' : 'descending') : 'none');
         const arrow = header.querySelector('.sr-sort-arrow');
         if (!arrow) return;
 

@@ -1214,8 +1214,9 @@ def browse_game_year(game_name=None, kind='other'):
 
 def other_navigation_groups():
     """Keep game choices discoverable even in seasons with no games."""
-    from other_functions import other_game_names, other_game_type_for_name
-    games = other_year_games('All years')
+    from other_functions import other_game_names, other_game_type_for_name, other_year_games_raw
+    # Menu labels need names/categories, not formatted dates for every game.
+    games = [dict(row) for row in other_year_games_raw('All years')]
     groups = {'Volleyball': {'No jump'}}
     for name in other_game_names(games):
         category = other_game_type_for_name(games, name) or 'Other games'
@@ -1897,15 +1898,9 @@ def stats(year):
     showing_previous_year = False
     display_year = year
     
-    games = year_games(year)
-    if games:
-        if len(games) < 30:
-            minimum_games = 1
-        else:
-            minimum_games = len(games) // 30
-    else:
-        minimum_games = 1
-    
+    game_count = year_games_count(year)
+    minimum_games = max(1, game_count // 30)
+
     all_years = grab_all_years()
     stats = stats_per_year(year, minimum_games)
     
@@ -1913,18 +1908,14 @@ def stats(year):
     if not stats and year == current_year and all_years and not any(active_location_filter()):
         previous_year = str(int(current_year) - 1)
         if previous_year in all_years:
-            previous_games = year_games(previous_year)
-            if previous_games:
-                games = previous_games
-                minimum_games = max(1, len(games) // 30)
+            previous_game_count = year_games_count(previous_year)
+            if previous_game_count:
+                minimum_games = max(1, previous_game_count // 30)
                 stats = stats_per_year(previous_year, minimum_games)
                 display_year = previous_year
                 showing_previous_year = True
     
     rare_stats = rare_stats_per_year(display_year, minimum_games)
-    
-    # Calculate tile stats
-    tiles = calculate_tile_stats(display_year, stats, games)
     
     # Get today's stats
     today_stats = todays_stats()
@@ -1938,7 +1929,6 @@ def stats(year):
         year=year,
         display_year=display_year,
         showing_previous_year=showing_previous_year,
-        tiles=tiles,
         today_stats=today_stats,
         today_games=today_games)
 
@@ -4291,7 +4281,7 @@ def player_list():
 @app.route('/player/<year>/<name>/')
 def player_stats(year, name):
     """Doubles player stats page."""
-    games = games_from_player_by_year(year, name)
+    games = games_from_player_by_year(year, name, raw=True)
     all_years = all_years_player(name)
     stats = total_stats(games, name)
     # Same min-games bar for partners and opponents. Preview is always top 10.
@@ -4331,9 +4321,22 @@ def player_stats(year, name):
         current_streak = {'type': streak_type, 'length': streak_len}
     recent_form = ['W' if name in (g[2], g[3]) else 'L' for g in games[-10:]]
 
+    # Format/render only the visible page; aggregates above use the full history.
+    history_pages = max(1, (n_games + 29) // 30)
+    history_page = min(history_pages, max(1, request.args.get('history_page', 1, type=int)))
+    end = n_games - (history_page - 1) * 30
+    history_games = convert_ampm(games[max(0, end - 30):end])
+    def history_url(page):
+        values = dict(request.args)
+        values.update(year=year, name=name, history_page=page, _anchor='player-games')
+        return url_for('player_stats', **values)
+
     return render_template('player.html', opponent_stats=opponent_stats,
         partner_stats=partner_stats, year=year, player=name,
         all_years=all_years, stats=stats, games=games,
+        history_games=history_games, history_page=history_page, history_pages=history_pages,
+        history_previous=history_url(history_page - 1) if history_page > 1 else None,
+        history_next=history_url(history_page + 1) if history_page < history_pages else None,
         player_rating=player_rating, player_rank=player_rank, total_ranked=total_ranked,
         current_streak=current_streak, recent_form=recent_form,
         partner_winpct_min_games=partner_winpct_min_games,

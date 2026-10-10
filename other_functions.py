@@ -2,6 +2,7 @@ from stats_location_filter import active_location_filter, filter_stats_connectio
 from create_other_database import *
 from datetime import datetime, date
 import sqlite3
+from request_cache import request_cached
 
 def get_other_dashboard_data(year):
     """Get dashboard data for other games"""
@@ -477,24 +478,23 @@ def other_game_type_for_name(games, game_name):
             return game['game_type']
     return None
 
+@request_cached
 def other_year_games(year):
-    cur = set_cur()
-    if year == 'All years':
-        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC, id DESC")
-    else:
-        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC, id DESC", (year,))
-    row = cur.fetchall()
-    games = readable_games_data(row)
-    return games
+    return readable_games_data(other_year_games_raw(year))
 
+
+@request_cached
 def other_year_games_raw(year):
     cur = set_cur()
-    if year == 'All years':
-        cur.execute("SELECT * FROM other_games ORDER BY game_date DESC")
-    else:
-        cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
-    row = cur.fetchall()
-    return row
+    try:
+        if year == 'All years':
+            cur.execute("SELECT * FROM other_games ORDER BY game_date DESC, id DESC")
+        else:
+            cur.execute("SELECT * FROM other_games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC, id DESC", (year,))
+        return cur.fetchall()
+    finally:
+        cur.connection.close()
+
 
 def convert_other_ampm(games):
     return [_build_other_game_display(game, include_time=True) for game in games]
@@ -985,14 +985,22 @@ def other_losing_scores():
     return scores
 
 
-def game_name_years(game_name):
+@request_cached
+def _game_years_by_name():
     cur = set_cur()
-    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM other_games WHERE game_name = ? ORDER BY game_date DESC", (game_name,))
-    years = []
-    for row in cur.fetchall():
-        years.append(row[0])
-    years.append('All years')
-    return years
+    try:
+        rows = cur.execute("SELECT DISTINCT game_name, strftime('%Y', game_date) AS year FROM other_games ORDER BY year DESC").fetchall()
+        years = {}
+        for name, year in rows:
+            years.setdefault(name, []).append(year)
+        return years
+    finally:
+        cur.connection.close()
+
+
+def game_name_years(game_name):
+    return list(_game_years_by_name().get(game_name, []) if game_name is not None else []) + ['All years']
+
 
 def total_game_name_stats(games):
     """Count every player's results in one pass, preserving tie order."""

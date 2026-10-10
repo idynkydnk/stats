@@ -6,6 +6,7 @@ No inferred ordering among individual losers and no cross-game rating pooling.
 """
 import math
 from collections import defaultdict
+from request_cache import request_cached
 
 HEAD_TO_HEAD_GAMES = {'backgammon', 'scrabble', 'sequence', 'euchre', 'gin rummy',
                       'otrio', 'spot it!', 'sushi go!', 'catan', 'tic-tac-toe', 'ping pong'}
@@ -106,19 +107,20 @@ def summarize_games(games):
             'rating_sort': any(not r['provisional'] for r in ratings.values())}
 
 
+@request_cached
+def _other_ratings_by_game(year):
+    # One scoped read serves every card; game histories still rate separately.
+    from other_functions import other_year_games_raw
+    groups = defaultdict(list)
+    for row in other_year_games_raw(year):
+        game = dict(row)
+        groups[game['game_name']].append(game)
+    return {name: summarize_games(games) for name, games in groups.items()}
+
+
 def attach_other_ratings(card, year):
-    from other_functions import set_cur
-    cur = set_cur()
-    try:
-        sql = 'SELECT * FROM other_games WHERE game_name=?'
-        args = [card['game_name']]
-        if year != 'All years':
-            sql += " AND strftime('%Y',game_date)=?"
-            args.append(str(year))
-        rows = cur.execute(sql, args).fetchall()
-        card.update(summarize_games([dict(row) for row in rows]))
-    finally:
-        cur.connection.close()
+    summary = _other_ratings_by_game(year).get(card['game_name'])
+    card.update(summary if summary is not None else summarize_games([]))
     if card['rating_sort']:
         for key in ('stats', 'rare_stats'):
             card[key] = sorted(card.get(key, []), key=lambda row: (

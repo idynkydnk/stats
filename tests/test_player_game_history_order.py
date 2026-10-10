@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 import stat_functions
 
@@ -19,16 +19,16 @@ class PlayerGameHistoryOrderTests(unittest.TestCase):
                     if isinstance(n, ast.FunctionDef) and n.name == 'api_doubles_player')
         app = Flask(__name__)
         namespace = {
-            'app': app, 'date': date, 'jsonify': jsonify,
+            'app': app, 'date': date, 'jsonify': jsonify, 'request': request,
             '_S': lambda: SimpleNamespace(player_avatar_context=lambda name: {}),
             '_year_arg': lambda default: '2026', '_abs': lambda value: value,
             '_doubles_game_dict': lambda game: {'id': game[0]},
         }
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         games = [
-            [4, '09/28/2026 09:17 AM', 'A', 'B', 21, 'Evan Murray', 'D', 18],
-            [2, '10/07/2026 08:29 AM', 'Evan Murray', 'B', 21, 'C', 'D', 18],
-            [1, '10/07/2026 08:30 AM', 'Evan Murray', 'B', 21, 'C', 'D', 18],
+            [4, '2026-09-28 09:17:00', 'A', 'B', 21, 'Evan Murray', 'D', 18],
+            [2, '2026-10-07 08:29:00', 'Evan Murray', 'B', 21, 'C', 'D', 18],
+            [1, '2026-10-07 08:30:00', 'Evan Murray', 'B', 21, 'C', 'D', 18],
         ]
         with ExitStack() as stack:
             for name in ('all_years_player', 'total_stats', 'partner_stats_by_year',
@@ -40,6 +40,20 @@ class PlayerGameHistoryOrderTests(unittest.TestCase):
             self.assertEqual([game['id'] for game in response.json['games']], [1, 2, 4])
             self.assertEqual(response.json['recent_form'], ['L', 'W', 'W'])
             self.assertEqual(response.json['current_streak'], {'type': 'W', 'length': 2})
+            page = app.test_client().get('/api/doubles/players/Evan%20Murray?game_limit=2')
+            self.assertEqual([g['id'] for g in page.json['games']], [1, 2])
+            self.assertEqual(page.json['games_total'], 3)
+            self.assertEqual(page.json['games_next_offset'], 2)
+            self.assertEqual(page.json['current_streak'], response.json['current_streak'])
+            self.assertEqual(page.json['recent_form'], response.json['recent_form'])
+            next_page = app.test_client().get('/api/doubles/players/Evan%20Murray?game_limit=2&game_offset=2')
+            self.assertEqual([g['id'] for g in next_page.json['games']], [4])
+            self.assertIsNone(next_page.json['games_next_offset'])
+            for query, ids in [('game_limit=2&game_offset=99', []),
+                               ('game_limit=2&game_offset=-1', [1, 2]),
+                               ('game_limit=invalid', [1, 2, 4]), ('game_limit=0', [1])]:
+                page = app.test_client().get('/api/doubles/players/Evan%20Murray?' + query)
+                self.assertEqual([g['id'] for g in page.json['games']], ids)
             history.return_value = []
             response = app.test_client().get('/api/doubles/players/Evan%20Murray')
             self.assertEqual(response.json['games'], [])

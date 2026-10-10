@@ -49,7 +49,7 @@
             margin-bottom: 16px;
         }
         .sr-stat-sub {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--sr-muted);
             margin-top: 2px;
         }
@@ -61,9 +61,9 @@
             margin-bottom: 24px;
         }
         .sr-form-label {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--sr-muted);
-            text-transform: uppercase;
+            text-transform: none;
         }
         .sr-form-dots { display: flex; gap: 5px; }
         .sr-form-dot {
@@ -94,9 +94,9 @@
         .sr-stat-value.win { color: var(--sr-win); }
         .sr-stat-value.loss { color: var(--sr-loss); }
         .sr-stat-label {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--sr-muted);
-            text-transform: uppercase;
+            text-transform: none;
             margin-top: 4px;
         }
         .sr-section-title {
@@ -107,7 +107,7 @@
         }
         .sr-mini-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .sr-mini-table th, .sr-mini-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--sr-line); }
-        .sr-mini-table th { color: var(--sr-muted); font-size: 11px; text-transform: uppercase; font-weight: 500; }
+        .sr-mini-table th { color: var(--sr-muted); font-size: 13px; text-transform: none; font-weight: 500; }
         .sr-mini-table td { font-size: 14px; }
         .sr-mini-table a { color: var(--sr-text); text-decoration: none; }
         .sr-mini-table a:hover { color: var(--sr-accent); }
@@ -142,7 +142,7 @@
             align-items: center;
             gap: 10px;
         }
-        .sr-game-date { font-size: 11px; color: var(--sr-muted); line-height: 1.4; }
+        .sr-game-date { font-size: 13px; color: var(--sr-muted); line-height: 1.4; }
         .sr-game-team { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; }
         .sr-game-team.winners { background: rgba(74,222,128,0.1); border-left: 2px solid var(--sr-win); }
         .sr-game-team.losers { background: rgba(248,113,113,0.1); border-left: 2px solid var(--sr-loss); }
@@ -152,7 +152,7 @@
         .sr-game-players { font-size: 13px; }
         .sr-game-players a { color: var(--sr-text); text-decoration: none; }
         .sr-game-players a:hover { color: var(--sr-accent); }
-        .sr-vs { color: var(--sr-muted); font-size: 11px; text-align: center; }
+        .sr-vs { color: var(--sr-muted); font-size: 13px; text-align: center; }
         @media (max-width: 600px) {
             .sr-game-item { grid-template-columns: 1fr 1fr; }
             .sr-game-date { grid-column: 1 / -1; text-align: center; border-bottom: 1px solid var(--sr-line); padding-bottom: 6px; margin-bottom: 4px; }
@@ -290,11 +290,11 @@
         {% endif %}
 
         {% if games %}
-        <div class="sr-card sr-player-section">
+        <div class="sr-card sr-player-section" id="player-games">
             <h3 class="sr-section-title">Games Played ({{ games|length }})</h3>
             <div class="sr-games-list" id="games-list">
-                {% for game in games|reverse %}
-                <div class="sr-game-item" {% if loop.index > 5 %}style="display:none" data-hidden="true"{% endif %}>
+                {% for game in history_games|reverse %}
+                <div class="sr-game-item">
                     <div class="sr-game-date">{{ game[1][0:10] }}<br>{{ game[1][11:19] }}</div>
                     <div class="sr-game-team winners">
                         <span class="sr-game-score">{{ game[4] }}</span>
@@ -314,8 +314,12 @@
                 </div>
                 {% endfor %}
             </div>
-            {% if games|length > 5 %}
-            <button class="sr-show-more" onclick="toggleGames(this)">Show {{ games|length - 5 }} more</button>
+            {% if history_pages > 1 %}
+            <nav class="sr-history-pages" aria-label="Player game history">
+                {% if history_previous %}<a class="sr-link-btn" href="{{ history_previous }}">Newer games</a>{% endif %}
+                <span>Page {{ history_page }} of {{ history_pages }}</span>
+                {% if history_next %}<a class="sr-link-btn" href="{{ history_next }}">Older games</a>{% endif %}
+            </nav>
             {% endif %}
         </div>
         {% endif %}
@@ -323,19 +327,6 @@
 
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js', v='20261006-sharing') }}"></script>
-    <script>
-        function toggleGames(btn) {
-            const list = document.getElementById('games-list');
-            const hidden = list.querySelectorAll('[data-hidden="true"]');
-            const isHidden = hidden.length > 0 && hidden[0].style.display === 'none';
-            if (isHidden) {
-                hidden.forEach(item => item.style.display = '');
-                btn.textContent = 'Show less';
-            } else {
-                hidden.forEach(item => item.style.display = 'none');
-                btn.textContent = `Show ${hidden.length} more`;
-            }
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/stats.js', v='20261009-readable-sorting') }}"></script>
+
 {% endblock %}

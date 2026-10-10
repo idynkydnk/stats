@@ -1,4 +1,6 @@
 import sqlite3
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -8,7 +10,10 @@ from other_functions import (other_game_entry_info, other_game_entry_defaults,
 
 class OtherGameEntryDefaultsTests(unittest.TestCase):
     def test_sequence_defaults_follow_latest_saved_player_count(self):
-        conn = sqlite3.connect(':memory:')
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        path = Path(directory.name) / 'games.db'
+        conn = sqlite3.connect(path)
         self.addCleanup(conn.close)
         conn.row_factory = sqlite3.Row
         conn.execute('''CREATE TABLE other_games (
@@ -21,9 +26,14 @@ class OtherGameEntryDefaultsTests(unittest.TestCase):
                          ('Sequence', '2026-09-30 10:00:00', 'Board game',
                           'A', 2, 'B', 'C' if loser_count >= 2 else '',
                           'D' if loser_count >= 3 else None))
+            conn.commit()
+            def cursor():
+                reader = sqlite3.connect(path)
+                reader.row_factory = sqlite3.Row
+                return reader.cursor()
             for year in ('All years', '2026'):
                 with self.subTest(loser_count=loser_count, year=year), \
-                     patch('other_functions.set_cur', return_value=conn.cursor()), \
+                     patch('other_functions.set_cur', side_effect=cursor), \
                      patch('time_display.format_game_time', return_value='09/30/26 10:00 AM'):
                     defaults = other_game_entry_defaults(other_year_games(year))['sequence']
                 self.assertEqual(defaults['winner_count'], 1)

@@ -155,3 +155,18 @@ Response (200): `{"message": "Deleted", "id": <id>}`. (404 if not found.)
 4. **Push changes**: use `POST` to create and `PUT` / `DELETE` for edits; then run incremental sync to get server state including `updated_by` and `updated_at`.
 
 All mutation endpoints set `updated_by` to the authenticated username so you can show “who updated” in the app.
+
+## Player profile history
+
+`GET /api/doubles/players/<name>?year=All%20years&game_limit=30&game_offset=0`
+
+The optional `game_limit` is bounded to 1–100; `game_offset` is a nonnegative
+newest-first offset. The response includes `games_total` and `games_next_offset`
+(`null` at the end). Pass the next offset to fetch older games. Records, rating,
+rank, partners, opponents, recent form, and streak always use the complete
+selected history, regardless of the requested page. Season, division, and account
+selection apply to every page.
+
+Omitting `game_limit` preserves the complete game list for older app versions.
+The website profile shows 30 games per page with `history_page=1`, retaining
+share links, division, and location filters when navigating older/newer pages.

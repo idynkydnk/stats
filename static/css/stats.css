@@ -1,4 +1,4 @@
-/* Steam Charts-inspired Doubles Stats Redesign */
+/* Shared stats layout, typography, and surfaces. */
 
 /* Color System */
 :root {
@@ -6,7 +6,7 @@
     --sr-panel: #0f1620;
     --sr-panel-hover: #151d28;
     --sr-text: #e6edf3;
-    --sr-muted: #9aa4b2;
+    --sr-muted: #a8b3c2;
     --sr-line: rgba(255, 255, 255, 0.08);
     --sr-accent: #6ee7ff;
     --sr-accent-dim: rgba(110, 231, 255, 0.15);
@@ -25,7 +25,7 @@ html.sr-light {
     --sr-line: rgba(15, 30, 50, 0.12);
     --sr-accent: #0284c7;
     --sr-accent-dim: rgba(2, 132, 199, 0.12);
-    --sr-win: #16a34a;
+    --sr-win: #15803d;
     --sr-loss: #dc2626;
     --sr-gold: #b45309;
 }
@@ -95,8 +95,8 @@ html.sr-light .sr-form-dot {
     min-height: 100vh;
     color: var(--sr-text);
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.55;
     padding-bottom: 60px;
 }
 
@@ -106,19 +106,8 @@ html.sr-light .sr-form-dot {
     padding: 0 20px;
 }
 
-/* Background Glow Effect */
-.sr-page::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 400px;
-    background: radial-gradient(ellipse at center, rgba(110, 231, 255, 0.08) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-}
+/* Quiet, solid backgrounds keep the focus on names and results. */
+.sr-page::before { display: none; }
 
 /* Header Section — above sticky player name (z-index 200) so Add/Menu dropdowns win. */
 .sr-header {
@@ -133,7 +122,7 @@ html.sr-light .sr-form-dot {
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    padding: 16px 0 12px;
+    padding: 24px 0 16px;
 }
 
 .sr-header-compact > .sr-title {
@@ -158,10 +147,9 @@ html.sr-light .sr-form-dot {
     font-size: 26px;
     font-weight: 700;
     margin: 0;
-    background: linear-gradient(135deg, var(--sr-text), var(--sr-accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--sr-text);
+    letter-spacing: -0.025em;
+    line-height: 1.2;
 }
 
 .sr-subtitle {
@@ -521,14 +509,12 @@ input[type=number] {
 }
 
 .sr-table th {
-    background: rgba(15, 22, 32, 0.95);
-    backdrop-filter: blur(8px);
+    background: var(--sr-panel);
     padding: 14px 12px;
     text-align: left;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0;
     color: var(--sr-muted);
     border-bottom: 1px solid var(--sr-line);
     white-space: nowrap;
@@ -559,20 +545,21 @@ input[type=number] {
 }
 
 .sr-sort-arrow {
-    margin-left: 4px;
-    opacity: 0.5;
+    display: none;
+    margin-left: 3px;
+    font-size: 9px;
 }
 
 .sr-table th.sr-sorted .sr-sort-arrow,
 .sr-mini-table th.sr-sorted .sr-sort-arrow,
 .sr-stats-table th.sr-sorted .sr-sort-arrow {
-    opacity: 1;
+    display: inline;
 }
 
 .sr-table td {
     padding: 14px 12px;
     border-bottom: 1px solid var(--sr-line);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .sr-table tbody tr {
@@ -656,8 +643,9 @@ input[type=number] {
 
 /* Player styling */
 .sr-table .sr-player {
-    font-weight: 500;
-    white-space: nowrap;
+    font-weight: 600;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .sr-table .sr-player a {
@@ -780,16 +768,13 @@ input[type=number] {
     margin-bottom: 0;
 }
 
-.sr-table .sr-win {
-    color: var(--sr-win);
-}
-
+.sr-table .sr-win,
 .sr-table .sr-loss {
-    color: var(--sr-loss);
+    color: var(--sr-text);
 }
 
 .sr-table .sr-winpct {
-    font-weight: 600;
+    font-weight: 500;
 }
 
 /* Empty State */
@@ -854,65 +839,6 @@ input[type=number] {
     .sr-container {
         padding: 0 10px;
     }
-    
-    /* Stats cards extend to screen edge; table fits with no horizontal scroll */
-    .sr-table-section .sr-card {
-        margin-left: -10px;
-        margin-right: -10px;
-    }
-    
-    .sr-table-section .sr-table-wrap {
-        overflow-x: hidden;
-    }
-    
-    .sr-table-section .sr-table {
-        table-layout: fixed;
-        width: 100%;
-    }
-    
-    .sr-table-section .sr-table th,
-    .sr-table-section .sr-table td {
-        min-width: 0;
-        box-sizing: border-box;
-    }
-    
-    .sr-table-section .sr-table th {
-        white-space: normal;
-        font-size: 10px;
-        padding: 10px 4px;
-    }
-    
-    .sr-table-section .sr-table td {
-        padding: 10px 4px;
-        font-size: 13px;
-    }
-    
-    .sr-table-section .sr-table td:nth-child(1),
-    .sr-table-section .sr-table th:nth-child(1) {
-        width: 7%;
-        max-width: 7%;
-    }
-    
-    .sr-table-section .sr-table td:nth-child(2),
-    .sr-table-section .sr-table th:nth-child(2) {
-        left: 7%;
-        width: 35%;
-        max-width: 35%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .sr-table-section .sr-table td:nth-child(3),
-    .sr-table-section .sr-table th:nth-child(3) { width: 13%; }
-    .sr-table-section .sr-table td:nth-child(4),
-    .sr-table-section .sr-table th:nth-child(4) { width: 10%; }
-    .sr-table-section .sr-table td:nth-child(5),
-    .sr-table-section .sr-table th:nth-child(5) { width: 10%; }
-    .sr-table-section .sr-table td:nth-child(6),
-    .sr-table-section .sr-table th:nth-child(6) { width: 14%; }
-    .sr-table-section .sr-table td:nth-child(7),
-    .sr-table-section .sr-table th:nth-child(7) { width: 10%; }
-
     
     .sr-header-top {
         flex-direction: column;
@@ -1040,69 +966,7 @@ input[type=number] {
         font-size: 12px;
     }
     
-    /* Table fits in one row: no horizontal scroll */
-    .sr-table-wrap {
-        overflow-x: hidden;
-        margin-left: 0;
-        margin-right: 0;
-    }
-    
-    .sr-table-section .sr-table {
-        table-layout: fixed;
-        width: 100%;
-    }
-    
-    .sr-table th,
-    .sr-table td {
-        padding: 8px 3px;
-        font-size: 12px;
-    }
-    
-    .sr-table th {
-        font-size: 10px;
-        white-space: normal;
-        line-height: 1.2;
-    }
-    
-    .sr-table td:nth-child(1),
-    .sr-table th:nth-child(1) {
-        box-sizing: border-box;
-        width: 8%;
-        min-width: 0;
-        max-width: 8%;
-        padding-left: 4px;
-        padding-right: 2px;
-    }
-    
-    .sr-table td:nth-child(2),
-    .sr-table th:nth-child(2) {
-        left: 8%;
-        width: 36%;
-        min-width: 0;
-        max-width: 36%;
-        padding-left: 4px;
-        padding-right: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .sr-table .sr-player a {
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    /* Fixed column widths so all 7 columns fit without horizontal scroll */
-    .sr-table th:nth-child(3),
-    .sr-table td:nth-child(3) { width: 12%; min-width: 0; box-sizing: border-box; }
-    .sr-table th:nth-child(4),
-    .sr-table td:nth-child(4) { width: 10%; min-width: 0; box-sizing: border-box; }
-    .sr-table th:nth-child(5),
-    .sr-table td:nth-child(5) { width: 10%; min-width: 0; box-sizing: border-box; }
-    .sr-table th:nth-child(6),
-    .sr-table td:nth-child(6) { width: 14%; min-width: 0; box-sizing: border-box; }
-    .sr-table th:nth-child(7),
-    .sr-table td:nth-child(7) { width: 10%; min-width: 0; box-sizing: border-box; }
+
 }
 
 /* No results state */
@@ -1467,7 +1331,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         box-sizing: border-box;
     }
     .sr-player-section .sr-mini-table th {
-        font-size: 10px;
+        font-size: 12px;
         letter-spacing: 0;
     }
     .sr-player-section .sr-mini-table .sr-sort-arrow {
@@ -1510,7 +1374,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         padding-top: 5px;
         padding-bottom: 5px;
-        font-size: 9px;
+        font-size: 12px;
     }
     .sr-player-section .sr-mini-table th,
     .sr-player-section .sr-mini-table td {
@@ -1820,3 +1684,62 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 
 .sr-rating-help { color: var(--sr-muted); font-size: 12px; line-height: 1.5; margin: -6px 0 12px; }
 .sr-rating-help summary { cursor: pointer; padding: 6px 0; }
+
+/* Readable controls and tables across screen sizes. Keep player names pinned
+   when a narrow screen needs horizontal scrolling instead of shrinking text. */
+.sr-link-btn, .sr-section-tab, .sr-year-select, .menu-toggle {
+    min-height: 44px;
+    box-sizing: border-box;
+}
+.sr-section-label, .sr-tile-label {
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+}
+.sr-tile-sub, .sr-table-helper, .sr-header-field-label, .sr-game-rating-note, .sr-rating-help {
+    font-size: 13px;
+}
+.sr-card { border-radius: 16px; }
+.sr-card-compact { padding: 16px; }
+.sr-table-wrap { overflow-x: auto; }
+.sr-table:has(th:nth-child(6)) { min-width: 480px; }
+.sr-table td:nth-child(2), .sr-table th:nth-child(2) {
+    min-width: 140px;
+    box-shadow: 1px 0 0 var(--sr-line);
+}
+.sr-table th.sr-numeric, .sr-table td.sr-numeric { text-align: right; }
+.sr-table .sr-rank { text-align: center; font-weight: 500; }
+.sr-table .sr-rank-2, .sr-table .sr-rank-3 { color: var(--sr-muted); }
+.sr-table th:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--sr-accent);
+    outline-offset: 3px;
+}
+.sr-rating-info-btn { width: 24px; height: 24px; min-width: 24px; min-height: 24px; opacity: 1; }
+.sr-rating-info-btn i { font-size: 13px; }
+.sr-player-section .sr-mini-table { font-variant-numeric: tabular-nums; }
+.sr-player-section .sr-mini-table th { font-size: 13px; text-transform: none; }
+.sr-player-section .sr-mini-table td { font-size: 15px; }
+.sr-player-section .sr-mini-table .sr-win, .sr-player-section .sr-mini-table .sr-loss { color: var(--sr-text); }
+.sr-player-section .sr-mini-table :is(th, td):nth-child(n+3) { text-align: right; }
+.sr-player-section .sr-mini-table a { font-weight: 600; }
+@media (max-width: 768px) {
+    .sr-table th { padding: 12px 8px; font-size: 12px; }
+    .sr-table td { padding: 13px 8px; font-size: 14px; }
+    .sr-table td:nth-child(2), .sr-table th:nth-child(2) { width: 140px; }
+}
+@media (max-width: 480px) {
+    .sr-container { padding: 0 12px; }
+    .sr-header-compact { padding: 20px 0 14px; }
+    .sr-title { font-size: 24px; }
+    .sr-link-btn, .menu-toggle { font-size: 14px; }
+    .sr-card { padding: 12px; }
+    .sr-table-section .sr-card { margin-left: 0; margin-right: 0; border-radius: 16px; }
+    .sr-table-section .sr-card-compact { padding: 12px 8px; }
+    .sr-player-header.is-fixed { padding-left: 12px; padding-right: 12px; }
+    .sr-player-section .sr-section-title { margin: -12px -12px 0; padding-left: 12px; padding-right: 12px; }
+    .sr-player-section .sr-mini-table td { font-size: 14px; }
+    html.sr-player-pinned .sr-player-section .sr-mini-table thead th { font-size: 12px; }
+}
+
+.sr-history-pages { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; color: var(--sr-muted); font-size: 13px; }

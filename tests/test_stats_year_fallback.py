@@ -15,13 +15,12 @@ class StatsYearFallbackTests(unittest.TestCase):
         app = Flask(__name__)
         namespace = dict(
             app=app, date=date,
-            year_games=lambda year: games_by_year.get(year, []),
+            year_games_count=lambda year: len(games_by_year.get(year, [])),
             # Shared season list can include seasons with no women's games.
             grab_all_years=lambda: [current_year, previous_year],
             stats_per_year=lambda year, minimum: ['ranking'] if games_by_year.get(year) else [],
             active_location_filter=lambda: (location, False),
             rare_stats_per_year=Mock(return_value=[]),
-            calculate_tile_stats=Mock(return_value={}),
             todays_stats=lambda: [], todays_games=lambda: [],
             render_template=lambda template, **context: context,
         )

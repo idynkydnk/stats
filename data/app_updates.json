@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-09-readable-stats",
+    "date": "2026-10-09",
+    "subject": "iPhone: Calmer, easier-to-read stats",
+    "body": "Stats use clearer headings, quieter cards, and more readable table labels. Player names have more room, numbers line up, and ratings stand out without coloring every result."
+  },
+  {
+    "id": "ios-2026-10-09-faster-player-pages",
+    "date": "2026-10-09",
+    "subject": "iPhone: Faster player pages and game history",
+    "body": "Recently viewed player pages open from saved results and refresh when needed. Doubles histories load 30 games at a time with Show older games, while records, ratings, and streaks still include the full selected history."
+  },
+  {
     "id": "ios-2026-10-09-player-dropdown-matching",
     "date": "2026-10-09",
     "subject": "iPhone: Easier player search when adding games",
