@@ -4493,6 +4493,14 @@ def update(id):
 def delete_game(id):
     game_id = id
     game = find_game(id)
+    if not game:
+        abort(404)
+    if id not in _editable_game_ids('games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('games', year=games_year) if games_year else None
+    cancel_url = url_for('update', id=id, games_year=games_year,
+                         from_add_game=request.args.get('from_add_game')) if request.args.get('from_edit') == 'true' else None
     from_add_game = request.args.get('from_add_game', 'false')
     from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
@@ -4516,6 +4524,8 @@ def delete_game(id):
         flash('Game deleted from database.', 'success')
         
         # Redirect back to appropriate page
+        if return_url:
+            return redirect(return_url)
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_game'))
         if request.form.get('from_add_game') == 'true':
@@ -4523,7 +4533,7 @@ def delete_game(id):
         return redirect(url_for('edit_games', year=str(date.today().year)))
  
     year = str(date.today().year)
-    return render_template('delete_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign, year=year)
+    return render_template('delete_game.html', return_url=return_url, cancel_url=cancel_url, games_year=games_year, game=game, from_add_game=from_add_game, from_redesign=from_redesign, year=year)
 
 ## VOLLIS ROUTES
 
@@ -4572,6 +4582,14 @@ def update_vollis_game(id):
 def delete_vollis_game(id):
     game_id = id
     game = find_vollis_game(id)
+    if not game:
+        abort(404)
+    if id not in _editable_game_ids('vollis_games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('vollis_games', year=games_year) if games_year else None
+    cancel_url = url_for('update_vollis_game', id=id, games_year=games_year,
+                         from_add_game=request.args.get('from_add_game')) if request.args.get('from_edit') == 'true' else None
     from_add_game = request.args.get('from_add_game', 'false')
     from_redesign = request.args.get('from_redesign', 'false')
     if request.method == 'POST':
@@ -4585,13 +4603,15 @@ def delete_vollis_game(id):
                      summary=details, before=before_row)
         
         # Redirect back to appropriate page
+        if return_url:
+            return redirect(return_url)
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_vollis_game'))
         if request.form.get('from_add_game') == 'true':
             return redirect(url_for('add_vollis_game'))
         return redirect(url_for('edit_vollis_games', year=str(date.today().year)))
  
-    return render_template('delete_vollis_game.html', game=game, from_add_game=from_add_game, from_redesign=from_redesign)
+    return render_template('delete_vollis_game.html', return_url=return_url, cancel_url=cancel_url, games_year=games_year, game=game, from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/single_game_stats/<game_name>/')
 def single_game_stats(game_name):
@@ -5021,11 +5041,16 @@ def update_other_game(id):
 def delete_other_game(id):
     game_id = id
     game = find_other_game(id)
+    if not game:
+        abort(404)
+    if id not in _editable_game_ids('other_games', [id]):
+        abort(403)
+    games_year = request.form.get('games_year') or request.args.get('games_year')
+    return_url = url_for('other_games', year=games_year) if games_year else None
+    cancel_url = url_for('update_other_game', id=id, games_year=games_year,
+                         from_add_game=request.args.get('from_add_game')) if request.args.get('from_edit') == 'true' else None
     from_add_game = request.args.get('from_add_game', 'false')
     from_redesign = request.args.get('from_redesign', 'false')
-    if not game:
-        flash('Game not found!')
-        return redirect(url_for('edit_other_games', year=str(date.today().year)))
     
     if request.method == 'POST':
         # Log the action for the activity feed before deleting
@@ -5039,13 +5064,15 @@ def delete_other_game(id):
                      summary=details, before=before_row)
         
         # Redirect back to appropriate page
+        if return_url:
+            return redirect(return_url)
         if request.form.get('from_redesign') == 'true':
             return redirect(url_for('add_other_game'))
         if request.form.get('from_add_game') == 'true':
             return redirect(url_for('add_other_game'))
         return redirect(url_for('edit_other_games', year=str(date.today().year)))
  
-    return render_template('delete_other_game.html', game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
+    return render_template('delete_other_game.html', return_url=return_url, cancel_url=cancel_url, games_year=games_year, game=game[0], from_add_game=from_add_game, from_redesign=from_redesign)
 
 @app.route('/game_name_stats/<path:game_name>/')
 def game_name_stats(game_name):

@@ -55,5 +55,7 @@
 					 list="scores">    
 			  <input type="submit" value="Submit">
 		   </form>
+            {% set delete_url = url_for('delete_vollis_game', id=game[0], games_year=games_year or none, from_add_game='true' if from_add_game == 'true' else none, from_edit='true') %}
+            {% include 'partials/edit_game_delete.html' %}
 	   </div>
 {% endblock %}

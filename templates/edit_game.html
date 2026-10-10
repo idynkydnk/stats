@@ -120,6 +120,8 @@
                 </div>
                 <button type="submit" class="sr-submit-btn">Save changes</button>
             </form>
+            {% set delete_url = url_for('delete_game', id=game[0], games_year=games_year or none, from_add_game='true' if from_add_game == 'true' else none, from_edit='true') %}
+            {% include 'partials/edit_game_delete.html' %}
         </div>
 
         {% if from_add_game %}

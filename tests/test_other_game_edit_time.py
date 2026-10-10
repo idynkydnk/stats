@@ -34,6 +34,7 @@ class OtherGameEditTimeTests(unittest.TestCase):
         self.app.context_processor(lambda: {'base_template': 'test_base.html'})
         self.app.add_url_rule('/other/<year>', 'edit_other_games', lambda year: '')
         self.app.add_url_rule('/other_games/<year>', 'other_games', lambda year: '')
+        self.app.add_url_rule('/delete_other_game/<int:id>/', 'delete_other_game', lambda id: '')
         namespace = dict(app=self.app, login_required=lambda f: f, request=request,
                          session=session, date=date, datetime=datetime, flash=flash, abort=abort,
                          _editable_game_ids=lambda table, ids: set(ids),

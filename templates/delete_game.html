@@ -16,7 +16,8 @@
         </div>
         
         <div class="confirmation-actions">
-            <form action="" method="post" class="delete-form" id="delete-game-form" data-redirect-url="{% if from_redesign == 'true' or from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games', year=year) }}{% endif %}">
+            <form action="" method="post" class="delete-form" id="delete-game-form" data-redirect-url="{% if return_url %}{{ return_url }}{% elif from_redesign == 'true' or from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games', year=year) }}{% endif %}">
+                {% if games_year %}<input type="hidden" name="games_year" value="{{ games_year }}">{% endif %}
                 <input type="hidden" name="from_add_game" value="{{ from_add_game }}">
                 <input type="hidden" name="from_redesign" value="{{ from_redesign }}">
                 <button type="submit" class="delete-button" id="delete-game-btn">
@@ -25,7 +26,7 @@
                 </button>
             </form>
             
-            <a href="{% if from_redesign == 'true' %}{{ url_for('add_game') }}{% elif from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games_default') }}{% endif %}" class="cancel-button">
+            <a href="{% if cancel_url %}{{ cancel_url }}{% elif from_redesign == 'true' %}{{ url_for('add_game') }}{% elif from_add_game == 'true' %}{{ url_for('add_game') }}{% else %}{{ url_for('edit_games_default') }}{% endif %}" class="cancel-button">
                 <i class="fas fa-times"></i>
                 Cancel
             </a>

@@ -47,7 +47,8 @@ class GameEditPermissionTests(unittest.TestCase):
             clear_stats_cache=Mock(), update_kobs=Mock(), log_user_action=Mock(), log_activity=Mock(),
             get_user_now=lambda: '2026-10-05 11:00:00',
             adminfx=SimpleNamespace(snapshot_row=Mock(return_value=None)))
-        wanted = {'_editable_game_ids', 'update', 'update_vollis_game', 'update_other_game', 'api_doubles_update'}
+        self.namespace.update(remove_game=self.writes, remove_vollis_game=self.writes, remove_other_game=self.writes)
+        wanted = {'delete_game', 'delete_vollis_game', 'delete_other_game', '_editable_game_ids', 'update', 'update_vollis_game', 'update_other_game', 'api_doubles_update'}
         nodes = [n for n in ast.parse((ROOT / 'stats.py').read_text()).body
                  if isinstance(n, ast.FunctionDef) and n.name in wanted]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), self.namespace)
@@ -80,6 +81,42 @@ class GameEditPermissionTests(unittest.TestCase):
             self.assertEqual(self.client.get(f'/{endpoint}/2/').status_code, 200)
             self.assertEqual(self.client.get(f'/{endpoint}/3/').status_code, 200)
         self.writes.assert_not_called()
+
+    def test_delete_requires_ownership_for_confirmation_and_submission(self):
+        for endpoint in ('delete', 'delete_vollis_game', 'delete_other_game'):
+            self.login('Alice')
+            self.assertEqual(self.client.get(f'/{endpoint}/1/').status_code, 200)
+            for method in ('get', 'post'):
+                for game_id in (2, 3):
+                    self.assertEqual(getattr(self.client, method)(f'/{endpoint}/{game_id}/').status_code, 403)
+            self.login('Admin')
+            self.assertEqual(self.client.get(f'/{endpoint}/2/').status_code, 200)
+        self.writes.assert_not_called()
+
+    def test_delete_returns_to_browse_year_and_cancel_returns_to_editor(self):
+        cases = [('delete', 'games', 'update'),
+                 ('delete_vollis_game', 'vollis_games', 'update_vollis_game'),
+                 ('delete_other_game', 'other_games', 'update_other_game')]
+        # Deletion reads raw column positions, while the edit fixture uses named fields.
+        self.namespace['find_other_game'] = lambda id: [(id, '2026-10-05', 'Cards', 'Rummy', 'A', '', '', '', '', '', 21, 'B')]
+        render = Mock(return_value='confirmation')
+        self.namespace['render_template'] = render
+        for username, game_id in [('Alice', 1), ('Admin', 2)]:
+            self.login(username)
+            for endpoint, browse, editor in cases:
+                response = self.client.get(f'/{endpoint}/{game_id}/', query_string=dict(
+                    games_year='All years', from_edit='true'))
+                self.assertEqual(response.status_code, 200)
+                context = render.call_args.kwargs
+                with self.app.test_request_context():
+                    self.assertEqual(context['cancel_url'], url_for(editor, id=game_id, games_year='All years'))
+                self.assertEqual(context['return_url'], '/'+browse+'/All%20years/')
+                self.writes.assert_not_called()
+                response = self.client.post(f'/{endpoint}/{game_id}/', data={'games_year': 'All years'})
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, '/'+browse+'/All%20years/')
+                self.writes.assert_called_once_with(game_id)
+                self.writes.reset_mock()
 
     def test_doubles_api_cannot_bypass_ownership(self):
         self.login('Alice')
