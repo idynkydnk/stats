@@ -1759,10 +1759,17 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         bottom: 1px;
         margin: 0;
     }
-    .sr-table:has(th[data-column="player"]) .sr-rating-header { display: block; position: static; }
+    /* Keep rating help beside the label without adding a second header line. */
+    .sr-table:has(th[data-column="player"]) th:has(.sr-rating-header) { width: 72px; }
+    .sr-table:has(th[data-column="player"]) .sr-rating-header {
+        display: inline-flex;
+        position: static;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
     .sr-table:has(th[data-column="player"]) .sr-rating-info-btn {
-        display: flex;
-        margin: 2px 0 0 auto;
+        flex: 0 0 24px;
+        margin: 0;
     }
 }
 @media (max-width: 480px) {
