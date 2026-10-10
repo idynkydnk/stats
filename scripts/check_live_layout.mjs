@@ -22,7 +22,7 @@ const pages = [
 const reports = [];
 const failures = [];
 try {
-  for (const width of [320, 375, 390, 430, 768, 1440]) {
+  for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 }, deviceScaleFactor: 1,
       isMobile: width < 768, hasTouch: width < 768, colorScheme: 'dark' });
     // Reading only: don't let visits set timezone or submit any other changes.
@@ -67,6 +67,40 @@ try {
       });
       const layout = await checkLayout();
       if (name === 'doubles') {
+        if (width >= 360 && width <= 430) {
+          // Use the actual standings markup with the names from the reported
+          // regression, independently of who currently qualifies for this table.
+          const names = await page.evaluate(() => {
+            const table = document.querySelector('#sr-table');
+            if (!table) return { issues: ['Missing season standings for name check'] };
+            const row = table.querySelector('tbody tr');
+            if (!row) return { issues: ['Missing player row for name check'] };
+            const issues = [];
+            const fixtures = [];
+            for (const name of ['James Lightner', 'Matt Sokolowski']) {
+              const fixture = row.cloneNode(true);
+              fixture.querySelector('.sr-player a').textContent = name;
+              fixture.dataset.qaName = name;
+              row.parentElement.prepend(fixture);
+              fixtures.push(fixture);
+              const link = fixture.querySelector('.sr-player a');
+              const range = document.createRange(); range.selectNodeContents(link);
+              const bounds = range.getBoundingClientRect();
+              const lineHeight = parseFloat(getComputedStyle(link).lineHeight);
+              if (bounds.height > lineHeight + 1) issues.push(`${name} wraps at ${innerWidth}px`);
+              const cell = link.closest('td').getBoundingClientRect();
+              if (bounds.left < cell.left || bounds.right > cell.right) issues.push(`${name} exceeds its column`);
+            }
+            return { issues };
+          });
+          if (names.issues.length) failures.push({ width, ...names });
+          await page.evaluate(() => document.documentElement.classList.add('sr-light'));
+          await page.locator('#sr-table').screenshot({ path: `${out}/${engine}-${width}-player-names-light.png`, animations: 'disabled' });
+          await page.evaluate(() => {
+            document.querySelectorAll('[data-qa-name]').forEach(row => row.remove());
+            document.documentElement.classList.remove('sr-light');
+          });
+        }
         if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles.png`, animations: 'disabled' });
         await page.evaluate(() => document.documentElement.classList.add('sr-light'));
         const light = await checkLayout();

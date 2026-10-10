@@ -1760,9 +1760,10 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         margin: 0;
     }
     /* Keep rating help beside the label without adding a second header line. */
-    .sr-table:has(th[data-column="player"]) th:has(.sr-rating-header) { width: 72px; }
+    .sr-table:has(th[data-column="player"]) th:has(.sr-rating-header) { width: 66px; }
     .sr-table:has(th[data-column="player"]) .sr-rating-header {
         display: inline-flex;
+        gap: 0;
         position: static;
         vertical-align: middle;
         white-space: nowrap;
@@ -1780,6 +1781,13 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     .sr-card { padding: 12px; }
     .sr-table-section .sr-card { margin-left: 0; margin-right: 0; border-radius: 16px; }
     .sr-table-section .sr-card-compact { padding: 12px 8px; }
+    /* Give player names the space previously used by nested card margins. */
+    .sr-table-section .sr-card-compact:has(.sr-table th[data-column="player"]) {
+        margin-left: -6px;
+        margin-right: -6px;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
     .sr-player-header.is-fixed { padding-left: 12px; padding-right: 12px; }
     .sr-player-section .sr-section-title { margin: -12px -12px 0; padding-left: 12px; padding-right: 12px; }
     .sr-player-section .sr-mini-table td { font-size: 14px; }
