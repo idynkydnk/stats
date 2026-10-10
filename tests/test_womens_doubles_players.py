@@ -28,6 +28,9 @@ class WomensDoublesPlayersTests(unittest.TestCase):
         self.patcher = patch.object(stats, 'set_cur', side_effect=lambda: sqlite3.connect(self.path).cursor())
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
+        identity_path = patch('admin_functions.stats_db_path', return_value=self.path)
+        identity_path.start()
+        self.addCleanup(identity_path.stop)
 
     def test_empty_womens_games_only_suggest_jen(self):
         with self.app.test_request_context('/add_game/?division=women'):
@@ -51,6 +54,18 @@ class WomensDoublesPlayersTests(unittest.TestCase):
             conn.execute("UPDATE site_users SET player_name='Updated Profile'")
             migrate(conn)
             self.assertEqual(conn.execute('SELECT player_name FROM site_users').fetchone()[0], 'Updated Profile')
+
+    def test_personal_game_database_does_not_need_account_identity_table(self):
+        conn = sqlite3.connect(':memory:')
+        conn.executescript('''
+            CREATE TABLE games (winner1 TEXT, winner2 TEXT, loser1 TEXT, loser2 TEXT,
+                game_date TEXT, updated_by TEXT, division TEXT, id INTEGER);
+            INSERT INTO games VALUES ('Alice', 'Beth', 'Cara', 'Dana', '2026-10-09', 'alice', 'women', 1);
+        ''')
+        with self.app.test_request_context('/api/doubles_players?division=women'), \
+                patch.object(stats, 'set_cur', side_effect=conn.cursor):
+            self.assertEqual(stats.all_players_ordered_for_doubles('alice'),
+                             ['Alice', 'Beth', 'Cara', 'Dana', 'Jen Weston'])
 
     def test_mens_selection_does_not_use_womens_roster(self):
         with self.app.test_request_context('/add_game/?division=open'), patch.object(stats, 'get_players_ordered_from_cache', return_value=['Kyle Thompson']), patch('player_functions.merge_roster_into_player_names', side_effect=lambda names: names):

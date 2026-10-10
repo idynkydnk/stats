@@ -226,6 +226,7 @@ textarea { resize: vertical; min-height: 60px; }
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/stats.js', v='20261006-sharing') }}"></script>
+<script src="{{ url_for('static', filename='js/player-suggestions.js', v='20261009') }}"></script>
 <script>
 (function() {
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -368,13 +369,16 @@ function showList(field, list, items) {
         if (el !== list) el.style.display = 'none';
     });
     list.innerHTML = '';
-    (field.id === 'location' ? items : items.slice(0, 12)).forEach(function(item) {
+    var visible = nameFields.includes(field.id)
+        ? rankPlayerSuggestions(items, field.value).slice(0, 8)
+        : (field.id === 'location' ? items : items.slice(0, 12));
+    visible.forEach(function(item) {
         var div = document.createElement('div');
         div.textContent = item;
         list.appendChild(div);
     });
-    list.style.display = items.length ? 'block' : 'none';
-    if (items.length) {
+    list.style.display = visible.length ? 'block' : 'none';
+    if (visible.length) {
         list.scrollTop = 0;
         requestAnimationFrame(function() {
             list.scrollTop = 0;
@@ -398,7 +402,7 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
             list.style.display = 'none';
             return;
         }
-        filterList(field, list, getItems(field), function(item) { return item.toLowerCase().includes(field.value.toLowerCase()); });
+        filterList(field, list, getItems(field), function(item) { return item.toLowerCase().includes(field.value.trim().toLowerCase()); });
     });
     list.addEventListener('click', function(e) {
         if (e.target.tagName === 'DIV') {

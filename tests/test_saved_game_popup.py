@@ -28,6 +28,9 @@ class SavedGamePopupTests(unittest.TestCase):
                          log_user_action=Mock(), log_activity=Mock(), update_kobs=Mock(),
                          adminfx=SimpleNamespace(snapshot_last_row=lambda _: None, get_site_user=lambda _: {}),
                          _game_location_form_context=lambda: {},
+                         entry_player_names=Mock(return_value=['Shared player']),
+                         _stats_db_path=lambda: 'test.db', is_admin=lambda *args: False,
+                         entry_division=lambda *args: 'open',
                          add_game_stats=self.write, add_vollis_stats=self.write,
                          add_other_stats=self.write)
         for name in ('all_players_ordered_for_doubles', 'todays_games', 'todays_stats',
@@ -59,6 +62,17 @@ class SavedGamePopupTests(unittest.TestCase):
                            game_type='Cards', game_name='Sequence', score_type='team',
                            comments='<script>comment</script>', comment='<script>comment</script>',
                            location='Beach')
+
+    def test_every_add_page_uses_complete_roster_for_each_account(self):
+        for username in ('john', 'alice', 'bob', 'Kyle'):
+            with self.client.session_transaction() as state:
+                state['username'] = username
+            for path in ('add_game', 'add_vollis_game', 'add_other_game'):
+                with self.subTest(username=username, path=path):
+                    response = self.client.get('/' + path + '/')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(self.render.call_args.kwargs['players'], ['Shared player'])
+                    self.assertEqual(self.namespace['entry_player_names'].call_args.args[2], username)
 
     def test_tyler_blank_locations_default_and_explicit_locations_survive(self):
         with self.client.session_transaction() as state:

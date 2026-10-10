@@ -219,6 +219,7 @@
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/stats.js', v='20261006-sharing') }}"></script>
+<script src="{{ url_for('static', filename='js/player-suggestions.js', v='20261009') }}"></script>
 <script>
 // Set user timezone so game timestamps use correct local time (including DST)
 (function() {
@@ -239,13 +240,16 @@ function showList(field, list, items) {
         if (el !== list) el.style.display = 'none';
     });
     list.innerHTML = '';
-    (field.id === 'location' ? items : items.slice(0, 12)).forEach(item => {
+    const visible = nameFields.includes(field.id)
+        ? rankPlayerSuggestions(items, field.value).slice(0, 8)
+        : (field.id === 'location' ? items : items.slice(0, 12));
+    visible.forEach(item => {
         const div = document.createElement('div');
         div.textContent = item;
         list.appendChild(div);
     });
-    list.style.display = items.length ? 'block' : 'none';
-    if (items.length) {
+    list.style.display = visible.length ? 'block' : 'none';
+    if (visible.length) {
         list.scrollTop = 0;
         requestAnimationFrame(function() { list.scrollTop = 0; });
     }
@@ -266,7 +270,7 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
             list.style.display = 'none';
             return;
         }
-        const items = getItems(field).filter(item => item.toLowerCase().includes(field.value.toLowerCase()));
+        const items = getItems(field).filter(item => item.toLowerCase().includes(field.value.trim().toLowerCase()));
         showList(field, list, items);
     });
     list.addEventListener('click', e => {

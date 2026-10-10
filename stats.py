@@ -17,6 +17,7 @@ from other_functions import *
 from game_ratings import attach_other_ratings, vollis_ratings
 from kob_functions import update_kobs
 from player_identity import unique_player_names
+from player_suggestions import entry_player_names
 from email_content import (
     active_ai_provider,
     ai_api_key_error_message,
@@ -4072,7 +4073,8 @@ def _add_doubles_game_view(redirect_to):
         return redirect(url_for(redirect_to))
     
     current_user = session.get('username')
-    players = all_players_ordered_for_doubles(current_username=current_user)
+    players = entry_player_names(_stats_db_path(), all_players_ordered_for_doubles(current_username=current_user),
+        current_user, is_admin(current_user), women_only=entry_division(current_user) == 'women')
     games = todays_games()
     todays_stats_data = todays_stats()
     l_scores = list(range(0, 21))
@@ -4134,6 +4136,7 @@ def add_vollis_game():
     all_games = vollis_year_games('All years')
     from player_functions import merge_roster_into_player_names
     players = merge_roster_into_player_names(all_vollis_players(all_games))
+    players = entry_player_names(_stats_db_path(), players, session.get('username'), is_admin())
     games = todays_vollis_games()
     todays_stats_data = todays_vollis_stats()
     winning_scores = list(range(11, 27))
@@ -4247,6 +4250,7 @@ def add_other_game():
     from other_functions import other_game_entry_catalog
     catalog = other_game_entry_catalog()
     players = all_combined_players()
+    players = entry_player_names(_stats_db_path(), players, session.get('username'), is_admin())
     game_defaults = catalog['defaults']
     game_names = catalog['names']
     game_types = catalog['types']
@@ -5430,7 +5434,8 @@ def get_other_game_common_scores(game_name):
 def api_doubles_players():
     """Fresh doubles player list for add-game autocomplete after AJAX submit (no full reload)."""
     current_user = session.get('username')
-    players = all_players_ordered_for_doubles(current_username=current_user)
+    players = entry_player_names(_stats_db_path(), all_players_ordered_for_doubles(current_username=current_user),
+        current_user, is_admin(current_user), women_only=entry_division(current_user) == 'women')
     return jsonify(players)
 
 
@@ -5448,6 +5453,7 @@ def get_other_game_players(game_name):
     from other_functions import get_players_ordered_for_game
     current_username = session.get('username') or None
     players = get_players_ordered_for_game(game_name, current_username=current_username)
+    players = entry_player_names(_stats_db_path(), players, current_username, is_admin(current_username))
     return jsonify(players)
 
 

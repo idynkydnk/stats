@@ -587,11 +587,11 @@ def womens_doubles_players(current_username=None):
 			(current_username or '',),
 		)
 		names = [name for row in cur.fetchall() for name in row]
-		cur.execute(
-			"SELECT p.full_name FROM players p JOIN site_users u "
-			"ON p.full_name=u.player_name COLLATE NOCASE WHERE lower(u.username)='jen'"
-		)
-		names.extend(row[0] for row in cur.fetchall())
+		# Personal and combined game databases contain no account identity table.
+		from admin_functions import get_site_user
+		jen = get_site_user('jen') or {}
+		if jen.get('player_name'):
+			names.append(jen['player_name'])
 		return unique_player_names(names)
 	finally:
 		cur.connection.close()
