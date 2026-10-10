@@ -85,5 +85,10 @@ cloud-runner measurements, not cellular-device guarantees. The check is availabl
 as the manual “Check live mobile and desktop layout” workflow; leave candidate
 preview off to verify the actual deployment. Screenshots/reports last seven days.
 
-The iPhone correction passed an unsigned device build. Native large-text visual
-inspection still requires a cloud iPhone simulator or physical-device testing.
+The iPhone correction passed an unsigned device build. Follow-up native
+[cloud simulator checks](https://github.com/idynkydnk/ios_stats/actions/runs/38021837786)
+passed 18 scenarios (180 metric checks): 320/375/390-point widths, default through
+the largest accessibility text size, long names, and large records. Screenshots
+confirmed complete values without horizontal scrolling; the largest text wraps
+vertically. These use the production standings component with controlled test
+data, rather than a signed-in live-data session or a physical TestFlight device.
