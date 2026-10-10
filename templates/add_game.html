@@ -256,6 +256,10 @@ function refreshDoublesPlayersFromServer() {
                     dl.appendChild(opt);
                 });
             }
+            var active = document.activeElement;
+            if (active && nameFields.includes(active.id)) {
+                active.dispatchEvent(new Event(active.value.trim() ? 'input' : 'focus'));
+            }
         })
         .catch(function() { /* keep existing allPlayers */ });
 }
@@ -540,6 +544,7 @@ document.getElementById('add-game-form').addEventListener('submit', async functi
     }
 });
 document.addEventListener('DOMContentLoaded', function() {
+    refreshDoublesPlayersFromServer();
     setTimeout(function() { var w1 = document.getElementById('winner1'); var popup = document.getElementById('saved-game-popup'); if (w1 && !(popup && popup.open)) w1.focus(); }, 100);
 });
 function toggleAllGames() {
