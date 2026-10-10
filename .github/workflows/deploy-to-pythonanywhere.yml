@@ -53,6 +53,16 @@ jobs:
           python3 scripts/verify_john_max_cloud.py
         fi
 
+    - name: Verify John Moran Trent correction
+      env:
+        PA_USERNAME: ${{ secrets.PA_USERNAME }}
+        PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        if git diff --name-only "$BEFORE_SHA" HEAD | grep -Eq '^(migrations/correct_john_trent.py|scripts/verify_john_trent_cloud.py)$'; then
+          python3 scripts/verify_john_trent_cloud.py
+        fi
+
     - name: Notify deployment success
       if: success()
       run: echo "✅ Successfully deployed to PythonAnywhere!"
