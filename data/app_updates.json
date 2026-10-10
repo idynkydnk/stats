@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-09-player-dropdown-matching",
+    "date": "2026-10-09",
+    "subject": "iPhone: Easier player search when adding games",
+    "body": "Add Game dropdowns show up to eight suggestions and put names starting with what you type ahead of names containing it elsewhere. Search still checks the full available list, and recent choices keep their order within each group."
+  },
+  {
     "id": "ios-2026-10-09-face-photo-upload",
     "date": "2026-10-09",
     "subject": "iPhone: More reliable face photo uploads",
