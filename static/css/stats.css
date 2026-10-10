@@ -1726,7 +1726,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     .sr-table td { padding: 13px 8px; font-size: 14px; }
     /* Standings must fit every stat on screen. Let names wrap, not numbers.
        Limit these rules to rankings; game-history tables have other columns. */
-    .sr-table:has(th[data-column="player"]) { table-layout: fixed; }
+    .sr-table:has(th[data-column="player"]) { table-layout: auto; }
     .sr-table:has(th[data-column="player"]) :is(th, td) {
         padding-left: 3px;
         padding-right: 3px;
@@ -1747,7 +1747,8 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     }
     .sr-table:has(th[data-column="player"]) th[data-sort] { position: relative; }
     .sr-table:has(th[data-column="player"]) th[data-sort="rating"] { width: 58px; }
-    .sr-table:has(th[data-column="player"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 38px; }
+    /* Size records to their complete values and give the rest to names. */
+    .sr-table:has(th[data-column="player"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 1%; }
     .sr-table:has(th[data-column="player"]) th[data-sort="winpct"] { width: 46px; }
     .sr-table:has(th[data-column="player"]) th[data-sort="plusminus"] { width: 40px; }
     .sr-table:has(th[data-sort="plusminus"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 28px; }

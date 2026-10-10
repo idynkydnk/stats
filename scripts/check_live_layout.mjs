@@ -43,6 +43,31 @@ try {
     for (const [name, path] of pages) {
       const response = await page.goto(origin + path, { waitUntil: 'load', timeout: 60000 });
       await page.evaluate(() => document.fonts.ready);
+      const todayFixture = name === 'doubles' && await page.evaluate(() => {
+        if (document.querySelector('#today-stats-tbody')) return false;
+        const season = document.querySelector('#sr-table');
+        if (!season) return false;
+        // The live day can have no games. Still check all five numeric columns
+        // using the season's actual row markup, with a clearly marked fixture.
+        const table = season.cloneNode(true);
+        table.id = 'qa-today-table';
+        table.querySelector('th[data-sort="rating"]').innerHTML = 'Rating <span class="sr-sort-arrow">▼</span>';
+        const header = document.createElement('th');
+        header.className = 'sr-numeric'; header.dataset.sort = 'plusminus'; header.textContent = '+/-';
+        table.querySelector('thead tr').append(header);
+        const body = table.querySelector('tbody'); body.id = 'today-stats-tbody';
+        const row = body.querySelector('tr');
+        body.replaceChildren(row);
+        row.querySelector('.sr-rating').textContent = '100.00';
+        row.querySelector('.sr-win').textContent = '12';
+        row.querySelector('.sr-loss').textContent = '34';
+        row.querySelector('.sr-winpct').textContent = '100%';
+        const differential = document.createElement('td');
+        differential.className = 'sr-numeric'; differential.textContent = '-137';
+        row.append(differential);
+        season.before(table);
+        return true;
+      });
       const checkLayout = () => page.evaluate(() => {
         const issues = [];
         const tables = [...document.querySelectorAll('.sr-table:has(th[data-column="player"])')];
@@ -92,14 +117,17 @@ try {
             return { issues };
           });
           if (names.issues.length) failures.push({ width, ...names });
-          await page.evaluate(() => document.documentElement.classList.add('sr-light'));
-          await page.locator('#sr-table').scrollIntoViewIfNeeded();
-          const sample = await page.locator('#sr-table').boundingBox();
-          await page.screenshot({ path: `${out}/${engine}-${width}-player-names-light.png`, animations: 'disabled',
-            clip: { x: sample.x, y: sample.y + await page.evaluate(() => scrollY), width: sample.width, height: 580 } });
+          await page.evaluate(() => {
+            document.documentElement.classList.add('sr-light');
+            document.documentElement.dataset.srPalette = 'sunset';
+          });
+          const screenshotCrop = await page.addStyleTag({ content: '#sr-table tbody tr:nth-child(n+13) { display: none !important; }' });
+          await page.locator('#sr-table').screenshot({ path: `${out}/${engine}-${width}-player-names-light.png`, animations: 'disabled' });
+          await screenshotCrop.evaluate(el => el.remove());
           await page.evaluate(() => {
             document.querySelectorAll('[data-qa-name]').forEach(row => row.remove());
             document.documentElement.classList.remove('sr-light');
+            document.documentElement.dataset.srPalette = 'ocean';
             window.scrollTo(0, 0);
           });
         }
@@ -116,14 +144,14 @@ try {
           lcp: Math.round(window.qaLCP), htmlBytes: n.decodedBodySize,
           resources: performance.getEntriesByType('resource').length };
       });
-      const report = { engine, candidate, width, page: name, status: response.status(), ...layout, performance };
+      const report = { engine, candidate, width, page: name, status: response.status(), todayFixture, ...layout, performance };
       reports.push(report);
       if (response.status() !== 200 || layout.issues.length) failures.push(report);
       if (name === 'doubles' && !layout.today) failures.push({ width, error: 'No live today stats to verify' });
       if (name !== 'doubles' && [375, 1440].includes(width)) {
         await page.screenshot({ path: `${out}/${engine}-${width}-${name}.png`, fullPage: false, animations: 'disabled' });
       }
-      if (name === 'doubles') {
+      if (name === 'doubles' && !todayFixture) {
         for (const sort of ['wins', 'losses', 'winpct', 'plusminus', 'rating']) {
           const header = page.locator(`#today-stats-tbody`).locator('..').locator(`th[data-sort="${sort}"]`);
           if (await header.count()) { await header.click(); const sorted = await checkLayout();
