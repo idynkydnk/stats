@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-10-compact-stats-row",
+    "date": "2026-10-10",
+    "subject": "iPhone: All five stats on one compact row",
+    "body": "At normal text size, rating, wins, losses, win percentage, and point differential fit on one row beneath each player name. Larger text keeps the wrapping layout so every value stays readable without sideways scrolling."
+  },
+  {
     "id": "ios-2026-10-09-visible-standings",
     "date": "2026-10-09",
     "subject": "iPhone: Every stat stays on screen",
