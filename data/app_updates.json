@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-09-visible-standings",
+    "date": "2026-10-09",
+    "subject": "iPhone: Every stat stays on screen",
+    "body": "Standings keep rating, wins, losses, win percentage, and point differential visible without sideways scrolling. On narrow screens or with larger text, stats move below the player name so they remain readable."
+  },
+  {
     "id": "ios-2026-10-09-readable-stats",
     "date": "2026-10-09",
     "subject": "iPhone: Calmer, easier-to-read stats",

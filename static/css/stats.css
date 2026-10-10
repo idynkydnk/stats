@@ -1779,3 +1779,43 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 }
 
 .sr-history-pages { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; color: var(--sr-muted); font-size: 13px; }
+
+/* At the smallest phone width, give the name its own line. All numeric
+   columns remain together, with their original headers and sorting. */
+@media (max-width: 359px) {
+    .sr-table:has(th[data-column="player"]) { --sr-stat-count: 3; }
+    .sr-table:has(th[data-column="player"]):has(th[data-sort="rating"]),
+    .sr-table:has(th[data-column="player"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 4; }
+    .sr-table:has(th[data-sort="rating"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 5; }
+    .sr-table:has(th[data-column="player"]),
+    .sr-table:has(th[data-column="player"]) :is(thead, tbody) { display: block; }
+    .sr-table:has(th[data-column="player"]) tr {
+        display: grid;
+        grid-template-columns: repeat(var(--sr-stat-count), minmax(0, 1fr));
+        border-bottom: 1px solid var(--sr-line);
+    }
+    .sr-table:has(th[data-column="player"]) :is(th, td) {
+        width: auto;
+        min-width: 0;
+        grid-row: 2;
+        border-bottom: 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
+    .sr-table:has(th[data-column="player"]) :is(th, td):first-child {
+        grid-row: 1;
+        grid-column: 1;
+        width: 24px;
+        z-index: 1;
+    }
+    .sr-table:has(th[data-column="player"]) :is(th, td):nth-child(2) {
+        grid-row: 1;
+        grid-column: 1 / -1;
+        padding-left: 30px;
+        text-align: left;
+    }
+    .sr-table:has(th[data-column="player"]) th[data-sort] { width: auto; }
+}
+@media (max-width: 768px) {
+    .sr-table:has(th[data-column="player"]) tbody tr td:nth-child(-n+2) { background: transparent; }
+}

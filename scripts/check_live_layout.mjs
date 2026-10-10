@@ -12,8 +12,8 @@ await mkdir(out, { recursive: true });
 const css = await readFile('static/css/stats.css', 'utf8');
 const pages = [
   ['doubles', '/stats/2026/'],
-  ['all-years', '/stats/All/'],
-  ['player', '/player/All/Kyle/'],
+  ['all-years', '/stats/All%20years/'],
+  ['player', '/player/All%20years/Kyle%20Thomson/'],
   ['games', '/games/2026/'],
   ['vollis', '/vollis_stats/2026/'],
   ['other', '/other_stats/2026/'],
@@ -66,6 +66,13 @@ try {
           headers: tables[0] ? [...tables[0].querySelectorAll('th')].map(el => el.textContent.trim().slice(0, 12)) : [] };
       });
       const layout = await checkLayout();
+      if (name === 'doubles') {
+        await page.evaluate(() => document.documentElement.classList.add('sr-light'));
+        const light = await checkLayout();
+        if (light.issues.length) failures.push({ width, theme: 'light', ...light });
+        if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles-light.png` });
+        await page.evaluate(() => document.documentElement.classList.remove('sr-light'));
+      }
       const performance = await page.evaluate(() => {
         const n = performance.getEntriesByType('navigation')[0];
         return { ttfb: Math.round(n.responseStart - n.requestStart), load: Math.round(n.loadEventEnd),
@@ -77,7 +84,7 @@ try {
       if (response.status() !== 200 || layout.issues.length) failures.push(report);
       if (name === 'doubles' && !layout.today) failures.push({ width, error: 'No live today stats to verify' });
       if ([375, 1440].includes(width) || name === 'doubles') {
-        await page.screenshot({ path: `${out}/${engine}-${width}-${name}.png`, fullPage: name !== 'player' && name !== 'games' });
+        await page.screenshot({ path: `${out}/${engine}-${width}-${name}.png`, fullPage: false });
       }
       if (name === 'doubles') {
         for (const sort of ['wins', 'losses', 'winpct', 'plusminus', 'rating']) {
