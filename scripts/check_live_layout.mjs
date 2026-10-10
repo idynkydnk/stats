@@ -76,13 +76,11 @@ try {
             const row = table.querySelector('tbody tr');
             if (!row) return { issues: ['Missing player row for name check'] };
             const issues = [];
-            const fixtures = [];
             for (const name of ['James Lightner', 'Matt Sokolowski']) {
               const fixture = row.cloneNode(true);
               fixture.querySelector('.sr-player a').textContent = name;
               fixture.dataset.qaName = name;
               row.parentElement.prepend(fixture);
-              fixtures.push(fixture);
               const link = fixture.querySelector('.sr-player a');
               const range = document.createRange(); range.selectNodeContents(link);
               const bounds = range.getBoundingClientRect();
@@ -95,10 +93,14 @@ try {
           });
           if (names.issues.length) failures.push({ width, ...names });
           await page.evaluate(() => document.documentElement.classList.add('sr-light'));
-          await page.locator('#sr-table').screenshot({ path: `${out}/${engine}-${width}-player-names-light.png`, animations: 'disabled' });
+          await page.locator('#sr-table').scrollIntoViewIfNeeded();
+          const sample = await page.locator('#sr-table').boundingBox();
+          await page.screenshot({ path: `${out}/${engine}-${width}-player-names-light.png`, animations: 'disabled',
+            clip: { x: sample.x, y: sample.y + await page.evaluate(() => scrollY), width: sample.width, height: 580 } });
           await page.evaluate(() => {
             document.querySelectorAll('[data-qa-name]').forEach(row => row.remove());
             document.documentElement.classList.remove('sr-light');
+            window.scrollTo(0, 0);
           });
         }
         if ([320, 375, 1440].includes(width)) await page.screenshot({ path: `${out}/${engine}-${width}-doubles.png`, animations: 'disabled' });

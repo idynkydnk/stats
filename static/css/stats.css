@@ -1747,7 +1747,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     }
     .sr-table:has(th[data-column="player"]) th[data-sort] { position: relative; }
     .sr-table:has(th[data-column="player"]) th[data-sort="rating"] { width: 58px; }
-    .sr-table:has(th[data-column="player"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 40px; }
+    .sr-table:has(th[data-column="player"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 38px; }
     .sr-table:has(th[data-column="player"]) th[data-sort="winpct"] { width: 46px; }
     .sr-table:has(th[data-column="player"]) th[data-sort="plusminus"] { width: 40px; }
     .sr-table:has(th[data-sort="plusminus"]) :is(th[data-sort="wins"], th[data-sort="losses"]) { width: 28px; }
@@ -1774,6 +1774,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     }
 }
 @media (max-width: 480px) {
+    .sr-page { margin: 0; }
     .sr-container { padding: 0 12px; }
     .sr-header-compact { padding: 20px 0 14px; }
     .sr-title { font-size: 24px; }
@@ -1783,8 +1784,8 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     .sr-table-section .sr-card-compact { padding: 12px 8px; }
     /* Give player names the space previously used by nested card margins. */
     .sr-table-section .sr-card-compact:has(.sr-table th[data-column="player"]) {
-        margin-left: -6px;
-        margin-right: -6px;
+        margin-left: -8px;
+        margin-right: -8px;
         padding-left: 4px;
         padding-right: 4px;
     }
