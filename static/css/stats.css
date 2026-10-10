@@ -1739,7 +1739,8 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         position: static;
     }
     .sr-table:has(th[data-column="player"]) :is(th, td):nth-child(2) {
-        width: auto;
+        /* Claim spare width before the browser distributes it to numbers. */
+        width: 100%;
         min-width: 0;
         position: static;
         z-index: auto;

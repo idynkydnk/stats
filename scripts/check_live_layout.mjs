@@ -101,6 +101,7 @@ try {
             const row = table.querySelector('tbody tr');
             if (!row) return { issues: ['Missing player row for name check'] };
             const issues = [];
+            const measurements = [];
             for (const name of ['James Lightner', 'Matt Sokolowski']) {
               const fixture = row.cloneNode(true);
               fixture.querySelector('.sr-player a').textContent = name;
@@ -112,9 +113,10 @@ try {
               const lineHeight = parseFloat(getComputedStyle(link).lineHeight);
               if (bounds.height > lineHeight + 1) issues.push(`${name} wraps at ${innerWidth}px`);
               const cell = link.closest('td').getBoundingClientRect();
+              measurements.push({ name, cellWidth: cell.width, textHeight: bounds.height, lineHeight });
               if (bounds.left < cell.left || bounds.right > cell.right) issues.push(`${name} exceeds its column`);
             }
-            return { issues };
+            return { issues, measurements };
           });
           if (names.issues.length) failures.push({ width, ...names });
           await page.evaluate(() => {
