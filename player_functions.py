@@ -1535,6 +1535,29 @@ def get_player_by_name(full_name):
     return cur.fetchone()
 
 
+def get_player_profile_by_name(full_name):
+    """One editable profile, without scanning game histories or building a roster."""
+    import unicodedata
+    name = (full_name or '').strip()
+    if not name:
+        return None
+    def lookup_key(value):
+        return ''.join(char for char in unicodedata.normalize('NFD', value or '')
+                       if not unicodedata.combining(char)).casefold().strip()
+    cur = set_cur()
+    try:
+        # Exact matching wins if a legacy roster contains case/accent variants.
+        cur.execute(f'{PLAYERS_SELECT} WHERE full_name = ? LIMIT 1', (name,))
+        row = cur.fetchone()
+        if row:
+            return row
+        cur.connection.create_function('profile_name', 1, lookup_key, deterministic=True)
+        cur.execute(f'{PLAYERS_SELECT} WHERE profile_name(full_name) = ? ORDER BY id LIMIT 1', (lookup_key(name),))
+        return cur.fetchone()
+    finally:
+        cur.connection.close()
+
+
 def _player_id_for_name(cur, name):
     name = (name or '').strip()
     if not name:

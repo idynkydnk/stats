@@ -250,3 +250,52 @@ Site update when committing this work:
     Site-Update: Faster page loading
     Standings and player pages do less repeated work. Returning visits reuse
     the site's styles and icons, and opening the homepage takes fewer steps.
+
+## October 11: native app startup and repeat visits
+
+The native app now keeps up to 12 decoded snapshots per cache, with a 16 MiB
+estimated decoded-cost budget (four times the encoded size). Memory warnings
+release them; protected, bounded disk snapshots still support reopening the app.
+A recently visited screen avoids disk reading and JSON decoding. Each cache
+keeps at most 48 disk snapshots; filenames, rather than absolute URLs, track the
+inventory so `/var` and `/private/var` aliases cannot break eviction.
+
+Game edits now write one small revision marker per affected cache rather than
+opening, decoding and rewriting every saved page. Sport-specific changes keep
+unrelated sports fresh. Older snapshots remain readable during refresh, and
+revision changes reject late responses. Corrupt markers fail stale. Sign-out
+and source changes still discard snapshots and decoded data.
+
+Identical simultaneous GETs share a download, with separate keys for auth,
+selected sources, preview/owned scope, filters and local data revisions.
+Cancellation of one consumer does not cancel another consumer's request.
+Year lists reuse results for five minutes; game catalogs for one minute.
+Mutations invalidate these earlier. Navigation and Add share the catalog cache
+when their request scopes match; owned entry defaults remain separate from
+combined browsing. Metadata and form preloads wait until the visible browsing
+screen's first load finishes. The root no longer repeats the app's session check.
+
+Profile editing uses `GET /api/player-profile?name=...` to fetch one profile
+without aggregating game histories or constructing the full roster. It returns
+`{"player": <profile>}` or `{"player": null}` with HTTP 200 for an absent name;
+a blank name gets HTTP 400. Optional history totals are omitted. Photo URLs,
+traits, crop focus, nickname and editable fields follow `/api/players`.
+The endpoint follows the same owned/combined authorization rules as the roster,
+requires current source permission, and uses `Cache-Control: no-store`.
+The app falls back to its previous roster lookup only if an older server returns
+404. Deploying the website endpoint enables the smaller profile request.
+
+Validation includes an unsigned iPhone build, Swift tests for decoded reuse,
+memory eviction, durable invalidation, legacy snapshots, coalescing, cancellation,
+retries and scope isolation, plus Python tests exercising the real profile
+lookup/card builder through owned and combined account routing. All 405 Python
+tests and the four targeted Swift test programs pass. These checks do not measure
+launch/render times on a physical iPhone. The app needs a new build
+installed before users receive its changes.
+
+The app note is `ios-2026-10-11-faster-startup-and-return-visits` in
+`data/app_updates.json`. Suggested commit notes for each repository:
+
+    Site-Update: Faster iPhone browsing
+    The app gives the screen you opened priority, reuses recently viewed pages,
+    and avoids duplicate downloads. Player profiles need less data to open.

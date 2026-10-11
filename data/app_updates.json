@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-faster-startup-and-return-visits",
+    "date": "2026-10-11",
+    "subject": "iPhone: Faster opening and return visits",
+    "body": "The app gives the screen you opened priority, reuses recently viewed pages, and avoids duplicate downloads. Opening a player profile and refreshing after game changes do less work."
+  },
+  {
     "id": "ios-2026-10-11-faster-browsing",
     "date": "2026-10-11",
     "subject": "iPhone: Faster games, stats, and saved stories",

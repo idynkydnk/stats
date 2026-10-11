@@ -32,7 +32,7 @@ PRIVATE_ENDPOINTS = {
     'api_vollis_get', 'api_vollis_create', 'api_vollis_update', 'api_vollis_delete',
     'api_other_stats', 'api_other_player', 'api_other_list', 'api_other_game_types',
     'api_other_get', 'api_other_create', 'api_other_update', 'api_other_delete',
-    'api_volleyball_stats', 'api_players',
+    'api_volleyball_stats', 'api_players', 'api_player_profile',
     'api_doubles_players', 'api_vollis_players', 'api_todays_doubles_dashboard',
     'get_other_game_players', 'get_other_game_info', 'get_other_game_common_scores',
     'get_other_game_type', 'api_search_all_players', 'api_add_player',

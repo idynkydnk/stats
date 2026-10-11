@@ -930,6 +930,29 @@ def register_ios_api(app):
 
     # ----- Players / tournaments -----
 
+    @app.route('/api/player-profile')
+    def api_player_profile():
+        from player_functions import get_player_profile_by_name
+        name = request.args.get('name', '').strip()
+        if not name:
+            return jsonify(error='Choose a player.'), 400
+        row = get_player_profile_by_name(name)
+        if row is None:
+            response = jsonify(player=None)
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+        card = _S().build_player_list_cards([row])[0]
+        # Profile editing does not need lifetime game aggregates. Omit these
+        # optional fields rather than falsely reporting zero games.
+        card.pop('games', None)
+        card.pop('firstGame', None)
+        for field in ('photoUrl', 'aiImageUrl'):
+            if card.get(field):
+                card[field] = _abs(card[field])
+        response = jsonify(player=card)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
     @app.route('/api/players')
     def api_players():
         from player_functions import get_all_players
