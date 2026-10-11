@@ -15,13 +15,14 @@ import time
 
 STATS_ENDPOINTS = {'api_doubles_stats', 'api_vollis_stats',
                    'api_other_stats', 'api_volleyball_stats'}
+RESPONSE_ENDPOINTS = STATS_ENDPOINTS | {'api_doubles_player', 'api_vollis_player', 'api_other_player'}
 TTL = 1800
 MAX_ENTRIES = 256
 MAX_BYTES = 2 * 1024 * 1024
 _known_schemas = {}
 
 
-def _database_revision(path):
+def _database_revision(path, tables=None):
     stat = os.stat(path)
     # mode=rw never creates a missing source. Connections are short-lived and
     # read-only after the tracking table/triggers have been installed once.
@@ -33,11 +34,17 @@ def _database_revision(path):
                 conn.execute('''CREATE TABLE IF NOT EXISTS stats_cache_revision (
                     id INTEGER PRIMARY KEY CHECK(id=1), revision TEXT NOT NULL)''')
                 conn.execute('INSERT OR IGNORE INTO stats_cache_revision VALUES (1, lower(hex(randomblob(16))))')
-                tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                conn.execute('CREATE TABLE IF NOT EXISTS stats_table_revision (name TEXT PRIMARY KEY, revision TEXT NOT NULL)')
+                existing_tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 for table in ('games', 'vollis_games', 'other_games', 'players'):
-                    if table not in tables:
+                    if table not in existing_tables:
                         continue
+                    conn.execute('INSERT OR IGNORE INTO stats_table_revision VALUES (?, lower(hex(randomblob(16))))', (table,))
                     for action in ('INSERT', 'UPDATE', 'DELETE'):
+                        conn.execute(f'''CREATE TRIGGER IF NOT EXISTS stats_table_{table}_{action.lower()}
+                            AFTER {action} ON {table} BEGIN
+                            UPDATE stats_table_revision SET revision=lower(hex(randomblob(16))) WHERE name='{table}';
+                            END''')
                         conn.execute(f'''CREATE TRIGGER IF NOT EXISTS stats_cache_{table}_{action.lower()}
                             AFTER {action} ON {table} BEGIN
                             UPDATE stats_cache_revision SET revision=lower(hex(randomblob(16))) WHERE id=1;
@@ -46,6 +53,9 @@ def _database_revision(path):
             if len(_known_schemas) > 256:
                 _known_schemas.clear()
             _known_schemas[identity] = schema
+        if tables:
+            revisions = conn.execute('SELECT name, revision FROM stats_table_revision ORDER BY name').fetchall()
+            return ('tables', stat.st_ino, schema, [r for r in revisions if r[0] in tables])
         revision = conn.execute('SELECT revision FROM stats_cache_revision WHERE id=1').fetchone()
         if revision is None:
             _known_schemas.pop(identity, None)
@@ -53,11 +63,11 @@ def _database_revision(path):
         return ('tracked', stat.st_ino, schema, revision[0])
 
 
-def database_revisions(paths):
+def database_revisions(paths, tables=None):
     revisions = []
     for path in paths:
         try:
-            revisions.append(_database_revision(path))
+            revisions.append(_database_revision(path, tables))
             continue
         except (OSError, sqlite3.Error):
             pass
@@ -84,7 +94,8 @@ class StatsResponseCache:
             'stats_response_cache.py', 'account_stats_views.py', 'ios_api.py',
             'stats.py', 'stat_functions.py', 'vollis_functions.py',
             'other_functions.py', 'game_ratings.py', 'doubles_division.py',
-            'stats_location_filter.py', 'time_display.py')]
+            'stats_location_filter.py', 'time_display.py', 'prepared_calculations.py',
+            'stats_snapshot_cache.py', 'request_cache.py')]
 
     def _connect(self):
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -106,25 +117,26 @@ class StatsResponseCache:
                     list(zip(paths, [number for _, number in databases])),
                     endpoint, arguments, division]
         key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
-        return key, paths, json.dumps(database_revisions(paths))
+        tables = ('players', 'games') if 'doubles' in endpoint else (('players', 'vollis_games') if 'vollis' in endpoint else ('players', 'other_games'))
+        return key, paths, json.dumps(database_revisions(paths, tables)), tables
 
     def load(self, ticket):
-        key, paths, revisions = ticket
+        key, paths, revisions, tables = ticket
         try:
             with closing(self._connect()) as conn:
                 row = conn.execute('SELECT body FROM responses WHERE key=? AND revisions=? AND expires>?',
                                    (key, revisions, time.time())).fetchone()
             # Do not return a result if a source changed during the lookup.
-            if row and json.dumps(database_revisions(paths)) == revisions:
+            if row and json.dumps(database_revisions(paths, tables)) == revisions:
                 return bytes(row[0])
         except (OSError, sqlite3.Error):
             pass  # Caching must never prevent a normal stats request.
         return None
 
     def save(self, ticket, body):
-        key, paths, revisions = ticket
+        key, paths, revisions, tables = ticket
         try:
-            if len(body) > MAX_BYTES or json.dumps(database_revisions(paths)) != revisions:
+            if len(body) > MAX_BYTES or json.dumps(database_revisions(paths, tables)) != revisions:
                 return
             with closing(self._connect()) as conn, conn:
                 now = time.time()

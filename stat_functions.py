@@ -21,6 +21,10 @@ def cached(ttl=CACHE_TTL):
         def wrapper(*args, **kwargs):
             from private_accounts import private_database
             from flask import g, has_request_context
+            # Authorized, revision-scoped calculations also serve website views.
+            if has_request_context() and getattr(g, 'stats_data_revision', None):
+                from prepared_calculations import reuse_calculation
+                return reuse_calculation(func, args, kwargs, ttl)
             # Create cache key from function name and arguments
             key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())
             if has_request_context() and (private_database() or getattr(g, 'stats_view_database', None)
@@ -57,9 +61,22 @@ def clear_stats_cache():
     if has_app_context():
         g.pop('stats_calculations', None)
         g.pop('read_calculations', None)
+        g.pop('stats_calculation_revisions', None)
         response_cache = current_app.extensions.get('stats_response_cache')
         if response_cache:
-            response_cache.clear()
+            from flask import has_request_context, request
+            # Game/roster triggers invalidate the affected sport in every worker.
+            # Explicit admin clears and non-request maintenance still clear all.
+            game_writes = {'api_doubles_create', 'api_doubles_update', 'api_doubles_delete',
+                           'api_vollis_create', 'api_vollis_update', 'api_vollis_delete',
+                           'api_other_create', 'api_other_update', 'api_other_delete',
+                           'add_game', 'update', 'delete_game', 'add_vollis_game',
+                           'update_vollis_game', 'delete_vollis_game', 'add_other_game',
+                           'update_other_game', 'delete_other_game'}
+            if not has_request_context() or request.endpoint not in game_writes:
+                response_cache.clear()
+                from prepared_calculations import clear_prepared_calculations
+                clear_prepared_calculations()
 
 @cached(ttl=1800)
 def get_player_wins_losses(year):
@@ -803,6 +820,7 @@ def find_game(id):
 	row = cur.fetchall()
 	return row
 
+@cached(ttl=1800)
 def games_from_player_by_year(year, name, raw=False):
 	"""Return games oldest first for recent form and newest-first display reversal."""
 	cur = set_cur()

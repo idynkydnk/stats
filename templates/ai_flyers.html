@@ -140,7 +140,7 @@
         <div class="adm-flyer-card">
             <div class="adm-flyer-thumb">
                 {% if e.flyer_image_url %}
-                <img src="{{ e.flyer_image_url }}" alt="">
+                <img src="{{ e.thumbnail_url or e.flyer_image_url }}" alt="" loading="lazy" decoding="async">
                 {% else %}
                 <i class="fas fa-file-image"></i>
                 {% endif %}

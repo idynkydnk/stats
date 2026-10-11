@@ -143,82 +143,65 @@ def validate_kob(games):
     return False
 
 def update_kobs():
-    """Update KOBs by checking all games and recreating sessions."""
+    """Revalidate changed tournament groups and publish sessions atomically.
+
+    Group boundaries still use the complete ordered history, so edits that split
+    or join groups (including across midnight) have the same result as a rebuild.
+    """
+    import hashlib
+    import json
+    from pathlib import Path
+    rules_revision = str(Path(__file__).stat().st_mtime_ns)
     database = '/home/Idynkydnk/stats/stats.db'
-    conn = create_connection(database)
-    if conn is None:
-        database = r'stats.db'
-        conn = create_connection(database)
-    
+    conn = create_connection(database) or create_connection('stats.db')
     if conn is None:
         return
-    
-    cur = conn.cursor()
-    
-    # Clear existing sessions
-    cur.execute("DELETE FROM sessions")
-    conn.commit()
-    
-    # Get all doubles games ordered by date
-    cur.execute("""
-        SELECT id, game_date, winner1, winner2, loser1, loser2, winner_score, loser_score
-        FROM games
-        ORDER BY game_date
-    """)
-    
-    all_games = cur.fetchall()
-    
-    # Convert to list of dicts
-    games_list = []
-    for game in all_games:
-        game_id, game_date, w1, w2, l1, l2, ws, ls = game
-        games_list.append({
-            'id': game_id,
-            'date': game_date,
-            'winner1': w1,
-            'winner2': w2,
-            'loser1': l1,
-            'loser2': l2,
-            'winner_score': ws,
-            'loser_score': ls
-        })
-    
-    session_number = 0
-    
-    i = 0
-    while i < len(games_list):
-        # Start a potential KOB with current game
-        potential_kob = [games_list[i]]
-        
-        # Look ahead for more games within 2 hours
-        j = i + 1
-        while j < len(games_list):
-            next_game = games_list[j]
-            
-            # Check time gap from the LAST game in potential KOB
-            try:
-                last_time = datetime.fromisoformat(potential_kob[-1]['date'])
-                next_time = datetime.fromisoformat(next_game['date'])
-                time_gap = next_time - last_time
-                
-                if time_gap > timedelta(hours=2):
-                    break
+    try:
+        with conn:
+            conn.execute('BEGIN IMMEDIATE')
+            conn.execute('CREATE TABLE IF NOT EXISTS kob_group_cache (signature TEXT PRIMARY KEY, valid INTEGER NOT NULL)')
+            previous = dict(conn.execute('SELECT signature, valid FROM kob_group_cache'))
+            rows = conn.execute("""SELECT id, game_date, winner1, winner2, loser1, loser2,
+                winner_score, loser_score FROM games ORDER BY game_date, id""").fetchall()
+            keys = ('id', 'date', 'winner1', 'winner2', 'loser1', 'loser2', 'winner_score', 'loser_score')
+            games = [dict(zip(keys, row)) for row in rows]
+            groups = []
+            for game in games:
+                together = False
+                if groups:
+                    try:
+                        together = (datetime.fromisoformat(game['date']) -
+                                    datetime.fromisoformat(groups[-1][-1]['date'])) <= timedelta(hours=2)
+                    except (ValueError, TypeError):
+                        pass
+                if together:
+                    groups[-1].append(game)
                 else:
-                    potential_kob.append(next_game)
-            except:
-                break
-            
-            j += 1
-        
-        # Validate the potential KOB
-        if validate_kob(potential_kob):
-            session_number += 1
-            save_kob(cur, conn, session_number, potential_kob)
-        
-        # Move to the next unprocessed game
-        i = j if j > i + 1 else i + 1
-    
-    conn.close()
+                    groups.append([game])
+            current = {}
+            sessions = []
+            for group in groups:
+                signature = hashlib.sha256((rules_revision + json.dumps(group, sort_keys=True)).encode()).hexdigest()
+                valid = previous[signature] if signature in previous else int(validate_kob(group))
+                current[signature] = valid
+                if valid:
+                    sessions.append((len(sessions) + 1, min(g['date'] for g in group),
+                                     max(g['date'] for g in group), len(group), len(group)))
+            existing = conn.execute('SELECT session_number, start_time, end_time, total_games, doubles_games FROM sessions ORDER BY session_number').fetchall()
+            if existing != sessions:
+                conn.execute('DELETE FROM sessions')
+                conn.executemany("""INSERT INTO sessions
+                    (session_number, start_time, end_time, total_games, doubles_games,
+                     vollis_games, one_v_one_games, other_games, created_at)
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?)""",
+                    [row + (datetime.now(),) for row in sessions])
+            conn.executemany('DELETE FROM kob_group_cache WHERE signature=?',
+                             [(key,) for key in previous.keys() - current.keys()])
+            conn.executemany('INSERT OR REPLACE INTO kob_group_cache VALUES (?, ?)',
+                             [(key, value) for key, value in current.items() if key not in previous])
+    finally:
+        conn.close()
+
 
 def save_kob(cur, conn, session_number, games):
     """Save a KOB to the database."""

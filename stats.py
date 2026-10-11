@@ -65,6 +65,10 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 app = Flask(__name__)
+from image_previews import register_image_previews
+register_image_previews(app)
+from performance_metrics import register_performance
+register_performance(app, lambda: bool(session.get('logged_in') and is_admin()))
 # SECRET_KEY comes from the environment (.env locally, WSGI file on PythonAnywhere).
 # Fallback is a random key per process: the app still runs, but session cookies reset
 # on each restart until SECRET_KEY is set. Remember-me tokens live in the DB and survive.
@@ -849,6 +853,7 @@ def serialize_flyer_list_entry(entry, site_base=''):
     title = entry.get('title') or _flyer_sport_label(entry.get('game_type'), entry.get('game_name')) + ' Flyer'
     out = dict(entry)
     out['flyer_image_url'] = image
+    out['thumbnail_url'] = app.extensions['image_preview_url'](image)
     out['title'] = title
     out['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
     if share_id:
@@ -871,6 +876,7 @@ def serialize_recap_list_entry(entry, site_base=''):
     )
     out = dict(entry)
     out['hero_image_url'] = hero
+    out['thumbnail_url'] = app.extensions['image_preview_url'](hero)
     out['subject'] = subject
     out['headline'] = subject
     out['created_at_fmt'] = _format_utc_str(entry.get('created_at'))
@@ -5224,6 +5230,13 @@ def api_doubles_list():
     conn.row_factory = sqlite3.Row
     from stats_location_filter import filter_stats_connection
     filter_stats_connection(conn, 'games')
+    if 'limit' in request.args and not request.args.get('since'):
+        from game_browse_page import game_page
+        try:
+            rows, page = game_page(conn, 'games')
+            return jsonify(games=[_api_game_row_to_dict(r) for r in rows], **page)
+        finally:
+            conn.close()
     cur = conn.cursor()
     year = request.args.get('year', '').strip()
     since = request.args.get('since', '').strip()

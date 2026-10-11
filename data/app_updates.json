@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-faster-browsing",
+    "date": "2026-10-11",
+    "subject": "iPhone: Faster games, stats, and saved stories",
+    "body": "Games load 50 at a time, while search still finds matches throughout your selected history. Stats need fewer downloads, recently opened recaps and flyers appear from saved results, and smaller image previews help pages open faster."
+  },
+  {
     "id": "ios-2026-10-10-compact-stats-row",
     "date": "2026-10-10",
     "subject": "iPhone: All five stats on one compact row",

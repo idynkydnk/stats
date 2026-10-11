@@ -16,6 +16,10 @@ def request_cached(function):
                data_path('stats.db'), active_location_filter(), active_doubles_division())
         memo = g.setdefault('read_calculations', {})
         if key not in memo:
-            memo[key] = function(*args, **kwargs)
+            if getattr(g, 'stats_data_revision', None):
+                from prepared_calculations import reuse_calculation
+                memo[key] = reuse_calculation(function, args, kwargs)
+            else:
+                memo[key] = function(*args, **kwargs)
         return memo[key]
     return wrapped

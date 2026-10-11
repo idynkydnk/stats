@@ -24,6 +24,7 @@ DATA_TABLES = {
 }
 GOOGLE_IOS_CLIENT_ID = '195048170299-63t84plh4cae8a7r5nk70d8l8hkr3t8p.apps.googleusercontent.com'
 PRIVATE_ENDPOINTS = {
+    'image_preview', 'performance_sample', 'performance_report',
     'api_me', 'api_logout', 'api_years',
     'api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
     'api_doubles_get', 'api_doubles_create', 'api_doubles_update', 'api_doubles_delete',

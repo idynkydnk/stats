@@ -154,7 +154,7 @@ def build_stats_view(site_path, own_path, sources):
 
 
 def register_stats_views(app, service, site_path):
-    from stats_response_cache import StatsResponseCache, STATS_ENDPOINTS
+    from stats_response_cache import StatsResponseCache, RESPONSE_ENDPOINTS
     from doubles_division import active_doubles_division
     response_cache = StatsResponseCache(
         app.config.get('STATS_RESPONSE_CACHE_DIR') or
@@ -169,21 +169,36 @@ def register_stats_views(app, service, site_path):
     def prepared_stats(base_path, sources):
         # This runs only after identity, share permissions and selected sources
         # have been resolved. A cache hit can then skip the expensive snapshot.
-        if request.method != 'GET' or request.endpoint not in STATS_ENDPOINTS:
+        if request.method != 'GET':
             return None
         databases = [(base_path, 0)] + [(_database_path(site_path, source), source['number'])
                                       for source in sources if source['enabled']]
+        from stats_snapshot_cache import source_revision
         try:
+            g.stats_source_databases = databases
+            g.stats_data_revision = source_revision(databases)
+            if request.endpoint not in RESPONSE_ENDPOINTS:
+                return None
             ticket = response_cache.prepare(databases, current_user(), request.endpoint,
-                                            list(request.args.items(multi=True)), active_doubles_division())
+                                            list(request.args.items(multi=True)) + ([('route', sorted(request.view_args.items()))] if request.view_args else []), active_doubles_division())
             g.stats_response_ticket = ticket
             body = response_cache.load(ticket)
-        except OSError:
+        except (OSError, sqlite3.Error):
             return None
         if body is not None:
             g.stats_response_hit = True
             return app.response_class(body, mimetype='application/json')
         return None
+
+    def snapshot_for(base_path, sources):
+        from stats_snapshot_cache import prepared_snapshot
+        databases = [(str(base_path), 0)] + [(str(_database_path(site_path, source)), source['number'])
+                                           for source in sources if source['enabled']]
+        build = lambda: build_stats_view(site_path, base_path, sources)
+        try:
+            return prepared_snapshot(response_cache.directory, databases, build)
+        except (OSError, sqlite3.Error):
+            return build()
 
     def share_selection(username, sources):
         from private_accounts import account_for_user
@@ -270,7 +285,7 @@ def register_stats_views(app, service, site_path):
             cached = prepared_stats(_database_path(site_path, base), sources)
             if cached is not None:
                 return cached
-            g.stats_view_database = build_stats_view(site_path, _database_path(site_path, base), sources)
+            g.stats_view_database = snapshot_for(_database_path(site_path, base), sources)
             return
         # Foreign game IDs are view-only, including for admins.
         if request.method != 'GET' or request.endpoint in {'update', 'update_vollis_game', 'update_other_game', 'delete_game', 'delete_vollis_game', 'delete_other_game'}:
@@ -295,7 +310,7 @@ def register_stats_views(app, service, site_path):
         if cached is not None:
             return cached
         if any(s['enabled'] for s in sources):
-            g.stats_view_database = build_stats_view(site_path, private_database() or site_path, sources)
+            g.stats_view_database = snapshot_for(private_database() or site_path, sources)
 
     @app.after_request
     def protect_share_link(response):

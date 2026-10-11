@@ -21,7 +21,7 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20261010-roomier-names') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20261011-faster-browsing') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-compact') }}">
     <script src="{{ url_for('static', filename='js/theme.js', v='20260930-appearance') }}"></script>
@@ -57,6 +57,7 @@
     <script src="{{ url_for('static', filename='js/stats-sharing.js', v='20261006') }}"></script>
     <script src="{{ url_for('static', filename='js/search-filter.js', v='20260716') }}"></script>
     <script src="{{ url_for('static', filename='js/mobile-keyboard.js', v='20260716b') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/responsiveness.js', v='20261011') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

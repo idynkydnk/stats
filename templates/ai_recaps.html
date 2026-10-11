@@ -140,7 +140,7 @@
         <div class="adm-recap-card">
             <div class="adm-recap-thumb">
                 {% if e.hero_image_url %}
-                <img src="{{ e.hero_image_url }}" alt="">
+                <img src="{{ e.thumbnail_url or e.hero_image_url }}" alt="" loading="lazy" decoding="async">
                 {% else %}
                 <i class="fas fa-file-alt"></i>
                 {% endif %}

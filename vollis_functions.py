@@ -1,3 +1,4 @@
+from request_cache import request_cached
 from stats_location_filter import active_location_filter, filter_stats_connection
 from create_vollis_database import *
 from datetime import datetime, date
@@ -57,13 +58,17 @@ def all_vollis_players(games):
     return list(dict.fromkeys(player for game in games for player in (game[2], game[4])))
 
 
+@request_cached
 def vollis_year_games(year):
     cur = set_cur()
     if year == 'All years':
         cur.execute("SELECT * FROM vollis_games")
     else:
         cur.execute("SELECT * FROM vollis_games WHERE strftime('%Y',game_date)=?", (year,))
-    row = cur.fetchall()
+    try:
+        row = cur.fetchall()
+    finally:
+        cur.connection.close()
     row.sort(reverse=True)
     row = convert_vollis_ampm(row)
     return row

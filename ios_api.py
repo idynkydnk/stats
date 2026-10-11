@@ -457,6 +457,15 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/games', methods=['GET'])
     def api_vollis_list():
+        if 'limit' in request.args and not request.args.get('since'):
+            from game_browse_page import game_page
+            from stats_location_filter import filter_stats_connection
+            from contextlib import closing
+            with closing(connect_data(_S()._stats_db_path())) as conn:
+                conn.row_factory = sqlite3.Row
+                filter_stats_connection(conn, 'vollis_games')
+                rows, page = game_page(conn, 'vollis_games')
+                return jsonify(games=[_vollis_game_dict(r) for r in rows], **page)
         from vollis_functions import vollis_year_games, all_vollis_years
         year = _year_arg('All years')
         since = (request.args.get('since') or '').strip()
@@ -659,6 +668,9 @@ def register_ios_api(app):
                 showing_previous_year = True
         rare = rare_other_stats_per_year(display_year, minimum_games)
         cards = S.build_other_game_cards(display_year)
+        if request.args.get('include_volleyball') == '1':
+            cards = [c for c in cards if not c.get('is_consolidated')]
+            cards += S.build_volleyball_game_cards_styled(display_year)
         today_by_game = todays_other_stats_by_game()
         today_json = []
         for block in (today_by_game or []):
@@ -676,6 +688,7 @@ def register_ios_api(app):
             'stats': [_ranking(r) for r in (stats or [])],
             'rare_stats': [_ranking(r) for r in (rare or [])],
             'game_cards': [_card_stats(c) for c in (cards or [])],
+            'includes_volleyball': request.args.get('include_volleyball') == '1',
             'today_stats_by_game': today_json,
             'today_games': [_other_game_json(g) for g in (todays_other_games() or [])],
         })
@@ -710,6 +723,16 @@ def register_ios_api(app):
 
     @app.route('/api/other/games', methods=['GET'])
     def api_other_list():
+        if 'limit' in request.args and not request.args.get('since'):
+            from game_browse_page import game_page
+            from stats_location_filter import filter_stats_connection
+            from other_functions import readable_games_data
+            from contextlib import closing
+            with closing(connect_data(_S()._stats_db_path())) as conn:
+                conn.row_factory = sqlite3.Row
+                filter_stats_connection(conn, 'other_games')
+                rows, page = game_page(conn, 'other_games')
+                return jsonify(games=[_other_game_json(r) for r in readable_games_data(rows)], **page)
         from other_functions import other_year_games, all_other_years
         year = _year_arg('All years')
         game_name = (request.args.get('game_name') or '').strip()
