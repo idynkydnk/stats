@@ -520,16 +520,24 @@ document.getElementById('add-game-form').addEventListener('submit', async functi
     if (tz) document.getElementById('entered_timezone').value = tz;
     var button = document.getElementById('add-game-submit-btn');
     button.disabled = true;
-    button.textContent = 'Saving…';
     var priorityNames = nameFields.map(function(id) { return document.getElementById(id).value.trim(); });
     try {
+        window.showSavedGamePopup({
+            title: document.getElementById('division').selectedOptions[0].textContent,
+            winners: priorityNames.slice(0, 2).join(' & '),
+            losers: priorityNames.slice(2, 4).join(' & '),
+            winner_score: document.getElementById('winner_score').value,
+            loser_score: document.getElementById('loser_score').value,
+            location: document.getElementById('location').value.trim(),
+            comment: document.getElementById('comments').value.trim()
+        }, true);
         var response = await fetch(form.action, {
             method: 'POST', body: new FormData(form), credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
         });
         var result = await response.json();
         if (!response.ok || !result.saved_game) {
-            alert(result.error || 'Could not save the game. Your entry is still here.');
+            window.showSavedGameError(result.error || 'Could not save the game. Your entry is still here.');
             return;
         }
         clearAddGameForm();
@@ -540,11 +548,10 @@ document.getElementById('add-game-form').addEventListener('submit', async functi
         // The receipt must not wait for stats or autocomplete refreshes.
         refreshTodaysDoublesDashboard().catch(function() {});
     } catch (error) {
-        alert('Could not confirm the save. Your entry is still here. Check today’s games before trying again.');
+        window.showSavedGameError('Could not confirm the save. Your entry is still here. Check today’s games before trying again.');
     } finally {
         form.dataset.saving = 'false';
         button.disabled = false;
-        button.textContent = 'Submit';
     }
 });
 document.addEventListener('DOMContentLoaded', function() {

@@ -11,7 +11,9 @@ const submit = template.slice(template.indexOf("document.getElementById('add-gam
 async function checkSave(response, rejects = false) {
     const calls = [];
     const form = { dataset: {}, action: '/add_game/?division=women', addEventListener(_, handler) { this.submit = handler; } };
-    const fields = Object.fromEntries(['client_date', 'client_time', 'entered_timezone', 'winner1', 'winner2', 'loser1', 'loser2', 'add-game-submit-btn'].map(id => [id, { value: id }]));
+    const fields = Object.fromEntries(['client_date', 'client_time', 'entered_timezone', 'winner1', 'winner2', 'loser1', 'loser2', 'winner_score', 'loser_score', 'location', 'comments', 'add-game-submit-btn'].map(id => [id, { value: id }]));
+    fields.division = { selectedOptions: [{ textContent: 'Women’s Doubles' }] };
+    fields['add-game-submit-btn'].textContent = 'Submit';
     let finish;
     const context = {
         document: { getElementById: id => id === 'add-game-form' ? form : fields[id] },
@@ -25,17 +27,32 @@ async function checkSave(response, rejects = false) {
         },
         clearAddGameForm: () => calls.push('clear'),
         showRematchBtn() {}, applyDoublesPlayerOrderAfterSave() {},
-        window: { showSavedGamePopup: receipt => { assert.equal(receipt.title, 'Doubles'); calls.push('popup'); } },
+        window: {
+            showSavedGamePopup: (receipt, pending) => {
+                if (pending) {
+                    assert.equal(receipt.title, 'Women’s Doubles');
+                    assert.equal(receipt.winners, 'winner1 & winner2');
+                    assert.equal(receipt.losers, 'loser1 & loser2');
+                    for (const key of ['winner_score', 'loser_score', 'location']) assert.equal(receipt[key], key);
+                    assert.equal(receipt.comment, 'comments');
+                    calls.push('pending');
+                } else {
+                    assert.equal(receipt.title, 'Doubles');
+                    calls.push('popup');
+                }
+            },
+            showSavedGameError: message => { assert.ok(message); calls.push('error'); },
+        },
         // Intentionally never resolves: showing the receipt must not await it.
         refreshTodaysDoublesDashboard: () => { calls.push('stats'); return new Promise(() => {}); },
-        alert: message => { assert.ok(message); calls.push('error'); },
     };
     vm.runInNewContext(submit, context);
     const event = { preventDefault() {} };
     const saving = form.submit(event);
     await form.submit(event);
-    assert.deepEqual(calls, ['save'], 'Repeated submit must not save twice');
+    assert.deepEqual(calls, ['pending', 'save'], 'Popup opens before the request; repeated submit must not save twice');
     assert.equal(fields['add-game-submit-btn'].disabled, true);
+    assert.equal(fields['add-game-submit-btn'].textContent, 'Submit');
     finish();
     await saving;
     assert.equal(fields['add-game-submit-btn'].disabled, false);
@@ -43,7 +60,7 @@ async function checkSave(response, rejects = false) {
     return calls;
 }
 
-function checkAddAnother() {
+function checkPopup() {
     const template = fs.readFileSync(path.join(root, 'templates/partials/saved_game_popup.html'), 'utf8');
     const script = template.split('<script>')[1].split('</script>')[0].replace(/\{% if saved_game %\}.*?\{% endif %\}/g, '');
     let dropdownOpen = false;
@@ -55,14 +72,48 @@ function checkAddAnother() {
     };
     const content = ['title', 'winners', 'losers', 'winner_score', 'loser_score', 'location', 'comment']
         .map(key => ({ dataset: { savedGame: key } }));
+    const listeners = {};
     const popup = { open: false, close() { this.open = false; }, showModal() { this.open = true; },
-        querySelectorAll: () => content, addEventListener() {} };
-    const add = {};
+        getBoundingClientRect: () => ({ left: 0, right: 10, top: 0, bottom: 10 }),
+        querySelectorAll: () => content, addEventListener(name, handler) { listeners[name] = handler; } };
+    const add = { focus() {} };
+    const done = { focus() {} };
+    const heading = { focus() {} };
+    const status = {};
+    const elements = { 'saved-game-popup': popup, 'saved-game-add-another': add,
+        'saved-game-close': done, 'saved-game-title': heading, 'saved-game-status': status };
     const context = { window: {}, Event: class { constructor(type) { this.type = type; } },
-        document: { getElementById: id => id === 'saved-game-popup' ? popup : id === 'saved-game-add-another' ? add : {},
+        document: { getElementById: id => elements[id],
             querySelector: () => field } };
     vm.runInNewContext(script, context);
+    context.window.showSavedGamePopup({ winners: 'Alice & Bob' }, true);
+    assert.equal(popup.open, true);
+    assert.equal(heading.textContent, 'Saving game…');
+    assert.equal(add.disabled, true);
+    assert.equal(done.disabled, true);
+    let cancelled = false;
+    listeners.cancel({ preventDefault() { cancelled = true; } });
+    assert.equal(cancelled, true, 'Escape must not hide an unfinished save');
+    listeners.click({ target: popup, clientX: -1, clientY: -1 });
+    done.onclick();
+    add.onclick({});
+    assert.equal(popup.open, true);
+    context.window.showSavedGameError('Your entry is still here.');
+    assert.equal(heading.textContent, 'Save not confirmed');
+    assert.equal(status.textContent, 'Your entry is still here.');
+    assert.equal(status.hidden, false);
+    assert.equal(add.hidden, true);
+    assert.equal(done.disabled, false);
+    assert.equal(done.textContent, 'Back to game');
+    done.onclick();
+    assert.equal(popup.open, false);
+    context.window.showSavedGamePopup({ title: 'Doubles' }, true);
+    assert.equal(status.hidden, true, 'Retry clears the old error');
+    assert.equal(add.hidden, false);
     context.window.showSavedGamePopup({ title: 'Doubles', winners: '<script>unsafe</script>', winner_score: 0 });
+    assert.equal(heading.textContent, 'Game added');
+    assert.equal(add.disabled, false);
+    assert.equal(done.disabled, false);
     assert.equal(popup.open, true);
     assert.equal(content[1].textContent, '<script>unsafe</script>');
     assert.equal(content[3].textContent, 0);
@@ -75,9 +126,10 @@ function checkAddAnother() {
 }
 
 (async () => {
-    assert.deepEqual(await checkSave({ ok: true, json: async () => ({ saved_game: { title: 'Doubles' } }) }), ['save', 'clear', 'popup', 'stats']);
-    assert.deepEqual(await checkSave({ ok: false, json: async () => ({ error: 'All fields required!' }) }), ['save', 'error']);
-    assert.deepEqual(await checkSave(null, true), ['save', 'error']);
-    checkAddAnother();
-    console.log('Receipt appears before stats refresh; failures preserve entry; Add another opens dropdown.');
+    assert.deepEqual(await checkSave({ ok: true, json: async () => ({ saved_game: { title: 'Doubles' } }) }), ['pending', 'save', 'clear', 'popup', 'stats']);
+    assert.deepEqual(await checkSave({ ok: false, json: async () => ({ error: 'All fields required!' }) }), ['pending', 'save', 'error']);
+    assert.deepEqual(await checkSave(null, true), ['pending', 'save', 'error']);
+    assert.deepEqual(await checkSave({ ok: true, json: async () => { throw new Error('Invalid response'); } }), ['pending', 'save', 'error']);
+    checkPopup();
+    console.log('Popup opens before save; pending saves stay visible; failures preserve entry; confirmed saves enable Add another.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

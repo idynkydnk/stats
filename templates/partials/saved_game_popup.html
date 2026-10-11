@@ -6,12 +6,14 @@
 #saved-game-popup .saved-side { display: flex; justify-content: space-between; gap: 16px; padding: 12px; margin: 8px 0; border-radius: 8px; background: var(--sr-accent-dim); }
 #saved-game-popup .saved-details { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--sr-muted); }
 #saved-game-popup button { cursor: pointer; padding: 12px; border-radius: 10px; font-size: 16px; }
+#saved-game-popup button:disabled { opacity: .5; cursor: wait; }
 #saved-game-popup .saved-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
 #saved-game-popup .saved-add { background: var(--sr-accent); color: #0b0f14; border: none; font-weight: 600; }
 #saved-game-popup .saved-close { background: transparent; border: 1px solid var(--sr-line); color: var(--sr-text); }
 </style>
 <dialog id="saved-game-popup" aria-labelledby="saved-game-title">
-    <h2 id="saved-game-title">Game added</h2>
+    <h2 id="saved-game-title" tabindex="-1" aria-live="polite">Game added</h2>
+    <p id="saved-game-status" class="saved-details" role="status" hidden></p>
     <p data-saved-game="title">{{ saved_game.title }}</p>
     <div class="saved-side"><span><strong>Winners</strong><br><span data-saved-game="winners">{{ saved_game.winners }}</span></span><strong data-saved-game="winner_score">{{ saved_game.winner_score if saved_game.winner_score is not none else '' }}</strong></div>
     <div class="saved-side"><span><strong>Losers</strong><br><span data-saved-game="losers">{{ saved_game.losers }}</span></span><strong data-saved-game="loser_score">{{ saved_game.loser_score if saved_game.loser_score is not none else '' }}</strong></div>
@@ -25,17 +27,43 @@
 <script>
 (function () {
     const popup = document.getElementById('saved-game-popup');
-    window.showSavedGamePopup = function (receipt) {
+    const heading = document.getElementById('saved-game-title');
+    const status = document.getElementById('saved-game-status');
+    const addAnother = document.getElementById('saved-game-add-another');
+    const done = document.getElementById('saved-game-close');
+    let pending = false;
+    window.showSavedGamePopup = function (receipt, saving = false) {
+        pending = saving;
+        heading.textContent = saving ? 'Saving game…' : 'Game added';
+        status.hidden = true;
+        status.textContent = '';
+        addAnother.hidden = false;
+        addAnother.disabled = saving;
+        done.disabled = saving;
+        done.textContent = 'Done';
         popup.querySelectorAll('[data-saved-game]').forEach(function (element) {
             const key = element.dataset.savedGame;
             element.textContent = receipt[key] == null ? '' : receipt[key];
             if (key === 'location' || key === 'comment') element.hidden = !receipt[key];
         });
         if (!popup.open) popup.showModal();
+        if (saving) heading.focus();
+        else addAnother.focus();
+    };
+    window.showSavedGameError = function (message) {
+        pending = false;
+        heading.textContent = 'Save not confirmed';
+        status.textContent = message;
+        status.hidden = false;
+        addAnother.hidden = true;
+        done.disabled = false;
+        done.textContent = 'Back to game';
+        done.focus();
     };
     {% if saved_game %}popup.showModal();{% endif %}
-    document.getElementById('saved-game-close').onclick = function () { popup.close(); };
-    document.getElementById('saved-game-add-another').onclick = function (event) {
+    done.onclick = function () { if (!pending) popup.close(); };
+    addAnother.onclick = function (event) {
+        if (pending) return;
         // Keep the page's outside-click handler from closing the newly opened list.
         event.stopPropagation();
         popup.close();
@@ -46,9 +74,12 @@
             field.scrollIntoView({block: 'center', behavior: 'smooth'});
         }
     };
+    popup.addEventListener('cancel', function (event) {
+        if (pending) event.preventDefault();
+    });
     popup.addEventListener('click', function (event) {
         const rect = popup.getBoundingClientRect();
-        if (event.target === popup && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) popup.close();
+        if (!pending && event.target === popup && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) popup.close();
     });
 })();
 </script>
