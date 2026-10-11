@@ -186,3 +186,67 @@ Website commit note when committing this work:
     loading messages make it clearer when a page is opening.
 
 The app note is `ios-2026-10-11-faster-browsing` in `data/app_updates.json`.
+
+## October 11: page loading follow-up
+
+The public deployment was still spending 522–1,024 ms generating current
+standings on three consecutive requests; single all-years standings and player
+requests took 1,582 ms and 1,321 ms inside the application. The homepage made
+two redirects. Compression already worked, but versioned styles/scripts were
+sent with `Cache-Control: no-cache`, requiring repeat validation. These were
+HTTP measurements, not browser rendering or mobile-network measurements.
+
+The follow-up changes:
+
+- The game menu reads only names and categories, keeping the latest category
+  per name, and reuses the result under the authorized data revision and filters.
+  It no longer loads every column of every Other game just to build navigation.
+- Today's games/results, game counts, location choices, and player year choices
+  reuse revision-scoped calculations. Changes to games/players still invalidate
+  the relevant results. Avatar metadata is fetched together and its connection
+  is closed immediately. Personalized HTML and form tokens are still rendered
+  separately for every request.
+- Styles/scripts receive automatic content-derived versions and a one-year
+  immutable cache policy only when the requested version matches. Unversioned
+  files, old versions, uploads, and error responses do not receive that policy.
+  Public static requests bypass account lookup and session-cookie refresh.
+- The homepage and standings aliases redirect directly to the final shared
+  standings address, preserving source selection and repeated filters.
+- The existing theme code runs inline before styles load, preserving appearance
+  without a blocking script download. Font Awesome is served locally, with
+  only the used icons included. The CSS and three fonts total 16,305 bytes,
+  versus 227,533 bytes for the upstream CSS and three WOFF2 fonts. Browsers
+  only fetch fonts actually needed on each page. The upstream license is kept.
+
+Run `python scripts/benchmark_page_loading.py` locally with project dependencies;
+`--root PATH` selects another checkout. It backs up the local database into a
+temporary directory and refuses to run where the production database path exists.
+These October 11 results compare `bbcf2c6` with the follow-up, using the same local
+data, signed-out share links, one initial request and five repeat requests per
+page. Each request returned HTTP 200. Initial requests include template setup;
+the pages are measured sequentially, so later pages can share prepared data.
+
+| Page | Before initial | After initial | Before repeat median | After repeat median |
+| --- | ---: | ---: | ---: | ---: |
+| Current standings | 666 ms | 536 ms | 149 ms | 28 ms |
+| All-years standings | 373 ms | 243 ms | 182 ms | 46 ms |
+| Large all-years player | 303 ms | 207 ms | 219 ms | 96 ms |
+
+These are local response-generation timings, not a prediction of live load times.
+Regression checks cover content-version changes, upload caching exclusions,
+cookie-free static delivery, icon coverage, one-hop redirects, repeated filters,
+private/shared data boundaries, edited results, location/division isolation,
+avatar fallback matching, and closed connections. The existing theme, sharing,
+and navigation JavaScript checks pass. All 402 Python tests now pass. The stale
+image-prompt test documented in earlier runs has been corrected to check the
+current default and custom generation paths, including the location sent to the
+image provider, whitespace trimming, and omission of blank locations. Production
+prompt wording is unchanged. This test-only correction needs no player-facing
+announcement (`Site-Update: none` if committed separately). A cloud browser was
+not available for a fresh rendering check, and these changes have not been deployed.
+
+Site update when committing this work:
+
+    Site-Update: Faster page loading
+    Standings and player pages do less repeated work. Returning visits reuse
+    the site's styles and icons, and opening the homepage takes fewer steps.

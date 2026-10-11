@@ -5,6 +5,7 @@ from datetime import date, datetime
 from bs4 import BeautifulSoup
 from create_games_database import *
 from player_identity import unique_player_names
+from request_cache import request_cached
 
 
 def init_game_location_columns():
@@ -27,6 +28,7 @@ def init_game_location_columns():
 				pass
 
 
+@request_cached
 def saved_game_locations(limit=None):
 	"""Return previously used locations, most recently used first."""
 	database = '/home/Idynkydnk/stats/stats.db'

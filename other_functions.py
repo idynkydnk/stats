@@ -478,6 +478,25 @@ def other_game_type_for_name(games, game_name):
             return game['game_type']
     return None
 
+
+@request_cached
+def other_navigation_catalog():
+    """Only read menu labels, using the latest category for each game name."""
+    cur = set_cur()
+    try:
+        rows = cur.execute('SELECT game_name, game_type FROM other_games ORDER BY game_date DESC, id DESC')
+        groups = {'Volleyball': {'No jump'}}
+        seen = set()
+        for name, category in rows:
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            groups.setdefault(category or 'Other games', set()).add(name)
+        return [(category, sorted(names, key=lambda name: (name.lower() != 'no jump', name.lower())))
+                for category, names in sorted(groups.items(), key=lambda item: (item[0] != 'Volleyball', item[0]))]
+    finally:
+        cur.connection.close()
+
 @request_cached
 def other_year_games(year):
     return readable_games_data(other_year_games_raw(year))

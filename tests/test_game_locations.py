@@ -1,13 +1,14 @@
 import sqlite3
 import unittest
+from unittest.mock import patch
 
 from create_games_database import create_game, database_update_game, database_delete_game
 from create_other_database import BASE_INSERT_COLUMNS, create_other_game
 from create_vollis_database import create_vollis_game
 from email_content import (
-    _append_location_context,
     _summary_location_from_rows,
     build_scene_image_prompt,
+    generate_email_hero_image,
 )
 
 
@@ -109,15 +110,36 @@ class GameLocationTests(unittest.TestCase):
 
     def test_location_is_in_default_and_custom_image_prompts(self):
         prompt = build_scene_image_prompt(
-            'doubles', [], location='Mission Beach',
+            'doubles', [], location='  Mission Beach  ',
         )
-        custom = _append_location_context(
-            'Create a dramatic sunset scene.', 'Mission Beach',
-        )
+        self.assertIn('Location: Mission Beach.', prompt)
+        # Exercise the actual generation path; the old location-context helper
+        # is no longer used by recap generation. No image API or files are used.
+        for custom in (None, 'Create a dramatic sunset scene.'):
+            with (
+                self.subTest(custom=custom),
+                patch('email_content.filter_illustratable_players', return_value=['Alex']),
+                patch('email_content._image_labels_for_players', return_value={'Alex': 'Alex'}),
+                patch('email_content._reference_parts_from_uploaded_photos', return_value=([], ['Alex'])),
+                patch('email_content._generate_image_bytes', return_value=(b'image', 'image/png')) as generate,
+                patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'image', 'image/png')),
+                patch('email_content._save_email_image', return_value=('url', 'path')),
+            ):
+                result = generate_email_hero_image(
+                    'test-key', 'doubles', [], ['Alex'],
+                    custom_scene_prompt=custom, location='  Mission Beach  ',
+                )
+                sent_prompt = generate.call_args.args[0]
+                for value in (sent_prompt, result[2], result[4]):
+                    self.assertEqual(value.count('Location: Mission Beach.'), 1)
+                if custom:
+                    self.assertTrue(sent_prompt.startswith(custom))
 
-        for value in (prompt, custom):
-            self.assertIn('LOCATION CONTEXT', value)
-            self.assertIn('Mission Beach', value)
+    def test_blank_location_is_omitted_from_default_image_prompt(self):
+        for location in (None, '', '   '):
+            with self.subTest(location=location):
+                prompt = build_scene_image_prompt('doubles', [], location=location)
+                self.assertNotIn('Location:', prompt)
 
     def test_selected_locations_are_deduplicated(self):
         rows = [

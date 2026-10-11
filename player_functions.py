@@ -152,15 +152,28 @@ def _query_player_by_name(sql, full_name):
     if not name:
         return None
     cur = set_cur()
-    cur.execute(sql, (name,))
-    row = cur.fetchone()
-    if row:
-        return row
-    nocase_sql = sql.replace('WHERE full_name = ?', 'WHERE full_name = ? COLLATE NOCASE', 1)
-    if nocase_sql == sql:
-        return None
-    cur.execute(nocase_sql, (name,))
-    return cur.fetchone()
+    try:
+        cur.execute(sql, (name,))
+        row = cur.fetchone()
+        if row:
+            return row
+        nocase_sql = sql.replace('WHERE full_name = ?', 'WHERE full_name = ? COLLATE NOCASE', 1)
+        if nocase_sql == sql:
+            return None
+        cur.execute(nocase_sql, (name,))
+        return cur.fetchone()
+    finally:
+        cur.connection.close()
+
+
+def get_player_avatar_fields(full_name):
+    """Load the four avatar fields together instead of reopening the same row."""
+    row = _query_player_by_name(
+        'SELECT photo_path, ai_image_path, ai_image_traits, face_photo_focus FROM players WHERE full_name = ?',
+        full_name,
+    )
+    row = row or (None, None, None, None)
+    return row[0], row[1], normalize_player_ai_image_traits(row[2]), _parse_face_photo_focus(row[3])
 
 
 def get_player_photo_path(full_name):

@@ -65,6 +65,8 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 app = Flask(__name__)
+from asset_delivery import register_asset_delivery
+register_asset_delivery(app)
 from image_previews import register_image_previews
 register_image_previews(app)
 from performance_metrics import register_performance
@@ -1220,15 +1222,8 @@ def browse_game_year(game_name=None, kind='other'):
 
 def other_navigation_groups():
     """Keep game choices discoverable even in seasons with no games."""
-    from other_functions import other_game_names, other_game_type_for_name, other_year_games_raw
-    # Menu labels need names/categories, not formatted dates for every game.
-    games = [dict(row) for row in other_year_games_raw('All years')]
-    groups = {'Volleyball': {'No jump'}}
-    for name in other_game_names(games):
-        category = other_game_type_for_name(games, name) or 'Other games'
-        groups.setdefault(category, set()).add(name)
-    return [(category, sorted(names, key=lambda name: (name.lower() != 'no jump', name.lower())))
-            for category, names in sorted(groups.items(), key=lambda item: (item[0] != 'Volleyball', item[0]))]
+    from other_functions import other_navigation_catalog
+    return other_navigation_catalog()
 
 
 @app.context_processor
@@ -1638,17 +1633,19 @@ def player_profile_fields_for(name):
 
 def player_avatar_context(name):
     """Template kwargs shared by player_avatar on stats pages."""
+    from player_functions import get_player_avatar_fields
     fields = player_profile_fields_for(name)
+    photo, ai_image, traits, (x, y, z) = get_player_avatar_fields(name)
     return {
-        'player_photo_url': player_photo_url_for(name),
-        'player_ai_image_url': player_ai_image_url_for(name),
-        'player_ai_image_traits': player_ai_image_traits_for(name),
-        'player_face_photo_focus': player_face_photo_focus_for(name),
+        'player_photo_url': url_for('static', filename=photo) if photo else None,
+        'player_ai_image_url': _cache_busted_static_url(ai_image),
+        'player_ai_image_traits': traits,
+        'player_face_photo_focus': {'x': x, 'y': y, 'z': z},
         'player_email': fields['email'],
         'player_date_of_birth': fields['date_of_birth'],
         'player_height': fields['height'],
         'player_nickname': fields['nickname'],
-        'og_image_url': player_og_image_url_for(name),
+        'og_image_url': (EMAIL_SITE_BASE_URL.rstrip('/') + url_for('player_face_thumb', name=name, size=OG_FACE_IMAGE_SIZE)) if photo else None,
         'og_image_alt': name,
         'og_page_url': EMAIL_SITE_BASE_URL.rstrip('/') + urllib.parse.quote(request.path),
     }
@@ -1767,6 +1764,8 @@ def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username
 @app.before_request
 def reject_removed_user_session():
     """Expire existing browser sessions for removed or deactivated accounts."""
+    if request.endpoint == 'static':
+        return
     if session.get('logged_in'):
         username = session.get('username')
         if username == 'api_key':

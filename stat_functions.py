@@ -8,6 +8,7 @@ from functools import lru_cache, wraps
 import re
 import time
 from time_display import format_game_time
+from request_cache import request_cached
 
 # Simple in-memory cache with expiration
 _cache = {}
@@ -328,6 +329,7 @@ def teams(games):
     all_teams.sort(key=lambda x: x['player1'])
     return all_teams
 
+@request_cached
 def todays_stats():
     games = todays_games()
     return calculate_stats_from_games(games)
@@ -354,12 +356,16 @@ def todays_doubles_dashboard_payload():
     return {'stats': stats_out, 'games': out_games, 'year': str(date.today().year)}
 
 
+@request_cached
 def todays_games():
     from datetime import datetime
     cur = set_cur()
     today = datetime.now().strftime('%Y-%m-%d')
-    cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (today,))
-    games = cur.fetchall()
+    try:
+        cur.execute("SELECT * FROM games WHERE date(game_date) = ?", (today,))
+        games = cur.fetchall()
+    finally:
+        cur.connection.close()
     games.sort(reverse=True)
     row = convert_ampm(games)
     return row
@@ -675,14 +681,18 @@ def year_games(year):
 	row = convert_ampm(row)
 	return row
 
+@request_cached
 def year_games_count(year):
 	"""Total number of doubles games for the year (for pagination)."""
 	cur = set_cur()
-	if year == 'All years':
-		cur.execute("SELECT COUNT(*) FROM games")
-	else:
-		cur.execute("SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=?", (year,))
-	return cur.fetchone()[0]
+	try:
+		if year == 'All years':
+			cur.execute("SELECT COUNT(*) FROM games")
+		else:
+			cur.execute("SELECT COUNT(*) FROM games WHERE strftime('%Y',game_date)=?", (year,))
+		return cur.fetchone()[0]
+	finally:
+		cur.connection.close()
 
 def year_games_paginated(year, limit=50, offset=0):
 	"""Doubles games for the year, one page (limit/offset). Not cached so edits show up."""
@@ -793,6 +803,7 @@ def grab_all_years():
 	years.append('All years')
 	return years
 
+@request_cached
 def all_years_player(name):
 	years = []
 	games = all_games_player(name)

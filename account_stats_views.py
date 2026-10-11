@@ -4,7 +4,8 @@ from pathlib import Path
 import secrets
 import sqlite3
 import tempfile
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, parse_qsl
+from datetime import date
 
 from flask import abort, flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -305,6 +306,15 @@ def register_stats_views(app, service, site_path):
                 # Make copying the address bar work too. Keep every active
                 # filter (including repeated query arguments) on the URL.
                 args = list(request.args.items(multi=True)) + [('view', token)]
+                if request.endpoint in {'index', 'stats_default', 'stats_by_date'}:
+                    # Resolve the landing destination together with its share
+                    # selection, instead of redirecting through the alias first.
+                    year = (request.view_args or {}).get('year', str(date.today().year))
+                    destination = url_for('stats', year=year)
+                    parts = urlsplit(destination)
+                    existing = {key for key, _ in args}
+                    args.extend((key, value) for key, value in parse_qsl(parts.query) if key not in existing)
+                    return redirect(parts.path + '?' + urlencode(args))
                 return redirect(request.path + '?' + urlencode(args))
         cached = prepared_stats(private_database() or site_path, sources)
         if cached is not None:
