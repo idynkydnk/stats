@@ -1706,7 +1706,7 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     min-width: 140px;
     box-shadow: 1px 0 0 var(--sr-line);
 }
-.sr-table th.sr-numeric, .sr-table td.sr-numeric { text-align: right; }
+.sr-table th.sr-numeric, .sr-table td.sr-numeric { text-align: center; }
 .sr-table .sr-rank { text-align: center; font-weight: 500; }
 .sr-table .sr-rank-2, .sr-table .sr-rank-3 { color: var(--sr-muted); }
 .sr-table th:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible {
