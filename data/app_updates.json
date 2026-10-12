@@ -1,5 +1,23 @@
 [
   {
+    "id": "ios-2026-10-11-remove-floating-older-games-button",
+    "date": "2026-10-11",
+    "subject": "iPhone: Clearer games page",
+    "body": "Removed the floating Load older games button from the bottom of the Games page. Older games load as you scroll to the bottom."
+  },
+  {
+    "id": "ios-2026-10-12-winner-score-suggestions",
+    "date": "2026-10-11",
+    "subject": "iPhone: Score suggestions follow what you type",
+    "body": "When entering a winner's score, typing 2 shows 2, 20, 21, 22, and the other scores starting with 2. The usual score choices still appear when the field is empty."
+  },
+  {
+    "id": "ios-2026-10-11-site-style-stats",
+    "date": "2026-10-11",
+    "subject": "iPhone: Stats tables like the website",
+    "body": "Stats show players and their results side by side under shared column headings, with colored ranks, ratings, wins, and losses like the website. Swipe across the table on smaller screens; larger text keeps the readable stacked layout."
+  },
+  {
     "id": "ios-2026-10-11-faster-startup-and-return-visits",
     "date": "2026-10-11",
     "subject": "iPhone: Faster opening and return visits",

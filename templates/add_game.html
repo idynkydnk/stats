@@ -227,6 +227,7 @@ textarea { resize: vertical; min-height: 60px; }
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/stats.js', v='20261009-readable-sorting') }}"></script>
 <script src="{{ url_for('static', filename='js/player-suggestions.js', v='20261009') }}"></script>
+<script src="{{ url_for('static', filename='js/score-suggestions.js', v='20261012') }}"></script>
 <script>
 (function() {
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -397,7 +398,7 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     if (!field || !list) return;
     field.addEventListener('focus', function() { showList(field, list, getItems(field)); });
     field.addEventListener('input', function() {
-        if (!(field.value || '').trim()) {
+        if (!(field.value || '').trim() && fieldId !== 'winner_score') {
             list.innerHTML = '';
             list.style.display = 'none';
             return;
@@ -423,7 +424,7 @@ function getLoserScores() {
     return scores;
 }
 nameFields.forEach(function(id) { setupAutocomplete(id, function(field) { return allPlayers.filter(function(p) { return getSelectedPlayers(field).indexOf(p) === -1; }); }); });
-setupAutocomplete('winner_score', function() { return winnerScores; });
+setupAutocomplete('winner_score', function(field) { return winnerScoreSuggestions(field.value, winnerScores); });
 setupAutocomplete('loser_score', getLoserScores);
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.autocomplete')) {

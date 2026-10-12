@@ -402,6 +402,7 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/stats.js', v='20261009-readable-sorting') }}"></script>
 <script src="{{ url_for('static', filename='js/player-suggestions.js', v='20261009') }}"></script>
+<script src="{{ url_for('static', filename='js/score-suggestions.js', v='20261012') }}"></script>
 <script>
 // Set user timezone so game timestamps use correct local time (including DST)
 (function() {
@@ -472,9 +473,12 @@ function isScoreField(el) {
     if (el.name && el.name.endsWith('_score')) return true;
     return el.classList && el.classList.contains('score-input');
 }
+function isWinnerScoreField(el) {
+    return el.id === 'winner_score' || /^winner\d+_score$/.test(el.name || '') || /^winner\d+_score$/.test(el.id || '');
+}
 function getNextFieldAfterScore(scoreInput) {
     const id = scoreInput.id, name = (scoreInput.name || '');
-    const isWinner = id === 'winner_score' || /^winner\d+_score$/.test(name) || /^winner\d+_score$/.test(id);
+    const isWinner = isWinnerScoreField(scoreInput);
     if (isWinner) {
         if (id === 'winner_score') return document.getElementById('loser_score');
         const m = (name || id || '').match(/^winner(\d+)_score$/);
@@ -505,11 +509,24 @@ function buildVolleyballTeamLoserScoresFromWinnerInput() {
 }
 function openCommonScoreDropdown(scoreInput) {
     _currentScoreInput = scoreInput;
-    const isWinner = scoreInput.id === 'winner_score' || /^winner\d*_score$/.test(scoreInput.name || '') || /^winner\d*_score$/.test(scoreInput.id || '');
+    const isWinner = isWinnerScoreField(scoreInput);
     const scoreType = (document.getElementById('score_type') && document.getElementById('score_type').value) || 'individual';
     const useIndividual = (scoreType === 'individual');
-    fetchCommonScoresThen(data => {
+    function displayScores(scores) {
+        if (_currentScoreInput !== scoreInput || document.activeElement !== scoreInput) return;
         const list = document.getElementById('common_score_dropdown');
+        showScoreList(list, isWinner ? winnerScoreSuggestions(scoreInput.value, scores) : scores);
+        const rect = scoreInput.getBoundingClientRect();
+        list.style.top = (rect.bottom + 4) + 'px';
+        list.style.left = rect.left + 'px';
+        list.style.width = Math.max(rect.width, 120) + 'px';
+        list.style.display = (list.innerHTML ? 'block' : 'none');
+    }
+    if (isWinner && (scoreInput.value || '').trim()) {
+        displayScores([]);
+        return;
+    }
+    fetchCommonScoresThen(data => {
         const winScores = useIndividual
             ? (data.winner_individual_scores && data.winner_individual_scores.length ? data.winner_individual_scores : defaultIndividualScores)
             : (data.winner_scores || defaultIndividualScores);
@@ -520,12 +537,7 @@ function openCommonScoreDropdown(scoreInput) {
             const vbLoser = buildVolleyballTeamLoserScoresFromWinnerInput();
             if (vbLoser != null) loseScores = vbLoser;
         }
-        showScoreList(list, isWinner ? winScores : loseScores);
-        const rect = scoreInput.getBoundingClientRect();
-        list.style.top = (rect.bottom + 4) + 'px';
-        list.style.left = rect.left + 'px';
-        list.style.width = Math.max(rect.width, 120) + 'px';
-        list.style.display = (list.innerHTML ? 'block' : 'none');
+        displayScores(isWinner ? winScores : loseScores);
     });
 }
 
@@ -876,6 +888,9 @@ setupPlayerAutocomplete(document.getElementById('loser2'), document.getElementBy
 // Any score field (team or individual): show shared dropdown on focus
 document.addEventListener('focusin', function(e) {
     if (isScoreField(e.target)) openCommonScoreDropdown(e.target);
+});
+document.addEventListener('input', function(e) {
+    if (isScoreField(e.target) && isWinnerScoreField(e.target)) openCommonScoreDropdown(e.target);
 });
 document.getElementById('common_score_dropdown')?.addEventListener('click', function(e) {
     if (e.target.tagName === 'DIV' && e.target.dataset.value != null && _currentScoreInput) {
