@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-preload-games",
+    "date": "2026-10-11",
+    "subject": "iPhone: Games get a head start",
+    "body": "After Stats loads, the app quietly gets the first 50 games ready for the sport and year you are viewing. Opening Games reuses those results, while older games still load as you scroll."
+  },
+  {
     "id": "ios-2026-10-11-today-point-difference",
     "date": "2026-10-11",
     "subject": "iPhone: Today’s point difference stays visible",
