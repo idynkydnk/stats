@@ -187,10 +187,10 @@ _LEGACY_RECAP_PARAGRAPH_LIMIT = (
 )
 
 RECAP_LENGTH_GUIDANCE = (
-    'Keep paragraphs short and readable. The summary may be longer when there '
-    'are many game comments or a long custom prompt. Use enough space to cover '
-    'the relevant stories and fulfill the custom instructions, without a fixed '
-    'paragraph, sentence, or word limit.'
+    'Write the summary in at most 4 short, readable paragraphs. '
+    'This maximum applies even when there are many game comments or custom '
+    'instructions ask for a longer recap. Prioritize the most relevant stories '
+    'and combine related moments to stay within the limit.'
 )
 
 DEFAULT_RECAP_STYLE_INSTRUCTIONS = """Write a funny recap of the day’s games that sounds like someone from the group telling everyone what they missed.
