@@ -1,0 +1,23 @@
+name: Verify deployed recap changes
+on:
+  push:
+    branches: [codex/verify-recap-20261012]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt
+      - name: Check deployed files, worker restart, app API and weather
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        run: python scripts/verify_recap_deployment.py
+      - name: Exercise recap routing, names, weather, creation and remakes
+        run: python -W ignore::ResourceWarning -m unittest tests.test_ai_summary_comments tests.test_recap_weather tests.test_game_locations tests.test_personal_recap_access tests.test_app_updates tests.test_group_character_preservation tests.test_ai_summary_navigation tests.test_personal_recap_creation
