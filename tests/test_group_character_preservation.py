@@ -90,6 +90,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 patch('player_functions.player_display_names_map', return_value={
                     players[0]: 'Kevin', players[1]: 'Jordan',
                 }),
+                patch('player_functions.get_player_nickname', return_value=''),
                 patch('player_functions.collect_player_ai_image_traits', return_value=[]),
                 patch('player_functions.get_player_ai_image_path', return_value='saved.png'),
                 patch('player_functions.collect_illustration_reference_images',

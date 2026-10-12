@@ -119,6 +119,7 @@ class GameLocationTests(unittest.TestCase):
             with (
                 self.subTest(custom=custom),
                 patch('email_content.filter_illustratable_players', return_value=['Alex']),
+                patch('player_functions.get_player_nickname', return_value=''),
                 patch('email_content._image_labels_for_players', return_value={'Alex': 'Alex'}),
                 patch('email_content._reference_parts_from_uploaded_photos', return_value=([], ['Alex'])),
                 patch('email_content._generate_image_bytes', return_value=(b'image', 'image/png')) as generate,
