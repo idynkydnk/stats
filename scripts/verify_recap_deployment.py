@@ -2,8 +2,12 @@
 import hashlib
 import json
 import os
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 base = 'https://www.pythonanywhere.com/api/v0/user/' + os.environ['PA_USERNAME']
 headers = {'Authorization': 'Token ' + os.environ['PA_API_TOKEN']}
@@ -17,6 +21,10 @@ for name in ['email_content.py', 'recap_weather.py', 'ios_api.py', 'stats.py', '
     remote = remote_file(name)
     assert hashlib.sha256(remote).digest() == hashlib.sha256(Path(name).read_bytes()).digest(), name + ' differs from pushed code'
     print('Deployed source matches:', name)
+
+heartbeat = datetime.fromisoformat(remote_file('ai_auto_send_daemon.heartbeat').decode().strip())
+assert (datetime.now(timezone.utc) - heartbeat).total_seconds() < 90, 'AI worker heartbeat is stale'
+print('AI worker heartbeat is current')
 
 log = remote_file('ai_auto_send_daemon.log').decode(errors='replace')
 # Report only lifecycle lines; keep player names, prompts, and job details private.
