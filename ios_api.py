@@ -1132,16 +1132,23 @@ def register_ios_api(app):
                 )
             data = request.get_json(silent=True)
             allowed = {'title', 'summary'} if kind == 'recap' else {'title', 'event_date', 'event_time', 'location', 'image_details'}
+            allowed |= {'custom_prompt', 'scene_prompt'} if kind == 'recap' else {'scene_prompt'}
             if not isinstance(data, dict) or not data or set(data) - allowed:
                 return jsonify(error='Choose valid fields to edit.'), 400
-            if any(not isinstance(value, str) or len(value) > (50000 if key == 'summary' else 5000)
+            if any(not isinstance(value, str) or len(value) > (50000 if key in {'summary', 'custom_prompt', 'scene_prompt'} else 5000)
                    for key, value in data.items()):
                 return jsonify(error='Enter valid text for each field.'), 400
             try:
                 if kind == 'recap':
                     updates = edit_recap(row, data)
+                    if 'custom_prompt' in data:
+                        updates['custom_prompt'] = data['custom_prompt'].strip()
+                        updates['style_instructions'] = data['custom_prompt'].strip()
+                    if 'scene_prompt' in data:
+                        updates['scene_prompt'] = data['scene_prompt'].strip()
                     if updates:
                         S.adminfx.update_ai_recap_page(share_id, **updates)
+                    if 'html_body' in updates:
                         S._refresh_instagram_slides(share_id, html_body=updates['html_body'],
                             plain_text_body=updates['plain_text_body'], subject=updates.get('subject', row.get('subject', '')),
                             hero_image_url=row.get('hero_image_url') or '', force=True)

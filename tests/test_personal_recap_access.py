@@ -134,11 +134,47 @@ class PersonalRecapAccessTests(unittest.TestCase):
         self.assertEqual(self.a.put(path, headers=headers, json={'username': 'bob'}).status_code, 400)
         self.assertEqual(self.a.delete(path, headers=headers).status_code, 200)
 
+    def test_native_recap_saves_both_instructions_without_changing_content(self):
+        headers = self.register(self.a, 'alice')
+        path = '/api/ai-library/recap/alice-own'
+        original = admin.get_ai_recap_page('alice-own')['html_body']
+        # Long generated picture instructions can be edited and saved too.
+        instructions = {'custom_prompt': 'Focus on close games', 'scene_prompt': 'Beach scene. ' * 600}
+        response = self.a.put(path, headers=headers, json=instructions)
+        self.assertEqual(response.status_code, 200, response.json)
+        saved = self.a.get(path, headers=headers).json
+        for key, value in instructions.items():
+            self.assertEqual(saved[key], value.strip())
+        self.assertEqual(admin.get_ai_recap_page('alice-own')['html_body'], original)
+        self.service._refresh_instagram_slides.assert_not_called()
+        # Clearing style instructions must not resurrect the previous custom prompt.
+        response = self.a.put(path, headers=headers, json={'custom_prompt': '', 'scene_prompt': ''})
+        self.assertEqual(response.status_code, 200)
+        saved = self.a.get(path, headers=headers).json
+        self.assertEqual(saved['custom_prompt'], '')
+        self.assertEqual(saved['scene_prompt'], '')
+        for invalid in ([], None, 'x' * 50001):
+            response = self.a.put(path, headers=headers, json={'custom_prompt': 'Do not save', 'scene_prompt': invalid})
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(self.a.get(path, headers=headers).json['custom_prompt'], '')
+
+    def test_native_remake_summary_keeps_saved_picture_instructions(self):
+        headers = self.register(self.a, 'alice')
+        path = '/api/ai-library/recap/alice-own'
+        admin.update_ai_recap_page('alice-own', game_ids_json='[1]')
+        response = self.a.put(path, headers=headers, json={
+            'custom_prompt': 'Friendly', 'scene_prompt': 'Keep my new picture instructions',
+        })
+        self.assertEqual(response.status_code, 200)
+        response = self.a.post('/recap/alice-own/remake-summary/', headers=headers, json={'custom_prompt': 'Friendly'})
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual(self.a.get(path, headers=headers).json['scene_prompt'], 'Keep my new picture instructions')
+
     def test_native_flyer_details_validation_and_owner_delete(self):
         headers = self.register(self.a, 'alice')
         flyerfx.insert_flyer_page('alice-flyer', 'alice', ['Alice'], 'doubles', '', '', '')
         path = '/api/ai-library/flyer/alice-flyer'
-        data = {'title': 'Friday games', 'event_date': '2026-10-09', 'event_time': '18:30', 'location': 'The beach', 'image_details': 'Sunset'}
+        data = {'title': 'Friday games', 'event_date': '2026-10-09', 'event_time': '18:30', 'location': 'The beach', 'image_details': 'Sunset', 'scene_prompt': 'Players at sunset'}
         self.assertEqual(self.a.put(path, headers=headers, json=data).status_code, 200)
         saved = flyerfx.get_flyer_page('alice-flyer')
         for key, value in data.items():

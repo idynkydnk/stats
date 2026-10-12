@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-safer-recap-editing",
+    "date": "2026-10-11",
+    "subject": "iPhone: Save recap edits without losing your instructions",
+    "body": "Recap and flyer editors have clear Cancel and Save buttons, with remake controls at the top. Saving keeps your text and instructions, and Cancel asks before discarding unsaved changes."
+  },
+  {
     "id": "ios-2026-10-11-readable-today-stats-games",
     "date": "2026-10-11",
     "subject": "iPhone: Larger today’s stats and games in standings",
