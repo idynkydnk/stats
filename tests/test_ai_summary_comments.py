@@ -44,15 +44,16 @@ class RecapCommentTests(unittest.TestCase):
                               (game_id, date, 'Cards', 'Gin rummy', 'Alex', 21, 'Sam', 19, date, comment))
         self.selected_ids = list(range(1, 68))
         self.ai = Mock(return_value='HEADLINE: An eventful day\nSUMMARY:\n' + LONG_SUMMARY)
+        self.image = Mock(return_value=(None, None, None, '', {}))
         for replacement in (
             patch('email_content.require_ai_api_key', return_value='test-key'),
             patch('email_content.set_cur', side_effect=self.conn.cursor),
             patch('database_functions.create_connection', return_value=self.conn),
             patch('stat_functions.get_current_streaks_last_365_days', return_value=[]),
             patch('player_functions.get_player_by_name', return_value=None),
-            patch('email_content._recap_character_context', return_value=''),
+            patch('email_content._phrases_by_player_name', return_value={'Alex': ['Always wears a lucky hat']}),
             patch('email_content.generate_ai_text', self.ai),
-            patch('email_content._try_generate_email_hero_image', return_value=(None, None, None, '', {})),
+            patch('email_content._try_generate_email_hero_image', self.image),
             patch('email_content.create_doubles_email_html', return_value=''),
             patch('email_content.create_doubles_email_plain_text', return_value=''),
             patch('email_content.create_other_email_html', return_value=''),
@@ -66,9 +67,16 @@ class RecapCommentTests(unittest.TestCase):
         for builder in (build_doubles_email_payload, build_other_email_payload):
             for style in ('default', 'custom'):
                 with self.subTest(builder=builder.__name__, style=style):
-                    payload = builder(self.selected_ids, prompt_style=style, custom_prompt=custom)
+                    image_details = 'Draw Alex riding a purple dragon on the moon.'
+                    payload = builder(self.selected_ids, prompt_style=style, custom_prompt=custom,
+                                      image_details=image_details)
                     prompt = self.ai.call_args.args[0]
                     self.assertEqual(payload['ai_prompt'], prompt)
+                    self.assertNotIn(image_details, prompt)
+                    self.assertIn('Alex: Always wears a lucky hat', prompt)
+                    self.assertEqual(payload['image_details'], image_details)
+                    self.assertEqual(self.image.call_args.kwargs['image_details'],
+                                     image_details)
                     for comment in self.comments:
                         self.assertIn(comment, prompt)
                     self.assertEqual(prompt.count(self.comments[1]), 2)
