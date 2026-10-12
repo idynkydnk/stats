@@ -2,16 +2,18 @@
 import ast
 import os
 import sys
+from datetime import date
 from functools import wraps
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from flask import abort, jsonify, request, session
+from flask import abort, flash, jsonify, redirect, request, session, url_for
 
 import flyer_functions as flyers
 from private_accounts import ai_account_context, connect_data, private_database
+from player_identity import unique_player_names
 from tests import test_private_accounts as fixtures
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,11 +42,37 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         self.service.serialize_flyer_list_entry = lambda row, base: dict(row)
         self.service.note_user_presence = lambda username: None
         self.service.log_activity = lambda *args, **kwargs: None
-        self.service.ai_jobs = SimpleNamespace(enqueue_flyer_job=Mock(return_value=42))
+        self.service.ai_jobs = SimpleNamespace(
+            enqueue_flyer_job=Mock(return_value=42),
+            daemon_is_alive=Mock(return_value=True), get_job=Mock(),
+        )
         self.generate = Mock(return_value='new-flyer')
+
+        def login_required(func):
+            @wraps(func)
+            def guarded(*args, **kwargs):
+                if not session.get('logged_in'):
+                    return jsonify(error='Sign in'), 401
+                return func(*args, **kwargs)
+            return guarded
+
+        def own_players():
+            with connect_data(self.path) as conn:
+                return conn.execute('SELECT * FROM players').fetchall()
+
+        players_patch = patch('player_functions.get_all_players', side_effect=own_players)
+        players_patch.start()
+        self.addCleanup(players_patch.stop)
         namespace = dict(
             app=self.app, request=request, session=session, jsonify=jsonify,
             abort=abort, os=os, wraps=wraps, _S=lambda: self.service,
+            flash=flash, redirect=redirect, url_for=url_for, date=date,
+            login_required=login_required, api_login_required=login_required,
+            render_template=lambda template, **context: jsonify(context),
+            ai_jobs=self.service.ai_jobs, unique_player_names=unique_player_names,
+            build_ai_recap_roster_cards=lambda names: names,
+            EMAIL_SITE_BASE_URL=self.service.EMAIL_SITE_BASE_URL,
+            serialize_flyer_list_entry=self.service.serialize_flyer_list_entry,
             _stats_db_path=lambda: self.path,
             is_admin=lambda: self.service.is_admin(session.get('username')),
             _generate_and_publish_flyer=self.generate,
@@ -54,7 +82,11 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         for filename, names in [
             ('stats.py', {'_browse_username_filter', '_is_owner_or_admin',
                           '_validate_flyer_payload', '_flyer_sport_label',
-                          'run_flyer_job', 'download_flyer'}),
+                          'run_flyer_job', 'download_flyer', 'my_ai_flyers',
+                          'my_ai_flyers_delete', 'create_flyer', 'create_flyer_roster',
+                          'create_flyer_generate', 'flyer_job_status', 'api_flyer_prompts',
+                          '_parse_flyer_form', '_flyer_form_template_kwargs',
+                          '_flyer_player_names', '_can_access_job'}),
             ('ios_api.py', {'api_login_required', 'api_my_flyers',
                             'api_create_flyer', 'api_delete_flyer', 'api_pin_ai_library_item'}),
         ]:
@@ -66,6 +98,68 @@ class PersonalFlyerAccessTests(unittest.TestCase):
                      '_validate_flyer_payload', '_flyer_sport_label']:
             setattr(self.service, name, namespace[name])
         self.run_job = namespace['run_flyer_job']
+        self.app.add_url_rule('/flyer/<share_id>/', 'view_flyer', lambda share_id: share_id)
+
+    def test_web_browse_and_delete_keep_personal_ownership(self):
+        self.register(self.a, 'alice')
+        response = self.a.get('/flyers/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([row['share_id'] for row in response.json['entries']], ['alice-own'])
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertFalse(response.json['showing_all'])
+        response = self.a.post('/flyers/delete', data={'share_id': 'bob-own'})
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNotNone(flyers.get_flyer_page('bob-own'))
+        response = self.a.post('/flyers/delete', data={'share_id': 'alice-own'}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['entries'], [])
+        self.assertIsNone(flyers.get_flyer_page('alice-own'))
+
+    def test_web_creation_and_progress_use_personal_account(self):
+        self.register(self.a, 'alice')
+        with ai_account_context(self.app, self.path, 'alice'):
+            with connect_data(self.path) as conn:
+                conn.execute("INSERT INTO players VALUES (1, 'Alice character')")
+        response = self.a.get('/create_flyer/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['players'], ['Alice character'])
+        payload = dict(players=['Alice character'], event_date='2026-10-12',
+                       event_time='17:00', location='Beach', scene_prompt='Sunset')
+        with patch('email_content.build_flyer_scene_prompt', return_value='Sunset') as prompt:
+            response = self.a.post('/api/flyer_prompts/', json=payload)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['scene_prompt'], 'Sunset')
+            self.assertEqual(prompt.call_args.args[0], ['Alice character'])
+        response = self.a.post('/create_flyer/roster/', data=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['player_cards'], ['Alice character'])
+        response = self.a.post('/create_flyer/', data=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['selected_players'], ['Alice character'])
+        response = self.a.post('/create_flyer/generate/', data={**payload, 'username': 'bob'})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith('/create_flyer/job/42/'))
+        username, queued = self.service.ai_jobs.enqueue_flyer_job.call_args.args
+        self.assertEqual(username, 'alice')
+        self.assertEqual(queued['players'], ['Alice character'])
+        for owner, expected in [('alice', 200), ('bob', 403)]:
+            self.service.ai_jobs.get_job.return_value = dict(username=owner, status='pending')
+            self.assertEqual(self.a.get(response.location).status_code, expected)
+        self.service.ai_jobs.get_job.return_value = dict(
+            username='alice', status='completed', share_id='alice-own')
+        self.assertTrue(self.a.get(response.location).location.endswith('/flyer/alice-own/'))
+        self.service.ai_jobs.daemon_is_alive.return_value = False
+        response = self.a.post('/create_flyer/generate/', data=payload)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.generate.call_args.args[0], 'alice')
+
+    def test_web_flyer_flow_still_requires_sign_in(self):
+        for path, method in [('/flyers/', 'get'), ('/create_flyer/', 'get'),
+                             ('/flyers/delete', 'post'), ('/create_flyer/roster/', 'post'),
+                             ('/create_flyer/generate/', 'post'), ('/api/flyer_prompts/', 'post'),
+                             ('/create_flyer/job/42/', 'get')]:
+            with self.subTest(path=path):
+                self.assertEqual(getattr(self.a, method)(path).status_code, 401)
 
     def test_browse_delete_and_download_personal_flyers(self):
         headers = self.register(self.a, 'alice')

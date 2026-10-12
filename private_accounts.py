@@ -42,6 +42,8 @@ PRIVATE_ENDPOINTS = {
     'api_generate_player_ai_image', 'api_ai_summary_game_search',
     'api_ai_roster', 'api_ai_summary_json', 'api_ai_job', 'api_my_recaps',
     'api_my_flyers', 'api_create_flyer', 'api_delete_flyer', 'download_flyer',
+    'my_ai_flyers', 'my_ai_flyers_delete', 'create_flyer', 'create_flyer_roster',
+    'create_flyer_generate', 'api_flyer_prompts', 'flyer_job_status',
     'ai_summary', 'select_ai_prompt', 'select_ai_style',
     'preview_ai_summary_with_prompt', 'api_generate_and_send_ai_summary',
     'ai_summary_job_status', 'api_ai_summary_job_status',
