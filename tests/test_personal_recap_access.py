@@ -66,7 +66,7 @@ class PersonalRecapAccessTests(unittest.TestCase):
             note_user_presence=lambda username: None, validate_auth_token=lambda token: None,
             _build_ai_summary_payload=self.generate,
             _try_generate_email_hero_image=self.generate_image,
-            _load_games_and_players_for_recap=Mock(return_value=([{}], ['Alice'], None, '')),
+            _load_games_and_players_for_recap=Mock(return_value=([{}], ['Alice'], None, '', [])),
             replace_recap_hero_image=lambda html, url: html + '<img src="' + url + '">',
             _refresh_instagram_slides=Mock(return_value=[]),
             render_template=lambda template, **context: jsonify(context),

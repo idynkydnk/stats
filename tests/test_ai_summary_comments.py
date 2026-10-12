@@ -12,6 +12,7 @@ from email_content import (
     DEFAULT_RECAP_STYLE_INSTRUCTIONS,
     _build_recap_style_instructions,
     _resolve_recap_instructions,
+    _recap_name_replacer,
     build_doubles_email_payload,
     build_other_email_payload,
     build_vollis_email_payload,
@@ -131,6 +132,51 @@ class RecapCommentTests(unittest.TestCase):
         self.ai.assert_called_once()
         self.assertEqual(payload['style_instructions'], DEFAULT_RECAP_STYLE_INSTRUCTIONS)
         self.assertEqual(payload['image_details'], '')
+
+    def test_name_replacement_preserves_words_and_nicknames_containing_first_names(self):
+        with patch('player_functions.player_display_name', side_effect=lambda name: {
+            'Will Smith': 'Big Will', 'Sam Jones': 'Sam',
+        }[name]):
+            replace = _recap_name_replacer(['Will Smith', 'Sam Jones'])
+            text = "Will will beat WILL SMITH's record. Sam Jones watches. Big Will smiles."
+            expected = "Big Will will beat Big Will's record. Sam watches. Big Will smiles."
+            self.assertEqual(replace(text), expected)
+            self.assertEqual(replace(replace(text)), expected)
+
+    def test_names_are_removed_before_routing_writing_and_image_instructions(self):
+        for table, fields in (('games', ('winner1', 'loser1')),
+                              ('vollis_games', ('winner', 'loser')),
+                              ('other_games', ('winner1', 'loser1'))):
+            self.conn.execute(f'UPDATE {table} SET {fields[0]}=?, {fields[1]}=?',
+                              ('Alex Smith', 'Sam Jones'))
+            self.conn.execute(f'ALTER TABLE {table} ADD COLUMN location TEXT')
+            self.conn.execute(f'ALTER TABLE {table} ADD COLUMN entered_timezone TEXT')
+            self.conn.execute(f'UPDATE {table} SET location=?, entered_timezone=?',
+                              ('Hermosa Beach', 'America/Los_Angeles'))
+        self.conn.execute('UPDATE games SET comments=?', ("Alex Smith beat Sam Jones's serve.",))
+        self.conn.execute('UPDATE other_games SET comment=?', ("Alex Smith beat Sam Jones's serve.",))
+        with patch('player_functions.player_display_name',
+                   side_effect=lambda name: 'Big Alex' if name == 'Alex Smith' else name.split()[0]):
+            for builder in (build_doubles_email_payload, build_vollis_email_payload, build_other_email_payload):
+                with self.subTest(builder=builder.__name__):
+                    self.ai.reset_mock()
+                    self.ai.side_effect = [
+                        json.dumps({'summary': 'Roast Big Alex and Sam.', 'image': 'Draw Big Alex and Sam.'}),
+                        'HEADLINE: Alex Smith wins\nSUMMARY: Alex Smith beat Sam Jones.',
+                    ]
+                    payload = builder([1], prompt_style='combined',
+                                      custom_prompt='Roast Alex Smith and Sam Jones. Draw them, too.')
+                    for call in self.ai.call_args_list:
+                        self.assertNotIn('Alex Smith', call.args[0])
+                        self.assertNotIn('Sam Jones', call.args[0])
+                        self.assertNotIn('Big Big Alex', call.args[0])
+                    self.assertEqual(payload['summary'], 'Big Alex beat Sam.')
+                    self.assertEqual(payload['subject'], 'Big Alex wins')
+                    self.assertEqual(self.image.call_args.kwargs['image_details'], 'Draw Big Alex and Sam.')
+                    weather = self.image.call_args.kwargs['weather_games'][0]
+                    self.assertEqual(weather['location'], 'Hermosa Beach')
+                    self.assertTrue(weather['game_date'].startswith('2026-10-11 12:'))
+                    self.assertEqual(weather['entered_timezone'], 'America/Los_Angeles')
 
     def test_picture_only_prompt_uses_standard_recap_and_accepts_fenced_json(self):
         self.ai.return_value = '```json\n{"summary": "", "image": "Use a green net."}\n```'

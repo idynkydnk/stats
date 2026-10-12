@@ -657,7 +657,7 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
         return share_id
 
 
-def _load_games_and_players_for_recap(game_type, game_ids):
+def _load_games_and_players_for_recap(game_type, game_ids, include_weather=False):
     """Load selected games, players, game name, and location for a recap image."""
     from email_content import _summary_location_from_rows
     ids = [int(gid) for gid in game_ids]
@@ -684,7 +684,8 @@ def _load_games_and_players_for_recap(game_type, game_ids):
             for name in (game[2], game[4]):
                 if name and str(name).strip():
                     players.add(name)
-        return games, players, None, location
+        result = (games, players, None, location)
+        return result + ([dict(zip(column_names, row)) for row in raw_games],) if include_weather else result
 
     if game_type == 'other':
         from other_functions import readable_games_data, _is_valid_player_name
@@ -712,7 +713,8 @@ def _load_games_and_players_for_recap(game_type, game_ids):
                     if name and _is_valid_player_name(name):
                         players.add(name)
         game_name = ', '.join(sorted(game_names)) if game_names else 'Other'
-        return games, players, game_name, location
+        result = (games, players, game_name, location)
+        return result + ([dict(row) for row in raw_games],) if include_weather else result
 
     from stat_functions import convert_ampm
     cur = set_cur()
@@ -729,7 +731,8 @@ def _load_games_and_players_for_recap(game_type, game_ids):
         for name in (game[2], game[3], game[5], game[6]):
             if name and str(name).strip():
                 players.add(name)
-    return games, players, None, location
+    result = (games, players, None, location)
+    return result + ([dict(zip(column_names, row)) for row in raw_games],) if include_weather else result
 
 
 def _send_ai_summary_payload(payload, username='unknown'):
@@ -3688,7 +3691,9 @@ def remake_ai_recap_image(share_id):
     try:
         from private_accounts import ai_account_context
         with ai_account_context(app, _stats_db_path(), row.get('username') or ''):
-            games, players, game_name, recap_location = _load_games_and_players_for_recap(game_type, game_ids)
+            games, players, game_name, recap_location, weather_games = _load_games_and_players_for_recap(
+                game_type, game_ids, include_weather=True,
+            )
             if not games:
                 raise ValueError('None of the saved games were found.')
             if not players:
@@ -3727,6 +3732,7 @@ def remake_ai_recap_image(share_id):
                     selected_players=illustration_players,
                     player_stats=player_stats,
                     location=recap_location,
+                    weather_games=weather_games,
                 )
             )
     except Exception as e:

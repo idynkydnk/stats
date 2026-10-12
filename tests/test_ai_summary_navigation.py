@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from bs4 import BeautifulSoup
 from jinja2 import ChoiceLoader, DictLoader
 
@@ -40,6 +40,13 @@ class AISummaryNavigationTests(unittest.TestCase):
         names = {'preview_ai_summary_with_prompt', 'inject_ai_summary_progress', '_render_select_ai_prompt'}
         nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), self.ns)
+        service = SimpleNamespace(ai_jobs=self.jobs, log_activity=Mock(),
+                                  _normalize_image_mode=self.ns['_normalize_image_mode'])
+        self.ns.update(_S=lambda: service, jsonify=jsonify, api_login_required=lambda f: f)
+        api = ast.parse((ROOT / 'ios_api.py').read_text())
+        nodes = [node for node in ast.walk(api) if isinstance(node, ast.FunctionDef)
+                 and node.name == 'api_ai_summary_json']
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), 'ios_api.py', 'exec'), self.ns)
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(username='Sam', logged_in=True)
@@ -77,6 +84,17 @@ class AISummaryNavigationTests(unittest.TestCase):
         self.assertEqual(area.text, 'Funny </textarea><script>bad()</script>\n\nFor the picture: A green net.')
         self.assertEqual(len(soup.select('textarea')), 1)
         self.assertNotIn('<script>bad()</script>', page)
+
+    def test_native_and_website_queue_the_same_combined_prompt(self):
+        for prompt in ('', 'Keep it funny. For the picture, use a green net.'):
+            for mode in ('none', 'image'):
+                data = {'game_ids': ['1', '2'], 'game_type': 'doubles',
+                        'prompt_style': 'combined', 'custom_prompt': prompt, 'image_mode': mode}
+                self.client.post('/preview_ai_summary_with_prompt/', data=data)
+                website_call = self.jobs.enqueue_job.call_args
+                response = self.client.post('/api/ai/summary', json=data)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.jobs.enqueue_job.call_args, website_call)
 
     def test_each_summary_mode_returns_home_with_pending_job(self):
         for mode in ('none', 'image', 'animation'):

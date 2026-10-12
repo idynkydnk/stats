@@ -119,7 +119,8 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             if custom:
                 self.assertTrue(prompt.startswith(custom))
             self.assertEqual(prompt.count(GROUP_REFERENCE_DETAILS), 1)
-            self.assertEqual(prompt.count("Dress Kevin Cleary as the king"), 1)
+            self.assertNotIn('Kevin Cleary', prompt + text)
+            self.assertEqual(prompt.count("Dress Kevin as the king"), 1)
             self.assertEqual(prompt.count("Show Jordan lying flat on the ground in bad shape"), 1)
 
 

@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-12-recap-prompt-weather",
+    "date": "2026-10-12",
+    "subject": "iPhone: One prompt for recaps and pictures",
+    "body": "Create a recap with one optional prompt, just like the website. Recaps use nicknames or first names, and pictures are requested to match the weather at the games’ location and time."
+  },
+  {
     "id": "ios-2026-10-11-safer-recap-editing",
     "date": "2026-10-11",
     "subject": "iPhone: Save recap edits without losing your instructions",
