@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-readable-today-stats-games",
+    "date": "2026-10-11",
+    "subject": "iPhone: Larger today’s stats and games in standings",
+    "body": "Today’s stats use larger text and roomier rows again, with +/− still visible. Both today’s stats and standings show each player’s game count under Games."
+  },
+  {
     "id": "ios-2026-10-11-preload-games",
     "date": "2026-10-11",
     "subject": "iPhone: Games get a head start",
