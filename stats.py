@@ -32,7 +32,6 @@ from email_content import (
     plain_text_fallback_from_html,
     image_mode_label,
     _normalize_image_mode,
-    _normalize_prompt_style,
     _try_generate_email_hero_image,
     RECAP_LENGTH_GUIDANCE,
     EMAIL_PLACEHOLDER,
@@ -2573,7 +2572,7 @@ def select_ai_prompt():
 @app.route('/select_ai_style/', methods=['POST'])
 @login_required
 def select_ai_style():
-    """Show writing style + illustration options after roster review."""
+    """Show the combined recap prompt and illustration options after roster review."""
     selected_game_ids = request.form.getlist('game_ids')
     game_type = request.form.get('game_type', 'doubles')
     if not selected_game_ids:
@@ -2591,17 +2590,13 @@ def _render_select_ai_prompt(
     game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
     illustration_players=None, error=None,
 ):
-    """Re-show the style picker with prior selections after a recoverable error."""
+    """Re-show the recap prompt with prior input after a recoverable error."""
     if error:
         flash(str(error), 'error')
-    style = _normalize_prompt_style(prompt_style) if prompt_style else ''
-    if style and style not in ('default', 'custom'):
-        style = 'default'
     return render_template(
         'select_prompt.html',
         game_ids=game_ids,
         game_type=game_type,
-        selected_prompt_style=style,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
         worker_alive=ai_jobs.daemon_is_alive(),

@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from flask import Flask, flash, redirect, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from bs4 import BeautifulSoup
+from jinja2 import ChoiceLoader, DictLoader
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +18,12 @@ class AISummaryNavigationTests(unittest.TestCase):
         self.app.secret_key = 'test'
         self.app.add_url_rule('/', endpoint='index', view_func=lambda: 'Stats')
         self.app.add_url_rule('/ai_summary/', endpoint='ai_summary', view_func=lambda: 'Select games')
+        self.app.add_url_rule('/select_ai_prompt/', endpoint='select_ai_prompt', view_func=lambda: 'Select players')
+        self.app.jinja_loader = ChoiceLoader([
+            DictLoader({'test_base.html': '{% block content %}{% endblock %}{% block extra_js %}{% endblock %}',
+                        'partials/page_header_actions.html': ''}),
+            self.app.jinja_loader,
+        ])
         self.jobs = SimpleNamespace(
             enqueue_job=Mock(return_value=42), daemon_is_alive=lambda: True,
             get_job=Mock(return_value=dict(id=42, username='Sam', status='pending')),
@@ -25,15 +33,50 @@ class AISummaryNavigationTests(unittest.TestCase):
             url_for=url_for, flash=flash, ai_jobs=self.jobs,
             login_required=lambda f: f, log_activity=Mock(),
             _normalize_image_mode=lambda mode: mode or 'none',
+            render_template=render_template,
             _can_access_job=lambda job: job['username'] == session.get('username'),
         )
         tree = ast.parse((ROOT / 'stats.py').read_text())
-        names = {'preview_ai_summary_with_prompt', 'inject_ai_summary_progress'}
+        names = {'preview_ai_summary_with_prompt', 'inject_ai_summary_progress', '_render_select_ai_prompt'}
         nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), self.ns)
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(username='Sam', logged_in=True)
+        self.app.context_processor(lambda: {'base_template': 'test_base.html'})
+
+    def test_single_prompt_form_submits_blank_and_combined_requests_to_worker(self):
+        for prompt in ('', 'Keep it funny. For the picture, use a green Martha’s net.'):
+            with self.subTest(prompt=prompt), self.app.test_request_context('/'):
+                page = self.ns['_render_select_ai_prompt']([1, 2], 'doubles', custom_prompt=prompt)
+                soup = BeautifulSoup(page, 'html.parser')
+                form = soup.select_one('#generate-form')
+                areas = form.select('textarea')
+                self.assertEqual(len(areas), 1)
+                self.assertEqual(areas[0]['name'], 'custom_prompt')
+                self.assertEqual(areas[0].text, prompt)
+                self.assertIn('For the picture', areas[0]['placeholder'])
+                self.assertFalse(areas[0].has_attr('required'))
+                self.assertFalse(any(button.has_attr('disabled') for button in form.select('button[type="submit"]')))
+                data = {'game_ids': ['1', '2'], 'game_type': 'doubles', 'image_mode': 'image',
+                        'prompt_style': form.select_one('[name="prompt_style"]')['value'],
+                        'custom_prompt': areas[0].text}
+                response = self.client.post(form['action'], data=data)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(self.jobs.enqueue_job.call_args.args[3:5], ('combined', prompt))
+                self.assertEqual(self.jobs.enqueue_job.call_args.kwargs['image_details'], '')
+
+    def test_recoverable_error_preserves_and_escapes_prompt_and_legacy_picture_details(self):
+        with self.app.test_request_context('/'):
+            page = self.ns['_render_select_ai_prompt'](
+                [1], 'doubles', prompt_style='custom', custom_prompt='Funny </textarea><script>bad()</script>',
+                image_details='A green net.', error='Try again.',
+            )
+        soup = BeautifulSoup(page, 'html.parser')
+        area = soup.select_one('#custom-prompt-text')
+        self.assertEqual(area.text, 'Funny </textarea><script>bad()</script>\n\nFor the picture: A green net.')
+        self.assertEqual(len(soup.select('textarea')), 1)
+        self.assertNotIn('<script>bad()</script>', page)
 
     def test_each_summary_mode_returns_home_with_pending_job(self):
         for mode in ('none', 'image', 'animation'):

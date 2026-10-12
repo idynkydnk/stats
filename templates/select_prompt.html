@@ -1,68 +1,7 @@
 {% extends base_template %}
-{% block title %}Select AI Style - Stats{% endblock %}
+{% block title %}Create AI Recap - Stats{% endblock %}
 {% block extra_css %}
 <style>
-.sr-prompt-card {
-            background: var(--sr-panel);
-            border: 2px solid var(--sr-line);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .sr-prompt-card:hover {
-            border-color: rgba(102, 217, 239, 0.3);
-            background: rgba(102, 217, 239, 0.05);
-        }
-        .sr-prompt-card.selected {
-            border-color: var(--sr-accent);
-            background: var(--sr-accent-dim);
-        }
-        .sr-prompt-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-        .sr-prompt-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-        }
-        .sr-prompt-icon.generated-1 { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-        .sr-prompt-icon.generated-2 { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
-        .sr-prompt-icon.brutal { background: rgba(249, 115, 22, 0.2); color: #f97316; }
-        .sr-prompt-icon.custom { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
-        .sr-prompt-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--sr-text);
-        }
-        .sr-prompt-subtitle {
-            font-size: 12px;
-            color: var(--sr-muted);
-        }
-        .sr-prompt-description {
-            font-size: 13px;
-            color: var(--sr-muted);
-            line-height: 1.5;
-        }
-        .sr-prompt-example {
-            margin-top: 12px;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            font-size: 12px;
-            color: var(--sr-text);
-            font-style: italic;
-            line-height: 1.5;
-            border-left: 3px solid var(--sr-accent);
-        }
         .sr-generate-btn {
             background: var(--sr-accent);
             border: none;
@@ -106,8 +45,7 @@
             color: var(--sr-text);
             margin-bottom: 6px;
         }
-        #custom-prompt-text,
-        #image-details-text {
+        #custom-prompt-text {
             box-sizing: border-box;
         }
         .sr-illustration-details textarea {
@@ -119,8 +57,12 @@
             color: var(--sr-text);
             font-size: 13px;
             font-family: inherit;
-            min-height: 72px;
+            min-height: 110px;
             resize: vertical;
+        }
+        .sr-illustration-details textarea::placeholder {
+            color: var(--sr-muted);
+            opacity: 1;
         }
         .sr-illustration-details p {
             margin: 6px 0 0;
@@ -213,59 +155,28 @@
                 <span>{{ game_ids|length }} game{{ 's' if game_ids|length != 1 else '' }} selected</span>
             </div>
 
-            <h2 class="sr-card-title">Select Writing Style</h2>
-            <p style="color: var(--sr-muted); font-size: 13px; margin-bottom: 20px;">Use a straightforward recap, or write your own style instructions</p>
-
-            <div id="prompt-options">
-                <div class="sr-prompt-card" data-prompt="default" onclick="selectPrompt('default')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon generated-1"><i class="fas fa-align-left"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">Standard Recap</div>
-                            <div class="sr-prompt-subtitle">The day’s story, with laughs</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">Explains the day’s turning points, partnerships, and surprises with specific jokes and friendly roasting.</div>
-                    <div class="sr-prompt-example">Game comments and player personality bring the story to life. Scores stay in the stats.</div>
-                </div>
-
-                <div class="sr-prompt-card" data-prompt="custom" onclick="selectPrompt('custom')">
-                    <div class="sr-prompt-header">
-                        <div class="sr-prompt-icon custom"><i class="fas fa-pen"></i></div>
-                        <div>
-                            <div class="sr-prompt-title">Custom Prompt</div>
-                            <div class="sr-prompt-subtitle">Write your own style</div>
-                        </div>
-                    </div>
-                    <div class="sr-prompt-description">Write your own custom instructions for the AI. Describe the tone, style, and personality you want.</div>
-                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Example: Keep it short and punchy, focus on upsets and funny comments..." onclick="event.stopPropagation(); selectPrompt('custom');" style="width: 100%; margin-top: 12px; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 13px; font-family: inherit; min-height: 100px; resize: vertical;">{{ custom_prompt_value|default('') }}</textarea>
-                </div>
-            </div>
-
             <form id="generate-form" method="POST" action="{{ url_for('preview_ai_summary_with_prompt') }}">
                 {% for gid in game_ids %}
                 <input type="hidden" name="game_ids" value="{{ gid }}">
                 {% endfor %}
                 <input type="hidden" name="game_type" value="{{ game_type }}">
-                <input type="hidden" name="prompt_style" id="selected-prompt" value="{{ selected_prompt_style|default('') }}">
-                <input type="hidden" name="custom_prompt" id="custom-prompt-hidden" value="{{ custom_prompt_value|default('') }}">
+                <input type="hidden" name="prompt_style" value="combined">
                 <input type="hidden" name="image_mode" id="image-mode" value="">
-                <input type="hidden" name="image_details" id="image-details-hidden" value="{{ image_details_value|default('') }}">
-                
+                <div class="sr-illustration-details">
+                    <label for="custom-prompt-text">Recap and picture prompt (optional)</label>
+                    <textarea id="custom-prompt-text" name="custom_prompt" placeholder="Tell us how the games went and what stood out—close calls, funny moments, or big wins. For the picture, describe where you played, what people looked like, and the surroundings.">{{ custom_prompt_value|default('') }}{% if image_details_value|default('') %}{{ '\n\n' if custom_prompt_value|default('') else '' }}For the picture: {{ image_details_value }}{% endif %}</textarea>
+                    <p>Describe the recap and picture you want. Leave blank for a funny recap and a group picture if you choose one. Picture details apply only to the illustration.</p>
+                </div>
+
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
                     <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses each player's saved AI character when they have one; otherwise face photos and/or signature looks. Players with none of those are skipped.{% if worker_alive %} Illustration can take about 5 minutes — you can leave after you tap generate; it keeps running in the background.{% else %} Illustration can take about 5 minutes — stay on this page until it finishes.{% endif %}</p>
-                    <div class="sr-illustration-details">
-                        <label for="image-details-text">Extra illustration details (optional)</label>
-                        <textarea id="image-details-text" placeholder="Example: sunset beach background, everyone celebrating at the net, include a volleyball mid-spike...">{{ image_details_value|default('') }}</textarea>
-                        <p>Only used when you choose <strong>With illustration</strong>.</p>
-                    </div>
                     <div class="sr-illustration-options">
-                        <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" disabled onclick="setImageMode('none')">
+                        <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>
                             <span>Fastest — summary only</span>
                         </button>
-                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" disabled onclick="setImageMode('image')">
+                        <button type="submit" class="sr-generate-btn sr-illustration-btn" id="generate-btn-image" onclick="setImageMode('image')">
                             <strong><i class="fas fa-image"></i> With illustration</strong>
                             <span>{% if worker_alive %}About 5 minutes — you can leave{% else %}About 5 minutes — stay on page{% endif %}</span>
                         </button>
@@ -289,7 +200,6 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-let selectedPrompt = null;
 
         var workerAlive = {{ worker_alive|default(false)|tojson }};
         var loadingCopy = workerAlive ? {
@@ -323,20 +233,6 @@ let selectedPrompt = null;
             });
         }
 
-        function syncCustomPrompt() {
-            var customText = document.getElementById('custom-prompt-text');
-            if (customText) {
-                document.getElementById('custom-prompt-hidden').value = customText.value;
-            }
-        }
-
-        function syncImageDetails() {
-            var detailsText = document.getElementById('image-details-text');
-            if (detailsText) {
-                document.getElementById('image-details-hidden').value = detailsText.value;
-            }
-        }
-
         function showGenerateLoading(mode) {
             var copy = loadingCopy[mode] || loadingCopy.none;
             if (window.showAiGenerateLoading) {
@@ -348,26 +244,6 @@ let selectedPrompt = null;
             }
         }
 
-        function hideGenerateLoading() {
-            var loading = document.getElementById('ai-generate-loading');
-            if (loading) loading.classList.remove('show');
-        }
-
-        function selectPrompt(promptId) {
-            document.querySelectorAll('.sr-prompt-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            
-            const card = document.querySelector(`.sr-prompt-card[data-prompt="${promptId}"]`);
-            if (card) {
-                card.classList.add('selected');
-            }
-            
-            selectedPrompt = promptId;
-            document.getElementById('selected-prompt').value = promptId;
-            setGenerateButtonsEnabled(true);
-        }
-
         document.getElementById('generate-form').addEventListener('submit', function(event) {
             var form = document.getElementById('generate-form');
             if (form.dataset.submitting === '1') {
@@ -376,35 +252,6 @@ let selectedPrompt = null;
             }
             // Stop the native submit so mobile can paint the loading dialog first.
             event.preventDefault();
-            syncCustomPrompt();
-            syncImageDetails();
-
-            if (selectedPrompt === 'custom') {
-                var customText = (document.getElementById('custom-prompt-text').value || '').trim();
-                if (!customText) {
-                    setGenerateButtonsEnabled(true);
-                    hideGenerateLoading();
-                    var existing = document.getElementById('select-prompt-client-error');
-                    if (existing) existing.remove();
-                    var flash = document.createElement('div');
-                    flash.id = 'select-prompt-client-error';
-                    flash.className = 'sr-flash';
-                    flash.style.cssText = 'margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);';
-                    flash.textContent = 'Custom prompt is empty. Enter your style instructions first.';
-                    var container = document.querySelector('.sr-container');
-                    var card = document.querySelector('.sr-card');
-                    if (container && card) {
-                        container.insertBefore(flash, card);
-                    }
-                    var customArea = document.getElementById('custom-prompt-text');
-                    if (customArea) {
-                        customArea.focus();
-                        customArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                    return;
-                }
-            }
-
             var mode = document.getElementById('image-mode').value || 'none';
             setGenerateButtonsEnabled(false);
             showGenerateLoading(mode);
@@ -421,6 +268,5 @@ let selectedPrompt = null;
             }
         });
 
-        selectPrompt({{ (selected_prompt_style or 'default')|tojson }});
 </script>
 {% endblock %}

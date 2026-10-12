@@ -1,4 +1,5 @@
 import ast
+import json
 from pathlib import Path
 import sqlite3
 import unittest
@@ -8,9 +9,12 @@ from flask import Flask, jsonify, request, session
 
 from email_content import (
     RECAP_LENGTH_GUIDANCE,
+    DEFAULT_RECAP_STYLE_INSTRUCTIONS,
     _build_recap_style_instructions,
+    _resolve_recap_instructions,
     build_doubles_email_payload,
     build_other_email_payload,
+    build_vollis_email_payload,
 )
 
 
@@ -33,6 +37,9 @@ class RecapCommentTests(unittest.TestCase):
             game_type TEXT, game_name TEXT, winner1 TEXT, winner_score INTEGER,
             loser1 TEXT, loser_score INTEGER, updated_at TEXT, comment TEXT)''')
         self.conn.execute('CREATE TABLE players (email TEXT, notes TEXT)')
+        self.conn.execute('''CREATE TABLE vollis_games (id INTEGER PRIMARY KEY, game_date TEXT,
+            winner TEXT, winner_score INTEGER, loser TEXT, loser_score INTEGER, updated_at TEXT)''')
+        self.conn.execute("INSERT INTO vollis_games VALUES (1, '2026-10-11 12:00:00', 'Alex', 11, 'Sam', 9, '2026-10-11 12:00:00')")
         self.comments = [f'Game {i}: a memorable play.' for i in range(1, 66)]
         self.comments[0] += '\n' + 'Long comment with café and "a quote". ' * 200 + '\nThe ending.'
         self.comments[1] = self.comments[2] = 'Same comment on two different games.'
@@ -58,6 +65,8 @@ class RecapCommentTests(unittest.TestCase):
             patch('email_content.create_doubles_email_plain_text', return_value=''),
             patch('email_content.create_other_email_html', return_value=''),
             patch('email_content.create_other_email_plain_text', return_value=''),
+            patch('email_content.create_vollis_email_html', return_value=''),
+            patch('email_content.create_vollis_email_plain_text', return_value=''),
         ):
             replacement.start()
             self.addCleanup(replacement.stop)
@@ -93,6 +102,52 @@ class RecapCommentTests(unittest.TestCase):
         custom = 'Describe the comebacks and every funny story.'
         style = _build_recap_style_instructions('custom', '', custom + '\n' + LEGACY_LIMIT)
         self.assertEqual(style, custom)
+
+    def test_combined_prompt_routes_picture_details_away_from_summary_for_all_game_types(self):
+        picture = 'Show everyone celebrating at a green Martha’s volleyball net.'
+        writing = 'Keep the recap short and funny.'
+        for builder in (build_doubles_email_payload, build_vollis_email_payload, build_other_email_payload):
+            for mode in ('none', 'image'):
+                with self.subTest(builder=builder.__name__, mode=mode):
+                    self.ai.reset_mock()
+                    self.ai.side_effect = [json.dumps({'summary': writing, 'image': picture}),
+                                           'HEADLINE: A close day\nSUMMARY: A funny recap.']
+                    payload = builder([1], prompt_style='combined',
+                                      custom_prompt=writing + ' For the picture, ' + picture,
+                                      image_mode=mode)
+                    self.assertEqual(self.ai.call_count, 2)
+                    self.assertIn(picture, self.ai.call_args_list[0].args[0])
+                    summary_prompt = self.ai.call_args_list[1].args[0]
+                    self.assertIn(writing, summary_prompt)
+                    self.assertNotIn(picture, summary_prompt)
+                    self.assertNotIn('Martha', summary_prompt)
+                    self.assertEqual(payload['style_instructions'], writing)
+                    self.assertEqual(payload['image_details'], picture)
+                    self.assertEqual(self.image.call_args.kwargs['image_details'], picture)
+                    self.assertEqual(self.image.call_args.kwargs['image_mode'], mode)
+
+    def test_empty_combined_prompt_uses_defaults_without_routing_call(self):
+        payload = build_doubles_email_payload([1], prompt_style='combined', custom_prompt='  ')
+        self.ai.assert_called_once()
+        self.assertEqual(payload['style_instructions'], DEFAULT_RECAP_STYLE_INSTRUCTIONS)
+        self.assertEqual(payload['image_details'], '')
+
+    def test_picture_only_prompt_uses_standard_recap_and_accepts_fenced_json(self):
+        self.ai.return_value = '```json\n{"summary": "", "image": "Use a green net."}\n```'
+        style, image = _resolve_recap_instructions('combined', '', 'Use a green net.')
+        self.assertEqual(style, DEFAULT_RECAP_STYLE_INSTRUCTIONS)
+        self.assertEqual(image, 'Use a green net.')
+
+    def test_invalid_routing_result_stops_before_writing_summary_or_picture(self):
+        for result in ('not JSON', '[]', '{"summary": null, "image": "net"}',
+                       '{"summary": "funny"}'):
+            with self.subTest(result=result):
+                self.ai.reset_mock()
+                self.ai.return_value = result
+                with self.assertRaisesRegex(ValueError, 'Could not separate'):
+                    build_doubles_email_payload([1], prompt_style='combined', custom_prompt='Use a green net.')
+                self.ai.assert_called_once()
+                self.image.assert_not_called()
 
 
 class DailySummaryCommentTests(unittest.TestCase):
