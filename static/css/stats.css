@@ -1806,18 +1806,18 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 /* At the smallest phone width, give the name its own line. All numeric
    columns remain together, with their original headers and sorting. */
 @media (max-width: 359px) {
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) { --sr-stat-count: 3; }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]):has(th[data-sort="rating"]),
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 4; }
-    .sr-table:not(.sr-today-table):has(th[data-sort="rating"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 5; }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]),
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) :is(thead, tbody) { display: block; }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) tr {
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) { --sr-stat-count: 3; }
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]):has(th[data-sort="rating"]),
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 4; }
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-sort="rating"]):has(th[data-sort="plusminus"]) { --sr-stat-count: 5; }
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]),
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) :is(thead, tbody) { display: block; }
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) tr {
         display: grid;
         grid-template-columns: repeat(var(--sr-stat-count), minmax(0, 1fr));
         border-bottom: 1px solid var(--sr-line);
     }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) :is(th, td) {
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) :is(th, td) {
         width: auto;
         min-width: 0;
         grid-row: 2;
@@ -1825,19 +1825,19 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         padding-top: 8px;
         padding-bottom: 8px;
     }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) :is(th, td):first-child {
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) :is(th, td):first-child {
         grid-row: 1;
         grid-column: 1;
         width: 24px;
         z-index: 1;
     }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) :is(th, td):nth-child(2) {
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) :is(th, td):nth-child(2) {
         grid-row: 1;
         grid-column: 1 / -1;
         padding-left: 30px;
         text-align: left;
     }
-    .sr-table:not(.sr-today-table):has(th[data-column="player"]) th[data-sort] { width: auto; }
+    .sr-table:not(.sr-today-table):not(.sr-standings-table):has(th[data-column="player"]) th[data-sort] { width: auto; }
 }
 @media (max-width: 768px) {
     .sr-table:has(th[data-column="player"]) tbody tr:nth-child(n) td:nth-child(-n+2) { background: transparent; }
@@ -1848,21 +1848,40 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
 .sr-navigation-status[hidden] { display: none; }
 .sr-page button:active, .sr-page a:active { opacity: .72; }
 
-/* Today's essentials occupy the viewport; secondary stats follow to the right. */
+/* Keep standings numbers compact instead of distributing spare width to them. */
+.sr-table:is(.sr-today-table, .sr-standings-table) :is(th, td):nth-child(n+3) {
+    width: 1%;
+    white-space: nowrap;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+/* Core stats occupy the phone viewport; additional totals follow to the right. */
 @media (max-width: 768px) {
     .sr-table.sr-today-table {
         display: block;
-        width: calc(100% + 142px);
+        width: calc(100% + 96px);
     }
-    .sr-table.sr-today-table :is(thead, tbody) { display: block; }
+    .sr-table.sr-standings-table {
+        display: block;
+        width: calc(100% + 50px);
+    }
+    .sr-table:is(.sr-today-table, .sr-standings-table) :is(thead, tbody) { display: block; }
     .sr-table.sr-today-table tr {
         display: grid;
-        grid-template-columns: 24px minmax(0, 1fr) 42px 42px 54px 58px 84px;
+        grid-template-columns: 24px minmax(0, 1fr) 32px 32px 44px 46px 50px;
     }
     .sr-table.sr-today-table:has(th[data-sort="rating"]) tr {
-        grid-template-columns: 24px minmax(0, 1fr) 58px 42px 42px 54px 58px 84px;
+        grid-template-columns: 24px minmax(0, 1fr) 52px 32px 32px 44px 46px 50px;
     }
-    .sr-table.sr-today-table:has(th[data-column="player"]) :is(th, td):nth-child(n) {
+    .sr-table.sr-standings-table tr {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr) 36px 36px 46px 50px;
+    }
+    .sr-table.sr-standings-table:has(th[data-sort="rating"]) tr {
+        grid-template-columns: 24px minmax(0, 1fr) 66px 36px 36px 46px 50px;
+    }
+    .sr-table:is(.sr-today-table, .sr-standings-table):has(th[data-column="player"]) :is(th, td):nth-child(n) {
         width: auto;
         min-width: 0;
         max-width: none;
@@ -1872,5 +1891,9 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
         padding-right: 3px;
         box-shadow: none;
         align-content: center;
+    }
+    .sr-table.sr-standings-table:has(th[data-column="player"]) th:has(.sr-rating-header) {
+        padding-left: 0;
+        padding-right: 0;
     }
 }

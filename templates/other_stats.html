@@ -162,7 +162,7 @@
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="games" class="sr-numeric">Total games <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody id="today-stats-tbody-{{ loop.index }}">
@@ -261,7 +261,7 @@
                 {% endif %}
                 {{ game_rating.note(card) }}
             <div class="sr-table-wrap">
-                    <table class="sr-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc">
+                    <table class="sr-table sr-standings-table" data-default-sort="{{ 'rating' if card.rating_sort else 'winpct' }}" data-default-dir="desc">
                         <thead>
                             <tr>
                                 <th class="sr-numeric">#</th>
@@ -270,6 +270,7 @@
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody id="game-card-tbody-{{ loop.index }}">
@@ -285,6 +286,7 @@
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ stat[1] + stat[2] }}">{{ stat[1] + stat[2] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
