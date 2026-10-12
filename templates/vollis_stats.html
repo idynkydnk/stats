@@ -78,15 +78,16 @@
                     <span style="font-size: 12px; color: var(--sr-muted);">{{ today_games|length }} game{{ 's' if today_games|length != 1 else '' }}</span>
                 </div>
                 <div class="sr-table-wrap">
-                    <table class="sr-table" data-default-sort="winpct" data-default-dir="desc">
+                    <table class="sr-table sr-today-table" data-default-sort="winpct" data-default-dir="desc">
                         <thead>
                             <tr>
                                 <th class="sr-numeric">#</th>
                                 <th data-column="player">Player</th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Total games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody id="today-stats-tbody">
@@ -96,10 +97,11 @@
                                 <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
                                 <td class="sr-numeric" data-value="{{ player[4] }}" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
                                     {% if player[4] > 0 %}+{% endif %}{{ player[4] }}
                                 </td>
+                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

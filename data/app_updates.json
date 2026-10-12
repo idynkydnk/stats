@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-11-today-point-difference",
+    "date": "2026-10-11",
+    "subject": "iPhone: Today’s point difference stays visible",
+    "body": "Today’s stats keep +/− visible without swiping sideways. Scroll across the table to see win percentage and each player’s total games."
+  },
+  {
     "id": "ios-2026-10-11-remove-floating-older-games-button",
     "date": "2026-10-11",
     "subject": "iPhone: Clearer games page",

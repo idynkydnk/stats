@@ -100,7 +100,7 @@
                     <p>Daily ratings combine wins and losses (80%) with the share of points scored in each game (20%). A small-sample adjustment keeps a short appearance from counting as strongly as a full session. Ratings run from 0 to 100, use only today's games, and do not depend on game order.</p>
                 </details>
                 <div class="sr-table-wrap">
-                    <table class="sr-table" data-default-sort="rating" data-default-dir="desc">
+                    <table class="sr-table sr-today-table" data-default-sort="rating" data-default-dir="desc">
                         <thead>
                             <tr>
                                 <th class="sr-numeric">#</th>
@@ -108,8 +108,9 @@
                                 <th data-sort="rating" class="sr-numeric">Rating <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="games" class="sr-numeric">Total games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody id="today-stats-tbody">
@@ -120,10 +121,11 @@
                                 <td class="sr-numeric sr-rating" data-value="{{ player[5] if player[5] is not none else '' }}">{{ "%.2f"|format(player[5]) if player[5] is not none else "—" }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
-                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
                                 <td class="sr-numeric" data-value="{{ player[4] }}" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
                                     {% if player[4] > 0 %}+{% endif %}{{ player[4] }}
                                 </td>
+                                <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
+                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
