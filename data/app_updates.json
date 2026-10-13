@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-13-no-jump-winner-focus",
+    "date": "2026-10-13",
+    "subject": "iPhone: Start No jump games with Winner 1",
+    "body": "Choosing No jump or another game with a known game type goes straight to Winner 1 and opens the player suggestions."
+  },
+  {
     "id": "ios-2026-10-12-recap-prompt-weather",
     "date": "2026-10-12",
     "subject": "iPhone: One prompt for recaps and pictures",
