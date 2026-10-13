@@ -63,6 +63,36 @@ class VisualChecklistTests(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaisesRegex(ValueError, 'Could not extract'):
                 extract_visual_checklist(SOURCE, Mock(return_value=raw))
 
+    def test_quotes_allow_smart_punctuation_and_transcript_whitespace(self):
+        source = 'Put the sun inside Evan’s eyes.\n\nHis sign says “hello”.'
+        ai = Mock(return_value=json.dumps({'items': [{
+            'detail': 'Sun in eyes and a hello sign.',
+            'source_quote': 'Put the sun inside Evan\'s eyes. His sign says "hello".',
+        }]}))
+        self.assertEqual(extract_visual_checklist(source, ai), ['Sun in eyes and a hello sign.'])
+        ai.assert_called_once()
+
+    def test_invalid_response_retries_once_with_full_source(self):
+        valid = json.dumps({'items': [{'detail': DETAILS[0],
+                                     'source_quote': "Put the sun inside Evan's eyes."}]})
+        for invalid in ('not json', json.dumps({'items': [{
+                'detail': 'Add a dragon', 'source_quote': 'dragon'}]})):
+            with self.subTest(invalid=invalid):
+                ai = Mock(side_effect=[invalid, valid])
+                self.assertEqual(extract_visual_checklist(SOURCE, ai), [DETAILS[0]])
+                self.assertEqual(ai.call_count, 2)
+                self.assertIn(json.dumps(SOURCE), ai.call_args.args[0])
+        ai = Mock(return_value='not json')
+        with self.assertRaisesRegex(ValueError, 'Could not extract'):
+            extract_visual_checklist(SOURCE, ai)
+        self.assertEqual(ai.call_count, 2)
+
+    def test_provider_error_does_not_trigger_format_retry(self):
+        ai = Mock(side_effect=ValueError('Provider unavailable'))
+        with self.assertRaisesRegex(ValueError, 'Provider unavailable'):
+            extract_visual_checklist(SOURCE, ai)
+        ai.assert_called_once()
+
     def test_remakes_replace_priority_block_and_retain_scene(self):
         scene = 'Player names, stats, character references and weather.'
         first = prioritize_visual_checklist(scene, DETAILS)
@@ -129,6 +159,40 @@ class VisualChecklistTests(unittest.TestCase):
 
 
 class RecapVisualIntegrationTests(unittest.TestCase):
+    def test_failed_extraction_still_generates_picture_with_complete_safe_source(self):
+        for custom in (None, 'Remove honey. Keep the sun inside Evan\'s eyes.'):
+            for response in ('not json', ValueError('Provider unavailable')):
+                with (
+                    self.subTest(custom=custom, response=response),
+                    patch('email_content.filter_illustratable_players', return_value=['Evan']),
+                    patch('email_content._players_in_session_rank_order', return_value=['Evan']),
+                    patch('email_content._image_labels_for_players', return_value={}),
+                    patch('email_content._recap_name_replacer', return_value=lambda s: (s or '').replace('Evan', 'Ace')),
+                    patch('email_content._reference_parts_from_uploaded_photos', return_value=([], ['Evan'])),
+                    patch('email_content.generate_ai_text', side_effect=response if isinstance(response, Exception) else None,
+                          return_value=response) as text,
+                    patch('recap_visuals.check_and_correct_picture', wraps=check_and_correct_picture) as audit,
+                    patch('email_content._generate_image_bytes', return_value=(b'picture', 'image/png')) as generate,
+                    patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'picture', 'image/png')),
+                    patch('email_content._save_email_image', return_value=('url', 'path')) as save,
+                    self.assertLogs(level='WARNING'),
+                ):
+                    result = generate_email_hero_image(
+                        'key', 'doubles', [], ['Evan'], image_details='Sunny beach.',
+                        visual_source=SOURCE, custom_scene_prompt=custom,
+                    )
+                    self.assertEqual(result[:2], ('url', 'path'))
+                    generate.assert_called_once()
+                    prompt = generate.call_args.args[0]
+                    expected_source = json.dumps((custom or SOURCE).replace('Evan', 'Ace'))
+                    self.assertIn(expected_source, prompt)
+                    self.assertIn(expected_source, result[2])
+                    self.assertIn(expected_source, result[4])
+                    self.assertNotIn('Evan', prompt)
+                    self.assertEqual(audit.call_args.args[2], [])
+                    self.assertEqual(text.call_count, 1 if isinstance(response, Exception) else 2)
+                    save.assert_called_once_with(b'picture', 'png')
+
     def test_full_source_survives_lossy_routing_and_saved_prompt_contains_checklist(self):
         for custom in (None, 'Remove honey. Keep the sun effect.'):
             with (
