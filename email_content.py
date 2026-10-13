@@ -118,9 +118,18 @@ def ai_api_key_error_message():
     )
 
 
-def _generate_ai_text_openai(prompt, api_key):
+def _generate_ai_text_openai(prompt, api_key, image_bytes=None, image_mime='image/png'):
     import requests
 
+    content = prompt
+    if image_bytes is not None:
+        content = [
+            {'type': 'text', 'text': prompt},
+            {'type': 'image_url', 'image_url': {
+                'url': f'data:{image_mime};base64,' + base64.b64encode(image_bytes).decode('ascii'),
+                'detail': 'high',
+            }},
+        ]
     resp = requests.post(
         'https://api.openai.com/v1/chat/completions',
         headers={
@@ -129,7 +138,7 @@ def _generate_ai_text_openai(prompt, api_key):
         },
         json={
             'model': OPENAI_TEXT_MODEL,
-            'messages': [{'role': 'user', 'content': prompt}],
+            'messages': [{'role': 'user', 'content': content}],
         },
         timeout=120,
     )
@@ -146,7 +155,7 @@ def _generate_ai_text_openai(prompt, api_key):
     return text
 
 
-def _generate_ai_text_gemini(prompt, api_key):
+def _generate_ai_text_gemini(prompt, api_key, image_bytes=None, image_mime='image/png'):
     import google.generativeai as genai
 
     genai.configure(api_key=api_key)
@@ -154,7 +163,10 @@ def _generate_ai_text_gemini(prompt, api_key):
     for model_name in GEMINI_MODELS:
         try:
             model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
+            content = prompt if image_bytes is None else [
+                prompt, {'mime_type': image_mime, 'data': image_bytes},
+            ]
+            response = model.generate_content(content)
             try:
                 text = (response.text or '') if hasattr(response, 'text') else ''
             except Exception:
@@ -168,17 +180,18 @@ def _generate_ai_text_gemini(prompt, api_key):
     raise ValueError(f'AI summary generation failed on all Gemini models: {" | ".join(errors)}')
 
 
-def generate_ai_text(prompt):
+def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
     """Generate text with the active AI provider (OpenAI preferred, else Gemini).
 
     Returns the generated text (stripped). Raises ValueError if no key is
     configured or every model fails.
     """
     provider = active_ai_provider()
+    image_args = {} if image_bytes is None else {'image_bytes': image_bytes, 'image_mime': image_mime}
     if provider == 'openai':
-        return _generate_ai_text_openai(prompt, require_ai_api_key())
+        return _generate_ai_text_openai(prompt, require_ai_api_key(), **image_args)
     if provider == 'gemini':
-        return _generate_ai_text_gemini(prompt, require_ai_api_key())
+        return _generate_ai_text_gemini(prompt, require_ai_api_key(), **image_args)
     raise ValueError(ai_api_key_error_message())
 
 
@@ -2333,7 +2346,7 @@ def _openai_image_from_responses_payload(data):
 
 
 def _generate_image_bytes_openai_responses(
-    prompt, api_key, reference_parts, size, timeout,
+    prompt, api_key, reference_parts, size, timeout, edit=False,
 ):
     """Match ChatGPT: language model binds identities, then gpt-image-2 draws."""
     import requests
@@ -2346,7 +2359,7 @@ def _generate_image_bytes_openai_responses(
         'model': OPENAI_IMAGE_MODEL,
         'quality': OPENAI_IMAGE_QUALITY,
         'size': size,
-        'action': 'generate',
+        'action': 'edit' if edit else 'generate',
     }
     payload = {
         'model': OPENAI_RESPONSES_MODEL,
@@ -2366,7 +2379,7 @@ def _generate_image_bytes_openai_responses(
     )
     if resp.status_code >= 400:
         detail = _rest_error_detail(resp)
-        if resp.status_code == 400:
+        if resp.status_code == 400 and not edit:
             payload['tools'] = [{
                 'type': 'image_generation',
                 'quality': OPENAI_IMAGE_QUALITY,
@@ -2385,7 +2398,7 @@ def _generate_image_bytes_openai_responses(
 
 
 def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_ratio=None,
-                                 output_size=None):
+                                 output_size=None, edit=False):
     """One OpenAI image call.
 
     Reference photos use the Responses API (chat model sees the picture, then
@@ -2402,6 +2415,9 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     timeout = int(os.environ.get('OPENAI_IMAGE_TIMEOUT', '300') or '300')
     max_attempts = int(os.environ.get('OPENAI_IMAGE_RETRIES', '3') or '3')
     max_attempts = max(1, min(max_attempts, 5))
+    if edit:
+        # A correction is one attempt, including transport failures/timeouts.
+        max_attempts = 1
 
     last_error = None
     use_responses = len(images) >= 1
@@ -2411,8 +2427,11 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                 try:
                     return _generate_image_bytes_openai_responses(
                         prompt, api_key, reference_parts, size, timeout,
+                        **({'edit': True} if edit else {}),
                     )
                 except Exception as e:
+                    if edit:
+                        raise
                     last_error = e
                     use_responses = False
                     try:
@@ -2542,7 +2561,7 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
 
 
 def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None,
-                          add_body_side_convention=True, output_size=None):
+                          add_body_side_convention=True, output_size=None, edit=False):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
     if add_body_side_convention:
         prompt = _append_body_side_convention(prompt)
@@ -2553,6 +2572,7 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=No
         return _generate_image_bytes_openai(
             prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
             **({'output_size': output_size} if output_size else {}),
+            **({'edit': True} if edit else {}),
         )
     if provider == 'gemini':
         key = (api_key or os.environ.get('GEMINI_API_KEY') or '').strip()
@@ -3967,6 +3987,7 @@ def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
     selected_players=None, player_stats=None, location='', animation=False, weather_games=None,
+    visual_source=None,
 ):
     """Generate one group hero image from saved AI characters and/or face photos.
 
@@ -4022,6 +4043,16 @@ def generate_email_hero_image(
          for key, value in part.items()}
         for part in scene_refs
     ]
+    from recap_visuals import (
+        extract_visual_checklist, prioritize_visual_checklist, check_and_correct_picture,
+    )
+    # The full creation request bypasses the potentially lossy summary/image split.
+    # A manually edited scene is authoritative on remakes. Older callers still work.
+    source = custom_scene_prompt if (custom_scene_prompt or '').strip() else (
+        visual_source if visual_source is not None else image_details
+    )
+    checklist = extract_visual_checklist(safe_names(source), generate_ai_text)
+    scene_prompt = prioritize_visual_checklist(scene_prompt, checklist)
     api_prompt = scene_prompt
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt, add_body_side_convention=False)
     try:
@@ -4062,6 +4093,17 @@ def generate_email_hero_image(
         ) from e
     if not animation:
         raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
+        def edit_picture(correction_prompt, base_parts):
+            corrected, corrected_mime = _generate_image_bytes(
+                correction_prompt, api_key, reference_parts=base_parts,
+                aspect_ratio='4:5', add_body_side_convention=False, edit=True,
+            )
+            return _normalize_image_bytes_to_aspect(corrected, ratio_w=4, ratio_h=5)
+
+        raw, mime, visual_audit = check_and_correct_picture(
+            raw, mime, checklist, scene_prompt, generate_ai_text, edit_picture,
+        )
+        image_prompt += visual_audit
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt, [], scene_prompt
 
@@ -4070,6 +4112,7 @@ def _try_generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_mode='none',
     image_details='', existing_solo_images=None, reuse_existing_solos=False,
     custom_scene_prompt=None, selected_players=None, player_stats=None, location='', weather_games=None,
+    visual_source=None,
 ):
     mode = _normalize_image_mode(image_mode)
     if mode == 'none':
@@ -4089,6 +4132,7 @@ def _try_generate_email_hero_image(
             player_stats=player_stats,
             location=location,
             weather_games=weather_games,
+            visual_source=visual_source,
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
@@ -4807,6 +4851,10 @@ def build_doubles_email_payload(
 
     safe_names = _recap_name_replacer([stat[0] for stat in stats])
     context = safe_names(context)
+    visual_source = safe_names('\n\n'.join(part for part in (
+        custom_prompt if _normalize_prompt_style(prompt_style) == 'combined' else '',
+        image_details,
+    ) if part))
     style_instructions, image_details = _resolve_recap_instructions(
         prompt_style, context, safe_names(custom_prompt), safe_names(image_details),
     )
@@ -4855,6 +4903,7 @@ def build_doubles_email_payload(
         _try_generate_email_hero_image(
             api_key, 'doubles', games, players_set, image_mode=image_mode,
             image_details=image_details,
+            visual_source=visual_source,
             selected_players=illustration_players,
             player_stats=stats,
             location=summary_location,
@@ -5317,6 +5366,10 @@ def build_vollis_email_payload(
 
     safe_names = _recap_name_replacer([stat[0] for stat in stats])
     context = safe_names(context)
+    visual_source = safe_names('\n\n'.join(part for part in (
+        custom_prompt if _normalize_prompt_style(prompt_style) == 'combined' else '',
+        image_details,
+    ) if part))
     style_instructions, image_details = _resolve_recap_instructions(
         prompt_style, context, safe_names(custom_prompt), safe_names(image_details),
     )
@@ -5365,6 +5418,7 @@ def build_vollis_email_payload(
         _try_generate_email_hero_image(
             api_key, 'vollis', games, players_set, image_mode=image_mode,
             image_details=image_details,
+            visual_source=visual_source,
             selected_players=illustration_players,
             player_stats=stats,
             location=summary_location,
@@ -5497,6 +5551,10 @@ def build_other_email_payload(
 
     safe_names = _recap_name_replacer([stat[0] for stat in stats])
     context = safe_names(context)
+    visual_source = safe_names('\n\n'.join(part for part in (
+        custom_prompt if _normalize_prompt_style(prompt_style) == 'combined' else '',
+        image_details,
+    ) if part))
     style_instructions, image_details = _resolve_recap_instructions(
         prompt_style, context, safe_names(custom_prompt), safe_names(image_details),
     )
@@ -5555,6 +5613,7 @@ def build_other_email_payload(
             api_key, 'other', games, players_set, game_name=game_name_label,
             image_mode=image_mode,
             image_details=image_details,
+            visual_source=visual_source,
             selected_players=illustration_players,
             player_stats=stats,
             location=summary_location,

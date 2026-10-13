@@ -104,6 +104,7 @@ class RecapWeatherTests(unittest.TestCase):
                 patch('email_content._reference_parts_from_uploaded_photos', return_value=(
                     [{'text': 'Alex Smith: Ace', 'image_name': 'Alex Smith'}], ['Alex Smith'])),
                 patch('recap_weather.recap_weather_context', return_value='Overcast, 100% clouds.') as lookup,
+                patch('recap_visuals.extract_visual_checklist', return_value=[]),
                 patch('email_content._generate_image_bytes', return_value=(b'img', 'image/png')) as generate,
                 patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'img', 'image/png')),
                 patch('email_content._save_email_image', return_value=('url', 'path')),

@@ -97,6 +97,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                       side_effect=lambda name: references[name]),
                 patch('email_content._build_labeled_identity_sheet',
                       return_value=(b'full contact sheet', ['Kevin', 'Jordan'])),
+                patch('recap_visuals.extract_visual_checklist', return_value=[]),
                 patch('email_content._generate_image_bytes',
                       return_value=(b'result', 'image/png')) as generate,
                 patch('email_content._normalize_image_bytes_to_aspect',

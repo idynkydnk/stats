@@ -122,6 +122,7 @@ class GameLocationTests(unittest.TestCase):
                 patch('player_functions.get_player_nickname', return_value=''),
                 patch('email_content._image_labels_for_players', return_value={'Alex': 'Alex'}),
                 patch('email_content._reference_parts_from_uploaded_photos', return_value=([], ['Alex'])),
+                patch('recap_visuals.extract_visual_checklist', return_value=[]),
                 patch('email_content._generate_image_bytes', return_value=(b'image', 'image/png')) as generate,
                 patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'image', 'image/png')),
                 patch('email_content._save_email_image', return_value=('url', 'path')),

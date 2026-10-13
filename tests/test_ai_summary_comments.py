@@ -125,7 +125,23 @@ class RecapCommentTests(unittest.TestCase):
                     self.assertEqual(payload['style_instructions'], writing)
                     self.assertEqual(payload['image_details'], picture)
                     self.assertEqual(self.image.call_args.kwargs['image_details'], picture)
+                    self.assertEqual(self.image.call_args.kwargs['visual_source'],
+                                     writing + ' For the picture, ' + picture)
                     self.assertEqual(self.image.call_args.kwargs['image_mode'], mode)
+
+    def test_full_long_request_reaches_picture_even_when_router_omits_visuals(self):
+        transcript = ('Talk about our games. ' * 150
+                      + "Put literal suns inside Sam's eyes. Cover Alex in honey. "
+                      + 'A sand monster is stealing two colorful volleyballs.')
+        for builder in (build_doubles_email_payload, build_vollis_email_payload, build_other_email_payload):
+            with self.subTest(builder=builder.__name__):
+                self.ai.side_effect = [json.dumps({'summary': 'Funny recap.', 'image': 'Beach scene.'}),
+                                       'HEADLINE: Close games\nSUMMARY: A funny recap.']
+                builder([1], prompt_style='combined', custom_prompt=transcript,
+                        image_details='Keep the sign readable.', image_mode='image')
+                source = self.image.call_args.kwargs['visual_source']
+                self.assertIn(transcript, source)
+                self.assertTrue(source.endswith('Keep the sign readable.'))
 
     def test_empty_combined_prompt_uses_defaults_without_routing_call(self):
         payload = build_doubles_email_payload([1], prompt_style='combined', custom_prompt='  ')
@@ -173,6 +189,8 @@ class RecapCommentTests(unittest.TestCase):
                     self.assertEqual(payload['summary'], 'Big Alex beat Sam.')
                     self.assertEqual(payload['subject'], 'Big Alex wins')
                     self.assertEqual(self.image.call_args.kwargs['image_details'], 'Draw Big Alex and Sam.')
+                    self.assertNotIn('Alex Smith', self.image.call_args.kwargs['visual_source'])
+                    self.assertNotIn('Sam Jones', self.image.call_args.kwargs['visual_source'])
                     weather = self.image.call_args.kwargs['weather_games'][0]
                     self.assertEqual(weather['location'], 'Hermosa Beach')
                     self.assertTrue(weather['game_date'].startswith('2026-10-11 12:'))

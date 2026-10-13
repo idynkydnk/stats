@@ -98,6 +98,7 @@ class RecapAnimationTests(unittest.TestCase):
             patch('email_content._image_labels_for_players', return_value={}),
             patch('email_content._reference_parts_from_uploaded_photos', return_value=(refs, ['Sam', 'Alex'])),
             patch('email_content._append_group_picture_details', side_effect=lambda p, *_: p),
+            patch('recap_visuals.extract_visual_checklist', return_value=[]),
             patch('email_content._generate_image_bytes', return_value=(raw, 'image/png')) as generate,
             patch('email_content._save_email_image', return_value=('https://example.com/hero.gif', '/tmp/hero.gif')) as save,
             patch('email_content._normalize_image_bytes_to_aspect', return_value=(raw, 'image/png')) as normalize,
