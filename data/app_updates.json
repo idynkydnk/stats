@@ -1,9 +1,15 @@
 [
   {
+    "id": "ios-2026-10-13-edit-from-add",
+    "date": "2026-10-13",
+    "subject": "iPhone: Edit games right from Add",
+    "body": "Tap Edit beside a game listed in Add to change its players, scores, location, or comments. Saving returns you to the refreshed list, keeps the original game time, and preserves any new game you were entering."
+  },
+  {
     "id": "ios-2026-10-13-instant-game-popup",
     "date": "2026-10-13",
     "subject": "iPhone: See your game as soon as you tap Save",
-    "body": "Adding a game immediately opens a popup with the players, scores, location, and comments while it saves. Once saving finishes, choose Done or Add another game; if saving cannot be confirmed, your entries stay available to review."
+    "body": "Adding a game immediately opens a popup with the players, scores, location, and comments while it saves. Once saving finishes, choose Done or Add another game; if saving cannot be confirmed, your entries stay available to review. Long game details scroll inside the popup so you can reach its buttons."
   },
   {
     "id": "ios-2026-10-13-no-jump-winner-focus",
