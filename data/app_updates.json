@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-13-instant-game-popup",
+    "date": "2026-10-13",
+    "subject": "iPhone: See your game as soon as you tap Save",
+    "body": "Adding a game immediately opens a popup with the players, scores, location, and comments while it saves. Once saving finishes, choose Done or Add another game; if saving cannot be confirmed, your entries stay available to review."
+  },
+  {
     "id": "ios-2026-10-13-no-jump-winner-focus",
     "date": "2026-10-13",
     "subject": "iPhone: Start No jump games with Winner 1",
