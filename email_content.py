@@ -210,13 +210,18 @@ RECAP_LENGTH_GUIDANCE = (
 
 DEFAULT_RECAP_STYLE_INSTRUCTIONS = """Write a funny recap of the day’s games that sounds like someone from the group telling everyone what they missed.
 
-Give the day a storyline: who came out strong, who got humbled, which partnerships worked, and how things ended. Pick the interesting turns instead of describing every match. Leave exact scores, records, percentages, and historical statistics in the stats section.
+Build the storyline around the anecdotes in the user's prompt and game comments: the strange moments, arguments, excuses, running jokes, and personalities. Bring in who won or got humbled only when it makes those stories funnier. Leave exact scores, ratings, records, percentages, and historical statistics in the stats section.
 
 Use the game comments as your best source of stories and jokes. Work in signature traits when they make a moment funnier, without forcing every trait into the recap. Keep traits attached to the right person.
 
 Be specific, conversational, and willing to roast. Exaggerate the drama of ordinary games: a narrow escape can become an undeserved victory parade; a rough afternoon can become an investigation into whether someone’s partner was working for the other team. Make the jokes fit what actually happened. Avoid generic sports clichés, repetitive insults, and invented incidents or dialogue.
 
-Write short, connected paragraphs. Open with the day’s funniest or most interesting story, explain the key shifts, and finish with a punchline that calls back to something earlier. The reader should understand the day and laugh at the people involved."""
+Write short, connected paragraphs. Open with the day’s funniest or most interesting story, develop more of the supplied anecdotes in the middle, and finish with a punchline that calls back to something earlier. The reader should understand the day and laugh at the people involved."""
+
+RECAP_STORY_GUIDANCE = """The user's supplied stories and game comments are the main material for the recap, including its middle paragraphs. Use the specific incidents, details, excuses, disputes, and running jokes throughout; do not spend them all in the opening and closing while filling the middle with results.
+When the user supplies a long prompt, draw on several distinct anecdotes from it and connect related moments. Preserve the telling details that make each story specific instead of reducing the prompt to a generic theme.
+Use game results as background to keep the story accurate. Unless the user explicitly requests statistical analysis, leave numerical ratings, exact scores, win-loss records, percentages, point differentials, and historical statistics out of the prose. Do not list matches or narrate each partnership in sequence. A brief mention of who took the crown or had a rough day is enough when it supports a story.
+If there is little story material, write a shorter recap instead of padding it with statistics or inventing incidents. Do not include process commentary about missing information or unavailable lookups."""
 
 _LEGACY_PROMPT_STYLE_ALIASES = {
     'random': 'default',
@@ -275,6 +280,7 @@ def _resolve_recap_instructions(prompt_style, context, custom_prompt='', image_d
     routing_prompt = """Separate a user's volleyball/game recap request into writing instructions and illustration instructions.
 Return only a JSON object with exactly two string fields: "summary" and "image". Use an empty string when no instructions apply to that output. Do not write the recap or invent extra details.
 The summary field is for writing tone, length, focus, and real game stories supplied by the user.
+This is a separation task, not a summarization task. Preserve all recap-relevant anecdotes and their concrete details in the summary field, using the user's original wording wherever possible, even for a long request. Do not compress stories into a tone instruction or a list of topics. Keep names, who did what, chronology, explanations, and punchlines attached to the right story. The recap writer will choose how to fit that material into the final recap.
 The image field is for things to draw: colors, equipment, clothing, poses, scenery, visual style, and imagined scenes. Picture-only details must never enter the summary field, even as instructions not to mention them. A request to draw something is not evidence it happened in a game.
 For example, "Keep the recap funny. For the picture, use a green Martha's volleyball net" becomes {"summary": "Keep the recap funny.", "image": "Use a green Martha's volleyball net."}.
 Apply a theme to both fields only when the user requests it for both. Preserve explicit requests to discuss a detail in the written recap. Preserve names and specific picture details accurately. If the user only requests a picture, leave summary empty so the standard recap is used.
@@ -341,6 +347,7 @@ def _build_recap_prompt(style_instructions, context):
     return f"""{style_instructions}
 
 {RECAP_LENGTH_GUIDANCE}
+{RECAP_STORY_GUIDANCE}
 Write in readable sentences—no bullet points, asterisks, emojis, or decorative quotation marks.
 Consider every game comment provided below. Use relevant comments to explain the day’s interesting moments and support the jokes.
 Only quote a comment if it is already in the data enclosed in quotation marks.

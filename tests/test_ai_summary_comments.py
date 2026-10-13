@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request, session
 
 from email_content import (
     RECAP_LENGTH_GUIDANCE,
+    RECAP_STORY_GUIDANCE,
     DEFAULT_RECAP_STYLE_INSTRUCTIONS,
     _build_recap_style_instructions,
     _resolve_recap_instructions,
@@ -92,6 +93,7 @@ class RecapCommentTests(unittest.TestCase):
                     self.assertEqual(prompt.count(self.comments[1]), 2)
                     self.assertNotIn('Unselected comment.', prompt)
                     self.assertIn(RECAP_LENGTH_GUIDANCE, prompt)
+                    self.assertIn(RECAP_STORY_GUIDANCE, prompt)
                     self.assertNotIn(LEGACY_LIMIT, prompt)
                     self.assertNotIn('Write two short', prompt)
                     if style == 'custom':
@@ -120,6 +122,7 @@ class RecapCommentTests(unittest.TestCase):
                     self.assertIn(picture, self.ai.call_args_list[0].args[0])
                     summary_prompt = self.ai.call_args_list[1].args[0]
                     self.assertIn(writing, summary_prompt)
+                    self.assertIn(RECAP_STORY_GUIDANCE, summary_prompt)
                     self.assertNotIn(picture, summary_prompt)
                     self.assertNotIn('Martha', summary_prompt)
                     self.assertEqual(payload['style_instructions'], writing)
@@ -128,6 +131,31 @@ class RecapCommentTests(unittest.TestCase):
                     self.assertEqual(self.image.call_args.kwargs['visual_source'],
                                      writing + ' For the picture, ' + picture)
                     self.assertEqual(self.image.call_args.kwargs['image_mode'], mode)
+
+    def test_long_combined_prompt_preserves_routed_anecdotes_in_final_writing_prompt(self):
+        stories = [
+            'Before the games a ball got stuck under a line.',
+            'Sam regretted not taking two ibuprofen before playing.',
+            'Four points were replayed over disputed ball marks and a jumping line.',
+        ]
+        writing = ('Make it funny. ' + 'Everyone had an excuse. ' * 150
+                   + '\n'.join(stories))
+        picture = 'For the picture only, draw a purple dragon.'
+        for builder in (build_doubles_email_payload, build_vollis_email_payload, build_other_email_payload):
+            with self.subTest(builder=builder.__name__):
+                self.ai.reset_mock()
+                self.ai.side_effect = [json.dumps({'summary': writing, 'image': picture}),
+                                       'HEADLINE: The line strikes back\nSUMMARY: A funny recap.']
+                payload = builder([1], prompt_style='combined',
+                                  custom_prompt=writing + '\n' + picture)
+                routing_prompt = self.ai.call_args_list[0].args[0]
+                self.assertIn('Preserve all recap-relevant anecdotes', routing_prompt)
+                self.assertIn(json.dumps(writing + '\n' + picture), routing_prompt)
+                summary_prompt = self.ai.call_args_list[1].args[0]
+                self.assertIn(writing, summary_prompt)
+                self.assertIn(RECAP_STORY_GUIDANCE, summary_prompt)
+                self.assertNotIn(picture, summary_prompt)
+                self.assertEqual(payload['style_instructions'], writing)
 
     def test_full_long_request_reaches_picture_even_when_router_omits_visuals(self):
         transcript = ('Talk about our games. ' * 150
