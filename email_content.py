@@ -1275,6 +1275,13 @@ def build_flyer_solo_prompt(player_name):
 
 def _flyer_current_year_stats_block(players, labels_by_name=None):
     """Read fresh doubles records, with no ranking threshold or prior-year fallback."""
+    from account_stats_views import selected_stats_context
+
+    with selected_stats_context():
+        return _read_flyer_current_year_stats_block(players, labels_by_name)
+
+
+def _read_flyer_current_year_stats_block(players, labels_by_name=None):
     from stat_functions import calculate_trueskill_rankings, set_cur as doubles_cursor
 
     players = _dedupe_players_preserve_order(players)

@@ -1,15 +1,16 @@
 """Personal flyer routes and background generation retain account ownership."""
 import ast
 import os
+import sqlite3
 import sys
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from flask import abort, flash, jsonify, redirect, request, session, url_for
+from flask import abort, flash, g, jsonify, redirect, request, session, url_for
 
 import flyer_functions as flyers
 from private_accounts import ai_account_context, connect_data, private_database
@@ -226,6 +227,111 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         self.generate.side_effect = generate
         for username in ['alice', 'bob', 'Kyle']:
             self.assertTrue(self.run_job(username, {'players': ['Player']})['success'])
+
+    def prepare_flyer_stats(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.executescript('''
+                DROP TABLE games;
+                CREATE TABLE games (id INTEGER PRIMARY KEY, game_date TEXT,
+                    winner1 TEXT, winner2 TEXT, winner_score INTEGER,
+                    loser1 TEXT, loser2 TEXT, loser_score INTEGER);
+                CREATE TABLE trueskill_rankings (year, player, mu, sigma, rating,
+                    games_played, wins, losses, updated_at);
+                INSERT INTO games VALUES
+                    (1, '2026-01-01', 'Alex', 'Bea', 21, 'Cam', 'Dee', 10);
+            ''')
+        headers = self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        with ai_account_context(self.app, self.path, 'alice'):
+            with connect_data(self.path) as conn:
+                conn.execute("INSERT INTO games VALUES (1, '2026-02-01', 'Cam', 'Dee', 21, 'Alex', 'Bea', 10)")
+            # Prime the owner's rating cache; combined ratings must include KT too.
+            from stat_functions import calculate_trueskill_rankings
+            own_rating = next(r['rating'] for r in calculate_trueskill_rankings(2026) if r['player'] == 'Alex')
+        with ai_account_context(self.app, self.path, 'bob'):
+            with connect_data(self.path) as conn:
+                conn.execute("INSERT INTO games VALUES (1, '2026-03-01', 'Alex', 'Bea', 21, 'Cam', 'Dee', 10)")
+        with sqlite3.connect(self.path) as conn:
+            # An unavailable source must stay excluded even with an enabled preference.
+            conn.execute("INSERT OR REPLACE INTO account_stats_sources VALUES ('alice', 'bob', 1)")
+        clock = patch('email_content.datetime')
+        clock.start().now.return_value = datetime(2026, 10, 14)
+        self.addCleanup(clock.stop)
+        from stat_functions import _calculate_trueskill_from_games
+        combined = [(1, '2026-01-01', 'Alex', 'Bea', 21, 'Cam', 'Dee', 10),
+                    (1, '2026-02-01', 'Cam', 'Dee', 21, 'Alex', 'Bea', 10)]
+        combined_rating = next(r['rating'] for r in _calculate_trueskill_from_games(combined) if r['player'] == 'Alex')
+        return headers, own_rating, combined_rating
+
+    def test_flyer_preview_honors_selected_sources_for_counts_and_rating(self):
+        headers, own_rating, combined_rating = self.prepare_flyer_stats()
+        for enabled, rating, wins, percent in [(True, combined_rating, 1, 50), (False, own_rating, 0, 0)]:
+            with self.subTest(kt_enabled=enabled):
+                response = self.a.put('/api/account/stats-sources', headers=headers,
+                                      json={'owner': 'kyle', 'enabled': enabled})
+                self.assertEqual(response.status_code, 200, response.json)
+                with patch('email_content._clean_player_lines_block', return_value=('Alex', 1, ['Alex'])):
+                    response = self.a.post('/api/flyer_prompts/', headers=headers, json={'players': ['Alex']})
+                self.assertEqual(response.status_code, 200, response.json)
+                self.assertIn(f'Rating: {rating:.1f}\nWins: {wins}\nLosses: 1\nWin %: {percent}%', response.json['scene_prompt'])
+
+    def test_flyer_uses_other_selected_sources_and_respects_revoked_sharing(self):
+        import email_content as content
+        self.prepare_flyer_stats()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO stats_source_group VALUES ('alice')")
+            conn.execute("UPDATE private_accounts SET share_stats=1 WHERE username='bob'")
+        for kt_enabled, bob_enabled, shared, wins in [
+            (True, True, True, 2),
+            (False, True, True, 1),
+            (True, False, True, 1),
+            (False, True, False, 0),
+        ]:
+            with self.subTest(kt=kt_enabled, bob=bob_enabled, shared=shared):
+                with sqlite3.connect(self.path) as conn:
+                    conn.executemany('INSERT OR REPLACE INTO account_stats_sources VALUES (?, ?, ?)',
+                                     [('alice', 'kyle', kt_enabled), ('alice', 'bob', bob_enabled)])
+                    conn.execute("UPDATE private_accounts SET share_stats=? WHERE username='bob'", (shared,))
+                with ai_account_context(self.app, self.path, 'alice'):
+                    prompt = content._flyer_current_year_stats_block(['Alex'])
+                    self.assertIn(f'Wins: {wins}\nLosses: 1\nWin %: {100 * wins / (wins + 1):.0f}%', prompt)
+
+    def test_worker_refreshes_custom_flyer_with_selected_stats_and_keeps_owner_assets(self):
+        import email_content as content
+        from account_stats_views import selected_stats_context
+        _, _, combined_rating = self.prepare_flyer_stats()
+
+        def generate(username, payload):
+            def references(*args, **kwargs):
+                self.assertNotIn('stats_view_database', g)
+                with connect_data(self.path) as conn:
+                    self.assertEqual(conn.execute('SELECT COUNT(*) FROM games').fetchone()[0], 1)
+                return [], ['Alex']
+
+            with patch('email_content._image_labels_for_players', return_value={}), \
+                 patch('email_content._reference_parts_from_uploaded_photos', side_effect=references), \
+                 patch('email_content._generate_image_bytes', return_value=(b'image', 'image/png')) as image, \
+                 patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'image', 'image/png')), \
+                 patch('email_content._save_email_image', return_value=('/image.png', '/tmp/image.png')):
+                content.generate_flyer_image('key', ['Alex'], 'doubles', custom_scene_prompt=(
+                    'Sunny beach.\n[CURRENT-YEAR DOUBLES STATS]\nOld stats\n[/CURRENT-YEAR DOUBLES STATS]'))
+            prompt = image.call_args.args[0]
+            self.assertIn(f'Rating: {combined_rating:.1f}\nWins: 1\nLosses: 1\nWin %: 50%', prompt)
+            self.assertIn('Sunny beach.', prompt)
+            self.assertNotIn('Old stats', prompt)
+            self.assertNotIn('stats_view_database', g)
+            # Failed reads also restore owner storage and remove the temporary data.
+            with self.assertRaisesRegex(ValueError, 'failed read'):
+                with selected_stats_context():
+                    snapshot = g.stats_view_database
+                    raise ValueError('failed read')
+            self.assertFalse(Path(snapshot).exists())
+            self.assertNotIn('stats_view_database', g)
+            return 'new-flyer'
+
+        self.generate.side_effect = generate
+        result = self.run_job('alice', {'players': ['Alex']})
+        self.assertTrue(result['success'], result)
 
 
 if __name__ == '__main__':

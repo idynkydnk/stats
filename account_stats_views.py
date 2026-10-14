@@ -1,5 +1,6 @@
 """Selected databases are combined for browsing only; writes keep their owner."""
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import secrets
 import sqlite3
@@ -7,7 +8,7 @@ import tempfile
 from urllib.parse import urlencode, urlsplit, parse_qsl
 from datetime import date
 
-from flask import abort, flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, current_app, flash, g, has_request_context, jsonify, redirect, render_template, request, session, url_for
 from itsdangerous import BadSignature, URLSafeSerializer
 from account_names import database_display_names
 
@@ -154,6 +155,33 @@ def build_stats_view(site_path, own_path, sources):
         raise
 
 
+@contextmanager
+def selected_stats_context():
+    """Read selected sources briefly without changing the owner's AI assets or writes."""
+    settings = current_app.extensions.get('stats_view_sources') if has_request_context() else None
+    username = session.get('username') if has_request_context() else None
+    if not settings or not username:
+        yield
+        return
+    from private_accounts import private_database
+    site_path, is_admin = settings
+    sources = sources_for_user(site_path, username, is_admin(username))
+    if not any(source['enabled'] for source in sources):
+        yield
+        return
+    snapshot = build_stats_view(site_path, private_database() or site_path, sources)
+    previous = g.get('stats_view_database')
+    g.stats_view_database = snapshot
+    try:
+        yield
+    finally:
+        if previous is None:
+            g.pop('stats_view_database', None)
+        else:
+            g.stats_view_database = previous
+        os.unlink(snapshot)
+
+
 def register_stats_views(app, service, site_path):
     from stats_response_cache import StatsResponseCache, RESPONSE_ENDPOINTS
     from doubles_division import active_doubles_division
@@ -162,6 +190,7 @@ def register_stats_views(app, service, site_path):
         str(Path(os.environ.get('STATS_PRIVATE_DATA_DIR') or
                  str(Path(site_path).resolve().parent / 'private_data')) / 'stats_cache'))
     app.extensions['stats_response_cache'] = response_cache
+    app.extensions['stats_view_sources'] = (site_path, service.is_admin)
     signer = URLSafeSerializer(app.secret_key, salt='shared-stats-view-v1')
 
     def current_user():
