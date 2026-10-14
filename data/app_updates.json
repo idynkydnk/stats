@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-13-icon-corners",
+    "date": "2026-10-13",
+    "subject": "iPhone: Clean icon corners",
+    "body": "The app icon’s orange background now fills every corner, removing the white edges that could appear when opening the app."
+  },
+  {
     "id": "ios-2026-10-13-edit-from-add",
     "date": "2026-10-13",
     "subject": "iPhone: Edit games right from Add",

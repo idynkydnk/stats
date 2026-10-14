@@ -24,7 +24,7 @@
     {% endif %}
     <meta name="twitter:title" content="{{ subject }}">
     <meta name="twitter:description" content="{{ og_description }}">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png', v='20261013-square-icon') }}" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     {% if session.logged_in %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20260716e') }}">
