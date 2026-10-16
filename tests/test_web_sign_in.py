@@ -1,229 +1,426 @@
 import ast
-import hashlib
-import json
-import os
-from pathlib import Path
 import re
 import sqlite3
 import time
-from types import SimpleNamespace
+from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
 
-import jwt
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from flask import flash, make_response, redirect, render_template, request, session, url_for
+from flask import session
 from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
 
 from tests import test_private_accounts
-from private_accounts import account_for_user, GOOGLE_IOS_CLIENT_ID
-from web_sign_in import safe_login_next
+from private_accounts import account_for_user
+from web_sign_in import init_email_sign_in, safe_login_next
 
 
 class WebSignInTests(unittest.TestCase):
     def setUp(self):
         test_private_accounts.PrivateAccountTests.setUp(self)
-        self.config = patch.dict(os.environ, {
-            'GOOGLE_WEB_CLIENT_ID': 'google-web-client',
-            'APPLE_WEB_CLIENT_ID': 'apple-web-service',
-            'APPLE_WEB_REDIRECT_URI': 'https://localhost/login',
-        })
-        self.config.start()
-        self.addCleanup(self.config.stop)
+        from flask_mail import Mail
+        self.app.config['MAIL_DEFAULT_SENDER'] = 'stats@example.com'
+        Mail(self.app)
+        self.service.mail = Mock()
+        self.service.log_activity = Mock()
+        self.service.verify_password = lambda name, password: name.lower() == 'kyle' and password == 'valid-password'
         self.app.jinja_loader = ChoiceLoader([
-            DictLoader({
-                'test_base.html': '{% block extra_css %}{% endblock %}{% block content %}{% endblock %}{% block extra_js %}{% endblock %}',
-                'partials/page_header_actions.html': '',
-            }),
+            DictLoader({'test_base.html': '{% block extra_css %}{% endblock %}{% block content %}{% endblock %}{% block extra_js %}{% endblock %}', 'partials/page_header_actions.html': ''}),
             FileSystemLoader(str(Path(__file__).resolve().parents[1] / 'templates')),
         ])
-
         self.app.context_processor(lambda: {'base_template': 'test_base.html'})
-        # Exercise the actual password route without importing the production DB.
-        namespace = dict(
-            app=self.app, request=request, session=session, flash=flash, redirect=redirect,
-            render_template=render_template, make_response=make_response, url_for=url_for,
-            verify_password=lambda name, password: name == 'Kyle' and password == 'valid-password',
-            log_activity=Mock(),
-            **{name: getattr(self.service, name) for name in (
-                'validate_auth_token', 'establish_user_session', 'create_auth_token',
-                '_client_ip', 'login_rate_limited', 'record_login_failure', 'clear_login_failures')},
-        )
+        namespace = {'app': self.app}
         tree = ast.parse((Path(__file__).resolve().parents[1] / 'stats.py').read_text())
         nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'login']
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), namespace)
+        self.app.add_url_rule('/', 'index', lambda: 'stats')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET login_email='kyle@example.com' WHERE username='Kyle'")
 
-        @self.app.get('/', endpoint='index')
-        def index():
-            return 'stats'
-
-        self.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        self.public_key = self.key.public_key().public_bytes(
-            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
-        for mock in [
-            patch('google.oauth2.id_token._fetch_certs', return_value={'web-key': self.public_key}),
-            patch('jwt.PyJWKClient.get_signing_key_from_jwt', return_value=SimpleNamespace(key=self.key.public_key())),
-        ]:
-            mock.start()
-            self.addCleanup(mock.stop)
-
-    def login_page(self, client=None, query=''):
-        response = (client or self.a).get('/login' + query, base_url='https://localhost')
+    def page(self, client=None, query=''):
+        client = client or self.a
+        response = client.get('/login' + query, base_url='https://localhost')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
-        self.assertIn('same-origin-allow-popups', response.headers['Cross-Origin-Opener-Policy'])
+        self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         html = response.get_data(as_text=True)
-        self.assertIn('Continue with Apple', html)
-        self.assertIn('Continue with Google', html)
-        self.assertIn('autocomplete="current-password"', html)
-        return json.loads(re.search(r'id="sr-sign-in-config">(.*?)</script>', html).group(1))
+        self.assertNotIn('Continue with Apple', html)
+        self.assertNotIn('Continue with Google', html)
+        self.assertNotIn('accounts.google.com', html)
+        return re.search(r'name="csrf" value="([^"]+)"', html).group(1)
 
-    def token(self, provider, challenge_nonce, **overrides):
-        claims = {
-            'sub': provider + '-person',
-            'iss': 'https://accounts.google.com' if provider == 'google' else 'https://appleid.apple.com',
-            'aud': 'google-web-client' if provider == 'google' else 'apple-web-service',
-            'iat': int(time.time()), 'exp': int(time.time()) + 300,
-            'nonce': challenge_nonce, 'email_verified': True, 'name': 'Alex Player',
-        }
-        claims.update(overrides)
-        return jwt.encode(claims, self.key, algorithm='RS256', headers={'kid': 'web-key'})
+    def post(self, csrf, client=None, **data):
+        return (client or self.a).post('/login', data={'csrf': csrf, **data}, base_url='https://localhost')
 
-    def sign_in(self, provider, config, client=None, **payload):
-        body = {'id_token': self.token(provider, config['nonce']),
-                'state': config['csrf'], 'remember_me': True, 'next': '/stats/2026'}
-        body.update(payload)
-        return (client or self.a).post('/auth/' + provider, json=body,
-                                      headers={'X-CSRF-Token': config['csrf']},
-                                      base_url='https://localhost')
+    def send(self, email='kyle@example.com', client=None, remember=True, query=''):
+        csrf = self.page(client, query)
+        response = self.post(csrf, client, action='send', email=email, remember_me='on' if remember else '')
+        self.assertEqual(response.status_code, 303, response.get_data(as_text=True))
+        message = self.service.mail.send.call_args.args[0]
+        self.assertEqual(message.recipients, [email.strip().lower()])
+        self.assertFalse(message.cc)
+        self.assertFalse(message.bcc)
+        code = re.search(r'\b\d{4}\b', message.body).group()
+        return csrf, code
 
-    def test_web_and_app_reuse_the_same_account_for_both_providers(self):
-        for provider in ('google', 'apple'):
-            with self.subTest(provider=provider):
-                if provider == 'google':
-                    ios_token = self.token(provider, 'unused', aud=GOOGLE_IOS_CLIENT_ID)
-                    payload = {'id_token': ios_token}
-                else:
-                    nonce = self.b.post('/api/auth/apple/challenge').json['nonce']
-                    ios_token = self.token(provider, hashlib.sha256(nonce.encode()).hexdigest(), aud='com.kt.stats')
-                    payload = {'id_token': ios_token, 'nonce': nonce, 'full_name': 'Alex Player'}
-                app_response = self.b.post('/api/auth/' + provider, json=payload)
-                self.assertEqual(app_response.status_code, 200, app_response.json)
-                username = app_response.json['username']
-                account = account_for_user(self.path, username)
-                # A private game created through the app must remain visible on web.
-                headers = {'Authorization': 'Bearer ' + app_response.json['token'], 'X-Stats-Owned': '1'}
-                self.b.post('/api/games', json={'name': provider + ' private'}, headers=headers)
-                config = self.login_page()
-                response = self.sign_in(provider, config)
-                self.assertEqual(response.status_code, 200, response.json)
-                self.assertNotIn('token', response.json)
-                self.assertEqual(response.json['next'], '/stats/2026')
-                cookie = next(value for value in response.headers.getlist('Set-Cookie') if value.startswith('remember_token='))
-                for flag in ('Secure', 'HttpOnly', 'SameSite=Lax', 'Max-Age=7776000'):
-                    self.assertIn(flag, cookie)
-                with self.a.session_transaction(base_url='https://localhost') as session:
-                    self.assertEqual(session['username'], username)
-                    self.assertNotIn('web_sign_in', session)
-                self.assertEqual(account_for_user(self.path, username)['id'], account['id'])
-                games = self.a.get('/api/games', headers={'X-Stats-Owned': '1'}, base_url='https://localhost')
-                self.assertEqual(games.json['rows'], [[2, provider + ' private']])
-                self.assertEqual(self.a.get('/admin', base_url='https://localhost').status_code, 403)
+    def signed_in_username(self, client=None):
+        with (client or self.a).session_transaction(base_url='https://localhost') as saved:
+            return saved.get('username')
 
-    def test_new_social_account_and_remember_cookie_opt_out(self):
-        response = self.sign_in('apple', self.login_page(), remember_me=False, full_name='Alex New')
-        self.assertEqual(response.status_code, 200)
+    def test_existing_account_reuses_identity_permissions_and_remember_cookie(self):
+        csrf, code = self.send(' Kyle@Example.COM ', query='?next=/stats/2026')
+        response = self.post(csrf, action='verify', code=code)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.location, '/stats/2026')
+        self.assertEqual(self.signed_in_username(), 'Kyle')
+        self.assertEqual(self.a.get('/admin', base_url='https://localhost').status_code, 200)
+        self.assertIsNone(account_for_user(self.path, 'Kyle'))
+        cookie = next(value for value in response.headers.getlist('Set-Cookie') if value.startswith('remember_token='))
+        for flag in ('Secure', 'HttpOnly', 'SameSite=Lax', 'Max-Age=7776000'):
+            self.assertIn(flag, cookie)
+
+    def test_new_account_created_only_after_verification_and_is_private(self):
+        csrf, code = self.send('new@example.com', remember=False)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+        response = self.post(csrf, action='verify', code=code)
+        self.assertEqual(response.status_code, 303)
+        self.assertIsNone(self.signed_in_username())
+        response = self.post(csrf, action='signup', first_name='alex', last_name='PLAYER')
+        self.assertEqual(response.status_code, 303)
         self.assertIn('remember_token=; Expires=', response.headers.getlist('Set-Cookie')[0])
-        with self.a.session_transaction(base_url='https://localhost') as session:
-            user = self.service.adminfx.get_site_user(session['username'])
-            self.assertEqual(user['display_name'], 'Alex New')
-            self.assertFalse(user['is_admin'])
+        username = self.signed_in_username()
+        self.assertIsNotNone(account_for_user(self.path, username))
+        self.assertFalse(self.service.adminfx.get_site_user(username)['is_admin'])
+        user = self.service.adminfx.get_site_user(username)
+        self.assertEqual((user['first_name'], user['last_name'], user['display_name']), ('Alex', 'Player', 'Alex Player'))
+        self.assertEqual(self.a.get('/admin', base_url='https://localhost').status_code, 403)
+        self.assertEqual(self.a.get('/api/games', headers={'X-Stats-Owned': '1'}, base_url='https://localhost').json['rows'], [])
+        # Another browser receives a new code for the exact same account.
+        with patch('web_sign_in.time', return_value=time.time() + 61):
+            csrf, code = self.send('new@example.com', client=self.b)
+            self.assertEqual(self.post(csrf, self.b, action='verify', code=code).status_code, 303)
+        self.assertEqual(self.signed_in_username(self.b), username)
 
-    def test_browser_binding_csrf_and_expiry(self):
-        config = self.login_page()
-        self.assertEqual(self.sign_in('google', config, client=self.b).status_code, 403)
-        response = self.a.post('/auth/google', json={'id_token': 'anything'}, base_url='https://localhost')
-        self.assertEqual(response.status_code, 403)
-        with self.a.session_transaction(base_url='https://localhost') as session:
-            session['web_sign_in'] = dict(session['web_sign_in'], expires=int(time.time()) - 1)
-        self.assertEqual(self.sign_in('google', config).status_code, 403)
-
-    def test_signed_tokens_reject_wrong_audience_issuer_nonce_expiry_and_email(self):
-        for provider in ('google', 'apple'):
-            overrides = [{'aud': 'unrelated-client'}, {'iss': 'https://attacker.example'},
-                         {'nonce': 'wrong'}, {'exp': int(time.time()) - 60}, {'sub': ''}]
-            if provider == 'google':
-                overrides.append({'email_verified': False})
-            for override in overrides:
-                with self.subTest(provider=provider, override=override):
-                    config = self.login_page()
-                    response = self.sign_in(provider, config, id_token=self.token(provider, config['nonce'], **override))
-                    self.assertEqual(response.status_code, 401, response.json)
+    def remove_email(self):
         with sqlite3.connect(self.path) as conn:
-            self.assertEqual(conn.execute('SELECT COUNT(*) FROM private_accounts').fetchone()[0], 0)
+            conn.execute("UPDATE site_users SET login_email=NULL WHERE username='Kyle'")
 
-    def test_invalid_signature_and_apple_state_are_rejected(self):
-        for provider in ('google', 'apple'):
-            config = self.login_page()
-            token = self.token(provider, config['nonce'])
-            prefix, signature = token.rsplit('.', 1)
-            forged = prefix + '.' + ('A' if signature[0] != 'A' else 'B') + signature[1:]
-            self.assertEqual(self.sign_in(provider, config, id_token=forged).status_code, 401)
-        self.assertEqual(self.sign_in('apple', self.login_page(), state='wrong').status_code, 401)
+    def enroll(self):
+        self.remove_email()
+        csrf = self.page(query='?next=/admin')
+        response = self.post(csrf, action='password', username='Kyle', password='valid-password', remember_me='on')
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.location, '/login')
+        page = self.a.get('/login', base_url='https://localhost')
+        self.assertIn('Add your email', page.get_data(as_text=True))
+        return self.send('added@example.com')
 
-    def test_consumed_or_expired_database_challenge_cannot_be_reused(self):
-        config = self.login_page()
-        with self.a.session_transaction(base_url='https://localhost') as session:
-            original = dict(session['web_sign_in'])
-        self.assertEqual(self.sign_in('google', config).status_code, 200)
-        # Even replaying the old signed session cookie cannot reuse the nonce.
-        with self.a.session_transaction(base_url='https://localhost') as session:
-            session['web_sign_in'] = original
-        self.assertEqual(self.sign_in('google', config).status_code, 401)
-        config = self.login_page()
+    def test_missing_email_prompt_keeps_existing_account_and_verifies_before_saving(self):
+        csrf, code = self.enroll()
+        self.assertIsNone(self.service.adminfx.get_site_user('Kyle')['login_email'])
+        response = self.post(csrf, action='verify', code=code)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.location, '/admin')
+        self.assertEqual(self.signed_in_username(), 'Kyle')
+        self.assertEqual(self.service.adminfx.get_site_user('Kyle')['login_email'], 'added@example.com')
+        self.assertTrue(self.service.adminfx.get_site_user('Kyle')['is_admin'])
+        self.assertIsNone(account_for_user(self.path, 'Kyle'))
         with sqlite3.connect(self.path) as conn:
-            conn.execute('UPDATE private_auth_challenges SET expires_at=0')
-        self.assertEqual(self.sign_in('apple', config).status_code, 401)
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+        # The same account now works without a password in another browser.
+        with patch('web_sign_in.time', return_value=time.time() + 61):
+            csrf, code = self.send('added@example.com', client=self.b)
+            self.assertEqual(self.post(csrf, self.b, action='verify', code=code).status_code, 303)
+        self.assertEqual(self.signed_in_username(self.b), 'Kyle')
 
-    def test_missing_configuration_and_provider_outage(self):
-        with patch.dict(os.environ, {'GOOGLE_WEB_CLIENT_ID': '', 'APPLE_WEB_CLIENT_ID': ''}):
-            config = self.login_page()
-            for provider in ('google', 'apple'):
-                self.assertEqual(self.sign_in(provider, config).status_code, 503)
-        with patch('google.oauth2.id_token.verify_oauth2_token', side_effect=RuntimeError('offline')):
-            self.assertEqual(self.sign_in('google', self.login_page()).status_code, 503)
+    def test_remembered_sessions_prompt_without_interrupting_api_requests(self):
+        self.remove_email()
+        self.app.add_url_rule('/remember-test', view_func=lambda: self.app.response_class(
+            'remembered', headers={'Set-Cookie': 'remember_token=shared-token; Path=/; Secure; HttpOnly; SameSite=Lax'}))
+        self.a.get('/remember-test', base_url='https://localhost')
+        response = self.a.get('/admin', headers={'Accept': 'text/html'}, base_url='https://localhost')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, '/login')
+        response = self.a.get('/login', base_url='https://localhost')
+        self.assertIn('Add your email', response.get_data(as_text=True))
+        self.assertEqual(self.a.get('/api/me', headers={'Accept': 'text/html'}, base_url='https://localhost').status_code, 200)
 
-    def test_rate_limit_and_invalid_payload(self):
-        config = self.login_page()
-        with patch.object(self.service, 'login_rate_limited', return_value=True):
-            self.assertEqual(self.sign_in('google', config).status_code, 429)
-        self.assertEqual(self.sign_in('google', config, id_token=None).status_code, 400)
+    def test_enrollment_cannot_claim_another_accounts_email(self):
+        csrf, code = self.enroll()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO site_users (username, login_email) VALUES ('Other', 'added@example.com')")
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 409)
+        self.assertIsNone(self.service.adminfx.get_site_user('Kyle')['login_email'])
+        self.assertEqual(self.service.adminfx.get_site_user('Other')['login_email'], 'added@example.com')
 
-    def test_external_redirects_are_rejected(self):
-        for value in ('https://attacker.example', '//attacker.example', '/\\attacker.example',
-                      '/%2fattacker.example', '/%5cattacker.example', '/\n/attacker.example', None):
+    def test_enrollment_code_requires_the_original_authenticated_account(self):
+        csrf, code = self.enroll()
+        with self.a.session_transaction(base_url='https://localhost') as saved:
+            saved.pop('logged_in')
+            saved.pop('username')
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 403)
+        self.assertIsNone(self.service.adminfx.get_site_user('Kyle')['login_email'])
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+
+    def test_enrollment_does_not_overwrite_an_email_set_while_code_is_pending(self):
+        csrf, code = self.enroll()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET login_email='admin-set@example.com' WHERE username='Kyle'")
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 403)
+        self.assertEqual(self.service.adminfx.get_site_user('Kyle')['login_email'], 'admin-set@example.com')
+
+    def test_signup_requires_verified_email_and_both_names(self):
+        csrf, code = self.send('new@example.com')
+        names = {'first_name': 'jane', 'last_name': "o'NEILL"}
+        self.assertEqual(self.post(csrf, action='signup', **names).status_code, 400)
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 303)
+        html = self.a.get('/login', base_url='https://localhost').get_data(as_text=True)
+        for text in ('First name', 'Last name', 'autocomplete="given-name"', 'autocomplete="family-name"'):
+            self.assertIn(text, html)
+        for first, last in [('', 'Smith'), ('Jane', ''), ('Jane', '<script>'), ('123', 'Smith')]:
+            self.assertEqual(self.post(csrf, action='signup', first_name=first, last_name=last).status_code, 400)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+        self.assertEqual(self.post(csrf, action='signup', **names).status_code, 303)
+        user = self.service.adminfx.get_site_user(self.signed_in_username())
+        self.assertEqual(user['display_name'], "Jane O'Neill")
+        self.assertEqual(self.post(csrf, action='signup', **names).status_code, 403)
+
+    def test_signup_proof_expires_and_code_cannot_be_verified_twice(self):
+        csrf, code = self.send('new@example.com')
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 303)
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 400)
+        with patch('web_sign_in.time', return_value=time.time() + 601):
+            response = self.post(csrf, action='signup', first_name='New', last_name='Player')
+        self.assertEqual(response.status_code, 400)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+        self.assertIn('Email me a code', response.get_data(as_text=True))
+
+    def test_signup_offers_existing_account_path_instead_of_guessing_by_name(self):
+        csrf, code = self.send('new@example.com')
+        self.post(csrf, action='verify', code=code)
+        response = self.post(csrf, action='change', password_start='1')
+        self.assertEqual(response.location, '/login?password=1')
+        page = self.a.get(response.location, base_url='https://localhost').get_data(as_text=True)
+        self.assertIn('class="sr-login-fallback" open', page)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM web_email_codes').fetchone()[0], 0)
+
+    def test_four_digit_code_supports_leading_zero_and_expiry(self):
+        with patch('web_sign_in.secrets.randbelow', return_value=7):
+            csrf, code = self.send()
+        self.assertEqual(code, '0007')
+        self.assertIn('5 minutes', self.service.mail.send.call_args.args[0].body)
+        self.assertEqual(self.post(csrf, action='verify', code='000007').status_code, 400)
+        self.assertEqual(self.post(csrf, action='verify', code='0 0 0 7').status_code, 303)
+
+    def test_wrong_code_limit_applies_across_resends_and_browsers(self):
+        csrf, code = self.send()
+        wrong = '9999' if code != '9999' else '1111'
+        for _ in range(3):
+            self.assertEqual(self.post(csrf, action='verify', code=wrong).status_code, 400)
+        with patch('web_sign_in.time', return_value=time.time() + 61):
+            csrf_b, code_b = self.send(client=self.b)
+            wrong_b = '9999' if code_b != '9999' else '1111'
+            for _ in range(3):
+                self.assertEqual(self.post(csrf_b, self.b, action='verify', code=wrong_b).status_code, 400)
+        with patch('web_sign_in.time', return_value=time.time() + 122):
+            self.assertEqual(self.post(csrf_b, self.b, action='resend').status_code, 303)
+            new_code = re.search(r'\b\d{4}\b', self.service.mail.send.call_args.args[0].body).group()
+            self.assertEqual(self.post(csrf_b, self.b, action='verify', code=new_code).status_code, 429)
+
+    def test_name_capitalization_preserves_mixed_case_and_unicode(self):
+        from account_names import clean_signup_name
+        for raw, expected in [('  jane  ', 'Jane'), ('SMITH', 'Smith'), ('anne-marie', 'Anne-Marie'),
+                              ("o’NEILL", 'O’Neill'), ('McDonald', 'McDonald'), ('deVries', 'deVries'),
+                              ('élodie', 'Élodie'), ('李', '李')]:
+            self.assertEqual(clean_signup_name(raw), expected)
+
+    def test_private_existing_user_keeps_games(self):
+        from private_accounts import create_account
+        create_account(self.path, 'existing', password='old-password')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET login_email='existing@example.com' WHERE username='existing'")
+        account = account_for_user(self.path, 'existing')
+        from private_accounts import provision_database
+        database = provision_database(self.path, account['id'])
+        with sqlite3.connect(database) as conn:
+            conn.execute("INSERT INTO games VALUES (2, 'Existing private game')")
+        csrf, code = self.send('existing@example.com')
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 303)
+        self.assertEqual(self.signed_in_username(), 'existing')
+        self.assertEqual(self.a.get('/api/games', headers={'X-Stats-Owned': '1'}, base_url='https://localhost').json['rows'], [[2, 'Existing private game']])
+
+    def test_code_page_accessibility_and_no_code_in_cookie_or_database(self):
+        csrf, code = self.send()
+        html = self.a.get('/login', base_url='https://localhost').get_data(as_text=True)
+        for text in ('Check your email', 'autocomplete="one-time-code"', 'inputmode="numeric"', 'Send a new code', 'Use a different email', 'role="alert"'):
+            if text != 'role="alert"':
+                self.assertIn(text, html)
+        with self.a.session_transaction(base_url='https://localhost') as saved:
+            self.assertNotIn(code, str(dict(saved)))
+        with sqlite3.connect(self.path) as conn:
+            row = conn.execute('SELECT code_hash FROM web_email_codes').fetchone()
+            self.assertNotEqual(row[0], code)
+            self.assertEqual(len(row[0]), 64)
+
+    def test_csrf_browser_binding_and_replay(self):
+        csrf, code = self.send()
+        self.assertEqual(self.post(csrf, self.b, action='verify', code=code).status_code, 403)
+        self.assertEqual(self.post('☃', action='verify', code=code).status_code, 403)
+        with self.a.session_transaction(base_url='https://localhost') as saved:
+            old = dict(saved)
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 303)
+        with self.a.session_transaction(base_url='https://localhost') as saved:
+            saved.clear()
+            saved.update(old)
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 400)
+        self.assertIsNone(self.signed_in_username())
+
+    def test_expiry_attempt_limit_and_correct_code_cannot_bypass_lockout(self):
+        csrf, code = self.send()
+        wrong = '9999' if code != '9999' else '1111'
+        for _ in range(3):
+            self.assertEqual(self.post(csrf, action='verify', code=wrong).status_code, 400)
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 429)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE web_email_codes SET attempts=0, expires_at=0')
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 400)
+        self.assertIsNone(self.signed_in_username())
+
+    def test_resend_throttle_replacement_and_change_email(self):
+        csrf, original = self.send()
+        self.assertEqual(self.post(csrf, action='resend').status_code, 429)
+        self.assertEqual(self.service.mail.send.call_count, 1)
+        with patch('web_sign_in.time', return_value=time.time() + 61), patch('web_sign_in.secrets.randbelow', return_value=1234 if original != '1234' else 6543):
+            self.assertEqual(self.post(csrf, action='resend').status_code, 303)
+            self.assertEqual(self.post(csrf, action='verify', code=original).status_code, 400)
+        self.assertEqual(self.post(csrf, action='change').status_code, 303)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM web_email_codes').fetchone()[0], 0)
+        self.assertIn('Email me a code', self.a.get('/login', base_url='https://localhost').get_data(as_text=True))
+
+    def test_email_and_ip_limits_survive_new_browser(self):
+        csrf, code = self.send()
+        other_csrf = self.page(self.b)
+        self.assertEqual(self.post(other_csrf, self.b, action='send', email='KYLE@example.com').status_code, 429)
+        for i in range(1, 5):
+            with patch('web_sign_in.time', return_value=time.time() + i * 61):
+                self.assertEqual(self.post(csrf, action='resend').status_code, 303)
+        with patch('web_sign_in.time', return_value=time.time() + 305):
+            self.assertEqual(self.post(csrf, action='resend').status_code, 429)
+        self.assertEqual(self.service.mail.send.call_count, 5)
+
+    def test_ip_send_and_verify_limits_cover_multiple_addresses(self):
+        csrf = self.page()
+        for i in range(20):
+            self.assertEqual(self.post(csrf, action='send', email=f'user{i}@example.com').status_code, 303)
+        self.assertEqual(self.post(csrf, action='send', email='blocked@example.com').status_code, 429)
+        # A fresh client cannot bypass the shared limit.
+        csrf_b = self.page(self.b)
+        self.assertEqual(self.post(csrf_b, self.b, action='send', email='another@example.com').status_code, 429)
+        import hashlib
+        import hmac
+        key_hash = hmac.new(self.app.secret_key.encode(), b'verify:127.0.0.1', hashlib.sha256).hexdigest()
+        with sqlite3.connect(self.path) as conn:
+            conn.executemany('INSERT INTO web_login_events VALUES (?, ?, ?)',
+                             [('verify', key_hash, int(time.time()))] * 30)
+        self.assertEqual(self.post(csrf, action='verify', code='0000').status_code, 429)
+
+    def test_untrusted_requests_never_send_email(self):
+        self.assertEqual(self.post('', action='send', email='new@example.com').status_code, 403)
+        self.service.mail.send.assert_not_called()
+
+    def test_invalid_email_and_delivery_failure_do_not_create_account(self):
+        csrf = self.page()
+        for email in ('bad', 'a@example.com\r\nBcc: evil@example.com', 'a b@example.com', '@example.com'):
+            self.assertEqual(self.post(csrf, action='send', email=email).status_code, 400)
+        self.service.mail.send.assert_not_called()
+        self.service.mail.send.side_effect = RuntimeError('SMTP unavailable')
+        self.assertEqual(self.post(csrf, action='send', email='new@example.com').status_code, 503)
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM web_email_codes').fetchone()[0], 0)
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM site_users').fetchone()[0], 1)
+
+    def test_inactive_and_ambiguous_emails_cannot_sign_in_or_create_replacement(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET active=0 WHERE username='Kyle'")
+        csrf, code = self.send()
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 403)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET active=1 WHERE username='Kyle'")
+            conn.execute("INSERT INTO site_users (username, login_email) VALUES ('Duplicate', 'kyle@example.com')")
+        with patch('web_sign_in.time', return_value=time.time() + 61):
+            csrf, code = self.send()
+            self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 403)
+        self.assertIsNone(self.signed_in_username())
+
+    def test_safe_redirects_and_password_fallback(self):
+        for value in ('https://attacker.example', '//attacker.example', '/\\attacker.example', '/%2fattacker.example', '/%5cattacker.example', '/\n/attacker.example', None):
             self.assertEqual(safe_login_next(value), '/')
-        self.assertEqual(safe_login_next('/stats/2026?game=cards'), '/stats/2026?game=cards')
-        with self.app.test_request_context(base_url='https://localhost'):
-            self.assertEqual(safe_login_next('https://localhost/stats/2026?game=cards'), '/stats/2026?game=cards')
-        config = self.login_page(query='?next=https://attacker.example')
-        self.assertEqual(config['next'], '/')
-        self.assertEqual(self.sign_in('google', config, next='//attacker.example').json['next'], '/')
-
-    def test_password_login_still_works_and_failed_attempt_keeps_social_buttons(self):
-        response = self.a.post('/login', data={'username': 'Kyle', 'password': 'wrong'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Continue with Apple', response.get_data(as_text=True))
-        for destination, expected in [('https://localhost/stats/2026', '/stats/2026'),
-                                      ('https://attacker.example', '/')]:
-            response = self.a.post('/login', base_url='https://localhost', data={
-                'username': 'Kyle', 'password': 'valid-password', 'remember_me': 'on', 'next': destination,
-            })
-            self.assertEqual(response.status_code, 302)
-            self.assertEqual(response.headers['Location'], expected)
+        for destination, expected in [('https://localhost/stats/2026', '/stats/2026'), ('https://attacker.example', '/')]:
+            csrf = self.page(query='?next=' + destination)
+            response = self.post(csrf, action='password', username='Kyle', password='wrong')
+            self.assertEqual(response.status_code, 401)
+            self.assertIn('role="alert"', response.get_data(as_text=True))
+            response = self.post(csrf, action='password', username='Kyle', password='valid-password')
+            self.assertEqual(response.status_code, 303)
+            self.assertEqual(response.location, expected)
             with self.a.session_transaction(base_url='https://localhost') as saved:
-                self.assertEqual(saved['username'], 'Kyle')
+                saved.clear()
+
+    def test_admin_email_changes_require_admin_and_csrf(self):
+        data = {'username': 'Kyle', 'email': 'updated@example.com', 'csrf': 'admin-csrf'}
+        self.assertEqual(self.a.post('/admin/users/email', data=data).status_code, 403)
+        with self.a.session_transaction() as saved:
+            saved.update(logged_in=True, username='Kyle', login_email_admin_csrf='admin-csrf')
+        self.assertEqual(self.a.post('/admin/users/email', data={**data, 'csrf': 'wrong'}).status_code, 403)
+        self.assertEqual(self.a.post('/admin/users/email', data=data).status_code, 303)
+        self.assertEqual(self.service.adminfx.get_site_user('Kyle')['login_email'], 'updated@example.com')
+        self.service.log_activity.assert_called_once()
+        with self.a.session_transaction() as saved:
+            saved.update(logged_in=True, username='not-admin')
+        self.assertEqual(self.a.post('/admin/users/email', data=data).status_code, 403)
+
+    def test_admin_email_change_rejects_conflicts_and_revokes_pending_codes(self):
+        from web_sign_in import set_login_email
+        csrf, code = self.send()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO site_users (username, login_email) VALUES ('Other', 'other@example.com')")
+        with self.assertRaises(ValueError):
+            set_login_email(self.path, 'Kyle', 'other@example.com')
+        with self.assertRaises(ValueError):
+            set_login_email(self.path, 'Kyle', 'invalid')
+        set_login_email(self.path, 'Kyle', 'updated@example.com')
+        self.assertEqual(self.post(csrf, action='verify', code=code).status_code, 400)
+        self.assertEqual(self.service.adminfx.get_site_user('Kyle')['login_email'], 'updated@example.com')
+        set_login_email(self.path, 'Kyle', '')
+        self.assertIsNone(self.service.adminfx.get_site_user('Kyle')['login_email'])
+
+    def test_old_web_provider_endpoints_removed(self):
+        for provider in ('google', 'apple'):
+            self.assertEqual(self.a.post('/auth/' + provider, json={}).status_code, 404)
+
+    def test_migration_uses_only_explicit_player_links_and_does_not_follow_later_edits(self):
+        # Separate pre-migration database; migration must also work with legacy schema.
+        path = str(Path(self.directory.name) / 'legacy.db')
+        with sqlite3.connect(path) as conn:
+            conn.executescript('''
+                CREATE TABLE site_users (username TEXT, player_name TEXT);
+                CREATE TABLE players (full_name TEXT, email TEXT);
+                INSERT INTO site_users VALUES ('owner', 'Owner Person'), ('unlinked', NULL);
+                INSERT INTO players VALUES ('Owner Person', ' Owner@Example.com '), ('Unlinked Person', 'unlinked@example.com');
+            ''')
+        init_email_sign_in(path)
+        with sqlite3.connect(path) as conn:
+            self.assertEqual(conn.execute('SELECT login_email FROM site_users ORDER BY username').fetchall(), [('owner@example.com',), (None,)])
+            conn.execute("UPDATE players SET email='changed@example.com'")
+        init_email_sign_in(path)
+        with sqlite3.connect(path) as conn:
+            self.assertEqual(conn.execute("SELECT login_email FROM site_users WHERE username='owner'").fetchone()[0], 'owner@example.com')
 
 
 if __name__ == '__main__':

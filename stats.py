@@ -5124,60 +5124,7 @@ def player_game_stats(year, game_name, player_name):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    from web_sign_in import safe_login_next
-    # Get the 'next' parameter for redirect after login
-    next_url = safe_login_next(request.args.get('next'))
-    
-    # Check if user is already logged in via remember me cookie
-    if not session.get('logged_in'):
-        auth_token = request.cookies.get('remember_token')
-        if auth_token:
-            username = validate_auth_token(auth_token)
-            if username:
-                establish_user_session(username)
-                flash(f'Welcome back, {username}!', 'success')
-                # Redirect to next_url if provided, otherwise index
-                return redirect(next_url if next_url else url_for('index'))
-    
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        remember_me = request.form.get('remember_me') == 'on'
-        next_url = safe_login_next(request.form.get('next'))
-
-        ip = _client_ip()
-        if login_rate_limited(ip):
-            flash('Too many failed login attempts. Please wait a few minutes and try again.', 'error')
-            return render_template('login.html'), 429
-
-        if verify_password(username, password):
-            clear_login_failures(ip)
-            session.permanent = True  # Use PERMANENT_SESSION_LIFETIME so session cookie persists
-            username = establish_user_session(username, login=True)
-            log_activity('Logged in', summary=f'Web login from {ip}', username=username)
-            flash(f'Successfully logged in as {username}!', 'success')
-            
-            # Redirect to next_url if provided, otherwise index
-            redirect_url = next_url if next_url else url_for('index')
-            response = make_response(redirect(redirect_url))
-            
-            # Set remember me cookie if requested (default on so phone stays recognized)
-            if remember_me:
-                auth_token = create_auth_token(username)
-                cookie_days = 90
-                response.set_cookie('remember_token', auth_token,
-                                  max_age=cookie_days*24*60*60,
-                                  secure=request.is_secure,  # HTTPS-only cookie in production, still works on local http
-                                  httponly=True,
-                                  samesite='Lax')
-                flash(f'You will stay logged in on this device for {cookie_days} days.', 'info')
-            
-            return response
-        else:
-            record_login_failure(ip)
-            flash('Invalid username or password.', 'error')
-    
-    return render_template('login.html')
+    return app.extensions['email_login']()
 
 @app.route('/logout')
 def logout():

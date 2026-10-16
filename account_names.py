@@ -20,6 +20,19 @@ def clean_display_name(value):
     return value
 
 
+def clean_signup_name(value):
+    """Normalize a required name part without flattening intentional mixed case."""
+    name = clean_display_name(value)
+    if not name or len(name) > 100 or not any(char.isalpha() for char in name):
+        raise ValueError('Enter your first and last name.')
+    if any(not (char.isalpha() or unicodedata.category(char).startswith('M') or char in " '-’.") for char in name):
+        raise ValueError('Use letters, spaces, apostrophes, or hyphens in your name.')
+    # Capitalize each all-lowercase or all-uppercase component; retain McDonald,
+    # deVries, and other deliberate mixed-case spellings supplied by the user.
+    return ''.join(part.title() if part.islower() or part.isupper() else part
+                   for part in re.split(r"([\s\-’'.]+)", name))
+
+
 def account_label(username, display_name=None):
     if display_name:
         return display_name

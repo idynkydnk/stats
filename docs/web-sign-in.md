@@ -1,65 +1,90 @@
-# Website Apple and Google sign-in
+# Website email sign-in
 
-The login page supports Apple and Google alongside the existing password form.
-Both providers use the same account lookup as the iPhone app: the verified
-provider subject identifies the account, never the supplied name or email.
-New users get personal accounts; existing app users keep their account and stats.
+The website uses one email flow for sign-in and account creation. Enter an email,
+then enter the four-digit code. Existing linked accounts retain their username,
+permissions, and stats. A new email creates a personal account only after the
+code is verified and the user supplies both first and last names. Apple and
+Google buttons, browser SDKs, and `/auth/<provider>` endpoints have been removed. The iPhone authentication endpoints remain supported.
 
-## Google configuration
+## Email delivery
 
-In the Google Cloud project used by the iPhone app, create an OAuth client with
-application type **Web application**. Add the website's exact origin (for example,
-`https://idynkydnk.pythonanywhere.com`) under Authorized JavaScript origins.
-Set `GOOGLE_WEB_CLIENT_ID` in the website server environment to that client ID.
-The existing `GOOGLE_IOS_CLIENT_ID` continues to be used only by the app.
-The website uses the Google Identity Services popup callback, so no web client
-secret or Google redirect endpoint is needed.
+Use the existing `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`, and `MAIL_DEFAULT_SENDER` settings. No OAuth website configuration
+is needed. Codes use Flask-Mail directly and go only to the requested address;
+recap copy recipients, subscriptions, and update-email recipients are not used.
+Keep SMTP timeouts bounded in the hosting environment. A delivery error displays
+a retry message without signing in or creating an account.
 
-[Google setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
-and [JavaScript reference](https://developers.google.com/identity/gsi/web/reference/js-reference).
+## Existing accounts
 
-## Apple configuration
+On first startup, `site_users.login_email` is populated only from explicitly
+saved `player_name` links with a single valid player email. There is no match by
+first name, nickname, or suggested update recipient. These email links are
+snapshots: subsequent public player edits cannot change account access.
 
-In the same Apple Developer team as the iPhone app, create a Services ID and
-enable Sign in with Apple. Associate it with the app's primary App ID
-(`com.kt.stats` unless the app configuration has changed). This grouping is
-required for Apple to identify the same person consistently on the app and web.
-Register the website domain and the exact HTTPS return URL, for example
-`https://idynkydnk.pythonanywhere.com/login`.
+Existing users without a saved email are asked to add one after signing in with
+their current password. Remembered browser sessions also receive the prompt on
+their next page visit. They verify the new email with a code before it is linked
+to their original account; usernames, permissions, and stats stay unchanged.
+This does not interrupt native app or API requests. No administrator needs to
+collect those addresses in advance. An address linked to another account is
+rejected, and a submitted username or name cannot claim an old account.
 
-Set `APPLE_WEB_CLIENT_ID` to the Services ID and `APPLE_WEB_REDIRECT_URI` to the
-registered return URL. The popup SDK returns the authorization to the login
-page's JavaScript, which submits it to `/auth/apple`. The server verifies the
-identity token against Apple's public keys; this flow does not exchange the
-authorization code or store Apple refresh tokens.
+New email signups verify their email first, then enter required first and last
+names. No account is created until both steps are complete. All-lowercase and
+all-uppercase name components are capitalized, including hyphenated and
+apostrophized names; intentional mixed capitalization such as McDonald is kept.
+Both name parts and the combined display name are stored. The verified email
+proof expires after ten minutes and can only finish one signup.
 
-[Apple environment setup](https://developer.apple.com/documentation/signinwithapple/configuring-your-environment-for-sign-in-with-apple)
-and [webpage setup](https://developer.apple.com/documentation/signinwithapple/configuring-your-webpage-for-sign-in-with-apple).
+The name screen also offers an existing-account path for users who started with
+an email that is not yet linked. A user with neither a remembered session nor a
+working password must contact Kyle to recover the old account; a typed name
+alone never grants access to somebody else's stats.
 
-Reload the website after setting the variables. A provider's button stays
-disabled with an explanatory message until its configuration is present.
-Do not reuse the iOS client ID as a website client ID.
+In Admin → Site users, **Sign-in email** remains available for verified account
+support. Saving it invalidates outstanding codes for the old and new address.
+An email already linked to another account is rejected. Saving a blank email
+removes email sign-in and causes the user to be prompted again. Player edits and
+Site updates recipient selections do not change login access. Inactive or
+ambiguous accounts are blocked after code verification instead of reassigned.
 
-On PythonAnywhere, the live environment settings are in the separate WSGI file
-`/var/www/idynkydnk_pythonanywhere_com_wsgi.py`; the repository copy does not show
-what is configured there. Set these variables before `load_application()` runs.
-For local development, set them in the ignored `.env` file.
+Older social accounts did not retain provider email claims. Their next successful
+iPhone provider sign-in saves a verified provider email if no login email is
+already set. Apple Hide My Email uses the relay address Apple supplies. Provider
+subjects remain the identity keys; matching an email never merges social accounts.
+Conflicting email associations fail closed on the website.
 
-## Verification before release
+## Security and verification
 
-Run `venv/bin/python -m unittest discover -s tests -p 'test_web_sign_in.py'`.
-The tests cover signed identity tokens, browser-bound CSRF and nonce checks,
-single-use challenges, provider audiences, cookie handling, and account reuse.
-Run `node --test tests/test_web_sign_in.js` for provider button handling,
-cancellation, SDK failures, and server errors.
+Four-digit codes expire after five minutes and permit at most three verification
+attempts per code, plus a shared limit of six incorrect attempts per email per
+hour across browsers, IPs, and resends.
+Only keyed hashes are stored, with a random challenge bound to the browser
+session. CSRF validation applies to all forms. Successful verification consumes
+the code and resolves the existing account or stores a short-lived signup proof.
+Finishing signup atomically consumes that proof and creates the account. Email
+enrollment binds the code to the authenticated original account and rechecks
+that account before saving; it cannot overwrite a newly assigned email.
+Resending replaces that browser's previous code. Delivery and verification
+limits live in SQLite so they persist across workers and restarts. Email sends
+are limited to one per minute and five per hour per address, and twenty per hour
+per IP. Verification and password attempts have separate per-IP limits.
 
-With the production provider settings in place, sign in with each provider in
-the app and then on the website. Confirm that both show the same personal stats.
-Also check a new account, canceled/blocked popups, a narrow phone screen, password
-login, logout, and Remember me. Each browser login challenge expires after ten
-minutes; reloading the page starts a fresh one.
+Login pages are not cached; redirects remain on-site. Remember me uses the
+existing 90-day HttpOnly, SameSite cookie (Secure on HTTPS). The flow works
+without JavaScript and supports mobile code autofill and pasted codes.
+
+Run:
+
+    venv/bin/python -m unittest tests.test_web_sign_in tests.test_private_accounts tests.test_google_app_sign_in tests.test_site_updates
+    node --test tests/test_web_sign_in.js
+
+Tests use temporary databases and intercepted email; they never send real codes.
+Before release, confirm a real delivery with an explicitly authorized recipient
+and check the page on a cloud browser at phone and desktop sizes.
 
 ## Site update for the commit
 
-Site-Update: Sign in with Apple or Google on the website
-Use the same Apple or Google account on the website and iPhone app to access your stats.
+Site-Update: Sign in with an email code
+Sign in with your email and a four-digit code. Existing users can add their email when they sign in, and new users enter their first and last names with capitalization tidied automatically.

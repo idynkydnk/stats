@@ -1,100 +1,133 @@
 {% extends base_template %}
-{% block title %}Login - Stats{% endblock %}
+{% block title %}Sign in - Stats{% endblock %}
 {% block extra_css %}
 <style>
-    .sr-login-container { min-height: 60vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .sr-login-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 12px; padding: 40px; width: 100%; max-width: 400px; }
-    .sr-login-header { text-align: center; margin-bottom: 30px; }
-    .sr-login-header h1 { color: var(--sr-text); font-size: 24px; font-weight: 600; margin: 0 0 8px 0; }
-    .sr-login-header p { color: var(--sr-muted); font-size: 14px; margin: 0; }
+    .sr-login-container { min-height: 60vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+    .sr-login-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 16px; padding: 32px; width: 100%; max-width: 420px; box-sizing: border-box; }
+    .sr-login-header { margin-bottom: 28px; }
+    .sr-login-header h1 { color: var(--sr-text); font-size: 28px; font-weight: 600; margin: 0 0 10px; }
+    .sr-login-header p, .sr-login-help { color: var(--sr-muted); font-size: 14px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+    .sr-login-header strong { color: var(--sr-text); }
     .sr-login-form { display: flex; flex-direction: column; gap: 20px; }
     .sr-form-group { display: flex; flex-direction: column; gap: 8px; }
     .sr-form-group label { color: var(--sr-text); font-size: 14px; font-weight: 500; }
-    .sr-form-group input[type="text"], .sr-form-group input[type="password"] { width: 100%; padding: 12px 14px; background: var(--sr-bg); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 15px; transition: all 0.2s; box-sizing: border-box; }
-    .sr-form-group input:focus { outline: none; border-color: var(--sr-accent); box-shadow: 0 0 0 3px var(--sr-accent-dim); }
-    .sr-checkbox-group { display: flex; align-items: center; gap: 10px; }
-    .sr-checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--sr-accent); cursor: pointer; }
-    .sr-checkbox-group label { color: var(--sr-muted); font-size: 14px; cursor: pointer; }
-    .sr-login-btn { width: 100%; padding: 14px; background: var(--sr-accent); border: none; border-radius: 8px; color: #0b0f14; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .sr-login-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .sr-login-btn:active { transform: translateY(0); }
-    .sr-login-footer { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--sr-line); }
-    .sr-login-footer a { color: var(--sr-accent); text-decoration: none; font-size: 14px; transition: all 0.2s; }
-    .sr-login-footer a:hover { filter: brightness(1.2); }
-    .sr-login-footer a i { margin-right: 6px; }
-    .sr-social-login { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-    .sr-social-button { width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid #747775; border-radius: 4px; font: 500 15px system-ui, sans-serif; cursor: pointer; background: white; color: #1f1f1f; }
-    .sr-social-button i { margin-right: 10px; }
-    .sr-social-button:disabled { opacity: .55; cursor: not-allowed; }
-    .sr-social-button:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: 3px; }
-    .sr-apple-button { background: #000; color: #fff; border-color: #888; }
-    .sr-social-note { color: var(--sr-muted); font-size: 13px; line-height: 1.5; margin: 0; text-align: center; }
-    .sr-login-divider { display: flex; align-items: center; gap: 12px; color: var(--sr-muted); font-size: 13px; margin: 20px 0; }
-    .sr-login-divider::before, .sr-login-divider::after { content: ''; flex: 1; height: 1px; background: var(--sr-line); }
-    #sr-social-error { color: var(--sr-text); font-size: 14px; line-height: 1.5; }
-    #sr-google-button { display: flex; justify-content: center; min-height: 44px; }
-    #sr-google-button[hidden] { display: none; }
+    .sr-form-group input { width: 100%; padding: 14px; background: var(--sr-bg); border: 1px solid var(--sr-line); border-radius: 8px; color: var(--sr-text); font-size: 16px; box-sizing: border-box; }
+    .sr-form-group input:focus-visible, .sr-login-card button:focus-visible, .sr-login-card a:focus-visible, .sr-login-card summary:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: 3px; }
+    #code { font-size: 28px; letter-spacing: .25em; text-align: center; font-variant-numeric: tabular-nums; }
+    .sr-checkbox-group { display: flex; align-items: center; gap: 10px; color: var(--sr-muted); font-size: 14px; }
+    .sr-checkbox-group input { width: 20px; height: 20px; accent-color: var(--sr-accent); }
+    .sr-login-btn { width: 100%; min-height: 48px; padding: 14px; background: var(--sr-accent); border: none; border-radius: 8px; color: #0b0f14; font-size: 16px; font-weight: 600; cursor: pointer; }
+    .sr-login-btn:hover { filter: brightness(1.1); }
+    .sr-login-btn:disabled { opacity: .65; cursor: wait; }
+    .sr-login-link { color: var(--sr-accent); border: none; background: transparent; font: inherit; font-size: 14px; min-height: 44px; padding: 8px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .sr-login-secondary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 20px; margin: 14px 0 8px; }
+    .sr-login-error { padding: 14px; margin-bottom: 20px; border: 1px solid var(--sr-accent); border-radius: 8px; color: var(--sr-text); font-size: 14px; line-height: 1.5; }
+    .sr-login-fallback { margin-top: 24px; border-top: 1px solid var(--sr-line); padding-top: 16px; }
+    .sr-login-fallback summary { color: var(--sr-muted); cursor: pointer; font-size: 14px; padding: 8px 0; }
+    .sr-login-fallback form { margin-top: 16px; }
+    .sr-login-footer { text-align: center; margin-top: 24px; }
+    .sr-login-footer a { color: var(--sr-muted); font-size: 14px; display: inline-block; padding: 12px; }
+    @media (max-width: 480px) { .sr-login-card { padding: 24px 20px; } .sr-login-container { padding: 12px 0; } }
 </style>
 {% endblock %}
 {% block content %}
-    <div class="sr-header sr-header-compact" style="margin-bottom: 20px;">
-        <div class="sr-header-actions">
-            {% include 'partials/page_header_actions.html' %}
+<div class="sr-header sr-header-compact" style="margin-bottom: 20px;">
+    <div class="sr-header-actions">{% include 'partials/page_header_actions.html' %}</div>
+</div>
+<div class="sr-login-container">
+    <div class="sr-login-card">
+        <div class="sr-login-header">
+            {% if signup %}
+            <h1>What’s your name?</h1>
+            <p>Your email is verified. Add your name to finish creating your account.</p>
+            {% elif pending %}
+            <h1>Check your email</h1>
+            <p>Enter the 4-digit code we sent to<br><strong>{{ pending.email }}</strong></p>
+            {% elif enrolling %}
+            <h1>Add your email</h1>
+            <p>Next time, sign in with a short email code instead of a password. We’ll verify your email to keep your existing account and stats together.</p>
+            {% else %}
+            <h1>Welcome to Stats</h1>
+            <p>Sign in or create an account with your email.<br>No password needed.</p>
+            {% endif %}
         </div>
-    </div>
-    <div class="sr-login-container">
-        <div class="sr-login-card">
-            <div class="sr-login-header">
-                <h1><i class="fas fa-lock" style="margin-right: 10px; color: var(--sr-accent);"></i>Login</h1>
-                <p>Sign in to your stats</p>
+        {% if error %}<div class="sr-login-error" role="alert">{{ error }}</div>{% endif %}
+        {% if signup %}
+        <form method="post" class="sr-login-form" data-busy-label="Creating account…">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="action" value="signup">
+            <div class="sr-form-group">
+                <label for="first_name">First name</label>
+                <input type="text" id="first_name" name="first_name" required autocomplete="given-name" autocapitalize="words" maxlength="100" value="{{ request.form.get('first_name', '') }}" autofocus>
             </div>
-            <div class="sr-social-login" id="sr-social-login">
-                <button type="button" class="sr-social-button sr-apple-button" id="sr-apple-button" disabled>
-                    <i class="fab fa-apple" aria-hidden="true"></i>Continue with Apple
-                </button>
-                <div id="sr-google-button" hidden></div>
-                <button type="button" class="sr-social-button" id="sr-google-placeholder" disabled>
-                    <i class="fab fa-google" aria-hidden="true"></i>Continue with Google
-                </button>
-                <p class="sr-social-note">Use the same Apple or Google account as the iPhone app to access your stats. New here? Continuing creates an account.</p>
-                {% if not web_sign_in.apple_client_id or not web_sign_in.apple_redirect_uri %}
-                <p class="sr-social-note">Apple sign-in is not available on the website yet.</p>
-                {% endif %}
-                {% if not web_sign_in.google_client_id %}
-                <p class="sr-social-note">Google sign-in is not available on the website yet.</p>
-                {% endif %}
-                <p id="sr-social-status" class="sr-social-note" role="status"></p>
-                <p id="sr-social-error" role="alert" hidden></p>
-                <noscript><p class="sr-social-note">Enable JavaScript to sign in with Apple or Google, or use your password below.</p></noscript>
+            <div class="sr-form-group">
+                <label for="last_name">Last name</label>
+                <input type="text" id="last_name" name="last_name" required autocomplete="family-name" autocapitalize="words" maxlength="100" value="{{ request.form.get('last_name', '') }}">
             </div>
-            <div class="sr-login-divider">or use your password</div>
-            <form method="POST" class="sr-login-form">
-                {% if request.args.get('next') %}
-                <input type="hidden" name="next" value="{{ request.args.get('next') }}">
-                {% endif %}
-                <div class="sr-form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required autocomplete="username" placeholder="Enter username">
-                </div>
-                <div class="sr-form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Enter password">
-                </div>
-                <div class="sr-checkbox-group">
-                    <input type="checkbox" id="remember_me" name="remember_me" checked>
-                    <label for="remember_me">Remember me on this device (stay logged in)</label>
-                </div>
-                <button type="submit" class="sr-login-btn">
-                    <i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i>Sign In
-                </button>
+            <button type="submit" class="sr-login-btn">Create account</button>
+        </form>
+        <div class="sr-login-fallback">
+            <p class="sr-login-help">Already have an account without an email? Sign in with your old password first to keep your stats.</p>
+            <form method="post">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="password_start" value="1">
+                <button name="action" value="change" class="sr-login-link">Use my existing account</button>
             </form>
-            <div class="sr-login-footer">
-                <a href="{{ url_for('index') }}"><i class="fas fa-arrow-left"></i>Back to Stats</a>
-            </div>
         </div>
+        {% elif pending %}
+        <form method="post" class="sr-login-form" data-busy-label="Signing in…">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="action" value="verify">
+            <div class="sr-form-group">
+                <label for="code">Sign-in code</label>
+                <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{4,7}" maxlength="7" placeholder="0000" required autofocus aria-describedby="code-help">
+                <p id="code-help" class="sr-login-help">Your code is valid for 5 minutes. Use the most recent code sent to you.</p>
+            </div>
+            <button type="submit" class="sr-login-btn">Continue</button>
+        </form>
+        <div class="sr-login-secondary">
+            <form method="post" data-busy-label="Sending…">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button name="action" value="resend" class="sr-login-link">Send a new code</button>
+            </form>
+            <form method="post">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button name="action" value="change" class="sr-login-link">Use a different email</button>
+            </form>
+        </div>
+        <p class="sr-login-help">Can’t find it? Check your spam folder or wait a minute before sending another code.</p>
+        {% else %}
+        <form method="post" class="sr-login-form" data-busy-label="Sending code…">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="action" value="send">
+            <div class="sr-form-group">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" required autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" placeholder="you@example.com" value="{{ request.form.get('email', '') }}" autofocus aria-describedby="email-help">
+                <p id="email-help" class="sr-login-help">{% if enrolling %}We’ll send a code to confirm this email belongs to you.{% else %}We’ll email you a code. If you already have an account, use the email saved for it.{% endif %}</p>
+            </div>
+            <label class="sr-checkbox-group"><input type="checkbox" name="remember_me" {% if remember %}checked{% endif %}>Keep me signed in</label>
+            <button type="submit" class="sr-login-btn">Email me a code</button>
+            {% if not enrolling %}<p class="sr-login-help">New here? Verify your email, then add your first and last name.</p>{% endif %}
+        </form>
+        {% if not enrolling %}
+        <details class="sr-login-fallback" {% if request.form.get('action') == 'password' or request.args.get('password') == '1' %}open{% endif %}>
+            <summary>Need to use your old password?</summary>
+            <p class="sr-login-help">Sign in with your username and password once, then we’ll ask you to add and verify your email. If you can’t sign in, contact Kyle for help.</p>
+            <form method="post" class="sr-login-form" data-busy-label="Signing in…">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="action" value="password">
+                <div class="sr-form-group"><label for="username">Username</label><input id="username" name="username" required autocomplete="username"></div>
+                <div class="sr-form-group"><label for="password">Password</label><input type="password" id="password" name="password" required autocomplete="current-password"></div>
+                <label class="sr-checkbox-group"><input type="checkbox" name="remember_me" {% if remember %}checked{% endif %}>Keep me signed in</label>
+                <button type="submit" class="sr-login-btn">Sign in with password</button>
+            </form>
+        </details>
+        {% endif %}
+        {% endif %}
+        <div class="sr-login-footer"><a href="{{ url_for('index') }}">Back to Stats</a></div>
     </div>
+</div>
 {% endblock %}
 {% block extra_js %}
-<script type="application/json" id="sr-sign-in-config">{{ web_sign_in|tojson }}</script>
-<script src="{{ url_for('static', filename='js/sign-in.js', v='20261006') }}" defer></script>
+<script src="{{ url_for('static', filename='js/sign-in.js', v='20261015') }}" defer></script>
 {% endblock %}

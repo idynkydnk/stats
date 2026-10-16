@@ -624,8 +624,11 @@ def list_site_users():
         "(SELECT MAX(created_at) FROM auth_tokens t WHERE lower(t.username) = lower(u.username))"
         if has_tokens else "NULL"
     )
+    user_columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)')}
+    login_email_select = 'u.login_email' if 'login_email' in user_columns else 'NULL'
     rows = conn.execute(f'''
         SELECT u.id, u.username, u.is_admin, u.active, u.created_at,
+               {login_email_select} AS login_email,
                u.last_seen_at, u.last_login_at, u.player_name,
                (SELECT MAX(created_at) FROM activity_log a
                 WHERE lower(a.username) = lower(u.username)) AS activity_seen,

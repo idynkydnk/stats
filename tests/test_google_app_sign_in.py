@@ -63,6 +63,17 @@ class GoogleAppSignInTests(unittest.TestCase):
         self.assertEqual(me.status_code, 200, me.json)
         self.assertTrue(me.json['private'])
 
+    def test_verified_provider_email_is_saved_without_merging_accounts(self):
+        response = self.sign_in(email=' Player@Example.com ')
+        self.assert_app_session(response)
+        username = response.json['username']
+        self.assertEqual(self.service.adminfx.get_site_user(username)['login_email'], 'player@example.com')
+        # Later provider claims never silently replace the established login email.
+        self.sign_in(email='changed@example.com')
+        self.assertEqual(self.service.adminfx.get_site_user(username)['login_email'], 'player@example.com')
+        another = self.sign_in(sub='another-person', email='player@example.com')
+        self.assertNotEqual(another.json['username'], username)
+
     def test_google_handoff_works_without_cookies(self):
         self.assert_app_session(self.sign_in())
 

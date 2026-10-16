@@ -62,7 +62,7 @@ PREVIEW_ENDPOINTS = {
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',
 }
 AUTH_ENDPOINTS = {'api_login', 'private_register', 'private_google', 'private_auth_config',
-                  'private_apple', 'private_apple_challenge', 'web_social_login'}
+                  'private_apple', 'private_apple_challenge', 'login'}
 
 
 def private_database():
@@ -260,7 +260,7 @@ def register_private_accounts(app, service):
     def limited():
         return service.login_rate_limited(service._client_ip())
 
-    def social_session(provider, subject, full_name=None, complete=issue_session):
+    def social_session(provider, subject, full_name=None, complete=issue_session, verified_email=None):
         column = {'google': 'google_subject', 'apple': 'apple_subject'}[provider]
         with sqlite3.connect(site_path) as conn:
             row = conn.execute(f'''SELECT a.username FROM private_accounts a
@@ -284,11 +284,21 @@ def register_private_accounts(app, service):
                 missing_name = " AND TRIM(COALESCE(display_name, ''))=''" if provider == 'apple' else ''
                 conn.execute('UPDATE site_users SET display_name=? WHERE username=? AND active=1' + missing_name,
                              (display_name, username))
+        if verified_email:
+            from web_sign_in import normalize_email
+            try:
+                email = normalize_email(verified_email)
+            except ValueError:
+                email = None
+            if email:
+                with sqlite3.connect(site_path) as conn:
+                    conn.execute("UPDATE site_users SET login_email=? WHERE username=? AND login_email IS NULL AND active=1",
+                                 (email, username))
         service.clear_login_failures(service._client_ip())
         return complete(username)
 
     from web_sign_in import register_web_sign_in
-    register_web_sign_in(app, service, site_path, social_session)
+    register_web_sign_in(app, service, site_path)
 
     @app.post('/api/auth/register')
     def private_register():
@@ -342,7 +352,7 @@ def register_private_accounts(app, service):
         full_name = clean_display_name(claims.get('name')) or ' '.join(
             part for part in (clean_display_name(claims.get('given_name')),
                               clean_display_name(claims.get('family_name'))) if part)
-        return social_session('google', subject, full_name)
+        return social_session('google', subject, full_name, verified_email=claims.get('email'))
 
     @app.post('/api/auth/apple/challenge')
     def private_apple_challenge():
@@ -385,7 +395,8 @@ def register_private_accounts(app, service):
         except Exception:
             app.logger.exception('Apple verification unavailable')
             return jsonify(error='Apple sign-in is temporarily unavailable.'), 503
-        return social_session('apple', claims['sub'], body.get('full_name'))
+        return social_session('apple', claims['sub'], body.get('full_name'),
+                              verified_email=claims.get('email') if claims.get('email_verified') in (True, 'true') else None)
 
     @app.delete('/api/account')
     def private_delete_account():
