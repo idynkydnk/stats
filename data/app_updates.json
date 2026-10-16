@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-16-email-code-sign-in",
+    "date": "2026-10-16",
+    "subject": "iPhone: Sign in with a four-digit email code",
+    "body": "Use your email and a four-digit code to sign in or create an account, just like on the website. New users enter their first and last names with capitalization tidied automatically; existing users without a saved email can add and verify one while keeping their stats."
+  },
+  {
     "id": "ios-2026-10-13-icon-corners",
     "date": "2026-10-13",
     "subject": "iPhone: Clean icon corners",

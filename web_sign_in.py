@@ -1,4 +1,4 @@
-"""Browser email-code sign-in, with durable single-use challenges."""
+"""Shared website and native-app email-code sign-in, with durable single-use challenges."""
 import hashlib
 import hmac
 import re
@@ -8,7 +8,7 @@ import sqlite3
 from time import time
 from urllib.parse import unquote, urlsplit
 
-from flask import abort, flash, has_request_context, redirect, render_template, request, session, url_for
+from flask import abort, jsonify, flash, has_request_context, redirect, render_template, request, session, url_for
 from flask_mail import Message
 from werkzeug.security import generate_password_hash
 from account_names import clean_signup_name
@@ -166,11 +166,20 @@ def register_web_sign_in(app, service, site_path):
             conn.row_factory = sqlite3.Row
             pending = conn.execute('SELECT email, expires_at, verified_at FROM web_email_codes WHERE id=?',
                                    (session.get('email_login_id'),)).fetchone()
+        if request.endpoint == 'api_email_login':
+            step = 'signup' if pending and pending['verified_at'] is not None else ('code' if pending else 'email')
+            return jsonify(step=step, csrf=csrf, email=pending['email'] if pending else None,
+                           enrolling=bool(enrollment_user()), error=error), status
         return render_template('login.html', csrf=csrf, pending=pending,
                                signup=bool(pending and pending['verified_at'] is not None),
                                enrolling=enrollment_user(),
                                remember=session.get('email_login_remember', True),
                                error=error), status
+
+    def continue_login(password_start=False):
+        if request.endpoint == 'api_email_login':
+            return render()
+        return redirect(url_for('login', password='1') if password_start else url_for('login'), code=303)
 
     def finish(username):
         user = service.adminfx.get_site_user(username)
@@ -186,7 +195,9 @@ def register_web_sign_in(app, service, site_path):
         if not user.get('login_email'):
             session['email_login_next'] = destination
             session['email_login_remember'] = remember
-            return redirect(url_for('login'), code=303)
+            return continue_login()
+        if request.endpoint == 'api_email_login':
+            return jsonify(step='complete', token=service.create_auth_token(username))
         response = redirect(destination, code=303)
         if remember:
             response.set_cookie('remember_token', service.create_auth_token(username),
@@ -207,23 +218,30 @@ def register_web_sign_in(app, service, site_path):
         conn.execute('INSERT INTO web_login_events VALUES (?, ?, ?)', (kind, digest(kind + ':' + key), now))
 
     def login():
+        form = request.form
+        if request.endpoint == 'api_email_login' and request.method == 'POST':
+            form = request.get_json(silent=True)
+            if not isinstance(form, dict) or any(not isinstance(value, str) for value in form.values()):
+                return render('Please try again.', 400)
         if request.method == 'GET':
             session['email_login_next'] = safe_login_next(request.args.get('next', session.get('email_login_next')))
-            if session.get('logged_in'):
-                return render() if enrollment_user() else redirect(session['email_login_next'])
-            username = service.validate_auth_token(request.cookies.get('remember_token')) if request.cookies.get('remember_token') else None
-            if username:
-                service.establish_user_session(username)
-                return render() if enrollment_user() else redirect(session['email_login_next'])
+            if not session.get('logged_in') and request.cookies.get('remember_token'):
+                username = service.validate_auth_token(request.cookies['remember_token'])
+                if username:
+                    service.establish_user_session(username)
+            if session.get('logged_in') and not enrollment_user():
+                if request.endpoint == 'api_email_login':
+                    return finish(session['username'])
+                return redirect(session['email_login_next'])
             return render()
-        csrf = request.form.get('csrf', '')
+        csrf = form.get('csrf', '')
         if not csrf or not secrets.compare_digest(csrf.encode(), session.get('email_login_csrf', '').encode()):
             return render('This page expired. Please try again.', 403)
-        action = request.form.get('action', 'send')
+        action = form.get('action', 'send')
         if action == 'change':
             with sqlite3.connect(site_path) as conn:
                 conn.execute('DELETE FROM web_email_codes WHERE id=?', (session.pop('email_login_id', None),))
-            return redirect(url_for('login', password='1') if request.form.get('password_start') == '1' else url_for('login'), code=303)
+            return continue_login(password_start=form.get('password_start') == '1')
         now = int(time())
         ip = service._client_ip()
         if action == 'password':
@@ -236,15 +254,15 @@ def register_web_sign_in(app, service, site_path):
                     record(conn, 'password', ip, now)
             if limited:
                 return render('Too many attempts. Try again in five minutes.', 429)
-            username = request.form.get('username', '').strip()
-            if not service.verify_password(username, request.form.get('password', '')):
+            username = form.get('username', '').strip()
+            if not service.verify_password(username, form.get('password', '')):
                 return render('The username or password is incorrect.', 401)
-            session['email_login_remember'] = request.form.get('remember_me') == 'on'
+            session['email_login_remember'] = form.get('remember_me') == 'on'
             return finish(service.adminfx.get_site_user(username)['username'])
         if action == 'signup':
             try:
-                first_name = clean_signup_name(request.form.get('first_name'))
-                last_name = clean_signup_name(request.form.get('last_name'))
+                first_name = clean_signup_name(form.get('first_name'))
+                last_name = clean_signup_name(form.get('last_name'))
             except ValueError as exc:
                 return render(str(exc), 400)
             error = None
@@ -282,10 +300,10 @@ def register_web_sign_in(app, service, site_path):
                 email = row[0]
             else:
                 try:
-                    email = normalize_email(request.form.get('email'))
+                    email = normalize_email(form.get('email'))
                 except ValueError as exc:
                     return render(str(exc), 400)
-                session['email_login_remember'] = request.form.get('remember_me') == 'on'
+                session['email_login_remember'] = form.get('remember_me') == 'on'
             owner = enrollment_user()
             link_username = owner['username'] if owner else None
             code = f'{secrets.randbelow(10000):04d}'
@@ -317,10 +335,10 @@ def register_web_sign_in(app, service, site_path):
             with sqlite3.connect(site_path) as conn:
                 conn.execute('DELETE FROM web_email_codes WHERE id=?', (session.get('email_login_id'),))
             session['email_login_id'] = identifier
-            return redirect(url_for('login'), code=303)
+            return continue_login()
         if action != 'verify':
             return render('Please try again.', 400)
-        code = request.form.get('code', '').strip().replace(' ', '')
+        code = form.get('code', '').strip().replace(' ', '')
         identifier = session.get('email_login_id', '')
         error = None
         status = 400
@@ -371,13 +389,29 @@ def register_web_sign_in(app, service, site_path):
                         conn.execute('UPDATE web_email_codes SET verified_at=?, expires_at=? WHERE id=?', (now, now + 600, identifier))
         if error:
             return render(error, status)
-        return finish(username) if username else redirect(url_for('login'), code=303)
+        return finish(username) if username else continue_login()
+
+    @app.route('/api/auth/email', methods=['GET', 'POST'])
+    def api_email_login():
+        # Native login uses its own ephemeral cookie jar plus the same CSRF token
+        # as web. Existing bearer credentials may bootstrap email enrollment.
+        authorization = request.headers.get('Authorization')
+        if authorization:
+            if request.method != 'GET' or not authorization.startswith('Bearer '):
+                return jsonify(error='Please sign in again.'), 401
+            username = service.validate_auth_token(authorization[7:].strip())
+            user = service.adminfx.get_site_user(username) if username else None
+            if not user or not user.get('active', 1):
+                return jsonify(error='Please sign in again.'), 401
+            session.clear()
+            service.establish_user_session(user['username'])
+        return login()
 
     app.extensions['email_login'] = login
 
     @app.after_request
     def protect_login_response(response):
-        if request.endpoint == 'login':
+        if request.endpoint in {'login', 'api_email_login'}:
             response.headers['Cache-Control'] = 'no-store'
             response.headers['Referrer-Policy'] = 'no-referrer'
         return response

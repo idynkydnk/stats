@@ -55,6 +55,29 @@ already set. Apple Hide My Email uses the relay address Apple supplies. Provider
 subjects remain the identity keys; matching an email never merges social accounts.
 Conflicting email associations fail closed on the website.
 
+## iPhone email sign-in
+
+The native app uses `GET /api/auth/email` to begin, then posts JSON actions
+(`send`, `verify`, `resend`, `change`, `signup`, or legacy `password`) to the same
+endpoint. All field values are strings. Each response carries `step`, `csrf`,
+`email`, and `enrolling`; errors keep the current step and include `error`.
+Completed sign-ins return `step: complete` and a bearer `token`. The app verifies
+that token with `/api/me` before storing it in Keychain or displaying account data.
+
+This is the same handler as browser sign-in: email normalization, challenge
+storage, expiry, retry limits, name validation, and account lookup are shared.
+Native sign-in owns a dedicated ephemeral cookie jar and includes the returned
+CSRF token on every POST. Cookies from this flow never authenticate normal app
+requests. An existing bearer token can be supplied on the initial GET to enroll
+an email. Invalid bearer credentials are rejected instead of falling back to
+another session. `/api/me` includes `needs_login_email`, prompting signed-in app
+users to verify an email before returning to their stats. Previous app versions
+remain compatible with the existing auth endpoints.
+
+Deploy this server update before distributing the new app build. The app shows
+a retry message if email sign-in is unavailable. No real emails are sent by the
+automated tests; `tests/test_email_app_sign_in.py` covers the native JSON flow.
+
 ## Security and verification
 
 Four-digit codes expire after five minutes and permit at most three verification

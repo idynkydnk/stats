@@ -62,7 +62,7 @@ PREVIEW_ENDPOINTS = {
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',
 }
 AUTH_ENDPOINTS = {'api_login', 'private_register', 'private_google', 'private_auth_config',
-                  'private_apple', 'private_apple_challenge', 'login'}
+                  'private_apple', 'private_apple_challenge', 'login', 'api_email_login'}
 
 
 def private_database():
