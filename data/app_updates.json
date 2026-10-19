@@ -3,7 +3,13 @@
     "id": "ios-2026-10-18-face-id-sign-in",
     "date": "2026-10-18",
     "subject": "iPhone: Sign in with Face ID",
-    "body": "Turn on Face ID in the Account menu after signing in, then use it to sign in when you reopen Stats. Touch ID is supported too, and you can still use email if needed. Logging out removes the saved sign-in."
+    "body": "Turn on Face ID in the Account menu after signing in, then use it when you reopen Stats or after logging out. Touch ID is supported too. Turn it off before logging out to remove the saved sign-in."
+  },
+  {
+    "id": "ios-2026-10-18-email-keyboard-suggestion",
+    "date": "2026-10-18",
+    "subject": "iPhone: Reuse your email when signing in",
+    "body": "After you successfully verify your email, Stats offers it above the keyboard the next time you need to sign in. Tap the address to fill it in."
   },
   {
     "id": "ios-2026-10-16-email-code-sign-in",
