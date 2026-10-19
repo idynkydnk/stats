@@ -1,0 +1,22 @@
+name: Profile live page performance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Measure live web workers
+        env:
+          PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: python3 scripts/profile_production.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-profile
+          path: output/production-profile/
+          retention-days: 7

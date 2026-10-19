@@ -4,6 +4,7 @@ import threading
 import time
 
 from flask import g, jsonify, request
+from production_profile import start_profile, finish_profile, stop_profile
 
 
 def register_performance(app, can_view):
@@ -20,12 +21,16 @@ def register_performance(app, can_view):
     @app.before_request
     def start_timing():
         g.performance_started = time.perf_counter()
+        start_profile()
+
+    app.teardown_request(stop_profile)
 
     @app.after_request
     def finish_timing(response):
         started = getattr(g, 'performance_started', None)
         if started is not None and request.endpoint not in {'static', 'performance_sample', 'performance_report'}:
             duration = (time.perf_counter() - started) * 1000
+            response = finish_profile(response, duration)
             response.headers.add('Server-Timing', f'app;dur={duration:.1f}')
             record('server', request.endpoint or 'unknown', duration)
         return response
