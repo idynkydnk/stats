@@ -35,6 +35,27 @@ Regression tests cover account/session/filter separation, revocation, changed
 games and rosters, cross-worker reuse, flash messages, session changes, errors,
 mid-render edits, explicit reloads and bounded private storage.
 
+The [first post-deployment profile](https://github.com/idynkydnk/stats/actions/runs/39303030508)
+measured 8–31 ms of unprofiled server work on prepared pages across all seven
+routes, with one 188 ms warmup outlier. Every signed profile hit the page cache.
+This rules out a host move as a prerequisite for fast repeat server responses.
+
+The large player page now sends the first ten partner/opponent rows as HTML and
+the complete remaining records as compact, safely escaped data. Sorting and Show
+all materialize the remaining rows before operating, so totals, all opponents,
+all partners, sorting tiers, links and percentage rounding remain complete.
+The local sample shrank from 565,228 to 113,447 bytes (80% less initial HTML).
+Timezone detection no longer sends an unchanged setting on every page visit.
+Common public pages are warmed after each deployment. A rebuilt small local icon
+bundle includes the previously missing passkey icon and retains earlier font
+versions for browsers with cached stylesheets.
+
+The new `Check live navigation performance` workflow keeps real HTTP asset
+caching enabled and tests all matchup records through sorting and expansion in
+cloud Chromium and WebKit. The older layout workflow intercepts every request,
+which disables Playwright's HTTP cache; its numbers should not be presented as
+repeat-browser asset-cache performance. It remains useful for layout checks.
+
 Measured before and after the readability/performance changes using the Flask
 test client and a temporary SQLite backup of the local data (9,945 doubles,
 501 Vollis, 739 other games). The original database was not changed. Website

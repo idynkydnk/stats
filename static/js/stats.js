@@ -393,7 +393,47 @@ function applyCollapsedRows(rows, collapseLimit) {
     });
 }
 
+// Expand only on demand. The payload contains every remaining matchup, so
+// sorting still includes the complete history, including below-fold players.
+function materializeMatchups(table) {
+    if (!table || !table.dataset.matchupRows) return;
+    const source = document.getElementById(table.dataset.matchupRows);
+    const tbody = table.querySelector('tbody');
+    if (!source || !tbody) return;
+    const records = JSON.parse(source.textContent);
+    const fragment = document.createDocumentFragment();
+    const start = tbody.querySelectorAll('tr').length;
+    records.forEach((record, index) => {
+        const [name, percentage, wins, losses, games, meetsMin, tier, label] = record;
+        const row = document.createElement('tr');
+        row.className = 'sr-hidden';
+        row.dataset.games = games;
+        row.dataset.meetsMin = meetsMin;
+        row.dataset.sampleTier = tier;
+        const values = [start + index + 1, name, percentage, wins, losses];
+        values.forEach((value, column) => {
+            const cell = document.createElement('td');
+            if (column === 1) {
+                const link = document.createElement('a');
+                link.href = table.dataset.playerUrl.replace('__PLAYER__', encodeURIComponent(name));
+                link.textContent = name;
+                cell.appendChild(link);
+            } else {
+                cell.dataset.value = value;
+                cell.textContent = column === 2 ? label + '%' : value;
+                cell.className = column === 0 ? 'sr-rank' : column === 3 ? 'sr-win' : column === 4 ? 'sr-loss' : '';
+            }
+            row.appendChild(cell);
+        });
+        fragment.appendChild(row);
+    });
+    tbody.appendChild(fragment);
+    source.remove();
+    delete table.dataset.matchupRows;
+}
+
 function sortTable(table, columnIndex, direction, isNumeric) {
+    materializeMatchups(table);
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
 
@@ -659,6 +699,7 @@ function toggleRows(tbodyId, btn, limit) {
     if (!tbody) return;
 
     const table = tbody.closest('table');
+    materializeMatchups(table);
     const maxRows = limit || parseInt((table && table.dataset.collapseLimit) || '5', 10);
     const rows = Array.from(tbody.querySelectorAll('tr'));
     const hidden = tbody.querySelectorAll('.sr-hidden');

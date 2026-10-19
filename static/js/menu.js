@@ -45,7 +45,8 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (tz) {
+        var savedTimezone = document.querySelector('meta[name="stats-timezone"]');
+        if (tz && (!savedTimezone || savedTimezone.content !== tz)) {
             fetch('/api/set_timezone', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},

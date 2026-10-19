@@ -45,9 +45,8 @@ for name, family, weight, classes in [
     digest = sha256(temporary.read_bytes()).hexdigest()[:16]
     filename = name + '.' + digest + '.woff2'
     temporary.replace(destination / filename)
-    for previous in destination.glob(name + '.*.woff2'):
-        if previous.name != filename:
-            previous.unlink()
+    # Keep previous fingerprinted fonts: cached immutable CSS can reference
+    # them after deployment, including fonts a browser has not loaded yet.
     css += (f'\n@font-face{{font-family:"{family}";font-style:normal;font-weight:{weight};'
             f'font-display:block;src:url("{filename}") format("woff2")}}'
             f'\n{classes}{{font-family:"{family}";font-weight:{weight}}}')

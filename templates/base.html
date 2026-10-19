@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="stats-timezone" content="{{ session.get('timezone', '') }}">
     <title>{% block title %}Stats{% endblock %}</title>
     {% if og_image_url %}
     <meta property="og:type" content="profile">
