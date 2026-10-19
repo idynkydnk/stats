@@ -27,6 +27,7 @@ from install_passkeys_cloud import python_command
 def lease_code(report, deadline):
     return f'''
 import hashlib, json, os, pathlib, secrets, sqlite3, time
+from contextlib import closing
 from datetime import datetime, timedelta
 report = pathlib.Path({report!r})
 deadline = {deadline!r}
@@ -36,7 +37,7 @@ db = '/home/Idynkydnk/stats/stats.db'
 token = secrets.token_urlsafe(32)
 digest = hashlib.sha256(token.encode()).hexdigest()
 try:
-    with sqlite3.connect(db, timeout=10) as conn:
+    with closing(sqlite3.connect(db, timeout=10)) as conn, conn:
         user = conn.execute("SELECT username FROM site_users WHERE lower(username)='kyle' AND active=1").fetchone()
         if not user:
             raise RuntimeError('Requested account unavailable')
@@ -48,7 +49,7 @@ try:
     while time.time() < deadline and report.exists():
         time.sleep(2)
 finally:
-    with sqlite3.connect(db, timeout=10) as conn:
+    with closing(sqlite3.connect(db, timeout=30)) as conn, conn:
         conn.execute('DELETE FROM auth_tokens WHERE token_hash=?', (digest,))
     report.unlink(missing_ok=True)
     pathlib.Path(str(report) + '.revoked').write_text('revoked')
@@ -190,7 +191,9 @@ def main():
                 raise
         # Let the cloud process revoke its own token before removing the task.
         revoked = False
-        for _ in range(20):
+        # The task and files API can observe home storage changes at different
+        # times. Allow propagation before treating revocation as unconfirmed.
+        for _ in range(90):
             try:
                 with urlopen(Request(base + '/files/path' + report + '.revoked',
                      headers={'Authorization': 'Token ' + os.environ['PA_API_TOKEN']}), timeout=30) as response:

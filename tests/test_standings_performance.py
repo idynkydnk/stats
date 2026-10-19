@@ -63,6 +63,14 @@ class StandingsTests(unittest.TestCase):
                     doubles.rare_stats_per_year('All years', 30)
             self.assertEqual(rate.call_count, 3)
 
+    def test_year_counts_use_unformatted_history(self):
+        with patch.object(doubles, 'year_games', return_value=self.games) as games:
+            counts = doubles.get_player_wins_losses('2026')
+        games.assert_called_once_with('2026', raw=True)
+        expected = reference(self.games, lambda game: ([p for p in game[2:4] if '?' not in p],
+                                                       [p for p in game[5:7] if '?' not in p]), 1)
+        self.assertEqual({row[0]: {'wins': row[1], 'losses': row[2]} for row in expected}, counts)
+
     def test_vollis_matches_reference(self):
         games = [(g[0], g[1], g[2], 21, g[5], 10) for g in self.games]
         with patch.object(vollis, 'vollis_year_games', return_value=games):

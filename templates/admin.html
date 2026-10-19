@@ -212,7 +212,7 @@ details.adm-section > summary { padding:12px 16px; cursor:pointer; font-weight:6
         <a class="adm-share-row" href="{{ e.share_url or url_for('view_ai_recap', share_id=e.share_id, published=1) }}">
             <div class="adm-share-thumb">
                 {% if e.hero_image_url %}
-                <img src="{{ e.hero_image_url }}" alt="">
+                <img src="{{ e.thumbnail_url or e.hero_image_url }}" alt="" loading="lazy" decoding="async">
                 {% else %}
                 <i class="fas fa-file-alt"></i>
                 {% endif %}
@@ -240,7 +240,7 @@ details.adm-section > summary { padding:12px 16px; cursor:pointer; font-weight:6
         <a class="adm-share-row" href="{{ e.view_url or url_for('view_flyer', share_id=e.share_id) }}">
             <div class="adm-share-thumb">
                 {% if e.flyer_image_url %}
-                <img src="{{ e.flyer_image_url }}" alt="">
+                <img src="{{ e.thumbnail_url or e.flyer_image_url }}" alt="" loading="lazy" decoding="async">
                 {% else %}
                 <i class="fas fa-image"></i>
                 {% endif %}

@@ -8,7 +8,7 @@
             title="Edit player" aria-label="Edit player">
         {% if player_photo_url %}
         <div class="sr-avatar-crop-frame" id="player-avatar-frame">
-            <img src="{{ player_photo_url }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img">
+            <img src="{{ image_preview_url(player_photo_url) }}" alt="{{ display_name }}" class="sr-crop-positioned-img" id="player-avatar-img" decoding="async">
         </div>
         {% else %}
         <div class="sr-player-avatar" id="player-avatar-fallback">{{ display_name[0] }}</div>

@@ -1,6 +1,6 @@
 """Selected databases are combined for browsing only; writes keep their owner."""
 import os
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from pathlib import Path
 import secrets
 import sqlite3
@@ -118,7 +118,7 @@ def build_stats_view(site_path, own_path, sources):
     fd, snapshot = tempfile.mkstemp(prefix='stats-view-', suffix='.db')
     os.close(fd)  # mkstemp uses 0600; no identity tables are copied.
     try:
-        with sqlite3.connect('file:' + str(site_path) + '?mode=ro', uri=True) as schema, sqlite3.connect(snapshot) as target:
+        with closing(sqlite3.connect('file:' + str(site_path) + '?mode=ro', uri=True)) as schema, closing(sqlite3.connect(snapshot)) as target, target:
             for name, ddl in schema.execute("SELECT name, sql FROM sqlite_master WHERE type='table'"):
                 if name in DATA_TABLES and ddl:
                     target.execute(ddl)
@@ -128,7 +128,7 @@ def build_stats_view(site_path, own_path, sources):
             for path, namespace in databases:
                 if not Path(path).is_file():
                     continue
-                with sqlite3.connect('file:' + str(path) + '?mode=ro', uri=True) as source:
+                with closing(sqlite3.connect('file:' + str(path) + '?mode=ro', uri=True)) as source:
                     source.row_factory = sqlite3.Row
                     for table in (*GAME_TABLES, 'players'):
                         dest_cols = {r[1] for r in target.execute('PRAGMA table_info("' + table + '")')}
@@ -136,6 +136,8 @@ def build_stats_view(site_path, own_path, sources):
                             continue
                         cols = [r[1] for r in source.execute('PRAGMA table_info("' + table + '")') if r[1] in dest_cols]
                         quoted = ','.join('"' + c + '"' for c in cols)
+                        insert = 'INSERT INTO "' + table + '" (' + quoted + ') VALUES (' + ','.join('?' for _ in cols) + ')'
+                        batch = []
                         for row in source.execute('SELECT ' + quoted + ' FROM "' + table + '"'):
                             values = dict(row)
                             if table == 'players':
@@ -147,8 +149,12 @@ def build_stats_view(site_path, own_path, sources):
                                 if not 0 < values['id'] < SOURCE_ID_STRIDE:
                                     raise ValueError('Game ID outside supported range')
                                 values['id'] += namespace * SOURCE_ID_STRIDE
-                            target.execute('INSERT INTO "' + table + '" (' + quoted + ') VALUES (' + ','.join('?' for _ in cols) + ')',
-                                           [values[c] for c in cols])
+                            batch.append([values[c] for c in cols])
+                            if len(batch) == 500:
+                                target.executemany(insert, batch)
+                                batch.clear()
+                        if batch:
+                            target.executemany(insert, batch)
         return snapshot
     except BaseException:
         os.unlink(snapshot)
@@ -216,6 +222,11 @@ def register_stats_views(app, service, site_path):
             if request.endpoint in PAGE_ENDPOINTS:
                 username = current_user()
                 user = service.adminfx.get_site_user(username) if username else None
+                if user:
+                    # Presence changes do not change stats-page content or
+                    # permissions. Keep every other identity field in the key.
+                    user = {key: value for key, value in user.items()
+                            if key not in {'last_seen_at', 'last_login_at'}}
                 label = getattr(service.adminfx, 'site_user_display_name', lambda name: name)(username) if username else ''
                 identity = [user, label]
                 return page_cache.prepare(databases, identity)

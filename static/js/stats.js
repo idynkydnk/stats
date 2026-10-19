@@ -1,11 +1,48 @@
 // Steam Charts-inspired Stats Page JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('table[data-standings-rows]').forEach(materializeStandings);
     try { initSearch(); } catch (e) { console.error(e); }
     try { initSorting(); } catch (e) { console.error(e); }
     try { initRatingInfoPopover(); } catch (e) { console.error(e); }
     try { initPlayerPageSticky(); } catch (e) { console.error(e); }
 });
+
+// Above-fold standings arrive as HTML; the complete remaining rows travel as
+// compact data. Build them before initializing search/sort, preserving every
+// record, original order, Python rounding, and the current authorized view URL.
+function materializeStandings(table) {
+    const source = document.getElementById(table.dataset.standingsRows);
+    if (!source) return;
+    const tbody = table.querySelector('tbody');
+    const start = tbody.rows.length;
+    const fragment = document.createDocumentFragment();
+    JSON.parse(source.textContent).forEach((record, index) => {
+        const [name, wins, losses, fraction, rating, ratingLabel, percentageLabel] = record;
+        const values = [start + index + 1, name, rating, wins, losses, fraction, wins + losses];
+        const classes = ['sr-rank', 'sr-player', 'sr-numeric sr-rating', 'sr-numeric sr-win',
+            'sr-numeric sr-loss', 'sr-numeric sr-winpct', 'sr-numeric'];
+        const row = document.createElement('tr');
+        values.forEach((value, column) => {
+            const cell = document.createElement('td');
+            cell.className = classes[column];
+            if (column === 1) {
+                const link = document.createElement('a');
+                link.textContent = name;
+                link.href = table.dataset.playerUrl.replace('__PLAYER__', encodeURIComponent(name));
+                cell.appendChild(link);
+            } else {
+                cell.dataset.value = value;
+                cell.textContent = column === 2 ? ratingLabel : column === 5 ? percentageLabel + '%' : value;
+            }
+            row.appendChild(cell);
+        });
+        fragment.appendChild(row);
+    });
+    tbody.appendChild(fragment);
+    source.remove();
+    delete table.dataset.standingsRows;
+}
 
 // ============================================
 // RATING INFO POPOVER

@@ -18,9 +18,10 @@ def clear_prepared_calculations():
         _values.clear()
 
 
-def reuse_calculation(function, args, kwargs, ttl=300):
-    revision = g.stats_data_revision
-    databases = getattr(g, 'stats_source_databases', None)
+def reuse_calculation(function, args, kwargs, ttl=300, revision=None):
+    databases = getattr(g, 'stats_source_databases', None) if revision is None else None
+    if revision is None:
+        revision = g.stats_data_revision
     table = {'stat_functions': 'games', 'vollis_functions': 'vollis_games',
              'other_functions': 'other_games'}.get(function.__module__)
     if databases and table:

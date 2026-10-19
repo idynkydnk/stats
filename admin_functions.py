@@ -17,10 +17,14 @@ from account_names import ensure_display_name_column, user_display_name
 
 def stats_db_path():
     """Same DB resolution logic as stats.py (PythonAnywhere path first)."""
+    from flask import g, has_request_context
+    if has_request_context() and 'admin_database_path' in g:
+        return g.admin_database_path
     path = '/home/Idynkydnk/stats/stats.db'
-    if os.path.exists(path):
-        return path
-    return 'stats.db'
+    resolved = path if os.path.exists(path) else 'stats.db'
+    if has_request_context():
+        g.admin_database_path = resolved
+    return resolved
 
 
 def _connect():
@@ -30,9 +34,14 @@ def _connect():
 
 
 def _recap_storage_dir():
+    from flask import g, has_request_context
+    if has_request_context() and 'recap_storage_directory' in g:
+        return g.recap_storage_directory
     base = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base, 'static', 'recaps')
     os.makedirs(path, exist_ok=True)
+    if has_request_context():
+        g.recap_storage_directory = path
     return path
 
 
@@ -636,23 +645,26 @@ def list_site_users():
     has_tokens = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='auth_tokens'"
     ).fetchone()
-    token_select = (
-        "(SELECT MAX(created_at) FROM auth_tokens t WHERE lower(t.username) = lower(u.username))"
-        if has_tokens else "NULL"
-    )
+    token_select = 't.token_login' if has_tokens else 'NULL'
+    token_join = '''LEFT JOIN (
+        SELECT lower(username) AS username, MAX(created_at) AS token_login
+        FROM auth_tokens GROUP BY lower(username)
+    ) t ON t.username = lower(u.username)''' if has_tokens else ''
     user_columns = {row[1] for row in conn.execute('PRAGMA table_info(site_users)')}
     login_email_select = 'u.login_email' if 'login_email' in user_columns else 'NULL'
     rows = conn.execute(f'''
         SELECT u.id, u.username, u.is_admin, u.active, u.created_at,
                {login_email_select} AS login_email,
                u.last_seen_at, u.last_login_at, u.player_name,
-               (SELECT MAX(created_at) FROM activity_log a
-                WHERE lower(a.username) = lower(u.username)) AS activity_seen,
-               (SELECT MAX(created_at) FROM activity_log a
-                WHERE lower(a.username) = lower(u.username)
-                  AND a.action LIKE 'Logged in%') AS activity_login,
+               a.activity_seen, a.activity_login,
                {token_select} AS token_login
         FROM site_users u
+        LEFT JOIN (
+            SELECT lower(username) AS username, MAX(created_at) AS activity_seen,
+                   MAX(CASE WHEN action LIKE 'Logged in%' THEN created_at END) AS activity_login
+            FROM activity_log GROUP BY lower(username)
+        ) a ON a.username = lower(u.username)
+        {token_join}
     ''').fetchall()
     conn.close()
     users = []

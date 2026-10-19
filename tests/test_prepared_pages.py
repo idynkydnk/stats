@@ -113,6 +113,20 @@ class PreparedPageTests(unittest.TestCase):
         self.a.put('/api/account/stats-sharing', headers=headers, json={'share_stats': False})
         self.assertEqual(self.b.get(url).status_code, 404)
 
+    def test_presence_updates_do_not_discard_signed_in_pages_but_permissions_do(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('ALTER TABLE site_users ADD COLUMN last_seen_at TEXT')
+            conn.execute('ALTER TABLE site_users ADD COLUMN last_login_at TEXT')
+        self.a.set_cookie('remember_token', 'shared-token')
+        url = self.url()
+        self.a.get(url)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET last_seen_at='2026-10-19 12:00', last_login_at='2026-10-19 11:00' WHERE username='Kyle'")
+        self.assertEqual(self.a.get(url).headers['X-Stats-Page-Cache'], 'hit')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET is_admin=0 WHERE username='Kyle'")
+        self.assertEqual(self.a.get(url).headers['X-Stats-Page-Cache'], 'miss')
+
     def test_flash_session_changes_errors_and_mid_render_edits_are_not_saved(self):
         url = self.url()
         self.fail = True

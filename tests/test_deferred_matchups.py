@@ -4,11 +4,13 @@ import unittest
 
 from flask import Flask, render_template
 from bs4 import BeautifulSoup
+from template_delivery import matchup_records
 
 
 class DeferredMatchupTests(unittest.TestCase):
     def test_complete_values_safe_names_and_identical_rounding(self):
         app = Flask(__name__, template_folder=str(Path(__file__).resolve().parents[1] / 'templates'))
+        app.jinja_env.filters['matchup_records'] = matchup_records
         names = ['</script><img src=x onerror=alert(1)>', 'José & Friends', 'Player / ? #']
         records = [dict(partner=name, win_percentage=0.125, wins=1, losses=7,
                         total_games=8, meets_min=False, sample_tier=1) for name in names]

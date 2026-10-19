@@ -13,7 +13,7 @@ def register_image_previews(app):
 
     def source(filename):
         path = (root / filename).resolve()
-        if not any(path.is_relative_to(root / folder) for folder in ('email_images', 'flyers')):
+        if not any(path.is_relative_to(root / folder) for folder in ('email_images', 'flyers', 'player_photos')):
             return None
         return path if path.is_file() else None
 
@@ -32,6 +32,7 @@ def register_image_previews(app):
             return image_url
 
     app.extensions['image_preview_url'] = preview_url
+    app.jinja_env.globals['image_preview_url'] = preview_url
 
     @app.get('/image-preview/<path:filename>')
     def image_preview(filename):

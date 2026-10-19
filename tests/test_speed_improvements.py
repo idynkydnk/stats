@@ -274,6 +274,15 @@ class PreviewAndTimingTests(unittest.TestCase):
             with Image.open(io.BytesIO(result.data)) as preview:
                 self.assertEqual(preview.width, 640)
             self.assertEqual(client.get(first, headers={'If-None-Match': result.headers['ETag']}).status_code, 304)
+            (root / 'static/player_photos').mkdir()
+            photo = root / 'static/player_photos/face.png'
+            Image.new('RGB', (1400, 2100), 'blue').save(photo)
+            with app.test_request_context('/'):
+                preview_url = app.extensions['image_preview_url']('/static/player_photos/face.png')
+            with Image.open(io.BytesIO(client.get(preview_url).data)) as preview:
+                self.assertEqual(preview.height, 640)
+            with Image.open(photo) as original_photo:
+                self.assertEqual(original_photo.size, (1400, 2100))
             for path in ['../secret.png', 'email_images/../../secret.png', 'player_photos/private.png']:
                 self.assertEqual(client.get('/image-preview/' + path).status_code, 404)
             original.unlink()

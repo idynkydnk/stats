@@ -1232,6 +1232,7 @@ def other_navigation_groups():
 @app.context_processor
 def inject_base_template():
     """Inject base template and admin flag for shared navigation."""
+    from werkzeug.local import LocalProxy
     return {
         'base_template': 'base.html',
         'other_navigation_groups': other_navigation_groups,
@@ -1239,7 +1240,7 @@ def inject_base_template():
         'doubles_division': active_doubles_division() or entry_division(),
         'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
-        'navigation_locations': saved_game_locations(limit=None),
+        'navigation_locations': LocalProxy(lambda: saved_game_locations()),
         'stats_location': active_location_filter()[0],
         'stats_missing_location': active_location_filter()[1],
         'stats_location_url': stats_location_url,
@@ -1767,7 +1768,7 @@ def _save_ai_prompt_log(payload, prompt_style, custom_prompt, game_ids, username
 @app.before_request
 def reject_removed_user_session():
     """Expire existing browser sessions for removed or deactivated accounts."""
-    if request.endpoint == 'static':
+    if request.endpoint in {'static', 'image_preview'}:
         return
     if session.get('logged_in'):
         username = session.get('username')
@@ -7521,6 +7522,8 @@ import ios_api
 ios_api.register_ios_api(app)
 from private_accounts import register_private_accounts
 register_private_accounts(app, __import__(__name__))
+from template_delivery import register_template_delivery
+register_template_delivery(app)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 """Content-versioned, public code assets; uploaded pictures keep their own policy."""
 from hashlib import sha256
+import base64
 from pathlib import Path
 import re
 
@@ -35,6 +36,20 @@ def register_asset_delivery(app):
             app.jinja_env.globals['site_icon_font'] = 'vendor/fontawesome/' + font.group().decode('ascii')
     for filename, (body, _) in bundles.items():
         versions[filename] = sha256(body).hexdigest()[:16]
+    if 'css/site.bundle.css' in bundles:
+        # Ship the small shared interface with the document itself. This removes
+        # CSS -> font and HTML -> script round trips on a genuinely fresh visit.
+        # HTTP compression handles the repeated source; original versioned files
+        # remain available to older pages and other consumers.
+        def inline_font(match):
+            font = contents['vendor/fontawesome/' + match.group(1).decode()]
+            return b'url("data:font/woff2;base64,' + base64.b64encode(font) + b'")'
+        css = re.sub(rb'url\("\.\./vendor/fontawesome/([^\"]+)"\)', inline_font, bundles['css/site.bundle.css'][0])
+        app.jinja_env.globals['inline_site_styles'] = Markup(css.decode())
+    if 'js/common.bundle.js' in bundles:
+        app.jinja_env.globals['inline_common_script'] = Markup(bundles['js/common.bundle.js'][0].decode())
+    if 'js/stats.js' in contents:
+        app.jinja_env.globals['inline_stats_script'] = Markup(contents['js/stats.js'].decode())
     original_static = app.view_functions['static']
 
     def bundled_static(**values):

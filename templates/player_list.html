@@ -294,7 +294,7 @@
                     <div class="pl-avatar">
                         {% if card.photoUrl %}
                         <div class="pl-avatar-frame sr-avatar-crop-frame">
-                            <img src="{{ card.photoUrl }}" alt="{{ card.name }}" class="sr-crop-positioned-img">
+                            <img src="{{ image_preview_url(card.photoUrl) }}" alt="{{ card.name }}" class="sr-crop-positioned-img" loading="lazy" decoding="async">
                         </div>
                         {% else %}
                         <div class="pl-avatar-fallback">{{ card.name[0] }}</div>

@@ -35,6 +35,12 @@ class AssetTests(unittest.TestCase):
         self.assertIn('immutable', css.headers['Cache-Control'])
         self.assertNotIn('immutable', client.get('/static/css/site.bundle.css?v=wrong').headers['Cache-Control'])
         self.assertNotIn('Set-Cookie', js.headers)
+        self.assertIn('data:font/woff2;base64,', app.jinja_env.globals['inline_site_styles'])
+        self.assertNotIn('../vendor/fontawesome/', app.jinja_env.globals['inline_site_styles'])
+        self.assertEqual(str(app.jinja_env.globals['inline_common_script']).encode(), js.data)
+        self.assertEqual(str(app.jinja_env.globals['inline_stats_script']), (root / 'js/stats.js').read_text())
+        for key, closing in [('inline_site_styles', '</style'), ('inline_common_script', '</script'), ('inline_stats_script', '</script')]:
+            self.assertNotIn(closing, app.jinja_env.globals[key].lower())
 
     def test_only_current_versioned_code_is_immutable(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -75,7 +81,7 @@ class AssetTests(unittest.TestCase):
         base = (root / 'templates/base.html').read_text()
         self.assertNotIn('cdnjs.cloudflare.com', base)
         self.assertNotIn("filename='js/theme.js'", base)
-        self.assertLess(base.index('theme_bootstrap'), base.index('rel="stylesheet"'))
+        self.assertLess(base.index('theme_bootstrap'), base.index('<style>'))
 
 
 class LandingTests(unittest.TestCase):
@@ -97,6 +103,14 @@ class LandingTests(unittest.TestCase):
         self.assertNotIn('Set-Cookie', response.headers)
         self.assertNotIn('Cookie', response.headers.get('Vary', ''))
         self.assertIn('immutable', response.headers['Cache-Control'])
+
+    def test_public_image_previews_skip_account_lookup(self):
+        self.app.add_url_rule('/image-preview/example', 'image_preview', lambda: 'public image')
+        self.a.set_cookie('remember_token', 'shared-token')
+        with patch.object(self.service, 'validate_auth_token', side_effect=AssertionError('Public image authenticated')):
+            response = self.a.get('/image-preview/example')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Set-Cookie', response.headers)
 
     def add_pages(self):
         from private_accounts import connect_data

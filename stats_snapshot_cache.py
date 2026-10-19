@@ -35,7 +35,20 @@ def prepared_snapshot(directory, databases, build):
             snapshot = build()
             if source_revision(databases) != revision:
                 return snapshot  # Source changed; never publish this as reusable.
-            os.replace(snapshot, cached)
+            # The disposable DB is in /tmp, while persistent caches may live on
+            # another mount. Rename only between files in the cache directory.
+            staging = None
+            try:
+                fd, staging = tempfile.mkstemp(dir=directory, suffix='.building')
+                os.close(fd)
+                shutil.copyfile(snapshot, staging)
+                os.replace(staging, cached)
+            except OSError:
+                return snapshot  # Reuse the work even if publishing is unavailable.
+            finally:
+                if staging and os.path.exists(staging):
+                    os.unlink(staging)
+            os.unlink(snapshot)
         fd, snapshot = tempfile.mkstemp(prefix='stats-view-', suffix='.db')
         os.close(fd)
         try:

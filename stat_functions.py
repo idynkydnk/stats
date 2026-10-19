@@ -91,7 +91,7 @@ def get_player_wins_losses(year):
     if year == 'All years':
         games = all_games()
     else:
-        games = year_games(year)
+        games = year_games(year, raw=True)
     
     player_wins_losses = {}
     for game in games:
@@ -677,15 +677,17 @@ def all_players_ordered_for_doubles(current_username=None):
 	return merge_roster_into_player_names(entered_by_me_order + rest)
 
 @cached(ttl=1800)
-def year_games(year):
+def year_games(year, raw=False):
 	cur = set_cur()
-	if year == 'All years':
-		cur.execute("SELECT * FROM games ORDER BY game_date DESC")
-	else:
-		cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
-	row = cur.fetchall()
-	row = convert_ampm(row)
-	return row
+	try:
+		if year == 'All years':
+			cur.execute("SELECT * FROM games ORDER BY game_date DESC")
+		else:
+			cur.execute("SELECT * FROM games WHERE strftime('%Y',game_date)=? ORDER BY game_date DESC", (year,))
+		rows = cur.fetchall()
+	finally:
+		cur.connection.close()
+	return rows if raw else convert_ampm(rows)
 
 @request_cached
 def year_games_count(year):
@@ -790,9 +792,11 @@ def year_games_paginated_search(year, q, limit=50, offset=0):
 
 def all_games():
 	cur = set_cur()
-	cur.execute("SELECT * FROM games")
-	row = cur.fetchall()
-	return row
+	try:
+		cur.execute("SELECT * FROM games")
+		return cur.fetchall()
+	finally:
+		cur.connection.close()
 
 def current_year_games():
 	cur = set_cur()

@@ -1,6 +1,2 @@
 {# All records remain available for sorting/expansion, without hundreds of hidden DOM rows. #}
-<script type="application/json" id="{{ deferred_id }}">[
-{%- for stat in deferred_matchups -%}
-[{{ stat[deferred_name_key]|tojson }},{{ stat['win_percentage']|tojson }},{{ stat['wins'] }},{{ stat['losses'] }},{{ stat['total_games'] }},{{ 1 if stat['meets_min'] else 0 }},{{ stat['sample_tier'] }},{{ ("%.0f"|format(stat['win_percentage'] * 100))|tojson }}]{{ ',' if not loop.last }}
-{%- endfor -%}
-]</script>
+<script type="application/json" id="{{ deferred_id }}">{{ deferred_matchups|matchup_records(deferred_name_key)|tojson }}</script>

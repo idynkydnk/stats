@@ -1171,6 +1171,7 @@ window.PlayerPhotoManager = (function() {
     }
 
     function openModal() {
+        if (pendingPageConfig) loadPlayer(pendingPageConfig);
         if (modal) modal.hidden = false;
         requestAnimationFrame(function() {
             requestAnimationFrame(relayoutModalPhotos);
@@ -1305,6 +1306,7 @@ window.PlayerPhotoManager = (function() {
     }
 
     function loadPlayer(cfg) {
+        pendingPageConfig = null;
         cfg = cfg || {};
         playerName = cfg.name || '';
         listAvatarWrap = cfg.listAvatarWrap || null;
@@ -1443,8 +1445,15 @@ window.PlayerPhotoManager = (function() {
         bindEditTriggers(info);
     }
 
+    var pendingPageConfig = null;
     function initPage(cfg) {
-        loadPlayer(cfg);
+        // A closed editor needs neither full-size photos, AI character sheets,
+        // nor version-history requests. Prepare only the visible page avatar.
+        pendingPageConfig = cfg;
+        headerAvatarImg = cfg.headerAvatarImg || document.getElementById('player-avatar-img');
+        headerAvatarFallback = cfg.headerAvatarFallback || document.getElementById('player-avatar-fallback');
+        faceFocus = cfg.faceFocus || { x: 50, y: 50, z: 1 };
+        applyCropWhenReady(headerAvatarImg, faceFocus, false);
         var triggerIds = cfg.triggerIds || [cfg.triggerId || 'player-avatar-trigger'];
         triggerIds.forEach(function(id) {
             if (!id) return;

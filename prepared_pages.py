@@ -27,6 +27,7 @@ class PreparedPages:
         root = Path(__file__).resolve().parent
         files = list(root.glob('*.py')) + list((root / 'templates').rglob('*.html'))
         files += list((root / 'static/js').glob('*.js')) + list((root / 'static/css').glob('*.css'))
+        files += [p for p in (root / 'static/vendor/fontawesome').glob('*') if p.suffix in {'.css', '.woff2'}]
         # Worker startup, not each request. Every deployment/template change
         # produces a new namespace, including when another worker is still old.
         self.code = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(files))).hexdigest()

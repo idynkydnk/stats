@@ -1,5 +1,7 @@
 import sqlite3
 import unittest
+from functools import wraps
+from unittest.mock import patch
 
 from flask import jsonify, session
 
@@ -11,6 +13,25 @@ from tests.test_private_accounts import PrivateAccountTests
 class EntryPlayerNamesTests(unittest.TestCase):
     setUp = PrivateAccountTests.setUp
     register = PrivateAccountTests.register
+
+    def test_source_rosters_reuse_reads_and_invalidate_after_edits(self):
+        import player_suggestions
+        self.install_pages()
+        headers = self.register(self.a, 'alice')
+        original = player_suggestions._source_player_names
+        reads = []
+        @wraps(original)
+        def counted(*args, **kwargs):
+            reads.append(args)
+            return original(*args, **kwargs)
+        with patch.object(player_suggestions, '_source_player_names', counted):
+            first = self.a.get('/add_game/', headers=headers).json
+            self.assertEqual(self.a.get('/add_game/', headers=headers).json, first)
+            self.assertEqual(len(reads), 1)
+            with sqlite3.connect(self.path) as conn:
+                conn.execute("INSERT INTO players VALUES (23, 'New shared player')")
+            self.assertIn('New shared player', self.a.get('/add_game/', headers=headers).json['names'])
+            self.assertEqual(len(reads), 2)
 
     def install_pages(self):
         with sqlite3.connect(self.path) as conn:

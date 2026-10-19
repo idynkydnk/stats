@@ -1,7 +1,6 @@
 {% extends base_template %}
 {% block active_tab %}doubles{% endblock %}
 {% block title %}{{ display_year|default(year) }} {{ doubles_label }} Stats{% endblock %}
-{% block extra_preload %}<link rel="preload" as="script" href="{{ url_for('static', filename='js/stats.js') }}">{% endblock %}
 {% block extra_css %}
 <style>
     /* Rating popover: fixed overlay 80% width, text must wrap (override table nowrap) */
@@ -118,7 +117,7 @@
                             {% for player in today_stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ player_stats_url(display_year|default(year), player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-rating" data-value="{{ player[5] if player[5] is not none else '' }}">{{ "%.2f"|format(player[5]) if player[5] is not none else "—" }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
@@ -151,7 +150,7 @@
                 </div>
                 {% if stats %}
                 <div class="sr-table-wrap sr-hide-while-searching">
-                    <table class="sr-table sr-standings-table" id="sr-table" data-default-sort="rating" data-default-dir="desc">
+                    <table class="sr-table sr-standings-table" id="sr-table" data-default-sort="rating" data-default-dir="desc" data-standings-rows="ranked-standings" data-player-url="{{ player_stats_url(display_year|default(year), '__PLAYER__') }}">
                         <thead>
                             <tr>
                                 <th class="sr-numeric">#</th>
@@ -175,10 +174,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for player in stats %}
+                            {% for player in (stats if request.args.get('full') == '1' else stats[:20]) %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ player_stats_url(display_year|default(year), player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ "%.2f"|format(player[4]) }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
@@ -188,6 +187,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% if request.args.get('full') != '1' %}<script type="application/json" id="ranked-standings">{{ stats[20:]|standings_records|tojson }}</script>{% endif %}
                 </div>
                 <div id="sr-no-results" class="sr-no-results sr-hide-while-searching">
                     <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
@@ -208,7 +208,7 @@
                 <p class="sr-section-label" style="margin-bottom: 2px;">Fewer than {{ minimum_games }} games</p>
                 <p style="font-size: 12px; color: var(--sr-muted); margin: 0 0 10px;">These players haven't played enough games this year to be ranked in the main table yet ({{ minimum_games }} game{{ 's' if minimum_games != 1 else '' }} needed{{ ', based on total games played this year' if minimum_games > 1 else '' }}).</p>
                 <div class="sr-table-wrap">
-                    <table class="sr-table sr-standings-table" data-default-sort="rating" data-default-dir="desc">
+                    <table class="sr-table sr-standings-table" data-default-sort="rating" data-default-dir="desc" data-standings-rows="rare-standings" data-player-url="{{ player_stats_url(display_year|default(year), '__PLAYER__') }}">
                         <thead>
                             <tr>
                                 <th class="sr-numeric">#</th>
@@ -232,10 +232,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for player in rare_stats %}
+                            {% for player in (rare_stats if request.args.get('full') == '1' else rare_stats[:20]) %}
                             <tr>
                                 <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ player_stats_url(display_year|default(year), player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-rating" data-value="{{ player[4] }}">{{ "%.2f"|format(player[4]) }}</td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
@@ -245,11 +245,13 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% if request.args.get('full') != '1' %}<script type="application/json" id="rare-standings">{{ rare_stats[20:]|standings_records|tojson }}</script>{% endif %}
                 </div>
             </div>
         </section>
         {% endif %}
+        <noscript><p><a href="{{ request.full_path }}{{ '&' if request.query_string else '' }}full=1">Show all players without JavaScript</a></p></noscript>
 {% endblock %}
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/stats.js', v='20261009-readable-sorting') }}"></script>
+    <script>{{ inline_stats_script }}</script>
 {% endblock %}

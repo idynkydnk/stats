@@ -169,7 +169,7 @@ def register_private_accounts(app, service):
     def scope_personal_account():
         # Static files are already public; asset downloads need no account
         # lookup, personal database provisioning, or session-cookie refresh.
-        if request.endpoint == 'static':
+        if request.endpoint in {'static', 'image_preview'}:
             return None
         if (Path(site_path).resolve().parent / '.personal-migration-maintenance').exists() and request.endpoint != 'static':
             return jsonify(error='Stats are being updated. Please try again in a few minutes.'), 503

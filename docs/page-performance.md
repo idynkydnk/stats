@@ -1,5 +1,53 @@
 # Page performance — October 9, 2026
 
+## October 19 follow-up: cold and signed-in requests
+
+The signed-in diagnostic uses a 15-minute token for the existing Kyle account,
+issued by a temporary cloud task through the hosting API. No password or Flask
+signing key leaves the server. Reports contain timings and code locations only;
+browser state and signed-in screenshots are not saved. The task revokes its
+token when the handshake file is removed, with a hard timeout as a fallback.
+Authenticated profiler signatures bind the exact credentials as well as the
+request path/query. Existing authorization still runs normally. The workflow
+tests stats, player history, Add Game, Players, source settings and the dashboard.
+First browser visits explicitly bypass completed-page reuse, separating cold
+rendering from repeat measurements. All form submissions and optional writes
+are blocked in the browser test.
+
+The signed-in baseline found 2.04–2.57 seconds of application work for forced
+standings/player/game renders, and 1.82–1.91 seconds on repeat Players requests.
+The largest cause was a cross-filesystem rename: temporary combined databases
+were built under `/tmp`, but the reusable cache lived on the home mount. Failed
+publication rebuilt the entire combined database a second time. Publication now
+copies into a staging file on the cache mount before atomic rename, reuses the
+already-built result on publication failure, and batches inserts. Tests simulate
+the production cross-device failure and verify reuse and edit invalidation.
+
+Cold-path changes remove date formatting from standings counts, compile template
+code before accepting traffic, and reuse the route/filter part of standings
+links. Long standings send the first 20 rows per table as HTML and the rest as
+compact data, materialized before sorting/search. Every record and Python's
+display rounding are retained; a `full=1` link supports browsers without scripts.
+Player matchup records are serialized in one operation rather than thousands of
+individual template calls. Entry rosters reuse source-revision-scoped results
+after checking current source permissions. Navigation locations are read only
+when rendered. Dashboard account activity is aggregated once, recap-directory
+setup runs once per request, and preview cards use lazy thumbnails.
+Account activity timestamps no longer discard otherwise valid stats pages;
+identity, permissions, source revisions and other session fields remain checked.
+
+Shared styles, icon fonts and scripts now arrive inside the compressed page,
+eliminating their first-visit network chains. This deliberately trades some
+additional bytes on repeat HTML responses for fewer cold-visit round trips.
+Original versioned assets remain available. The signed-in player editor waits
+until opened before fetching original photos, AI images and version history.
+The Players list uses lazy, bounded previews; original images remain available
+for editing. Only previews of already-public static images bypass account work.
+
+Local validation includes the full Python suite and focused JavaScript checks for
+deferred photo editing and complete sorting. Cloud measurements follow below
+when deployment verification finishes; local timings are not hosted timings.
+
 ## October 19: profiles from production workers
 
 The signed, GET-only `Profile live page performance` workflow profiles real
