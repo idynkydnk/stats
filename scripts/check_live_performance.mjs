@@ -35,6 +35,11 @@ try {
     });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(String(error)));
+    page.on('response', response => {
+      if (response.url().startsWith(origin + '/static/') && response.status() >= 400) {
+        errors.push(`Asset ${response.status()}: ${new URL(response.url()).pathname}`);
+      }
+    });
     page.on('request', req => { if (!['GET', 'HEAD'].includes(req.method())) errors.push('Unexpected write request'); });
     for (const [label, path] of paths) {
       let destination = origin + path;

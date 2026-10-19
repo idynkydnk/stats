@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% block extra_preload %}<link rel="preload" as="script" href="{{ url_for('static', filename='js/stats.js') }}">{% endblock %}
 {% block title %}{{ player }} {{ year }} Stats{% endblock %}
 {% block extra_css %}
 <style>

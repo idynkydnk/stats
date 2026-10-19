@@ -15,6 +15,27 @@ from tests import test_private_accounts as fixtures
 
 
 class AssetTests(unittest.TestCase):
+    def test_runtime_bundles_preserve_sources_order_fonts_and_immutable_versions(self):
+        root = Path(__file__).resolve().parents[1] / 'static'
+        app = Flask(__name__, static_folder=str(root), static_url_path='/static')
+        register_asset_delivery(app)
+        with app.test_request_context('/'):
+            js_url = url_for('static', filename='js/common.bundle.js')
+            css_url = url_for('static', filename='css/site.bundle.css')
+        client = app.test_client()
+        js = client.get(js_url)
+        scripts = ['menu.js', 'stats-sharing.js', 'search-filter.js', 'mobile-keyboard.js', 'responsiveness.js']
+        self.assertEqual(js.data, b'\n;\n'.join((root / 'js' / name).read_bytes() for name in scripts))
+        self.assertIn('immutable', js.headers['Cache-Control'])
+        self.assertEqual(client.get(js_url, headers={'If-None-Match': js.headers['ETag']}).status_code, 304)
+        css = client.get(css_url)
+        self.assertIn(b'../vendor/fontawesome/fa-solid-900.', css.data)
+        self.assertTrue(css.data.endswith((root / 'css/appearance.css').read_bytes()))
+        self.assertIn((root / 'css/stats.css').read_bytes(), css.data)
+        self.assertIn('immutable', css.headers['Cache-Control'])
+        self.assertNotIn('immutable', client.get('/static/css/site.bundle.css?v=wrong').headers['Cache-Control'])
+        self.assertNotIn('Set-Cookie', js.headers)
+
     def test_only_current_versioned_code_is_immutable(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

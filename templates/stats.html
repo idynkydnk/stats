@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block active_tab %}doubles{% endblock %}
 {% block title %}{{ display_year|default(year) }} {{ doubles_label }} Stats{% endblock %}
+{% block extra_preload %}<link rel="preload" as="script" href="{{ url_for('static', filename='js/stats.js') }}">{% endblock %}
 {% block extra_css %}
 <style>
     /* Rating popover: fixed overlay 80% width, text must wrap (override table nowrap) */

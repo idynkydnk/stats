@@ -22,10 +22,10 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.png', v='20261013-square-icon') }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png', v='20261013-square-icon') }}">
     <script>{{ theme_bootstrap }}</script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/icons.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css', v='20261011-centered-standings') }}">
+    {% if site_icon_font %}<link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename=site_icon_font).split('?')[0] }}">{% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/site.bundle.css') }}">
+    {% block extra_preload %}{% endblock %}
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json', v='20261013-square-icon') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/appearance.css', v='20260930-compact') }}">
     {% block extra_css %}{% endblock %}
     <template id="sr-nav-context" hidden aria-hidden="true">
         {% block active_tab %}{% endblock %}
@@ -54,11 +54,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/menu.js', v='20260930-compact') }}"></script>
-    <script src="{{ url_for('static', filename='js/stats-sharing.js', v='20261006') }}"></script>
-    <script src="{{ url_for('static', filename='js/search-filter.js', v='20260716') }}"></script>
-    <script src="{{ url_for('static', filename='js/mobile-keyboard.js', v='20260716b') }}"></script>
-    <script defer src="{{ url_for('static', filename='js/responsiveness.js', v='20261011') }}"></script>
+    <script src="{{ url_for('static', filename='js/common.bundle.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

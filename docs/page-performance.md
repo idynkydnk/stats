@@ -74,6 +74,18 @@ different filters or changing the order of repeated query values. Deployment
 warmup retries transient network/reload failures and still fails on persistent
 errors. This addresses a one-off warmup timeout observed during the browser run.
 
+The [next production check](https://github.com/idynkydnk/stats/actions/runs/39305262215)
+passed all 112 browser loads and interactions. Repeat medians across the seven
+pages were 50–273 ms, with server medians of 9–24 ms. One first unprepared player
+request took 851 ms; fresh WebKit standings visits still took about 1.2 seconds,
+mostly waiting for separate asset downloads rather than server page generation.
+The final asset change combines five shared scripts into one request and three
+stylesheets into one, with content versions computed from the actual sources at
+worker startup. Font and page-script preloads start those downloads earlier.
+The existing source files remain available to other templates and cached pages.
+All 508 Python tests pass, including source order, relative font paths,
+conditional requests and immutable caching only for the matching bundle version.
+
 Measured before and after the readability/performance changes using the Flask
 test client and a temporary SQLite backup of the local data (9,945 doubles,
 501 Vollis, 739 other games). The original database was not changed. Website
