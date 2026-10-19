@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-18-automatic-sign-in",
+    "date": "2026-10-18",
+    "subject": "iPhone: Open Stats and get signed in automatically",
+    "body": "Stats restores your saved sign-in when you open the app. If you have enabled Face ID or Touch ID, it starts automatically without an extra tap. A temporary connection problem keeps your saved login so you can retry without another email code."
+  },
+  {
     "id": "ios-2026-10-18-face-id-sign-in",
     "date": "2026-10-18",
     "subject": "iPhone: Sign in with Face ID",
