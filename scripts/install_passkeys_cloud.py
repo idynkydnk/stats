@@ -4,6 +4,7 @@ Run in deployment CI with its existing PythonAnywhere credentials. A temporary
 cloud task runs the install, reports completion, and is removed in finally.
 """
 import json
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import re
@@ -59,14 +60,29 @@ def main():
         'pathlib.Path(' + repr(report) + ').write_text(json.dumps(result))',
         'time.sleep(600)',
     ])
-    task = api('/always_on/', 'POST', {
-        'command': shlex.join(executable + ['-c', code]),
-        'description': 'Temporary Stats passkey dependency installation', 'enabled': 'true',
-    })
+    task_endpoint = '/always_on/'
+    try:
+        task = api(task_endpoint, 'POST', {
+            'command': shlex.join(executable + ['-c', code]),
+            'description': 'Temporary Stats passkey dependency installation', 'enabled': 'true',
+        })
+    except HTTPError as error:
+        if error.code != 403:
+            raise
+        # Accounts without spare always-on capacity can run a scheduled install.
+        # Delete this task as soon as its first result arrives; it must not recur.
+        task_endpoint = '/schedule/'
+        start = datetime.now(timezone.utc) + timedelta(minutes=2)
+        scheduled_code = code.removesuffix('time.sleep(600)')
+        task = api(task_endpoint, 'POST', {
+            'command': shlex.join(executable + ['-c', scheduled_code]),
+            'description': 'Temporary Stats passkey dependency installation',
+            'enabled': 'true', 'interval': 'daily', 'hour': start.hour, 'minute': start.minute,
+        })
     task_id = task['id']
     print('Started temporary dependency install in website Python environment.', flush=True)
     try:
-        deadline = time.monotonic() + 420
+        deadline = time.monotonic() + 600
         while time.monotonic() < deadline:
             try:
                 result = api('/files/path' + report)
@@ -81,9 +97,9 @@ def main():
                 print('Verified WebAuthn ' + result['version'] + ' in website Python ' + result['python'], flush=True)
                 return
             time.sleep(10)
-        raise TimeoutError('Cloud dependency installation did not finish within seven minutes')
+        raise TimeoutError('Cloud dependency installation did not finish within ten minutes')
     finally:
-        api('/always_on/' + str(task_id) + '/', 'DELETE')
+        api(task_endpoint + str(task_id) + '/', 'DELETE')
         try:
             api('/files/path' + report, 'DELETE')
         except HTTPError as error:
