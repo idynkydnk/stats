@@ -116,8 +116,10 @@ def main():
     executable, _ = python_command(config)
     report = '/home/Idynkydnk/.stats-performance-' + uuid.uuid4().hex + '.json'
     deadline = time.time() + 900
-    payload = base64.b64encode(lease_code(report, deadline).encode()).decode()
-    command = shlex.join(executable + ['-c', 'import base64; exec(base64.b64decode(' + repr(payload) + '))'])
+    # Keep the host task command short; the script is already deployed with the
+    # site. No credential is ever put in a command line or task description.
+    command = shlex.join(executable + ['/home/Idynkydnk/stats/scripts/check_signed_in_performance.py',
+                                      '--lease', report, str(deadline)])
     endpoint = '/always_on/'
     try:
         task = api(endpoint, 'POST', dict(command=command, description='Temporary signed-in performance check', enabled='true'))
@@ -130,7 +132,13 @@ def main():
                    enabled='true', interval='daily', hour=start.hour, minute=start.minute))
     try:
         token = None
+        print('Waiting for the temporary cloud credential task.', flush=True)
+        diagnostic = 0
         while time.time() < deadline - 300:
+            if time.time() > diagnostic:
+                state = api(endpoint + str(task['id']) + '/')
+                print('Cloud task:', {k: v for k, v in state.items() if k in {'id', 'state', 'status', 'next_run', 'last_run', 'enabled', 'timezone'}}, flush=True)
+                diagnostic = time.time() + 60
             try:
                 result = api('/files/path' + report)
                 token = result['token']
@@ -168,10 +176,13 @@ def main():
                 if error.code != 404:
                     raise
             time.sleep(2)
-        if revoked:
+        if revoked or not token:
             api(endpoint + str(task['id']) + '/', 'DELETE')
-            api('/files/path' + report + '.revoked', 'DELETE')
-            print('Verified temporary token revoked and cloud task removed.', flush=True)
+            if revoked:
+                api('/files/path' + report + '.revoked', 'DELETE')
+                print('Verified temporary token revoked and cloud task removed.', flush=True)
+            else:
+                print('Removed cloud setup task; no test credential was received.', flush=True)
         else:
             # Leave the live process to its hard deadline; never kill it before
             # its finally block revokes the token. The token also expires in DB.
@@ -181,4 +192,12 @@ def main():
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    main()
+    if len(sys.argv) == 4 and sys.argv[1] == '--lease':
+        report, deadline = sys.argv[2], float(sys.argv[3])
+        if not report.startswith('/home/Idynkydnk/.stats-performance-') or not report.endswith('.json'):
+            raise SystemExit('Invalid temporary report path')
+        if not time.time() < deadline <= time.time() + 905:
+            raise SystemExit(0)
+        exec(lease_code(report, deadline))
+    else:
+        main()
