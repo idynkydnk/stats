@@ -4,7 +4,7 @@ import pickle
 import threading
 import time
 
-from flask import current_app, g
+from flask import current_app, g, session
 from doubles_division import active_doubles_division
 from stats_location_filter import active_location_filter
 
@@ -31,7 +31,7 @@ def reuse_calculation(function, args, kwargs, ttl=300, revision=None):
             revisions[table] = source_revision(databases, ('players', table))
         revision = revisions[table]
     key = (revision, function.__module__, function.__name__, repr(args),
-           repr(sorted(kwargs.items())), active_doubles_division(), active_location_filter())
+           repr(sorted(kwargs.items())), active_doubles_division(), active_location_filter(), session.get('timezone'))
     now = time.monotonic()
     with _lock:
         found = _values.get(key)

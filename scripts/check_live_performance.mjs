@@ -70,6 +70,11 @@ try {
           const n = performance.getEntriesByType('navigation')[0];
           const resources = performance.getEntriesByType('resource');
           return { load_ms: Math.round(n.loadEventEnd), ttfb_ms: Math.round(n.responseStart - n.requestStart),
+            dns_ms: Math.round(n.domainLookupEnd - n.domainLookupStart),
+            connection_ms: Math.round(n.connectEnd - n.connectStart),
+            tls_ms: n.secureConnectionStart ? Math.round(n.connectEnd - n.secureConnectionStart) : 0,
+            redirect_ms: Math.round(n.redirectEnd - n.redirectStart),
+            download_ms: Math.round(n.responseEnd - n.responseStart),
             first_paint_ms: performance.getEntriesByName('first-contentful-paint').length ? Math.round(performance.getEntriesByName('first-contentful-paint')[0].startTime) : null,
             dom_ready_ms: Math.round(n.domContentLoadedEventEnd), html_bytes: n.decodedBodySize,
             transfer_bytes: n.transferSize, server: n.serverTiming.map(t => ({ name: t.name, ms: t.duration })),
@@ -109,6 +114,28 @@ try {
           assert.equal(await table.locator('tbody tr').count(), counts[index]);
         }
         interactions.push({ width, page: label, complete_standings: true, counts });
+      }
+      if (label === 'players') {
+        const checked = await page.evaluate(html => {
+          const source = new DOMParser().parseFromString(html, 'text/html');
+          const payload = source.getElementById('player-card-records');
+          if (!payload) return null;
+          const expected = JSON.parse(payload.textContent);
+          const cards = Array.from(document.querySelectorAll('#player-grid .pl-card'));
+          if (cards.length !== expected.length || cards.some((card, i) =>
+              JSON.stringify(JSON.parse(card.dataset.playerProfile)) !== JSON.stringify(expected[i]))) {
+            throw new Error('Incomplete player profile records');
+          }
+          return cards.length;
+        }, originalHTML);
+        if (checked) {
+          await page.locator('#player-grid .pl-open-profile').first().click();
+          await page.waitForFunction(() => !document.getElementById('player-photo-modal').hidden);
+          assert.ok(await page.evaluate(() => document.getElementById('player-detail-name').value ===
+            JSON.parse(document.querySelector('#player-grid .pl-card').dataset.playerProfile).name), 'Correct player editor');
+          await page.locator('.sr-photo-modal-backdrop').click({ position: { x: 2, y: 2 } });
+          interactions.push({ width, page: label, complete_profiles: true, count: checked });
+        }
       }
       if (label === 'player') {
         if (signedIn && originalHTML.includes('pendingPageConfig = cfg')) {

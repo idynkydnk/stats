@@ -11,7 +11,9 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import tempfile
 import time
+from flask import g, has_request_context, request
 
 STATS_ENDPOINTS = {'api_doubles_stats', 'api_vollis_stats',
                    'api_other_stats', 'api_volleyball_stats'}
@@ -22,7 +24,21 @@ MAX_BYTES = 2 * 1024 * 1024
 _known_schemas = {}
 
 
-def _database_revision(path, tables=None):
+def local_cache_directory(site_path, secret):
+    secret = secret if isinstance(secret, bytes) else str(secret).encode()
+    namespace = hashlib.sha256(secret + b'\0' + str(Path(site_path).resolve()).encode()).hexdigest()[:32]
+    return Path(tempfile.gettempdir()) / ('stats-cache-' + namespace)
+
+
+def _database_revision(path, tables=None, fresh=False):
+    memo = g.setdefault('database_revision_reads', {}) if has_request_context() and request.method == 'GET' else {}
+    key = str(path)
+    if fresh:
+        memo.pop(key, None)
+    if not fresh and key in memo:
+        inode, schema, revision, revisions = memo[key]
+        return (('tables', inode, schema, [r for r in revisions if r[0] in tables])
+                if tables else ('tracked', inode, schema, revision))
     stat = os.stat(path)
     # mode=rw never creates a missing source. Connections are short-lived and
     # read-only after the tracking table/triggers have been installed once.
@@ -53,21 +69,24 @@ def _database_revision(path, tables=None):
             if len(_known_schemas) > 256:
                 _known_schemas.clear()
             _known_schemas[identity] = schema
-        if tables:
-            revisions = conn.execute('SELECT name, revision FROM stats_table_revision ORDER BY name').fetchall()
-            return ('tables', stat.st_ino, schema, [r for r in revisions if r[0] in tables])
-        revision = conn.execute('SELECT revision FROM stats_cache_revision WHERE id=1').fetchone()
-        if revision is None:
+        rows = conn.execute('''SELECT r.revision, t.name, t.revision
+            FROM stats_cache_revision r LEFT JOIN stats_table_revision t ON 1=1
+            WHERE r.id=1 ORDER BY t.name''').fetchall()
+        if not rows:
             _known_schemas.pop(identity, None)
             raise sqlite3.OperationalError('Missing stats revision')
-        return ('tracked', stat.st_ino, schema, revision[0])
+        revision = rows[0][0]
+        revisions = [(row[1], row[2]) for row in rows if row[1] is not None]
+        memo[key] = (stat.st_ino, schema, revision, revisions)
+        return (('tables', stat.st_ino, schema, [r for r in revisions if r[0] in tables])
+                if tables else ('tracked', stat.st_ino, schema, revision))
 
 
-def database_revisions(paths, tables=None):
+def database_revisions(paths, tables=None, fresh=False):
     revisions = []
     for path in paths:
         try:
-            revisions.append(_database_revision(path, tables))
+            revisions.append(_database_revision(path, tables, fresh=fresh))
             continue
         except (OSError, sqlite3.Error):
             pass
@@ -88,6 +107,7 @@ class StatsResponseCache:
     def __init__(self, directory):
         self.directory = Path(directory)
         self.path = self.directory / 'responses.db'
+        self._ready_inode = None
         # A deployment must not reuse answers produced by old calculation code.
         root = Path(__file__).resolve().parent
         self.code_revision = [(name, (root / name).stat().st_mtime_ns) for name in (
@@ -98,14 +118,21 @@ class StatsResponseCache:
             'stats_snapshot_cache.py', 'request_cache.py')]
 
     def _connect(self):
-        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        os.chmod(self.directory, 0o700)
+        try:
+            ready = self._ready_inode == self.path.stat().st_ino
+        except FileNotFoundError:
+            ready = False
+        if not ready:
+            self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            os.chmod(self.directory, 0o700)
         conn = sqlite3.connect(self.path, timeout=0.2)
         try:
-            os.chmod(self.path, 0o600)
-            conn.execute('''CREATE TABLE IF NOT EXISTS responses (
-                key TEXT PRIMARY KEY, revisions TEXT NOT NULL,
-                expires REAL NOT NULL, body BLOB NOT NULL)''')
+            if not ready:
+                os.chmod(self.path, 0o600)
+                conn.execute('''CREATE TABLE IF NOT EXISTS responses (
+                    key TEXT PRIMARY KEY, revisions TEXT NOT NULL,
+                    expires REAL NOT NULL, body BLOB NOT NULL)''')
+                self._ready_inode = self.path.stat().st_ino
         except BaseException:
             conn.close()
             raise
@@ -127,7 +154,7 @@ class StatsResponseCache:
                 row = conn.execute('SELECT body FROM responses WHERE key=? AND revisions=? AND expires>?',
                                    (key, revisions, time.time())).fetchone()
             # Do not return a result if a source changed during the lookup.
-            if row and json.dumps(database_revisions(paths, tables)) == revisions:
+            if row and json.dumps(database_revisions(paths, tables, fresh=True)) == revisions:
                 return bytes(row[0])
         except (OSError, sqlite3.Error):
             pass  # Caching must never prevent a normal stats request.
@@ -136,7 +163,7 @@ class StatsResponseCache:
     def save(self, ticket, body):
         key, paths, revisions, tables = ticket
         try:
-            if len(body) > MAX_BYTES or json.dumps(database_revisions(paths, tables)) != revisions:
+            if len(body) > MAX_BYTES or json.dumps(database_revisions(paths, tables, fresh=True)) != revisions:
                 return
             with closing(self._connect()) as conn, conn:
                 now = time.time()

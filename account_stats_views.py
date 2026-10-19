@@ -189,12 +189,11 @@ def selected_stats_context():
 
 
 def register_stats_views(app, service, site_path):
-    from stats_response_cache import StatsResponseCache, RESPONSE_ENDPOINTS
+    from stats_response_cache import StatsResponseCache, RESPONSE_ENDPOINTS, local_cache_directory
     from doubles_division import active_doubles_division
     response_cache = StatsResponseCache(
         app.config.get('STATS_RESPONSE_CACHE_DIR') or
-        str(Path(os.environ.get('STATS_PRIVATE_DATA_DIR') or
-                 str(Path(site_path).resolve().parent / 'private_data')) / 'stats_cache'))
+        os.environ.get('STATS_RESPONSE_CACHE_DIR') or local_cache_directory(site_path, app.secret_key))
     app.extensions['stats_response_cache'] = response_cache
     from prepared_pages import PreparedPages, PAGE_ENDPOINTS
     page_cache = PreparedPages(response_cache.directory)
@@ -352,6 +351,13 @@ def register_stats_views(app, service, site_path):
                 return jsonify(error='This game belongs to another database and is read-only here.'), 403
             return
         if request.endpoint not in BROWSE_ENDPOINTS:
+            if request.endpoint in {'add_game', 'add_vollis_game', 'add_other_game', 'get_players', 'get_vollis_players', 'get_other_players'}:
+                from stats_snapshot_cache import source_revision
+                # Entry reads use only the write owner's DB, even when browsing
+                # includes other sources. Receipts/forms are always rendered fresh.
+                databases = [(private_database() or site_path, 0)]
+                g.stats_source_databases = databases
+                g.stats_data_revision = source_revision(databases)
             return
         if request.path.startswith('/api/') and request.headers.get('X-Stats-Owned') == '1' and request.headers.get('X-Stats-Combined') != '1' and request.headers.get('X-Stats-Preview') != '1':
             return prepared_stats(private_database() or site_path, [])

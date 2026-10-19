@@ -107,7 +107,7 @@ class PreparedPages:
                 or response.headers.get('Set-Cookie') or state != self.session_state()):
             return
         html = response.get_data()
-        if len(html) > MAX_PAGE_BYTES or source_revision(databases) != revision:
+        if len(html) > MAX_PAGE_BYTES or source_revision(databases, fresh=True) != revision:
             return
         body = zlib.compress(html, 1)
         self.disk.save(ticket, body)

@@ -765,13 +765,11 @@ def games_counts(today_str, week_ago_str):
     conn = _connect()
     out = {}
     for label, table in (('doubles', 'games'), ('vollis', 'vollis_games'), ('other', 'other_games')):
-        today = conn.execute(
-            f"SELECT COUNT(*) FROM {table} WHERE strftime('%Y-%m-%d', game_date) = ?", (today_str,)
-        ).fetchone()[0]
-        week = conn.execute(
-            f"SELECT COUNT(*) FROM {table} WHERE strftime('%Y-%m-%d', game_date) >= ?", (week_ago_str,)
-        ).fetchone()[0]
-        total = conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+        today, week, total = conn.execute(
+            f"SELECT COALESCE(SUM(day = ?), 0), COALESCE(SUM(day >= ?), 0), COUNT(*) "
+            f"FROM (SELECT strftime('%Y-%m-%d', game_date) AS day FROM {table})",
+            (today_str, week_ago_str),
+        ).fetchone()
         out[label] = {'today': today, 'week': week, 'total': total}
     conn.close()
     return out
@@ -1261,19 +1259,9 @@ def list_ai_recap_pages(page=1, per_page=25, username=None, usernames=None):
                 if not existing.get('game_type') and job.get('game_type'):
                     existing['game_type'] = job.get('game_type') or ''
                 continue
-            page_row = get_ai_recap_page(sid)
-            # Jobs retain their share IDs after deletion; they are history,
-            # not evidence that a published page still exists.
-            if page_row is None:
-                continue
-            entries_by_id[sid] = _recap_list_entry(sid, {
-                **page_row,
-                'created_at': page_row.get('created_at') or created_at,
-                'username': page_row.get('username') or job.get('username') or '',
-                'game_type': page_row.get('game_type') or job.get('game_type') or '',
-                'prompt_style': page_row.get('prompt_style') or job.get('prompt_style') or '',
-                'subject': page_row.get('subject') or 'Game Recap',
-            })
+            # All disk/legacy IDs and SQLite rows were enumerated above. A job
+            # missing from that union is deleted, not another page to look up.
+            # Do not repeat a database query for each historical deleted job.
     except Exception:
         pass
 

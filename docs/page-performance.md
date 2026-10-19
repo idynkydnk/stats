@@ -44,8 +44,30 @@ until opened before fetching original photos, AI images and version history.
 The Players list uses lazy, bounded previews; original images remain available
 for editing. Only previews of already-public static images bypass account work.
 
-Local validation includes the full Python suite and focused JavaScript checks for
-deferred photo editing and complete sorting. Cloud measurements follow below
+The first follow-up deployed as `588db57`. Its signed-in forced renders fell to
+461 ms for standings, 574 ms for all years, 932 ms for the player page and 635 ms
+for games. Players required 376–664 ms instead of 1,823–1,908 ms. Both cloud
+browser engines passed, including complete standings and on-demand photo editing;
+the temporary diagnostic token was revoked and the schedule removed. These
+results still fell short of near-instant first visits, so profiling continued.
+
+The next trace showed 20–30 repeated source-revision reads per stats request,
+cache permissions/schema setup on every lookup, and about 80–100 ms copying each
+combined snapshot from shared home storage. Disposable caches now default to a
+secret-namespaced, mode-700 directory in local temporary storage (override with
+`STATS_RESPONSE_CACHE_DIR`). Original databases remain in their existing durable
+storage. Cache loss only causes regeneration. Each request reads global and sport
+revisions together, then checks fresh revisions before publishing; edits during
+rendering still prevent cache publication. Cache setup runs once per file inode.
+Entry-page calculations use the owned database revision, with current receipts
+and forms rendered each time. Calculation keys also retain display timezone.
+Player profiles serialize together, and dashboard lists no longer query every
+deleted recap job individually. Dashboard totals scan each game table once.
+
+Local validation: 521 Python tests pass, including edit invalidation during
+rendering, request-local revision reads, local cache isolation and timezone
+separation, plus JavaScript checks for deferred photo editing and complete
+sorting. Cloud measurements follow below
 when deployment verification finishes; local timings are not hosted timings.
 
 ## October 19: profiles from production workers

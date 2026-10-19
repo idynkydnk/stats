@@ -17,9 +17,9 @@ _CODE_REVISION = [Path(__file__).stat().st_mtime_ns,
                   Path(__file__).with_name('account_stats_views.py').stat().st_mtime_ns]
 
 
-def source_revision(databases, tables=None):
+def source_revision(databases, tables=None, fresh=False):
     return json.dumps([_CODE_REVISION, date.today().isoformat(), databases,
-                       database_revisions([path for path, _ in databases], tables)], sort_keys=True)
+                       database_revisions([path for path, _ in databases], tables, fresh=fresh)], sort_keys=True)
 
 
 def prepared_snapshot(directory, databases, build):
@@ -33,7 +33,7 @@ def prepared_snapshot(directory, databases, build):
         fcntl.flock(lock, fcntl.LOCK_EX)
         if not cached.exists():
             snapshot = build()
-            if source_revision(databases) != revision:
+            if source_revision(databases, fresh=True) != revision:
                 return snapshot  # Source changed; never publish this as reusable.
             # The disposable DB is in /tmp, while persistent caches may live on
             # another mount. Rename only between files in the cache directory.

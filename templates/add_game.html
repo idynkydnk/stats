@@ -170,7 +170,7 @@ textarea { resize: vertical; min-height: 60px; }
                 {% for player in todays_stats %}
                 <tr>
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                    <td><a href="{{ url_for('player_stats', year=year, name=player[0]) }}">{{ player[0] }}</a></td>
+                    <td><a href="{{ player_stats_url(year, player[0]) }}">{{ player[0] }}</a></td>
                     <td data-value="{{ player[5] if player[5] is not none else '' }}">{{ "%.2f"|format(player[5]) if player[5] is not none else "—" }}</td>
                     <td data-value="{{ player[1] }}">{{ player[1] }}</td>
                     <td data-value="{{ player[2] }}">{{ player[2] }}</td>
@@ -209,11 +209,11 @@ textarea { resize: vertical; min-height: 60px; }
                 </div>
                 <div class="sr-game-body">
                     <div class="sr-team-block winners">
-                        <div class="sr-team-players"><a href="{{ url_for('player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[3]) }}">{{ game[3] }}</a></div>
+                        <div class="sr-team-players"><a href="{{ player_stats_url(year, game[2]) }}">{{ game[2] }}</a><br><a href="{{ player_stats_url(year, game[3]) }}">{{ game[3] }}</a></div>
                         <span class="sr-team-score">{{ game[4] }}</span>
                     </div>
                     <div class="sr-team-block losers">
-                        <div class="sr-team-players"><a href="{{ url_for('player_stats', year=year, name=game[5]) }}">{{ game[5] }}</a><br><a href="{{ url_for('player_stats', year=year, name=game[6]) }}">{{ game[6] }}</a></div>
+                        <div class="sr-team-players"><a href="{{ player_stats_url(year, game[5]) }}">{{ game[5] }}</a><br><a href="{{ player_stats_url(year, game[6]) }}">{{ game[6] }}</a></div>
                         <span class="sr-team-score">{{ game[7] }}</span>
                     </div>
                 </div>

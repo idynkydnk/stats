@@ -22,7 +22,8 @@ class PrivateAccountTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.path = str(Path(self.directory.name) / 'stats.db')
-        self.env = patch.dict(os.environ, {'STATS_PRIVATE_DATA_DIR': str(Path(self.directory.name) / 'personal')})
+        self.env = patch.dict(os.environ, {'STATS_PRIVATE_DATA_DIR': str(Path(self.directory.name) / 'personal'),
+                                         'STATS_RESPONSE_CACHE_DIR': str(Path(self.directory.name) / 'cache')})
         self.env.start()
         self.addCleanup(self.env.stop)
         with sqlite3.connect(self.path) as conn:

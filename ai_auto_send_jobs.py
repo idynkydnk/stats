@@ -25,6 +25,9 @@ def _ensure_column(conn, table, column, col_def):
 
 
 def init_ai_auto_send_jobs_db():
+    from flask import g, has_request_context
+    if has_request_context() and g.get('ai_jobs_schema_ready'):
+        return
     conn = _connect()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS ai_auto_send_jobs (
@@ -55,6 +58,8 @@ def init_ai_auto_send_jobs_db():
     )
     conn.commit()
     conn.close()
+    if has_request_context():
+        g.ai_jobs_schema_ready = True
 
 
 def enqueue_job(

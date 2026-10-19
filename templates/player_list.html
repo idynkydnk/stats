@@ -287,7 +287,7 @@
         {% if player_cards %}
         <div class="pl-grid" id="player-grid">
             {% for card in player_cards %}
-            <div class="pl-card" data-player-profile='{{ card | tojson }}'
+            <div class="pl-card" data-player-profile-index="{{ loop.index0 }}"
                  data-search="{{ card.name|lower }} {{ card.email|lower }}">
                 <button type="button" class="pl-avatar-btn pl-open-profile"
                         aria-label="Manage {{ card.name }}">
@@ -329,6 +329,17 @@
             </div>
             {% endfor %}
         </div>
+        <script type="application/json" id="player-card-records">{{ player_cards|tojson }}</script>
+        <script>
+        (function() {
+            const source = document.getElementById('player-card-records');
+            const records = JSON.parse(source.textContent);
+            document.querySelectorAll('#player-grid [data-player-profile-index]').forEach(function(card) {
+                card.setAttribute('data-player-profile', JSON.stringify(records[Number(card.dataset.playerProfileIndex)]));
+            });
+            source.remove();
+        })();
+        </script>
         {% else %}
         <div class="sr-empty">
             <div class="sr-empty-icon"><i class="fas fa-users"></i></div>

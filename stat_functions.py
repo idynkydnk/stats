@@ -635,6 +635,11 @@ def all_players_ordered_for_doubles(current_username=None):
 	from doubles_division import entry_division
 	if entry_division(current_username) == 'women':
 		return womens_doubles_players(current_username)
+	return _open_doubles_player_order(current_username)
+
+
+@request_cached
+def _open_doubles_player_order(current_username):
 	from player_functions import merge_roster_into_player_names
 
 	last_played_order = get_players_ordered_from_cache()
@@ -655,18 +660,18 @@ def all_players_ordered_for_doubles(current_username=None):
 	try:
 		cur = set_cur()
 		cur.execute(
-			"SELECT * FROM games WHERE updated_by = ? COLLATE NOCASE ORDER BY game_date DESC",
+			"SELECT winner1, winner2, loser1, loser2 FROM games WHERE updated_by = ? COLLATE NOCASE ORDER BY game_date DESC",
 			(current_username.strip(),)
 		)
 		rows = cur.fetchall()
 	except Exception:
 		# updated_by column may not exist if migration not run on this DB
 		return merge_roster_into_player_names(last_played_order)
-	# rows are tuples: id(0), game_date(1), winner1(2), winner2(3), winner_score(4), loser1(5), loser2(6), ...
+	# Fetch only the four names needed for this ordering.
 	entered_by_me_order = []
 	seen_me = set()
 	for row in rows:
-		for idx in (2, 3, 5, 6):
+		for idx in range(4):
 			p = (row[idx] or '').strip() if idx < len(row) else ''
 			if p and p not in seen_me:
 				seen_me.add(p)

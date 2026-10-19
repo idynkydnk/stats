@@ -33,7 +33,8 @@ class RecapDeletionTests(unittest.TestCase):
         self.assertEqual(admin.list_ai_recap_pages()[1], 1)
         self.assertTrue(admin.delete_ai_recap_page('deleted-recap'))
         self.assertIsNone(admin.get_ai_recap_page('deleted-recap'))
-        self.assertEqual(admin.list_ai_recap_pages(), ([], 0))
+        with patch.object(admin, 'get_ai_recap_page', side_effect=AssertionError('Repeated deleted-page lookup')):
+            self.assertEqual(admin.list_ai_recap_pages(), ([], 0))
         self.assertEqual(admin.list_ai_recap_pages(username='kyle'), ([], 0))
 
     def test_job_metadata_still_fills_existing_html_only_recap(self):
