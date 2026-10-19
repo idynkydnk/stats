@@ -113,6 +113,16 @@ def main():
             body = response.read()
             return json.loads(body) if body else None
     config = api('/webapps/' + os.environ['PA_DOMAIN'] + '/')
+    if os.environ.get('INSPECT_ONLY') == 'true':
+        print('CPU quota:', api('/cpu/'), flush=True)
+        for endpoint in ('/always_on/', '/schedule/'):
+            for item in api(endpoint):
+                if item.get('description') != 'Temporary signed-in performance check':
+                    continue
+                print('Temporary test task:', endpoint, {k: v for k, v in item.items()
+                      if k in {'id', 'state', 'status', 'enabled', 'next_run', 'last_run', 'interval', 'hour', 'minute', 'timezone'}}, flush=True)
+                print('Command length:', len(item.get('command', '')), flush=True)
+        return
     executable, _ = python_command(config)
     report = '/home/Idynkydnk/.stats-performance-' + uuid.uuid4().hex + '.json'
     deadline = time.time() + 900

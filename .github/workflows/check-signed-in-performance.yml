@@ -1,6 +1,11 @@
 name: Check signed-in page performance
 on:
   workflow_dispatch:
+    inputs:
+      inspect:
+        description: Inspect temporary performance task setup only
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -10,9 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+        if: ${{ !inputs.inspect }}
         with:
           node-version: '22'
       - name: Install cloud browsers
+        if: ${{ !inputs.inspect }}
         run: |
           npm install --no-save --package-lock=false playwright@1.56.1
           npx playwright install --with-deps chromium webkit
@@ -22,6 +29,7 @@ jobs:
           PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
           PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          INSPECT_ONLY: ${{ inputs.inspect }}
         run: python3 scripts/check_signed_in_performance.py
       - uses: actions/upload-artifact@v4
         if: always()
