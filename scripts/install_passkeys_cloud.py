@@ -4,6 +4,7 @@ Run in deployment CI with its existing PythonAnywhere credentials. A temporary
 cloud task runs the install, reports completion, and is removed in finally.
 """
 import json
+import base64
 from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
@@ -46,7 +47,8 @@ def main():
     executable, flags = python_command(config)
     pinned = next(line.strip() for line in Path('requirements.txt').read_text().splitlines()
                   if line.startswith('webauthn=='))
-    report = '/home/' + username + '/.stats-passkeys-install-' + uuid.uuid4().hex + '.json'
+    home = '/home/Idynkydnk' if username.lower() == 'idynkydnk' else '/home/' + username
+    report = home + '/.stats-passkeys-install-' + uuid.uuid4().hex + '.json'
     # The final sleep keeps the temporary task from restarting before CI deletes it.
     code = '\n'.join([
         'import importlib.metadata, json, pathlib, subprocess, sys, time',
@@ -60,10 +62,14 @@ def main():
         'pathlib.Path(' + repr(report) + ').write_text(json.dumps(result))',
         'time.sleep(600)',
     ])
+    def command(source):
+        payload = base64.b64encode(source.encode()).decode()
+        return shlex.join(executable + ['-c', 'import base64; exec(base64.b64decode(' + repr(payload) + '))'])
+
     task_endpoint = '/always_on/'
     try:
         task = api(task_endpoint, 'POST', {
-            'command': shlex.join(executable + ['-c', code]),
+            'command': command(code),
             'description': 'Temporary Stats passkey dependency installation', 'enabled': 'true',
         })
     except HTTPError as error:
@@ -75,15 +81,21 @@ def main():
         start = datetime.now(timezone.utc) + timedelta(minutes=2)
         scheduled_code = code.removesuffix('time.sleep(600)')
         task = api(task_endpoint, 'POST', {
-            'command': shlex.join(executable + ['-c', scheduled_code]),
+            'command': command(scheduled_code),
             'description': 'Temporary Stats passkey dependency installation',
             'enabled': 'true', 'interval': 'daily', 'hour': start.hour, 'minute': start.minute,
         })
     task_id = task['id']
+    print('Installation task:', json.dumps({key: value for key, value in task.items() if key in {'id', 'enabled', 'interval', 'hour', 'minute', 'timezone', 'next_run', 'last_run', 'logfile', 'log_file', 'state', 'status'}}), flush=True)
     print('Started temporary dependency install in website Python environment.', flush=True)
     try:
         deadline = time.monotonic() + 600
+        next_diagnostic = time.monotonic() + 60
         while time.monotonic() < deadline:
+            if time.monotonic() >= next_diagnostic:
+                info = api(task_endpoint + str(task_id) + '/')
+                print('Installation status:', json.dumps({key: value for key, value in info.items() if key in {'id', 'enabled', 'interval', 'hour', 'minute', 'timezone', 'next_run', 'last_run', 'logfile', 'log_file', 'state', 'status'}}), flush=True)
+                next_diagnostic = time.monotonic() + 60
             try:
                 result = api('/files/path' + report)
             except HTTPError as error:
