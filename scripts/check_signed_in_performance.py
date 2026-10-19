@@ -122,6 +122,21 @@ def main():
                 print('Temporary test task:', endpoint, {k: v for k, v in item.items()
                       if k in {'id', 'state', 'status', 'enabled', 'next_run', 'last_run', 'interval', 'hour', 'minute', 'timezone'}}, flush=True)
                 print('Command length:', len(item.get('command', '')), flush=True)
+                parts = shlex.split(item['command']) if '--lease' in item.get('command', '') else []
+                if '--lease' in parts:
+                    handshake = parts[parts.index('--lease') + 1]
+                    if handshake.startswith('/home/Idynkydnk/.stats-performance-') and handshake.endswith('.json'):
+                        for suffix in ('', '.revoked'):
+                            try:
+                                with urlopen(Request(base + '/files/path' + handshake + suffix, method='HEAD',
+                                     headers={'Authorization': 'Token ' + os.environ['PA_API_TOKEN']}), timeout=30) as response:
+                                    status = response.status
+                            except HTTPError as error:
+                                status = error.code
+                            print('Handshake' + (suffix or '.ready') + ' HTTP:', status, flush=True)
+                if str(item['id']) == os.environ.get('CLEANUP_TEST_TASK'):
+                    api(endpoint + str(item['id']) + '/', 'DELETE')
+                    print('Removed this check\'s requested temporary task:', item['id'], flush=True)
         return
     executable, _ = python_command(config)
     report = '/home/Idynkydnk/.stats-performance-' + uuid.uuid4().hex + '.json'

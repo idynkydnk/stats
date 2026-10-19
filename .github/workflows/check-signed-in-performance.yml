@@ -6,6 +6,10 @@ on:
         description: Inspect temporary performance task setup only
         type: boolean
         default: false
+      cleanup_task:
+        description: Optional ID of this check's temporary task to remove
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -30,6 +34,7 @@ jobs:
           PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           INSPECT_ONLY: ${{ inputs.inspect }}
+          CLEANUP_TEST_TASK: ${{ inputs.cleanup_task }}
         run: python3 scripts/check_signed_in_performance.py
       - uses: actions/upload-artifact@v4
         if: always()
