@@ -193,6 +193,9 @@ def register_stats_views(app, service, site_path):
     from prepared_pages import PreparedPages, PAGE_ENDPOINTS
     page_cache = PreparedPages(response_cache.directory)
     app.extensions['stats_page_cache'] = page_cache
+    from shared_calculations import SharedCalculations
+    app.extensions['stats_calculation_cache'] = SharedCalculations(
+        response_cache.directory / 'calculations', app.secret_key, page_cache.code)
     app.extensions['stats_view_sources'] = (site_path, service.is_admin)
     signer = URLSafeSerializer(app.secret_key, salt='shared-stats-view-v1')
 

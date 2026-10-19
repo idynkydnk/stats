@@ -4,7 +4,7 @@ import pickle
 import threading
 import time
 
-from flask import g
+from flask import current_app, g
 from doubles_division import active_doubles_division
 from stats_location_filter import active_location_filter
 
@@ -36,17 +36,35 @@ def reuse_calculation(function, args, kwargs, ttl=300):
         found = _values.get(key)
         if found and found[0] > now:
             _values.move_to_end(key)
-            # Only bytes we serialized in this process are decoded. Returning a
-            # copy keeps sorting/decorating one response from changing another.
+            # These bytes were generated here or authenticated on shared load.
+            # Return a copy so one response cannot change another's calculations.
             return pickle.loads(found[1])
+    shared = current_app.extensions.get('stats_calculation_cache')
+    found = shared.load(key) if shared else None
+    if found is not None:
+        body, expires = found
+        try:
+            result = pickle.loads(body)
+        except (pickle.PickleError, EOFError, TypeError, ValueError, AttributeError, ImportError):
+            body = None
+        else:
+            _remember(key, min(now + ttl, now + max(0, expires - time.time())), body)
+            return result
     result = function(*args, **kwargs)
     try:
         body = pickle.dumps(result)
     except (TypeError, pickle.PicklingError):
         return result
     if len(body) <= 2 * 1024 * 1024:
-        with _lock:
-            _values[key] = (now + ttl, body)
-            while len(_values) > 128 or sum(len(v[1]) for v in _values.values()) > MAX_BYTES:
-                _values.popitem(last=False)
+        _remember(key, now + ttl, body)
+        if shared:
+            shared.save(key, body, ttl)
     return result
+
+
+def _remember(key, expires, body):
+    with _lock:
+        _values[key] = (expires, body)
+        _values.move_to_end(key)
+        while len(_values) > 128 or sum(len(v[1]) for v in _values.values()) > MAX_BYTES:
+            _values.popitem(last=False)

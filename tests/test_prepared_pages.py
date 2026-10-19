@@ -68,6 +68,14 @@ class PreparedPageTests(unittest.TestCase):
         self.assertEqual(self.a.get(url).headers['X-Stats-Page-Cache'], 'hit')
         self.assertEqual(len(self.calls), 1)
 
+    def test_default_division_and_query_key_order_reuse_without_reordering_repeated_values(self):
+        url = self.url()
+        self.a.get(url)
+        self.assertEqual(self.a.get(url + '&division=open').headers['X-Stats-Page-Cache'], 'hit')
+        self.a.get(url + '&q=one&q=two&location=Beach')
+        self.assertEqual(self.a.get(url + '&location=Beach&q=one&q=two').headers['X-Stats-Page-Cache'], 'hit')
+        self.assertEqual(self.a.get(url + '&location=Beach&q=two&q=one').headers['X-Stats-Page-Cache'], 'miss')
+
     def test_accounts_sessions_filters_and_paths_never_share_rendered_contents(self):
         alice = self.register(self.a, 'alice')
         bob = self.register(self.b, 'bob')

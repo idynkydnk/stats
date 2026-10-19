@@ -81,6 +81,9 @@ def clear_stats_cache():
                 pages = current_app.extensions.get('stats_page_cache')
                 if pages:
                     pages.clear()
+                shared = current_app.extensions.get('stats_calculation_cache')
+                if shared:
+                    shared.clear()
 
 @cached(ttl=1800)
 def get_player_wins_losses(year):

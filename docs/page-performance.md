@@ -56,6 +56,24 @@ cloud Chromium and WebKit. The older layout workflow intercepts every request,
 which disables Playwright's HTTP cache; its numbers should not be presented as
 repeat-browser asset-cache performance. It remains useful for layout checks.
 
+The [browser follow-up](https://github.com/idynkydnk/stats/actions/runs/39303927507)
+passed 112 page loads and all sorting/expansion checks (378 partners and 521
+opponents) at 390px and 1440px in Chromium and WebKit, with no JavaScript errors.
+Prepared repeat-load medians were 107–142 ms for current standings, 187–308 ms
+for all-years standings, 113–172 ms for the player page, and 65–126 ms for the
+remaining lists. These are unthrottled cloud-browser measurements, not cellular
+or physical-device guarantees. First unprepared requests after a restart were
+still slower (some took 2–3 seconds), so repeat medians must not hide cold work.
+
+The final follow-up shares authorized calculation results between workers too,
+with deployment/source/filter keys, bounded storage, copied results and original
+expiry times. Stored pickle bytes are authenticated with an HMAC over both key
+and payload before deserialization. Changed or substituted bytes are rejected.
+Default and explicit doubles divisions now share a page key, without conflating
+different filters or changing the order of repeated query values. Deployment
+warmup retries transient network/reload failures and still fails on persistent
+errors. This addresses a one-off warmup timeout observed during the browser run.
+
 Measured before and after the readability/performance changes using the Flask
 test client and a temporary SQLite backup of the local data (9,945 doubles,
 501 Vollis, 739 other games). The original database was not changed. Website
