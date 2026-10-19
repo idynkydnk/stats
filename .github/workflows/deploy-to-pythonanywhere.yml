@@ -21,6 +21,17 @@ jobs:
         AFTER_SHA: ${{ github.sha }}
       run: python3 scripts/check_site_updates.py "$BEFORE_SHA" "$AFTER_SHA"
       
+    - name: Install website passkey dependency
+      env:
+        PA_USERNAME: ${{ secrets.PA_USERNAME }}
+        PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        if git diff --name-only "$BEFORE_SHA" HEAD | grep -Eq '^(requirements.txt|scripts/install_passkeys_cloud.py)$'; then
+          python3 scripts/install_passkeys_cloud.py
+        fi
+
     - name: Deploy to PythonAnywhere
       run: |
         # Send webhook to trigger deployment (authenticated with DEPLOY_TOKEN secret)

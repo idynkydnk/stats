@@ -181,15 +181,17 @@ def register_web_sign_in(app, service, site_path):
             return render()
         return redirect(url_for('login', password='1') if password_start else url_for('login'), code=303)
 
-    def finish(username):
+    def finish(username, fresh=True):
         user = service.adminfx.get_site_user(username)
         if not user or not user.get('active', 1):
             return render('This account is unavailable. Please contact Kyle for help.', 403)
         destination = safe_login_next(session.get('email_login_next'))
         remember = session.get('email_login_remember', True)
+        authenticated_at = int(time()) if fresh else session.get('authenticated_at', 0)
         session.clear()
         session.permanent = True
         service.establish_user_session(username, login=True)
+        session['authenticated_at'] = authenticated_at
         service.log_activity('Logged in', summary='Website sign-in', username=username)
         service.clear_login_failures(service._client_ip())
         if not user.get('login_email'):
@@ -224,14 +226,16 @@ def register_web_sign_in(app, service, site_path):
             if not isinstance(form, dict) or any(not isinstance(value, str) for value in form.values()):
                 return render('Please try again.', 400)
         if request.method == 'GET':
+            if request.args.get('reauth') == '1':
+                session['passkey_reauth'] = True
             session['email_login_next'] = safe_login_next(request.args.get('next', session.get('email_login_next')))
             if not session.get('logged_in') and request.cookies.get('remember_token'):
                 username = service.validate_auth_token(request.cookies['remember_token'])
                 if username:
                     service.establish_user_session(username)
-            if session.get('logged_in') and not enrollment_user():
+            if session.get('logged_in') and not enrollment_user() and not session.get('passkey_reauth'):
                 if request.endpoint == 'api_email_login':
-                    return finish(session['username'])
+                    return finish(session['username'], fresh=False)
                 return redirect(session['email_login_next'])
             return render()
         csrf = form.get('csrf', '')
@@ -408,6 +412,8 @@ def register_web_sign_in(app, service, site_path):
         return login()
 
     app.extensions['email_login'] = login
+    from passkey_sign_in import register_passkey_sign_in
+    register_passkey_sign_in(app, service, site_path, finish)
 
     @app.after_request
     def protect_login_response(response):

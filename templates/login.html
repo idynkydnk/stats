@@ -52,6 +52,13 @@
             {% endif %}
         </div>
         {% if error %}<div class="sr-login-error" role="alert">{{ error }}</div>{% endif %}
+        {% if not enrolling and passkeys_available %}
+        <div data-passkeys data-csrf="{{ passkey_csrf() }}" style="margin-bottom: 24px;">
+            <button type="button" class="sr-login-btn" data-passkey-action="login" hidden>Sign in with a passkey</button>
+            <p class="sr-login-help" data-passkey-help hidden>Use Face ID, Touch ID, or your device’s screen lock. First time? Sign in with email, then add a passkey from the Account menu.</p>
+            <p class="sr-login-help" data-passkey-status role="status" aria-live="polite"></p>
+        </div>
+        {% endif %}
         {% if signup %}
         <form method="post" class="sr-login-form" data-busy-label="Creating account…">
             <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -129,5 +136,6 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/passkeys.js', v='20261018') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sign-in.js', v='20261015') }}" defer></script>
 {% endblock %}

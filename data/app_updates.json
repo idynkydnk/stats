@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-18-face-id-sign-in",
+    "date": "2026-10-18",
+    "subject": "iPhone: Sign in with Face ID",
+    "body": "Turn on Face ID in the Account menu after signing in, then use it to sign in when you reopen Stats. Touch ID is supported too, and you can still use email if needed. Logging out removes the saved sign-in."
+  },
+  {
     "id": "ios-2026-10-16-email-code-sign-in",
     "date": "2026-10-16",
     "subject": "iPhone: Sign in with a four-digit email code",

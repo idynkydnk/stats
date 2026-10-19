@@ -62,7 +62,9 @@ PREVIEW_ENDPOINTS = {
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',
 }
 AUTH_ENDPOINTS = {'api_login', 'private_register', 'private_google', 'private_auth_config',
-                  'private_apple', 'private_apple_challenge', 'login', 'api_email_login'}
+                  'private_apple', 'private_apple_challenge', 'login', 'api_email_login',
+                  'passkey_register_options', 'passkey_register_verify',
+                  'passkey_login_options', 'passkey_login_verify', 'passkey_remove'}
 
 
 def private_database():
@@ -201,7 +203,7 @@ def register_private_accounts(app, service):
             return jsonify(error='This account is inactive.'), 401
         account = account_for_user(site_path, username)
         if account:
-            if request.endpoint not in PRIVATE_ENDPOINTS | PERSONAL_WEB_ENDPOINTS | {'account_stats_sources', 'account_stats_sharing', 'stats_sources_page'}:
+            if request.endpoint not in PRIVATE_ENDPOINTS | PERSONAL_WEB_ENDPOINTS | {'account_stats_sources', 'account_stats_sharing', 'stats_sources_page', 'passkey_settings'}:
                 return jsonify(error='This feature is not available for personal accounts.'), 403
             g.private_account = account
             g.private_database = provision_database(site_path, account['id'])

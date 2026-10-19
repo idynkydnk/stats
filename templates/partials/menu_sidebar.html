@@ -4,6 +4,7 @@
     <li class="menu-section-label">Account</li>
     <li class="menu-account-status">Signed in as {{ account_display_name }}</li>
     {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
+    {% if passkeys_available %}<li><a href="{{ url_for('passkey_settings') }}"><i class="fas fa-key" aria-hidden="true"></i> Passkeys / Face ID</a></li>{% endif %}
     <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
     {% endif %}
 
