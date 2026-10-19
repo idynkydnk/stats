@@ -64,11 +64,59 @@ and forms rendered each time. Calculation keys also retain display timezone.
 Player profiles serialize together, and dashboard lists no longer query every
 deleted recap job individually. Dashboard totals scan each game table once.
 
+### Verified production results
+
+The [final signed-in run](https://github.com/idynkydnk/stats/actions/runs/39314077425)
+passed Chrome and WebKit at 390px and 1440px, including complete standings,
+matchup sorting, every player profile record, and opening both profile editors.
+Its temporary token was revoked and its scheduled task removed. First visits
+forced a new HTML render, but could reuse authorized calculations and snapshots;
+they are not a benchmark of rebuilding every cache after a data change.
+
+| Signed-in page | Baseline Chrome first load | Final Chrome first load | Final WebKit first load |
+| --- | ---: | ---: | ---: |
+| Current standings | 2,347–2,354 ms | 554–707 ms | 939–1,098 ms |
+| All years | 2,341–2,406 ms | 545–603 ms | 545–1,084 ms |
+| Player history | 2,186–2,241 ms | 647–656 ms | 755–764 ms |
+| Games | 2,404–2,971 ms | 492–565 ms | 524–568 ms |
+| Add Game | 723–754 ms | 227–231 ms | 350–417 ms |
+| Players | 5,220–5,651 ms | 827–876 ms | 974–983 ms |
+| Dashboard | 895–1,063 ms | 417–514 ms | 493–502 ms |
+
+Final repeat-load medians for the seven stats/history pages were 146–261 ms in
+Chrome and 181–259 ms in WebKit. The separate unprofiled signed-in forced renders
+required 327–558 ms of server work for standings/player/games, 110 ms for Add
+Game, 334 ms for Players and 361 ms for the dashboard. These are cloud machines
+with mobile-sized/desktop-sized viewports, not physical phones or a promise for
+every network. The runs occurred sequentially, not under controlled identical
+traffic/worker scheduling.
+
+The [public browser run](https://github.com/idynkydnk/stats/actions/runs/39314078278)
+also passed both engines. The [uncached public profiles](https://github.com/idynkydnk/stats/actions/runs/39314237429)
+measured 92–172 ms of application work, versus 9–16 ms on prepared pages. One
+first Chrome entry took 2.56 seconds, including 1.98 seconds before the redirect
+completed and 384 ms in the final page's app handler. This timing cannot by
+itself distinguish initial connection setup, queuing and worker startup. A
+separate new connection from the development host took 465 ms to receive that
+redirect, while its app handler took only 8 ms. Deployment preparation now uses
+three concurrent requests instead of one, to reach multiple workers, and also
+prepares the commonly used public all-years Kyle player page.
+
+Remaining signed-in profiles still spent about 85 ms copying a prepared database,
+and substantial time in source revision/identity queries and dashboard reads.
+The Players page also retains the browser cost of a complete 729-card roster.
+There is no evidence that the account's daily CPU quota was exhausted. For a
+consistent near-instant first-visit target, the next infrastructure improvement
+should address database/storage latency and proximity, not merely add workers.
+PythonAnywhere's own [performance guidance](https://help.pythonanywhere.com/pages/MySiteIsSlow)
+identifies its network filesystem and SQLite as sources of latency and recommends
+a server database. Keeping SQLite on durable local SSD storage on another host
+is another architectural option. No host, database service or plan was changed.
+
 Local validation: 521 Python tests pass, including edit invalidation during
 rendering, request-local revision reads, local cache isolation and timezone
 separation, plus JavaScript checks for deferred photo editing and complete
-sorting. Cloud measurements follow below
-when deployment verification finishes; local timings are not hosted timings.
+sorting. Follow-up cache-directory permissions and deployment warmup checks pass.
 
 ## October 19: profiles from production workers
 

@@ -33,6 +33,7 @@ class CacheIOTests(unittest.TestCase):
     def test_local_cache_is_namespaced_and_reinitializes_after_removal(self):
         with tempfile.TemporaryDirectory() as directory, patch('stats_response_cache.tempfile.gettempdir', return_value=directory):
             first = local_cache_directory('/site/a.db', 'private-key')
+            self.assertEqual(first.stat().st_mode & 0o777, 0o700)
             self.assertEqual(first, local_cache_directory('/site/a.db', 'private-key'))
             self.assertNotEqual(first, local_cache_directory('/site/b.db', 'private-key'))
             self.assertNotEqual(first, local_cache_directory('/site/a.db', 'other-key'))

@@ -1,5 +1,6 @@
 """Prepare common public pages after a deployment, before people open them."""
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
 import os
 import time
 from urllib.error import HTTPError, URLError
@@ -33,13 +34,17 @@ def main():
     year = str(date.today().year)
     paths = ['/stats/' + year + '/', '/stats/All%20years/', '/games/' + year + '/',
              '/vollis_stats/' + year + '/', '/other_stats/' + year + '/',
-             '/volleyball_stats/' + year + '/']
-    for path in paths:
+             '/volleyball_stats/' + year + '/', '/player/All%20years/Kyle%20Thomson/']
+    def prepare(path):
         destination = fetch(origin + path)
         if urlsplit(destination).netloc != urlsplit(origin).netloc:
             raise RuntimeError('Unexpected redirect host')
         fetch(destination)
         print('Prepared', path, flush=True)
+    # Serial warmup can keep hitting one idle worker, leaving other workers'
+    # startup/compilation cost for the first visitor. Use a small bounded batch.
+    with ThreadPoolExecutor(max_workers=3) as workers:
+        list(workers.map(prepare, paths))
 
 
 if __name__ == '__main__':

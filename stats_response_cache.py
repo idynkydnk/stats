@@ -27,7 +27,13 @@ _known_schemas = {}
 def local_cache_directory(site_path, secret):
     secret = secret if isinstance(secret, bytes) else str(secret).encode()
     namespace = hashlib.sha256(secret + b'\0' + str(Path(site_path).resolve()).encode()).hexdigest()[:32]
-    return Path(tempfile.gettempdir()) / ('stats-cache-' + namespace)
+    directory = Path(tempfile.gettempdir()) / ('stats-cache-' + namespace)
+    try:
+        directory.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(directory, 0o700)
+    except OSError:
+        pass  # The existing cache fallbacks still deliver uncached responses.
+    return directory
 
 
 def _database_revision(path, tables=None, fresh=False):
