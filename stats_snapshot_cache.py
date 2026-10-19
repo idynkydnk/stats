@@ -11,9 +11,14 @@ import time
 
 from stats_response_cache import database_revisions
 
+# Deployment reloads workers; these files do not need network filesystem stats
+# for every calculation in every request.
+_CODE_REVISION = [Path(__file__).stat().st_mtime_ns,
+                  Path(__file__).with_name('account_stats_views.py').stat().st_mtime_ns]
+
 
 def source_revision(databases, tables=None):
-    return json.dumps([Path(__file__).stat().st_mtime_ns, Path(__file__).with_name('account_stats_views.py').stat().st_mtime_ns, date.today().isoformat(), databases,
+    return json.dumps([_CODE_REVISION, date.today().isoformat(), databases,
                        database_revisions([path for path, _ in databases], tables)], sort_keys=True)
 
 

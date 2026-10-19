@@ -1,0 +1,110 @@
+"""Private server-side HTML reuse, only after current identity/source authorization."""
+from collections import OrderedDict
+import hashlib
+import json
+from pathlib import Path
+import threading
+import time
+import zlib
+
+from flask import current_app, g, request, session
+
+from stats_response_cache import StatsResponseCache, TTL
+from stats_snapshot_cache import source_revision
+
+PAGE_ENDPOINTS = {'stats', 'player_stats', 'games', 'vollis_stats', 'vollis_games',
+                  'other_stats', 'other_games', 'other_games_by_name', 'volleyball_stats',
+                  'vollis_player_stats', 'other_player_stats', 'volleyball_player_stats',
+                  'game_name_stats', 'game_name_stats_with_year', 'player_game_stats'}
+MAX_MEMORY_BYTES = 8 * 1024 * 1024
+MAX_PAGE_BYTES = 2 * 1024 * 1024
+
+
+class PreparedPages:
+    def __init__(self, directory):
+        self.disk = StatsResponseCache(Path(directory) / 'pages')
+        root = Path(__file__).resolve().parent
+        files = list(root.glob('*.py')) + list((root / 'templates').rglob('*.html'))
+        files += list((root / 'static/js').glob('*.js')) + list((root / 'static/css').glob('*.css'))
+        # Worker startup, not each request. Every deployment/template change
+        # produces a new namespace, including when another worker is still old.
+        self.code = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(files))).hexdigest()
+        self.memory = OrderedDict()
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def session_state():
+        return current_app.session_interface.serializer.dumps(dict(session))
+
+    def prepare(self, databases, identity):
+        if request.endpoint not in PAGE_ENDPOINTS or request.method != 'GET':
+            return None
+        if session.get('_flashes') or session.get('ai_summary_job_id') or request.cache_control.no_store:
+            return None
+        state = self.session_state()
+        revision = getattr(g, 'stats_data_revision', None)
+        if not revision:
+            return None
+        scope = [self.code, current_app.secret_key, request.host_url, request.endpoint,
+                 request.view_args, list(request.args.items(multi=True)), state, identity,
+                 revision, getattr(g, 'stats_shared_read_only', False),
+                 getattr(g, 'stats_shared_titles', [])]
+        key = hashlib.sha256(json.dumps(scope, sort_keys=True, default=str).encode()).hexdigest()
+        # Source revisions are already in the key, read after authorization.
+        # Recheck before publishing; disk lookups need no additional source reads.
+        ticket = (key, [], '[]', None)
+        g.stats_page_ticket = (ticket, databases, revision, state)
+        if request.cache_control.no_cache or request.cache_control.no_store:
+            return None
+        now = time.time()
+        with self.lock:
+            found = self.memory.get(key)
+            if found and found[0] > now:
+                self.memory.move_to_end(key)
+                body = found[1]
+            else:
+                body = None
+        if body is None:
+            body = self.disk.load(ticket)
+            if body is not None:
+                self.remember(key, body)
+        if body is None:
+            return None
+        try:
+            html = zlib.decompress(body)
+        except zlib.error:
+            return None
+        g.stats_page_hit = True
+        response = current_app.response_class(html, mimetype='text/html')
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['X-Stats-Page-Cache'] = 'hit'
+        return response
+
+    def remember(self, key, body):
+        with self.lock:
+            self.memory[key] = (time.time() + TTL, body)
+            self.memory.move_to_end(key)
+            while len(self.memory) > 128 or sum(len(value[1]) for value in self.memory.values()) > MAX_MEMORY_BYTES:
+                self.memory.popitem(last=False)
+
+    def save(self, response):
+        prepared = getattr(g, 'stats_page_ticket', None)
+        if not prepared or getattr(g, 'stats_page_hit', False):
+            return
+        response.headers['X-Stats-Page-Cache'] = 'miss'
+        response.headers['Cache-Control'] = 'no-store'
+        ticket, databases, revision, state = prepared
+        if (response.status_code != 200 or response.mimetype != 'text/html' or response.is_streamed
+                or response.headers.get('Set-Cookie') or state != self.session_state()):
+            return
+        html = response.get_data()
+        if len(html) > MAX_PAGE_BYTES or source_revision(databases) != revision:
+            return
+        body = zlib.compress(html, 1)
+        self.disk.save(ticket, body)
+        self.remember(ticket[0], body)
+
+    def clear(self):
+        with self.lock:
+            self.memory.clear()
+        self.disk.clear()

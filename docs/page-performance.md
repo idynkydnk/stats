@@ -1,5 +1,40 @@
 # Page performance — October 9, 2026
 
+## October 19: profiles from production workers
+
+The signed, GET-only `Profile live page performance` workflow profiles real
+public requests in the live web workers. It uses the existing deployment secret
+to sign a specific path/query for 60 seconds. Reports include code locations,
+call counts and timings, never response contents, SQL, credentials or locals.
+Requests with cookies or Authorization are excluded. Ordinary requests have no
+profiler overhead beyond checking whether the diagnostic header exists.
+
+The [baseline run](https://github.com/idynkydnk/stats/actions/runs/39302034035)
+confirmed repeated template rendering and Flask URL/context work dominate the
+large warm HTML pages; database reads and account/roster labeling also cost time.
+Three different live workers were observed. Unprofiled server times across four
+repeat requests ranged from 78–1,151 ms for current standings, 275–3,165 ms for
+all-years standings and 413–692 ms for the large player page. Profiling itself
+adds overhead, so comparisons use the separate unprofiled requests.
+
+The first correction reuses completed HTML in a private, bounded server cache
+shared through the existing cache database, with a compressed memory front cache.
+Identity, source permissions and current data revisions are checked before every
+lookup. Keys include the full session, current account information, source titles,
+filters, route, host, deployment contents and data revisions. Flash messages,
+active recap jobs, changing sessions, errors, streaming responses and explicit
+no-store requests are excluded. Browsers still receive `Cache-Control: no-store`.
+Changes during rendering prevent publication. Combined views can skip snapshot
+copying on a page hit. Public-only links no longer scan personal accounts/rosters;
+identity reads are reused only within the current GET; Vollis navigation years
+are cached by authorized revision; deployment timestamps are read once per worker.
+
+Local repeat medians fell to about 1.3 ms for all three benchmark pages, with
+identical HTML sizes. These local timings are not hosted end-to-end measurements.
+Regression tests cover account/session/filter separation, revocation, changed
+games and rosters, cross-worker reuse, flash messages, session changes, errors,
+mid-render edits, explicit reloads and bounded private storage.
+
 Measured before and after the readability/performance changes using the Flask
 test client and a temporary SQLite backup of the local data (9,945 doubles,
 501 Vollis, 739 other games). The original database was not changed. Website

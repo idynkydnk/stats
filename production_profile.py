@@ -56,6 +56,7 @@ def finish_profile(response, duration):
         rows.append(dict(file=location, line=line, function=function, calls=calls,
                          self_ms=round(own * 1000, 3), total_ms=round(cumulative * 1000, 3)))
     result = jsonify(endpoint=request.endpoint, status=response.status_code,
+                     page_cache='hit' if getattr(g, 'stats_page_hit', False) else 'miss',
                      elapsed_ms=round(duration, 1), html_bytes=len(response.get_data()),
                      worker=hashlib.sha256(str(os.getpid()).encode()).hexdigest()[:8],
                      cumulative=sorted(rows, key=lambda row: row['total_ms'], reverse=True)[:65],

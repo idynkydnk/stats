@@ -37,7 +37,8 @@ class ProductionProfileTests(unittest.TestCase):
         self.assertFalse(self.client.post('/stats', headers=self.headers()).is_json)
         self.assertFalse(self.client.get('/other', headers=self.headers('/other')).is_json)
         self.assertFalse(self.client.get('/stats', headers={**self.headers(), 'Authorization': 'Bearer example'}).is_json)
-        self.client.set_cookie('localhost', 'session', 'example')
+        with self.client.session_transaction() as state:
+            state['example'] = True
         self.assertFalse(self.client.get('/stats', headers=self.headers()).is_json)
 
     def test_signed_filter_does_not_expose_query(self):

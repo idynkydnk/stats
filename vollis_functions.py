@@ -130,10 +130,14 @@ def remove_vollis_game(game_id):
     with conn: 
         database_delete_vollis_game(conn, game_id)
 
+@request_cached
 def all_vollis_years():
     cur = set_cur()
-    cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM main.vollis_games ORDER BY game_date DESC")
-    return [row[0] for row in cur.fetchall()] + ['All years']
+    try:
+        cur.execute("SELECT DISTINCT strftime('%Y', game_date) FROM main.vollis_games ORDER BY game_date DESC")
+        return [row[0] for row in cur.fetchall()] + ['All years']
+    finally:
+        cur.connection.close()
 
 
 def all_years_vollis_player(name):

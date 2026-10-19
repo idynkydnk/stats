@@ -549,12 +549,20 @@ def canonical_username(username):
 
 
 def get_site_user(username):
+    from flask import g, has_request_context, request
+    memo = g.setdefault('identity_reads', {}) if has_request_context() and request.method == 'GET' else None
+    key = ('user', stats_db_path(), (username or '').casefold())
+    if memo is not None and key in memo:
+        return dict(memo[key]) if memo[key] else None
     conn = _connect()
     row = conn.execute(
         'SELECT * FROM site_users WHERE lower(username) = lower(?)', (username or '',)
     ).fetchone()
     conn.close()
-    return dict(row) if row else None
+    result = dict(row) if row else None
+    if memo is not None:
+        memo[key] = result
+    return dict(result) if result else None
 
 
 def site_user_display_name(username):
@@ -562,7 +570,15 @@ def site_user_display_name(username):
     username = (username or '').strip()
     if not username:
         return ''
-    return user_display_name(username, get_site_user(username) or {}, list_players_for_site_updates())
+    from flask import g, has_request_context, request
+    memo = g.setdefault('identity_reads', {}) if has_request_context() and request.method == 'GET' else None
+    key = ('label', stats_db_path(), username.casefold())
+    if memo is not None and key in memo:
+        return memo[key]
+    result = user_display_name(username, get_site_user(username) or {}, list_players_for_site_updates())
+    if memo is not None:
+        memo[key] = result
+    return result
 
 
 def touch_site_user(username, login=False, min_interval_seconds=300):

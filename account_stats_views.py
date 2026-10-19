@@ -190,6 +190,9 @@ def register_stats_views(app, service, site_path):
         str(Path(os.environ.get('STATS_PRIVATE_DATA_DIR') or
                  str(Path(site_path).resolve().parent / 'private_data')) / 'stats_cache'))
     app.extensions['stats_response_cache'] = response_cache
+    from prepared_pages import PreparedPages, PAGE_ENDPOINTS
+    page_cache = PreparedPages(response_cache.directory)
+    app.extensions['stats_page_cache'] = page_cache
     app.extensions['stats_view_sources'] = (site_path, service.is_admin)
     signer = URLSafeSerializer(app.secret_key, salt='shared-stats-view-v1')
 
@@ -207,6 +210,12 @@ def register_stats_views(app, service, site_path):
         try:
             g.stats_source_databases = databases
             g.stats_data_revision = source_revision(databases)
+            if request.endpoint in PAGE_ENDPOINTS:
+                username = current_user()
+                user = service.adminfx.get_site_user(username) if username else None
+                label = getattr(service.adminfx, 'site_user_display_name', lambda name: name)(username) if username else ''
+                identity = [user, label]
+                return page_cache.prepare(databases, identity)
             if request.endpoint not in RESPONSE_ENDPOINTS:
                 return None
             ticket = response_cache.prepare(databases, current_user(), request.endpoint,
@@ -249,6 +258,12 @@ def register_stats_views(app, service, site_path):
             selection = signer.loads(token)
         except BadSignature:
             abort(404, description='This stats link is invalid or no longer available.')
+        if not isinstance(selection, dict) or 'base' not in selection or not isinstance(selection.get('sources'), list):
+            abort(404, description='This stats link is invalid or no longer available.')
+        if selection['base'] is None and not selection['sources']:
+            # The public archive has no personal sources to authorize or label.
+            # Avoid scanning every account and roster to resolve this common link.
+            return dict(owner='kyle', title='KT Stats', account_id=None, number=1, enabled=True), []
         with sqlite3.connect(site_path) as conn:
             conn.row_factory = sqlite3.Row
             display_names = database_display_names(conn)
@@ -353,6 +368,10 @@ def register_stats_views(app, service, site_path):
 
     @app.after_request
     def protect_share_link(response):
+        try:
+            page_cache.save(response)
+        except (OSError, sqlite3.Error):
+            pass  # Cache failures never stop ordinary page delivery.
         ticket = getattr(g, 'stats_response_ticket', None)
         if ticket:
             # The server cache is private; browsers/proxies must not reuse an

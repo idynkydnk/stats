@@ -78,6 +78,9 @@ def clear_stats_cache():
                 response_cache.clear()
                 from prepared_calculations import clear_prepared_calculations
                 clear_prepared_calculations()
+                pages = current_app.extensions.get('stats_page_cache')
+                if pages:
+                    pages.clear()
 
 @cached(ttl=1800)
 def get_player_wins_losses(year):
