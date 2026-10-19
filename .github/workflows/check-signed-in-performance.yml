@@ -1,0 +1,31 @@
+name: Check signed-in page performance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install cloud browsers
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+      - name: Check signed-in first visits and uncached rendering
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: python3 scripts/check_signed_in_performance.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signed-in-performance
+          path: output/signed-in-performance/
+          retention-days: 7

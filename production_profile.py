@@ -10,7 +10,17 @@ import time
 from flask import g, jsonify, request
 
 PROFILE_ENDPOINTS = {'stats', 'player_stats', 'games', 'vollis_stats',
-                     'other_stats', 'volleyball_stats'}
+                     'other_stats', 'volleyball_stats', 'add_game', 'add_vollis_game',
+                     'add_other_game', 'player_list', 'stats_sources_page', 'admin_dashboard'}
+
+
+def profile_target(path, query='', cookie='', authorization=''):
+    target = path + ('?' + query if query else '')
+    if cookie or authorization:
+        # A public diagnostic signature cannot be replayed against a signed-in
+        # browser. Bind the diagnostic to the exact existing credentials too.
+        target += '\nauth:' + hashlib.sha256((cookie + '\n' + authorization).encode()).hexdigest()
+    return target
 
 
 def signature(secret, timestamp, target):
@@ -22,16 +32,13 @@ def start_profile():
     secret = os.environ.get('DEPLOY_TOKEN', '')
     if not header or not secret or request.method != 'GET' or request.endpoint not in PROFILE_ENDPOINTS:
         return
-    # Profile public requests only. This never bypasses the normal source/share
-    # authorization hooks, and cannot be used to profile a signed-in account.
-    if request.cookies or request.headers.get('Authorization'):
-        return
     timestamp, separator, supplied = header.partition(':')
     try:
         fresh = abs(time.time() - int(timestamp)) <= 60
     except ValueError:
         return
-    target = request.path + ('?' + request.query_string.decode('ascii') if request.query_string else '')
+    target = profile_target(request.path, request.query_string.decode('ascii'),
+                            request.headers.get('Cookie', ''), request.headers.get('Authorization', ''))
     if not separator or not fresh or not hmac.compare_digest(supplied, signature(secret, timestamp, target)):
         return
     profile = g.production_profile = cProfile.Profile()

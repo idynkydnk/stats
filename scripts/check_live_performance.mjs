@@ -7,7 +7,8 @@ if (!process.env.GITHUB_ACTIONS) throw new Error('Run this browser check on GitH
 const engine = process.env.BROWSER || 'chromium';
 const browser = await ({ chromium, webkit }[engine]).launch();
 const origin = 'https://idynkydnk.pythonanywhere.com';
-const output = 'output/live-performance';
+const output = process.env.PERFORMANCE_OUTPUT || 'output/live-performance';
+const signedIn = Boolean(process.env.STATS_TEST_TOKEN);
 await mkdir(output, { recursive: true });
 const reports = [], errors = [], interactions = [];
 const paths = [
@@ -16,11 +17,15 @@ const paths = [
   ['vollis', '/vollis_stats/2026/'], ['other', '/other_stats/2026/'],
   ['volleyball', '/volleyball_stats/2026/'],
 ];
+if (signedIn) paths.push(['add-game', '/add_game/'], ['players', '/player_list/'],
+  ['sources', '/account/stats-sources/'], ['admin', '/admin/']);
 
 try {
   for (const width of [390, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 },
       isMobile: width < 768, hasTouch: width < 768, colorScheme: 'dark' });
+    if (signedIn) await context.addCookies([{ name: 'remember_token', value: process.env.STATS_TEST_TOKEN,
+      url: origin, httpOnly: true, secure: true, sameSite: 'Lax' }]);
     // Routing every request disables Playwright's browser HTTP cache. Block the
     // site's optional writes in JS instead, leaving genuine asset reuse enabled.
     await context.addInitScript(() => {
@@ -44,14 +49,18 @@ try {
     for (const [label, path] of paths) {
       let destination = origin + path;
       for (let visit = 0; visit < 4; visit++) {
+        const forceRender = process.env.FORCE_RENDER_FIRST === '1' && visit === 0;
+        await page.setExtraHTTPHeaders(forceRender ? { 'Cache-Control': 'no-cache' } : {});
         const response = await page.goto(destination, { waitUntil: 'load' });
         assert.equal(response.status(), 200, label);
+        if (signedIn) assert.ok(await page.locator('.menu-account-status').filter({ hasText: 'Signed in as' }).count(), 'Signed-in account chrome');
         await page.waitForFunction(() => performance.getEntriesByType('navigation')[0].loadEventEnd > 0);
         destination = page.url();
         const timing = await page.evaluate(() => {
           const n = performance.getEntriesByType('navigation')[0];
           const resources = performance.getEntriesByType('resource');
           return { load_ms: Math.round(n.loadEventEnd), ttfb_ms: Math.round(n.responseStart - n.requestStart),
+            first_paint_ms: Math.round(performance.getEntriesByName('first-contentful-paint')[0]?.startTime || 0),
             dom_ready_ms: Math.round(n.domContentLoadedEventEnd), html_bytes: n.decodedBodySize,
             transfer_bytes: n.transferSize, server: n.serverTiming.map(t => ({ name: t.name, ms: t.duration })),
             assets_from_cache: resources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length,
@@ -59,7 +68,8 @@ try {
               .sort((a, b) => b.duration - a.duration).slice(0, 5)
               .map(r => ({ path: new URL(r.name).pathname, ms: Math.round(r.duration), bytes: r.transferSize })) };
         });
-        reports.push({ engine, width, page: label, visit, page_cache: response.headers()['x-stats-page-cache'], ...timing });
+        reports.push({ engine, width, page: label, visit, signed_in: signedIn, render_required: forceRender,
+          page_cache: response.headers()['x-stats-page-cache'], ...timing });
       }
       if (label === 'player') {
         const original = await page.evaluate(() => ['partner', 'opponent'].map(kind => {
@@ -93,7 +103,7 @@ try {
           assert.equal(await page.locator(`#${kind}-tbody tr:not(.sr-hidden)`).count(), 10);
           interactions.push({ width, kind, total, complete_sort_and_expand: true });
         }
-        await page.screenshot({ path: `${output}/${engine}-${width}-player.png`, fullPage: false });
+        if (!signedIn) await page.screenshot({ path: `${output}/${engine}-${width}-player.png`, fullPage: false });
       }
     }
     await context.close();

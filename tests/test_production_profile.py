@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from flask import Flask
 from performance_metrics import register_performance
-from production_profile import signature
+from production_profile import profile_target, signature
 
 
 class ProductionProfileTests(unittest.TestCase):
@@ -47,6 +47,20 @@ class ProductionProfileTests(unittest.TestCase):
         self.assertTrue(response.is_json)
         self.assertNotIn('private-link', response.text)
         self.assertFalse(self.client.get('/stats').is_json)
+
+    def test_signed_in_profile_is_bound_to_credentials_and_keeps_authorization(self):
+        token = 'Bearer temporary-test-token'
+        timestamp = str(int(time.time()))
+        target = profile_target('/stats', authorization=token)
+        headers = {'Authorization': token, 'X-Stats-Profile': timestamp + ':' + signature('diagnostic-test-key', timestamp, target)}
+        response = self.client.get('/stats', headers=headers)
+        self.assertEqual(response.json['status'], 200)
+        self.assertNotIn('temporary-test-token', response.text)
+        self.assertFalse(self.client.get('/stats', headers={**headers, 'Authorization': 'Bearer different'}).is_json)
+        def deny():
+            return 'denied', 403
+        self.app.before_request_funcs[None].append(deny)
+        self.assertEqual(self.client.get('/stats', headers=headers).json['status'], 403)
 
 
 if __name__ == '__main__':
