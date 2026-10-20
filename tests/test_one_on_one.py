@@ -60,7 +60,7 @@ class OneOnOneTests(unittest.TestCase):
             c.execute('INSERT INTO other_games (' + ','.join(row) + ') VALUES (' + ','.join('?' for _ in row) + ')', list(row.values()))
 
     def test_approved_catalog_and_exclusions(self):
-        self.assertEqual(len(singles.FORMATS), 36)
+        self.assertEqual(len(singles.FORMATS), 39)
         for name in singles.FORMATS[1:]:
             self.assertIsNotNone(singles.normalize_other(dict(id=1, game_date='2026', game_name=name, game_type='Volleyball', winner1='A', loser1='B')), name)
         for name in ['Name That Tune', 'Group', 'No jump', 'Vollis kings', 'Kings', 'Coed', 'Ping pong']:
@@ -102,6 +102,28 @@ class OneOnOneTests(unittest.TestCase):
                 payload = singles.api_stats('All years')
                 self.assertEqual({r['name']: r['wins'] for r in payload['stats']},
                                  {'A': 1, 'B': 0})
+
+    def test_october_20_quarter_court_games_join_1v1_without_changing_results(self):
+        names = ['Quarter court lefty pass or set'] * 7 + ['Quarter Court Hand Set Over', 'Quarter court']
+        scores = [7, 7, 7, 8, 5, 3, 8, 4, 0]
+        for id, name, score in zip(range(939, 948), names, scores):
+            self.add_other(id, name, 'Kyle Thomson', 'Tom Zhang',
+                           game_date='2026-10-20 10:00:00', winner_score=11, loser_score=score)
+        with self.app.test_request_context('/stats'):
+            rows = singles.games('2026')
+            added = sorted((g for g in rows if g['source_id'] >= 939), key=lambda g: g['source_id'])
+            self.assertEqual([g['source_id'] for g in added], list(range(939, 948)))
+            self.assertEqual([g['loser_score'] for g in added], scores)
+            self.assertTrue(all(g['winner_score'] == 11 and g['winner'] == 'Kyle Thomson'
+                                and g['loser'] == 'Tom Zhang' for g in added))
+            self.assertEqual(singles.ratings(added)['rated_games'], 9)
+            self.assertEqual(singles.player_data('2026', 'Kyle Thomson')['stats'][0][1:3], [9, 0])
+        for name, count in [('Quarter court lefty pass or set', 7), ('Quarter Court Hand Set Over', 1), ('Quarter court', 1)]:
+            with self.app.test_request_context('/stats?' + urlencode({'format': name})):
+                payload = singles.api_stats('2026')
+                self.assertIn(name, payload['formats'])
+                self.assertEqual({r['name']: r['wins'] for r in payload['stats']},
+                                 {'Kyle Thomson': count, 'Tom Zhang': 0})
 
     def test_totals_identity_scores_and_ratings(self):
         rows = singles.games()
