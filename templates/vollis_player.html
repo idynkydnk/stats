@@ -97,6 +97,123 @@
         }
         .sr-show-more:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
         .sr-hidden { display: none; }
+        .sr-one-on-one-history { margin-top: 16px; }
+        .sr-one-on-one-history .sr-card-header { flex-wrap: wrap; }
+        .sr-history-count {
+            color: var(--sr-muted);
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+        .sr-history-list {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .sr-one-on-one-history .sr-game-card {
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid var(--sr-line);
+            border-radius: 10px;
+            background: var(--sr-panel);
+        }
+        .sr-history-meta {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .sr-history-date {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px 8px;
+            color: var(--sr-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            font-variant-numeric: tabular-nums;
+        }
+        .sr-history-date span { white-space: nowrap; }
+        .sr-history-result {
+            flex-shrink: 0;
+            padding: 2px 8px;
+            border: 1px solid currentColor;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        .sr-history-result.win { color: var(--sr-win); }
+        .sr-history-result.loss { color: var(--sr-loss); }
+        .sr-history-format {
+            margin: 0 0 10px;
+            color: var(--sr-text);
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+        .sr-history-match {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: stretch;
+            gap: 10px;
+        }
+        .sr-one-on-one-history .sr-game-team {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--sr-text);
+            text-decoration: none;
+        }
+        .sr-one-on-one-history .sr-game-team.winners {
+            background: color-mix(in srgb, var(--sr-win) 10%, var(--sr-panel));
+            border-left: 3px solid var(--sr-win);
+        }
+        .sr-one-on-one-history .sr-game-team.losers {
+            background: color-mix(in srgb, var(--sr-loss) 8%, var(--sr-panel));
+            border-left: 3px solid var(--sr-loss);
+        }
+        .sr-one-on-one-history .sr-game-team:hover .sr-game-player {
+            color: var(--sr-accent);
+            text-decoration: underline;
+        }
+        .sr-one-on-one-history .sr-game-player {
+            min-width: 0;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+        .sr-one-on-one-history .sr-game-score {
+            flex-shrink: 0;
+            font-size: 22px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        .sr-one-on-one-history .winners .sr-game-score { color: var(--sr-win); }
+        .sr-one-on-one-history .losers .sr-game-score { color: var(--sr-loss); }
+        .sr-one-on-one-history .sr-vs {
+            align-self: center;
+            color: var(--sr-muted);
+            font-size: 12px;
+        }
+        @media (max-width: 600px) {
+            .sr-history-match { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+            .sr-one-on-one-history .sr-vs { display: none; }
+            .sr-one-on-one-history .sr-game-team {
+                flex-direction: column-reverse;
+                justify-content: flex-end;
+                gap: 6px;
+                padding: 10px 8px;
+                text-align: center;
+            }
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -175,12 +292,45 @@
             {% endif %}
         </div>
         {% endif %}
-        <section class="sr-card" style="padding:16px;margin-top:16px">
-            <h2 class="sr-section-label">1v1 game history</h2>
-            {% for game in games %}
-            <p>{{ game[1] }} · {{ game[7] }}<br>
-                {{ game[2] }} {{ game[3] if game[3] is not none else '—' }} – {{ game[5] if game[5] is not none else '—' }} {{ game[4] }}</p>
-            {% else %}<p>No 1v1 volleyball games for this selection.</p>{% endfor %}
+        <section class="sr-card sr-card-compact sr-one-on-one-history" aria-labelledby="one-on-one-history-title">
+            <div class="sr-card-header">
+                <h2 class="sr-card-title" id="one-on-one-history-title">1v1 game history</h2>
+                <span class="sr-history-count">{{ games|length }} {{ 'game' if games|length == 1 else 'games' }}</span>
+            </div>
+            {% if games %}
+            <ol class="sr-history-list" role="list">
+                {% for game in games %}
+                {% set won = game[2] == player|trim %}
+                {% set date_parts = game[1].split(' ', 1) %}
+                <li class="sr-game-card">
+                    <div class="sr-history-meta">
+                        <div class="sr-history-date">
+                            <span>{{ date_parts[0] }}</span>
+                            {% if date_parts|length > 1 %}<span>{{ date_parts[1] }}</span>{% endif %}
+                        </div>
+                        <span class="sr-history-result {{ 'win' if won else 'loss' }}">{{ 'Win' if won else 'Loss' }}</span>
+                    </div>
+                    <h3 class="sr-history-format">{{ game[7] }}</h3>
+                    <div class="sr-history-match">
+                        <a class="sr-game-team winners" href="{{ url_for('vollis_player_stats', year=year, name=game[2], format=format_name) }}">
+                            <span class="sr-game-player">{{ game[2] }}</span>
+                            <span class="sr-game-score">{{ game[3] if game[3] is not none else '—' }}</span>
+                        </a>
+                        <span class="sr-vs">vs</span>
+                        <a class="sr-game-team losers" href="{{ url_for('vollis_player_stats', year=year, name=game[4], format=format_name) }}">
+                            <span class="sr-game-player">{{ game[4] }}</span>
+                            <span class="sr-game-score">{{ game[5] if game[5] is not none else '—' }}</span>
+                        </a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ol>
+            {% else %}
+            <div class="sr-empty">
+                <div class="sr-empty-icon"><i class="fas fa-volleyball-ball" aria-hidden="true"></i></div>
+                <p class="sr-empty-text">No 1v1 volleyball games for this selection.</p>
+            </div>
+            {% endif %}
         </section>
 {% endblock %}
 {% block extra_js %}
