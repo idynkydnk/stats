@@ -1240,7 +1240,7 @@ def inject_base_template():
         'base_template': 'base.html',
         'other_navigation_groups': other_navigation_groups,
         'browse_game_year': browse_game_year,
-        'one_on_one_formats': __import__('one_on_one').FORMATS,
+        'one_on_one_formats': LocalProxy(lambda: __import__('one_on_one').formats_by_total_games()),
         'doubles_division': active_doubles_division() or entry_division(),
         'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
@@ -2119,7 +2119,7 @@ def vollis_games(year):
         editable.update(g['id'] for g in rows if g['source'] == source and g['source_id'] in ids)
     return render_template('vollis_games.html', games=singles.tuples(rows, display=True),
         editable_game_ids=editable, all_years=singles.years(format_name), year=year,
-        format_name=format_name, one_on_one_formats=singles.FORMATS)
+        format_name=format_name, one_on_one_formats=singles.formats_by_total_games())
 
 
 # ============================================

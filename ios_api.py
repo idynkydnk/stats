@@ -717,7 +717,7 @@ def register_ios_api(app):
         return jsonify({
             'game_names': names, 'game_types': types, 'type_for_name': mapping,
             'entry_defaults': defaults,
-            'one_on_one_formats': list(__import__('one_on_one').FORMATS),
+            'one_on_one_formats': __import__('one_on_one').formats_by_total_games(),
             'default_years': {name: _S().browse_game_year(name) for name in names},
             'vollis_default_year': _S().browse_game_year(kind='vollis'),
         })

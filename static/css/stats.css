@@ -1536,6 +1536,14 @@ html.sr-player-pinned .sr-player-section .sr-mini-table thead th {
     text-overflow: ellipsis;
     font-family: inherit;
 }
+.sr-format-filter { margin-bottom: 16px; }
+.sr-format-filter-label {
+    color: var(--sr-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+.sr-format-filter .sr-year-select { min-width: 0; max-width: 100%; }
+.sr-format-filter noscript .sr-link-btn { margin-top: 12px; }
 .sr-header-filters > .sr-link-btn,
 .sr-header-tools .menu-toggle,
 .sr-header-tools .sr-dropdown-btn {

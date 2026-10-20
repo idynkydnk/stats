@@ -1,13 +1,17 @@
-<form method="get" class="sr-card" style="padding:12px 16px;margin-bottom:16px">
+<form method="get" class="sr-card sr-card-compact sr-format-filter">
     {% for key, value in request.args.items() if key != 'format' %}
     <input type="hidden" name="{{ key }}" value="{{ value }}">
     {% endfor %}
-    <label for="one-on-one-format">1v1 volleyball format</label>
-    <select id="one-on-one-format" name="format" onchange="this.form.submit()" style="max-width:100%">
-        <option value="">All 1v1</option>
-        {% for name in one_on_one_formats %}
-        <option value="{{ name }}" {% if format_name == name %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
-    <noscript><button type="submit">Apply</button></noscript>
+    <label for="one-on-one-format" class="sr-header-field">
+        <span class="sr-format-filter-label">1v1 volleyball format</span>
+        <span class="sr-year-select-wrap">
+            <select id="one-on-one-format" class="sr-year-select" name="format" onchange="this.form.submit()">
+                <option value="">All 1v1</option>
+                {% for name in one_on_one_formats %}
+                <option value="{{ name }}" {% if format_name == name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </span>
+    </label>
+    <noscript><button type="submit" class="sr-link-btn">Apply</button></noscript>
 </form>

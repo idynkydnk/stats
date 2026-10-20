@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-19-1v1-menu-order",
+    "date": "2026-10-19",
+    "subject": "iPhone: Most-played 1v1 formats first",
+    "body": "The 1v1 format menus now list the formats with the most games first. Formats with the same total are listed alphabetically."
+  },
+  {
     "id": "ios-2026-10-19-1v1-volleyball",
     "date": "2026-10-19",
     "subject": "iPhone: All 1v1 volleyball stats together",
