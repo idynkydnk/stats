@@ -1,5 +1,5 @@
 """Approved 1v1 volleyball formats, combined for browsing without moving games."""
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from flask import abort, request
 from request_cache import request_cached
@@ -9,12 +9,15 @@ FORMATS = (
     'Cut shots', 'Cut shots on two', 'Deep court', 'Full court pokey on two',
     'Half court cross court two touch only',
     'Half court diagonal long ways three touches hit only',
-    'Half court diagonal long ways two touch only', 'Half court long ways',
+    'Half court diagonal long ways two touch only', 'Half court lefty only',
+    'Half court long ways',
     'Half court long ways four touch no jump', 'Half court long ways net touch pull',
     'Half court long ways no jump', 'Half court long ways three touches hit only',
-    'Half court long ways two touch only', 'Half court three touch back corner only',
+    'Half court long ways two touch only', 'Half court no jump lefty only',
+    'Half court three touch back corner only',
     'Half court three touches must hit', 'Half court three touches only',
-    'Half court two touch only', 'Italian short court', 'Mini court',
+    'Half court two touch lefty only', 'Half court two touch only',
+    'Italian short court', 'Mini court',
     'Offense defense no jump', 'Passing', 'Short court no jump',
     'Short court no jump two touch only', 'Short court three boxes',
     'Short court three touch', 'Short court three touch no jump',
@@ -92,6 +95,13 @@ def years(format_name='', player=None):
                    if not player or player in (g['winner'], g['loser'])}, reverse=True) + ['All years']
 
 
+@request_cached
+def formats_by_total_games():
+    """Order menu choices by all-time games, with alphabetical ties."""
+    counts = Counter(g['game_name'] for g in games('All years', ''))
+    return sorted(FORMATS, key=lambda name: (-counts[name], name.casefold()))
+
+
 def rankings(rows, today=False):
     counts = defaultdict(lambda: [0, 0, 0])
     for g in rows:
@@ -140,7 +150,7 @@ def standings(year, format_name=''):
     return dict(year=year, display_year=display_year, showing_previous_year=display_year != year,
                 all_years=available, stats=stats, rating_info=info,
                 today_stats=rankings(today, today=True), today_games=today,
-                format_name=format_name, one_on_one_formats=FORMATS)
+                format_name=format_name, one_on_one_formats=formats_by_total_games())
 
 
 def tuples(rows, display=False):
@@ -159,7 +169,7 @@ def player_data(year, name, format_name=''):
     return dict(games=rows, stats=[stats + [len(rows)]],
                 opponent_stats=vollis_opponent_stats_by_year(name, tuples(rows), minimum) if rows else [],
                 winpct_min_games=minimum, all_years=years(format_name, name),
-                format_name=format_name, one_on_one_formats=FORMATS)
+                format_name=format_name, one_on_one_formats=formats_by_total_games())
 
 
 def api_stats(year):
@@ -169,7 +179,7 @@ def api_stats(year):
                 showing_previous_year=context['showing_previous_year'], all_years=context['all_years'],
                 stats=_card_stats(dict(stats=context['stats'], **context['rating_info']))['stats'],
                 today_stats=[_ranking(r, rating_key='plus_minus') for r in context['today_stats']],
-                today_game_count=len(context['today_games']), formats=list(FORMATS))
+                today_game_count=len(context['today_games']), formats=context['one_on_one_formats'])
 
 
 def api_games(year):

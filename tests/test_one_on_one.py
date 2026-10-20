@@ -60,12 +60,32 @@ class OneOnOneTests(unittest.TestCase):
             c.execute('INSERT INTO other_games (' + ','.join(row) + ') VALUES (' + ','.join('?' for _ in row) + ')', list(row.values()))
 
     def test_approved_catalog_and_exclusions(self):
-        self.assertEqual(len(singles.FORMATS), 32)
+        self.assertEqual(len(singles.FORMATS), 35)
         for name in singles.FORMATS[1:]:
             self.assertIsNotNone(singles.normalize_other(dict(id=1, game_date='2026', game_name=name, game_type='Volleyball', winner1='A', loser1='B')), name)
         for name in ['Name That Tune', 'Four corners', 'No jump', 'Vollis kings', 'Kings', 'Coed', 'Ping pong']:
             self.assertIsNone(singles.canonical_format(name))
         self.assertEqual(singles.canonical_format(' ITALIAN SHORT COURT '), 'Italian short court')
+
+    def test_lefty_formats_join_combined_stats_and_format_filters(self):
+        names = ['Half court lefty only', 'Half court no jump lefty only',
+                 'Half court two touch lefty only']
+        for id, name in enumerate(names, 20):
+            self.add_other(id, name, 'A', 'B')
+        with self.app.test_request_context('/stats'):
+            rows = singles.games()
+            self.assertEqual(len(rows), 7)
+            self.assertEqual(singles.ratings(rows)['rated_games'], 7)
+            self.assertEqual(singles.player_data('All years', 'A')['stats'][0][1:3], [5, 1])
+            payload = singles.api_stats('All years')
+            for name in names:
+                self.assertIn(name, payload['formats'])
+                self.assertEqual(len(singles.games('All years', name)), 1)
+        for name in names:
+            with self.app.test_request_context('/stats?' + urlencode({'format': name})):
+                payload = singles.api_stats('All years')
+                self.assertEqual({r['name']: r['wins'] for r in payload['stats']},
+                                 {'A': 1, 'B': 0})
 
     def test_totals_identity_scores_and_ratings(self):
         rows = singles.games()
