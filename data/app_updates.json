@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-20-other-game-suggestions",
+    "date": "2026-10-20",
+    "subject": "iPhone: Recent games first in Other game",
+    "body": "When adding an Other game, game names appear with the most recently played first, just like on the website. Searching keeps that order, and 1v1 volleyball formats stay out of the suggestions."
+  },
+  {
     "id": "ios-2026-10-20-custom-1v1-formats",
     "date": "2026-10-20",
     "subject": "iPhone: Choose or add a 1v1 volleyball format",
