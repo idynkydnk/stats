@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-20-custom-1v1-formats",
+    "date": "2026-10-20",
+    "subject": "iPhone: Choose or add a 1v1 volleyball format",
+    "body": "When adding a 1v1 volleyball game, tap Volleyball format to choose or search existing formats, or type a new one, just like on the website. New formats are saved in 1v1 and remembered in the dropdown for future games."
+  },
+  {
     "id": "ios-2026-10-19-1v1-menu-order",
     "date": "2026-10-19",
     "subject": "iPhone: Most-played 1v1 formats first",

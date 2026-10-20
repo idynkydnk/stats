@@ -19,7 +19,7 @@ from account_names import account_label, clean_display_name, ensure_display_name
 
 
 DATA_TABLES = {
-    'games', 'vollis_games', 'other_games', 'players',
+    'games', 'vollis_games', 'other_games', 'one_on_one_formats', 'players',
     'doubles_player_last_played', 'deleted_records', 'sessions', 'trueskill_rankings',
 }
 GOOGLE_IOS_CLIENT_ID = '195048170299-63t84plh4cae8a7r5nk70d8l8hkr3t8p.apps.googleusercontent.com'

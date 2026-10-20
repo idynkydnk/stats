@@ -1,4 +1,4 @@
-"""Approved 1v1 volleyball formats, combined for browsing without moving games."""
+"""Built-in and saved 1v1 volleyball formats, combined without moving games."""
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from flask import abort, request
@@ -26,8 +26,47 @@ FORMATS = (
 _CANONICAL = {name.casefold(): name for name in FORMATS}
 
 
+def _custom_formats(conn):
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='one_on_one_formats'").fetchone():
+        return {}
+    return dict(conn.execute('SELECT name_key, name FROM one_on_one_formats').fetchall())
+
+
+@request_cached
+def custom_formats():
+    from other_functions import set_cur
+    cur = set_cur()
+    try:
+        return _custom_formats(cur.connection)
+    finally:
+        cur.connection.close()
+
+
 def canonical_format(name):
-    return _CANONICAL.get((name or '').strip().casefold())
+    key = (name or '').strip().casefold()
+    if not key:
+        return None
+    return _CANONICAL.get(key) or custom_formats().get(key)
+
+
+def register_format(conn, name, game_type, winners, losers):
+    """Remember an explicitly entered singles format in the game's transaction."""
+    name = (name or '').strip()
+    sides = [[n.strip() for n in side if n.strip()] for side in (winners, losers)]
+    if (not name or game_type != 'Volleyball' or any(len(side) != 1 for side in sides)
+            or sides[0][0].casefold() == sides[1][0].casefold()):
+        raise ValueError('Enter a volleyball format and one different player on each side.')
+    key = name.casefold()
+    existing = _CANONICAL.get(key) or _custom_formats(conn).get(key)
+    if existing:
+        return existing
+    # Reusing another game's name would also move its old results into 1v1.
+    names = conn.execute('SELECT DISTINCT game_name FROM other_games').fetchall()
+    if any((row[0] or '').strip().casefold() == key for row in names):
+        raise ValueError('That name already belongs to an Other game. Choose a different 1v1 format name.')
+    conn.execute('CREATE TABLE IF NOT EXISTS one_on_one_formats (name_key TEXT PRIMARY KEY, name TEXT NOT NULL)')
+    conn.execute('INSERT INTO one_on_one_formats (name_key, name) VALUES (?, ?)', (key, name))
+    return name
 
 
 def selected_format():
@@ -99,7 +138,7 @@ def years(format_name='', player=None):
 def formats_by_total_games():
     """Order menu choices by all-time games, with alphabetical ties."""
     counts = Counter(g['game_name'] for g in games('All years', ''))
-    return sorted(FORMATS, key=lambda name: (-counts[name], name.casefold()))
+    return sorted((*FORMATS, *custom_formats().values()), key=lambda name: (-counts[name], name.casefold()))
 
 
 def rankings(rows, today=False):

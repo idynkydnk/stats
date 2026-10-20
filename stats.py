@@ -4144,7 +4144,7 @@ def add_other_game():
     
     if request.method == 'POST':
         game_type = request.form.get('game_type', '')
-        game_name = request.form.get('game_name', '')
+        game_name = request.form.get('game_name', '').strip()
         if request.args.get('one_on_one') == '1':
             game_name = canonical_format(game_name) or game_name
         score_type = request.form.get('score_type', 'individual') or 'individual'
@@ -4202,7 +4202,7 @@ def add_other_game():
         if not game_type or not game_name or not winners or not losers:
             flash('Some fields missing!')
         elif request.args.get('one_on_one') == '1' and (
-                not canonical_format(game_name) or game_type != 'Volleyball'
+                game_type != 'Volleyball'
                 or len(winners) != 1 or len(losers) != 1 or winners == losers):
             flash('Choose a 1v1 volleyball format and one different player on each side.')
         elif requires_scores and not has_scores:
@@ -4221,12 +4221,17 @@ def add_other_game():
                     return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
-            add_other_stats(
-                game_dt, game_type, game_name, winners, winner_scores,
-                losers, loser_scores, comment, game_dt,
-                team_winner_score, team_loser_score, tz,
-                entered_by=session.get('username', ''), location=location,
-            )
+            try:
+                add_other_stats(
+                    game_dt, game_type, game_name, winners, winner_scores,
+                    losers, loser_scores, comment, game_dt,
+                    team_winner_score, team_loser_score, tz,
+                    entered_by=session.get('username', ''), location=location,
+                    one_on_one=request.args.get('one_on_one') == '1',
+                )
+            except ValueError as error:
+                flash(str(error))
+                return redirect(url_for('add_other_game', one_on_one='1', format=game_name))
             _remember_game_location(location)
             user = session.get('username', 'unknown')
             details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"

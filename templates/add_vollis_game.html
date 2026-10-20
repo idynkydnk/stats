@@ -231,8 +231,7 @@ const winnerScores = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20'
 const oneOnOneFormats = {{ one_on_one_formats|list|tojson }};
 
 function selectVolleyballFormat(field, advance = true) {
-    const format = oneOnOneFormats.find(name => name.toLowerCase() === field.value.trim().toLowerCase());
-    field.setCustomValidity(format || !field.value.trim() ? '' : 'Choose a 1v1 volleyball format from the suggestions.');
+    const format = oneOnOneFormats.find(name => name.toLowerCase() === field.value.trim().toLowerCase()) || field.value.trim();
     if (!format) return false;
     field.value = format;
     updateClearVisibility(document.getElementById('game_name-wrap'));

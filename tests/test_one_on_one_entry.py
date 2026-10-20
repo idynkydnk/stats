@@ -107,10 +107,19 @@ class OneOnOneEntryTests(unittest.TestCase):
         valid = dict(self.fields, game_name='Italian short court', game_type='Volleyball',
                      winner2='', loser2='')
         for changes in ({'winner2': 'Bob'}, {'loser1': 'Alice'},
-                        {'game_name': 'Sequence'}, {'game_type': 'Cards'}):
+                        {'game_name': '   '}, {'game_type': 'Cards'}):
             with self.subTest(changes=changes):
                 self.client.post('/add_other_game/?one_on_one=1', data=dict(valid, **changes))
         self.write.assert_not_called()
+
+    def test_new_format_is_saved_as_one_on_one(self):
+        fields = dict(self.fields, game_name='  Back line lefty  ', game_type='Volleyball',
+                      winner2='', loser2='')
+        response = self.client.post('/add_other_game/?one_on_one=1', data=fields)
+        self.write.assert_called_once()
+        self.assertEqual(self.write.call_args.args[2], 'Back line lefty')
+        self.assertTrue(self.write.call_args.kwargs['one_on_one'])
+        self.assertEqual(parse_qs(urlsplit(response.location).query)['format'], ['Back line lefty'])
 
 
 if __name__ == '__main__':

@@ -130,6 +130,11 @@ def build_stats_view(site_path, own_path, sources):
                     continue
                 with closing(sqlite3.connect('file:' + str(path) + '?mode=ro', uri=True)) as source:
                     source.row_factory = sqlite3.Row
+                    # Custom 1v1 names follow the same selected sources as games.
+                    if source.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='one_on_one_formats'").fetchone():
+                        target.execute('CREATE TABLE IF NOT EXISTS one_on_one_formats (name_key TEXT PRIMARY KEY, name TEXT NOT NULL)')
+                        target.executemany('INSERT OR IGNORE INTO one_on_one_formats VALUES (?, ?)',
+                                           source.execute('SELECT name_key, name FROM one_on_one_formats'))
                     for table in (*GAME_TABLES, 'players'):
                         dest_cols = {r[1] for r in target.execute('PRAGMA table_info("' + table + '")')}
                         if not dest_cols or not source.execute("SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)).fetchone():

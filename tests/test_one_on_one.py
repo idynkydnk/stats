@@ -23,7 +23,7 @@ class OneOnOneTests(unittest.TestCase):
         self.path = str(Path(self.tmp.name) / 'games.db')
         with sqlite3.connect(self.path) as c:
             c.execute('CREATE TABLE vollis_games (id INTEGER, game_date TEXT, winner TEXT, winner_score INTEGER, loser TEXT, loser_score INTEGER, updated_at TEXT, entered_timezone TEXT, location TEXT)')
-            cols = ['id INTEGER', 'game_date TEXT', 'game_type TEXT', 'game_name TEXT', 'winner_score INTEGER', 'loser_score INTEGER', 'updated_at TEXT', 'entered_timezone TEXT', 'location TEXT', 'comment TEXT']
+            cols = ['id INTEGER PRIMARY KEY', 'game_date TEXT', 'game_type TEXT', 'game_name TEXT', 'winner_score INTEGER', 'loser_score INTEGER', 'updated_at TEXT', 'entered_timezone TEXT', 'location TEXT', 'comment TEXT']
             cols += [f'{side}{i} TEXT' for side in ('winner', 'loser') for i in range(1, 16)]
             cols += [f'{side}{i}_score INTEGER' for side in ('winner', 'loser') for i in range(1, 16)]
             c.execute('CREATE TABLE other_games (' + ','.join(cols) + ')')

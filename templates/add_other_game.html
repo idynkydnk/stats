@@ -731,9 +731,8 @@ setupAutocomplete('game_name', () => allGameNames, field => {
     let gameName = (field.value || '').trim();
     if (isOneOnOne) {
         const format = allGameNames.find(name => name.toLowerCase() === gameName.toLowerCase());
-        field.setCustomValidity(format || !gameName ? '' : 'Choose a 1v1 volleyball format from the suggestions.');
-        if (!format) return;
-        field.value = gameName = format;
+        field.setCustomValidity('');
+        field.value = gameName = format || gameName;
         document.getElementById('game_type').value = 'Volleyball';
         updateClearVisibility(document.getElementById('game_name-wrap'));
     }

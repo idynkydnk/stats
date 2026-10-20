@@ -43,10 +43,11 @@ setImmediate(() => {
     assert.equal(type.value, 'Volleyball');
     assert.equal(applied.score_type, 'team');
     assert.equal(context.window.location.href, '/add_vollis_game/', 'Non-Vollis selection stays on the current form');
-    field.value = 'Sequence';
-    const requestsBeforeInvalid = requests.length;
+    field.value = '  New lefty format  ';
     select(field);
-    assert.match(field.validationMessage, /Choose a 1v1/);
-    assert.equal(requests.length, requestsBeforeInvalid, '1v1 rejects games outside its format list');
+    assert.equal(field.value, 'New lefty format');
+    assert.equal(field.validationMessage, '');
+    assert.equal(type.value, 'Volleyball');
+    assert.equal(requests.at(-1), '/api/other_game_info/New%20lefty%20format');
     console.log('Known defaults apply immediately; unknown games fetch; stale responses are ignored.');
 });

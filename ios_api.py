@@ -817,12 +817,16 @@ def register_ios_api(app):
         p['location'] = S._new_game_location(p['location'])
         if not p['game_type'] or not p['game_name'] or not p['winners'] or not p['losers']:
             return jsonify({'error': 'game_type, game_name, winners, and losers required'}), 400
-        add_other_stats(
-            p['game_date'], p['game_type'], p['game_name'], p['winners'], p['winner_scores'],
-            p['losers'], p['loser_scores'], p['comment'], p['game_date'],
-            p['team_winner_score'], p['team_loser_score'], p['entered_timezone'],
-            entered_by=session.get('username', ''), location=p['location'],
-        )
+        try:
+            add_other_stats(
+                p['game_date'], p['game_type'], p['game_name'], p['winners'], p['winner_scores'],
+                p['losers'], p['loser_scores'], p['comment'], p['game_date'],
+                p['team_winner_score'], p['team_loser_score'], p['entered_timezone'],
+                entered_by=session.get('username', ''), location=p['location'],
+                one_on_one=data.get('one_on_one') is True,
+            )
+        except ValueError as error:
+            return jsonify({'error': str(error)}), 400
         S._remember_game_location(p['location'])
         S.clear_stats_cache()
         new_row = S.adminfx.snapshot_last_row('other_game')
