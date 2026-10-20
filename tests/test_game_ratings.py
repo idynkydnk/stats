@@ -12,6 +12,10 @@ def game(id, winners=('A',), losers=('B',), name='No jump', category='Volleyball
 
 
 class GameRatingTests(unittest.TestCase):
+    def test_four_corners_is_head_to_head_but_name_that_tune_is_not(self):
+        self.assertEqual(match_teams(game(1, name='Four corners')), (['A'], ['B']))
+        self.assertIsNone(match_teams(game(2, name='Name That Tune')))
+
     def test_reference_decisive_head_to_head(self):
         ratings = rate_matches([(['A'], ['B'])])
         self.assertAlmostEqual(ratings['A']['mu'], 29.2054731068, places=6)

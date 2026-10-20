@@ -13,7 +13,7 @@ HEAD_TO_HEAD_GAMES = {'backgammon', 'scrabble', 'sequence', 'euchre', 'gin rummy
 INDIVIDUAL_MULTIPLAYER_GAMES = {'gin rummy', 'scrabble', 'sequence', 'catan',
                                 'spot it!', 'sushi go!', 'otrio'}
 ROTATING_GAMES = {'kings', 'coed kings/queens', 'vollis kings', 'one dollar wednesdays',
-                  'name that tune', 'short court three boxes', 'short court two boxes', 'four corners'}
+                  'name that tune', 'short court three boxes', 'short court two boxes'}
 
 
 def match_teams(game):

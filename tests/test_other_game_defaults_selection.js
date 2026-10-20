@@ -5,11 +5,11 @@ const template = fs.readFileSync('templates/add_other_game.html', 'utf8');
 const source = template.slice(template.indexOf("setupAutocomplete('game_name'"), template.indexOf('// Game type: on select')).replaceAll("{{ url_for('add_vollis_game') | tojson }}", JSON.stringify('/add_vollis_game/'));
 let select, applied;
 const requests = [];
-const field = {value: 'No jump'};
+const field = {value: 'No jump', setCustomValidity(message) { this.validationMessage = message; }};
 const type = {value: ''};
 let resolveInfo;
 const context = {
-    allGameNames: [], gameEntryDefaults: {'no jump': {game_type: 'Volleyball', score_type: 'team'}},
+    isOneOnOne: false, allGameNames: [], gameEntryDefaults: {'no jump': {game_type: 'Volleyball', score_type: 'team'}},
     setupAutocomplete: (_, __, callback) => {select = callback;},
     fetch: url => { requests.push(url); return new Promise(resolve => {resolveInfo = resolve;}); },
     window: {location: {href: ''}},
@@ -33,5 +33,20 @@ field.value = 'No jump';
 resolveInfo({json: () => ({game_type: 'Old response', score_type: 'individual'})});
 setImmediate(() => {
     assert.equal(type.value, 'Volleyball', 'Stale response must not replace current selection');
+    context.isOneOnOne = true;
+    context.allGameNames = ['Vollis', 'Italian short court'];
+    context.gameEntryDefaults['italian short court'] = {game_type: 'Old category', score_type: 'team'};
+    field.value = '  italian SHORT court  ';
+    select(field);
+    assert.equal(field.value, 'Italian short court');
+    assert.equal(field.validationMessage, '');
+    assert.equal(type.value, 'Volleyball');
+    assert.equal(applied.score_type, 'team');
+    assert.equal(context.window.location.href, '/add_vollis_game/', 'Non-Vollis selection stays on the current form');
+    field.value = 'Sequence';
+    const requestsBeforeInvalid = requests.length;
+    select(field);
+    assert.match(field.validationMessage, /Choose a 1v1/);
+    assert.equal(requests.length, requestsBeforeInvalid, '1v1 rejects games outside its format list');
     console.log('Known defaults apply immediately; unknown games fetch; stale responses are ignored.');
 });

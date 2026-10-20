@@ -6,7 +6,7 @@ from request_cache import request_cached
 
 FORMATS = (
     'Vollis', 'Bump three touch full court', 'Bump two touch', 'Cut or high line',
-    'Cut shots', 'Cut shots on two', 'Deep court', 'Full court pokey on two',
+    'Cut shots', 'Cut shots on two', 'Deep court', 'Four corners', 'Full court pokey on two',
     'Half court cross court two touch only',
     'Half court diagonal long ways three touches hit only',
     'Half court diagonal long ways two touch only', 'Half court lefty only',

@@ -4139,11 +4139,14 @@ def add_vollis_game():
 def add_other_game():
     """Add other game page."""
     from other_functions import all_combined_players
+    from one_on_one import canonical_format
     year = str(date.today().year)
     
     if request.method == 'POST':
         game_type = request.form.get('game_type', '')
         game_name = request.form.get('game_name', '')
+        if request.args.get('one_on_one') == '1':
+            game_name = canonical_format(game_name) or game_name
         score_type = request.form.get('score_type', 'individual') or 'individual'
         winners = []
         winner_scores = []
@@ -4199,7 +4202,7 @@ def add_other_game():
         if not game_type or not game_name or not winners or not losers:
             flash('Some fields missing!')
         elif request.args.get('one_on_one') == '1' and (
-                not __import__('one_on_one').canonical_format(game_name) or game_type != 'Volleyball'
+                not canonical_format(game_name) or game_type != 'Volleyball'
                 or len(winners) != 1 or len(losers) != 1 or winners == losers):
             flash('Choose a 1v1 volleyball format and one different player on each side.')
         elif requires_scores and not has_scores:
@@ -4244,7 +4247,7 @@ def add_other_game():
     players = all_combined_players()
     players = entry_player_names(_stats_db_path(), players, session.get('username'), is_admin())
     game_defaults = catalog['defaults']
-    game_names = catalog['names']
+    game_names = [name for name in catalog['names'] if not canonical_format(name)]
     game_types = catalog['types']
     games = todays_other_games()
     todays_stats_data = todays_other_stats()

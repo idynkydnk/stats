@@ -30,7 +30,7 @@ class OneOnOneTests(unittest.TestCase):
             c.execute("INSERT INTO vollis_games VALUES (1, '2025-01-01 12:00:00', 'A', 21, 'B', 15, '2025-01-01 12:00:00', '', 'Beach')")
         self.add_other(1, 'Italian short court', 'B', 'A')
         self.add_other(2, 'Short court two boxes', 'A', 'C', location='Park')
-        self.add_other(3, 'Four corners', 'C', 'A')
+        self.add_other(3, 'Group', 'C', 'A')
         self.add_other(4, 'Name That Tune', 'C', 'B')
         self.add_other(5, 'No jump', 'C', 'B')
         self.add_other(6, 'Half court long ways', 'A', 'C', winner2='B')
@@ -60,12 +60,28 @@ class OneOnOneTests(unittest.TestCase):
             c.execute('INSERT INTO other_games (' + ','.join(row) + ') VALUES (' + ','.join('?' for _ in row) + ')', list(row.values()))
 
     def test_approved_catalog_and_exclusions(self):
-        self.assertEqual(len(singles.FORMATS), 35)
+        self.assertEqual(len(singles.FORMATS), 36)
         for name in singles.FORMATS[1:]:
             self.assertIsNotNone(singles.normalize_other(dict(id=1, game_date='2026', game_name=name, game_type='Volleyball', winner1='A', loser1='B')), name)
-        for name in ['Name That Tune', 'Four corners', 'No jump', 'Vollis kings', 'Kings', 'Coed', 'Ping pong']:
+        for name in ['Name That Tune', 'Group', 'No jump', 'Vollis kings', 'Kings', 'Coed', 'Ping pong']:
             self.assertIsNone(singles.canonical_format(name))
         self.assertEqual(singles.canonical_format(' ITALIAN SHORT COURT '), 'Italian short court')
+
+    def test_four_corners_joins_combined_stats_and_format_filters(self):
+        self.add_other(20, 'Four corners', 'C', 'A')
+        with self.app.test_request_context('/stats'):
+            rows = singles.games()
+            self.assertEqual({g['id'] for g in rows}, {1, -1, -2, -9, -20})
+            self.assertEqual(singles.ratings(rows)['rated_games'], 5)
+            self.assertEqual(singles.player_data('All years', 'C')['stats'][0][1:3], [1, 2])
+            self.assertIn('Four corners', singles.api_stats('All years')['formats'])
+        with self.app.test_request_context('/stats?format=Four+corners'):
+            self.assertEqual(singles.selected_format(), 'Four corners')
+            payload = singles.api_stats('All years')
+            self.assertEqual({r['name']: r['wins'] for r in payload['stats']}, {'C': 1, 'A': 0})
+            rows = singles.games('All years', singles.selected_format())
+            self.assertEqual([g['id'] for g in rows], [-20])
+            self.assertEqual(rows[0]['other_game']['id'], 20)
 
     def test_lefty_formats_join_combined_stats_and_format_filters(self):
         names = ['Half court lefty only', 'Half court no jump lefty only',
@@ -130,7 +146,7 @@ class OneOnOneTests(unittest.TestCase):
                 player = singles.api_player('All years', 'B')
                 self.assertEqual(player['games'][0]['game_name'], 'Short court three boxes')
                 self.assertEqual(player['games'][0]['winner1'], 'B')
-            with self.app.test_request_context('/stats?format=Four+corners'):
+            with self.app.test_request_context('/stats?format=Name+That+Tune'):
                 with self.assertRaises(Exception) as error:
                     singles.selected_format()
                 self.assertEqual(error.exception.code, 400)

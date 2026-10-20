@@ -1,8 +1,6 @@
-<div style="margin-bottom:16px">
-    <label for="one-on-one-entry">1v1 volleyball format</label>
-    <select id="one-on-one-entry" style="width:100%" onchange="window.location.href=this.value">
-        {% for name in one_on_one_formats %}
-        <option value="{{ url_for('add_vollis_game') if name == 'Vollis' else url_for('add_other_game', one_on_one='1', format=name) }}" {% if name == request.args.get('format', 'Vollis') %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-    </select>
+{% set entry_format = 'Vollis' if request.endpoint == 'add_vollis_game' else request.args.get('format', '') %}
+<div class="autocomplete has-clear{% if not entry_format %} empty{% endif %}" id="game_name-wrap">
+    <input type="text" name="game_name" id="game_name" value="{{ entry_format }}" placeholder="Volleyball Format" aria-label="Volleyball Format" autocomplete="off" required>
+    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear volleyball format"><i class="fas fa-times"></i></button>
+    <div class="autocomplete-list" id="game_nameList"></div>
 </div>

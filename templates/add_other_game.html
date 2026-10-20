@@ -1,10 +1,10 @@
 {% extends base_template %}
-{% block active_tab %}other{% endblock %}
-{% block title %}Add Other Game{% endblock %}
+{% block active_tab %}{{ 'vollis' if request.args.get('one_on_one') == '1' else 'other' }}{% endblock %}
+{% block title %}{{ 'Add 1v1 Game' if request.args.get('one_on_one') == '1' else 'Add Other Game' }}{% endblock %}
 {% block extra_css %}
 <style>
 {% if request.args.get('one_on_one') == '1' %}
-#game_name-wrap, #game_type-wrap, #add-winner-btn, #add-loser-btn { display: none !important; }
+#game_type-wrap, #add-winner-btn, #add-loser-btn, #add-more-players-btn { display: none !important; }
 {% endif %}
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
@@ -204,7 +204,7 @@
         <header class="sr-header sr-header-compact">
             <h1 class="sr-title">Add</h1>
             <div class="sr-header-actions">
-                {% set header_back_url = url_for('other_stats', year=year) %}
+                {% set header_back_url = url_for('vollis_stats' if request.args.get('one_on_one') == '1' else 'other_stats', year=year) %}
                 {% set header_back_label = 'Stats' %}
                 {% set header_hide_year = true %}
                 {% include 'partials/page_header_actions.html' %}
@@ -214,22 +214,25 @@
         {% include 'partials/add_game_navigation.html' %}
 
         <div class="sr-form-container">
-            <form method="post" action="{{ url_for('add_other_game') }}" id="add-other-form">
+            <form method="post" action="{{ url_for('add_other_game', one_on_one='1') if request.args.get('one_on_one') == '1' else url_for('add_other_game') }}" id="add-other-form">
                 <input type="hidden" name="client_date" id="client_date" value="">
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
-                {% if request.args.get('one_on_one') == '1' %}{% include 'partials/one_on_one_entry.html' %}{% endif %}
-                <datalist id="game_names"><option value="Vollis">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
+                <datalist id="game_names">{% for name in (one_on_one_formats if request.args.get('one_on_one') == '1' else game_names) %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
                 
+                {% if request.args.get('one_on_one') == '1' %}
+                {% include 'partials/one_on_one_entry.html' %}
+                {% else %}
                 <div class="autocomplete has-clear empty" id="game_name-wrap">
                     <input type="text" name="game_name" id="game_name" placeholder="Game Name" autocomplete="off">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear game name"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="game_nameList"></div>
                 </div>
+                {% endif %}
                 <div class="autocomplete has-clear empty" id="game_type-wrap">
-                    <input type="text" name="game_type" id="game_type" placeholder="Game Type" autocomplete="off">
+                    <input type="text" name="game_type" id="game_type" value="{{ 'Volleyball' if request.args.get('one_on_one') == '1' else '' }}" placeholder="Game Type" autocomplete="off">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear game type"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="game_typeList"></div>
                 </div>
@@ -424,6 +427,7 @@
 })();
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);
+const isOneOnOne = {{ (request.args.get('one_on_one') == '1')|tojson }};
 const allGameTypes = Array.from(document.getElementById('game_types').options).map(o => o.value);
 let winnerCount = 1, loserCount = 1;
 let is2v2Mode = false;
@@ -680,7 +684,7 @@ function ensurePlayerRowCountFromLastGame(wCount, lCount) {
 }
 
 function applyGameInfo(data) {
-    if (document.getElementById('one-on-one-entry')) data = {...data, winner_count: 1, loser_count: 1};
+    if (isOneOnOne) data = {...data, winner_count: 1, loser_count: 1};
     if (data.score_type) setScoreType(data.score_type);
     const wCount = Math.max(1, parseInt(data.winner_count, 10) || 1);
     const lCount = Math.max(1, parseInt(data.loser_count, 10) || 1);
@@ -724,7 +728,15 @@ const gameEntryDefaults = {{ game_defaults | default({}) | tojson }};
 setupAutocomplete('game_name', () => allGameNames, field => {
     cachedCommonScores = null;
     cachedCommonScoresGameName = null;
-    const gameName = (field.value || '').trim();
+    let gameName = (field.value || '').trim();
+    if (isOneOnOne) {
+        const format = allGameNames.find(name => name.toLowerCase() === gameName.toLowerCase());
+        field.setCustomValidity(format || !gameName ? '' : 'Choose a 1v1 volleyball format from the suggestions.');
+        if (!format) return;
+        field.value = gameName = format;
+        document.getElementById('game_type').value = 'Volleyball';
+        updateClearVisibility(document.getElementById('game_name-wrap'));
+    }
     if (gameName.toLowerCase() === 'vollis') {
         window.location.href = {{ url_for('add_vollis_game') | tojson }};
         return;
@@ -740,6 +752,7 @@ setupAutocomplete('game_name', () => allGameNames, field => {
     }
     const applyDefaults = data => {
             if (field.value.trim() !== gameName) return;
+            if (isOneOnOne) data = {...data, game_type: 'Volleyball'};
             if (data.game_type) {
                 document.getElementById('game_type').value = data.game_type;
                 const gtWrap = document.getElementById('game_type-wrap');
@@ -762,6 +775,10 @@ setupAutocomplete('game_name', () => allGameNames, field => {
             })
             .catch(() => {});
     }
+});
+
+document.getElementById('game_name').addEventListener('input', function() {
+    this.setCustomValidity('');
 });
 
 function openVollisEntry() {
@@ -1060,6 +1077,7 @@ function setupClearButtons() {
                 scoreTypeDisplay.blur();
             } else if (input) {
                 input.value = '';
+                input.setCustomValidity('');
                 input.blur();
             }
             updateClearVisibility(wrap);
@@ -1094,7 +1112,8 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     const form = this.closest('form');
     if (!form) return;
     document.getElementById('game_name').value = '';
-    document.getElementById('game_type').value = '';
+    document.getElementById('game_name').setCustomValidity('');
+    document.getElementById('game_type').value = isOneOnOne ? 'Volleyball' : '';
     document.getElementById('score_type').value = 'individual';
     document.getElementById('score_type_display').value = 'Individual Scores';
     ['winner1', 'winner2', 'loser1', 'loser2'].forEach(id => {
@@ -1123,13 +1142,7 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     cachedCommonScoresGameName = null;
     hidePickerUi();
     document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(updateClearVisibility);
-    {% if request.args.get('one_on_one') == '1' and request.args.get('format') in one_on_one_formats %}
-    document.getElementById('game_name').value = {{ request.args.get('format')|tojson }};
-    document.getElementById('game_type').value = 'Volleyball';
-    document.getElementById('game_name').dispatchEvent(new Event('change'));
-    {% else %}
     document.getElementById('game_name')?.focus();
-    {% endif %}
 });
 
 // Game names that already have scores in the DB — new entries for these must include scores

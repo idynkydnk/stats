@@ -119,8 +119,8 @@
         {% include 'partials/add_game_navigation.html' %}
 
         <div class="sr-form-container">
-            {% include 'partials/one_on_one_entry.html' %}
             <form method="post" action="{{ url_for('add_vollis_game') }}" id="add-vollis-form">
+                {% include 'partials/one_on_one_entry.html' %}
                 <input type="hidden" name="client_date" id="client_date" value="">
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
@@ -228,6 +228,26 @@ const allPlayers = Array.from(document.getElementById('players').options).map(o 
 const nameFields = ['winner', 'loser'];
 const nextFields = { winner: 'loser', loser: 'winner_score', winner_score: 'loser_score' };
 const winnerScores = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+const oneOnOneFormats = {{ one_on_one_formats|list|tojson }};
+
+function selectVolleyballFormat(field, advance = true) {
+    const format = oneOnOneFormats.find(name => name.toLowerCase() === field.value.trim().toLowerCase());
+    field.setCustomValidity(format || !field.value.trim() ? '' : 'Choose a 1v1 volleyball format from the suggestions.');
+    if (!format) return false;
+    field.value = format;
+    updateClearVisibility(document.getElementById('game_name-wrap'));
+    if (format !== 'Vollis') {
+        const url = new URL({{ url_for('add_other_game', one_on_one='1')|tojson }}, window.location.origin);
+        url.searchParams.set('format', format);
+        window.location.href = url.toString();
+        return false;
+    }
+    if (advance) document.getElementById('winner').focus();
+    return true;
+}
+setupAutocomplete('game_name', () => oneOnOneFormats, selectVolleyballFormat);
+document.getElementById('game_name').addEventListener('change', function() { selectVolleyballFormat(this); });
+document.getElementById('game_name').addEventListener('input', function() { this.setCustomValidity(''); });
 
 function getSelectedPlayers(excludeField) {
     return nameFields.map(id => document.getElementById(id).value.trim()).filter(v => v && v !== (excludeField ? excludeField.value.trim() : ''));
@@ -313,7 +333,7 @@ function setupClearButtons() {
             e.preventDefault();
             e.stopPropagation();
             document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
-            if (input) { input.value = ''; input.blur(); }
+            if (input) { input.value = ''; input.setCustomValidity(''); input.blur(); }
             updateClearVisibility(wrap);
         });
         if (input) {
@@ -324,16 +344,24 @@ function setupClearButtons() {
     });
 }
 document.getElementById('clear-form-btn')?.addEventListener('click', function() {
+    const format = document.getElementById('game_name');
+    format.value = '';
+    format.setCustomValidity('');
     const w = document.getElementById('winner'); if (w) w.value = '';
     const l = document.getElementById('loser'); if (l) l.value = '';
     const ws = document.getElementById('winner_score'); if (ws) ws.value = '';
     const ls = document.getElementById('loser_score'); if (ls) ls.value = '';
     document.querySelectorAll('.autocomplete-list').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.autocomplete.has-clear').forEach(updateClearVisibility);
-    document.getElementById('winner')?.focus();
+    format.focus();
 });
 
-document.getElementById('add-vollis-form').addEventListener('submit', function() {
+document.getElementById('add-vollis-form').addEventListener('submit', function(event) {
+    if (!selectVolleyballFormat(document.getElementById('game_name'), false)) {
+        event.preventDefault();
+        document.getElementById('game_name').reportValidity();
+        return;
+    }
     var now = new Date();
     document.getElementById('client_date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     document.getElementById('client_time').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
@@ -351,7 +379,7 @@ document.getElementById('add-vollis-form').addEventListener('submit', function()
 })();
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
-    setTimeout(() => (!document.getElementById('saved-game-popup') && document.getElementById('winner')?.focus()), 100);
+    setTimeout(() => (!document.getElementById('saved-game-popup') && document.getElementById('game_name')?.focus()), 100);
 });
 </script>
 {% endblock %}
