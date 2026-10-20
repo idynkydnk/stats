@@ -18,8 +18,8 @@
     {% set stats_url = url_for('stats', year=yr) if yr else url_for('stats_default') %}
     {% set year_base = 'stats' %}
 {% elif tab == 'vollis' %}
-    {% set games_url = url_for('vollis_games', year=yr) if yr else url_for('vollis_games_default') %}
-    {% set stats_url = url_for('vollis_stats', year=yr) if yr else url_for('vollis_stats_default') %}
+    {% set games_url = url_for('vollis_games', year=yr, format=format_name|default('')) if yr else url_for('vollis_games_default') %}
+    {% set stats_url = url_for('vollis_stats', year=yr, format=format_name|default('')) if yr else url_for('vollis_stats_default') %}
     {% set year_base = 'vollis_stats' %}
 {% elif tab == 'other' %}
     {% set games_url = url_for('other_games', year=yr) if yr else url_for('other_games_default') %}
@@ -46,14 +46,14 @@
                 {% if tab == 'doubles' %}
                 <option value="{{ url_for('games', year=yr_option, page=1) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
                 {% elif tab == 'vollis' %}
-                <option value="{{ url_for('vollis_games', year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+                <option value="{{ url_for('vollis_games', year=yr_option, format=format_name|default('')) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
                 {% elif tab == 'other' and game_name is defined and game_name %}
                 <option value="{{ url_for('other_games_by_name', year=yr_option, game_name=game_name) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
                 {% else %}
                 <option value="{{ url_for('other_games', year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
                 {% endif %}
             {% else %}
-            <option value="{{ url_for(year_base, year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+            <option value="{{ url_for(year_base, year=yr_option, format=format_name) if tab == 'vollis' else url_for(year_base, year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
             {% endif %}
             {% endfor %}
         </select>
@@ -83,7 +83,7 @@
 </button>
 {% endif %}
 {% if session.logged_in and not stats_shared_read_only %}
-<a href="{{ url_for('add_game') }}" class="sr-link-btn sr-link-btn-accent">
+<a href="{{ (url_for('add_other_game', one_on_one='1', format=format_name) if format_name|default('') and format_name != 'Vollis' else url_for('add_vollis_game')) if tab == 'vollis' else url_for('add_game') }}" class="sr-link-btn sr-link-btn-accent">
     <i class="fas fa-plus"></i> Add
 </a>
 {% endif %}

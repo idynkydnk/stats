@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% block title %}{{ player }} {{ year }} Vollis Stats{% endblock %}
+{% block title %}{{ player }} {{ year }} 1v1 Stats{% endblock %}
 {% block extra_css %}
 <style>
 .sr-player-header {
@@ -103,11 +103,11 @@
 
         <header class="sr-header sr-header-compact">
             <div class="sr-header-actions">
-                <a href="{{ url_for('vollis_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
+                <a href="{{ url_for('vollis_stats', year=year, format=format_name) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Stats</a>
                 <div class="sr-year-select-wrap">
                     <select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
                         {% for yr in all_years %}
-                        <option value="{{ url_for('vollis_player_stats', year=yr, name=player) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+                        <option value="{{ url_for('vollis_player_stats', year=yr, name=player, format=format_name) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -120,10 +120,11 @@
             {% include 'partials/player_avatar.html' %}
             <div class="sr-player-info">
                 <h1>{{ player }}</h1>
-                <div class="sr-player-subtitle">{{ year }} Vollis Stats</div>
+                <div class="sr-player-subtitle">{{ year }} 1v1 Stats</div>
             </div>
         </div>
 
+        {% include 'partials/one_on_one_filter.html' %}
         {% if stats and stats[0] %}
         <div class="sr-stat-cards">
             <div class="sr-stat-card">
@@ -161,7 +162,7 @@
                 {% for stat in opponent_stats %}
                 <tr class="{% if stat['preview_hidden'] %}sr-hidden{% endif %}" data-games="{{ stat['total_games'] }}" data-meets-min="{{ 1 if stat['meets_min'] else 0 }}" data-sample-tier="{{ stat['sample_tier'] }}">
                     <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                    <td><a href="{{ url_for('vollis_player_stats', year=year, name=stat['opponent']) }}">{{ stat['opponent'] }}</a></td>
+                    <td><a href="{{ url_for('vollis_player_stats', year=year, name=stat['opponent'], format=format_name) }}">{{ stat['opponent'] }}</a></td>
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td class="sr-win" data-value="{{ stat['wins'] }}">{{ stat['wins'] }}</td>
                     <td class="sr-loss" data-value="{{ stat['losses'] }}">{{ stat['losses'] }}</td>
@@ -174,6 +175,13 @@
             {% endif %}
         </div>
         {% endif %}
+        <section class="sr-card" style="padding:16px;margin-top:16px">
+            <h2 class="sr-section-label">1v1 game history</h2>
+            {% for game in games %}
+            <p>{{ game[1] }} · {{ game[7] }}<br>
+                {{ game[2] }} {{ game[3] if game[3] is not none else '—' }} – {{ game[5] if game[5] is not none else '—' }} {{ game[4] }}</p>
+            {% else %}<p>No 1v1 volleyball games for this selection.</p>{% endfor %}
+        </section>
 {% endblock %}
 {% block extra_js %}
 <script>{{ inline_stats_script }}</script>

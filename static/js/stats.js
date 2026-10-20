@@ -204,7 +204,7 @@ function renderPlayerSearchDropdown(dropdown, players) {
         const yearText = player.most_recent_year ? ` (Last played: ${player.most_recent_year})` : '';
         const gameTypes = [];
         if (player.has_doubles) gameTypes.push('Doubles');
-        if (player.has_vollis) gameTypes.push('Vollis');
+        if (player.has_vollis) gameTypes.push('1v1');
         if (player.has_other) gameTypes.push('Other');
         const gamesText = gameTypes.length > 0 ? ` - ${gameTypes.join(', ')}` : '';
         const linkYear = player.most_recent_year || (player.years.length > 0 ? player.years[0] : new Date().getFullYear());
@@ -221,6 +221,10 @@ function renderPlayerSearchDropdown(dropdown, players) {
             linkPath = `/other_player/${linkYear}/${encodeURIComponent(player.name)}/`;
         } else {
             linkPath = `/player/${linkYear}/${encodeURIComponent(player.name)}/`;
+        }
+        if (isVollisPage && linkPath.startsWith('/vollis_player/')) {
+            const format = new URLSearchParams(window.location.search).get('format');
+            if (format) linkPath += '?format=' + encodeURIComponent(format);
         }
         html += `<a href="${statsViewURL(linkPath)}" class="sr-search-dropdown-item">
             <div class="sr-search-player-name">${player.name}</div>

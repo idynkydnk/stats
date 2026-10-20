@@ -1216,7 +1216,8 @@ def browse_game_year(game_name=None, kind='other'):
     if kind == 'doubles':
         return str(date.today().year)
     elif kind == 'vollis':
-        years = all_vollis_years()
+        from one_on_one import years as singles_years
+        years = singles_years()
     else:
         years = game_name_years(game_name)
     recorded = {str(year) for year in years if year and str(year) != 'All years'}
@@ -1226,7 +1227,9 @@ def browse_game_year(game_name=None, kind='other'):
 def other_navigation_groups():
     """Keep game choices discoverable even in seasons with no games."""
     from other_functions import other_navigation_catalog
-    return other_navigation_catalog()
+    from one_on_one import canonical_format
+    return [(category, [name for name in names if category != 'Volleyball' or not canonical_format(name)])
+            for category, names in other_navigation_catalog()]
 
 
 @app.context_processor
@@ -1237,6 +1240,7 @@ def inject_base_template():
         'base_template': 'base.html',
         'other_navigation_groups': other_navigation_groups,
         'browse_game_year': browse_game_year,
+        'one_on_one_formats': __import__('one_on_one').FORMATS,
         'doubles_division': active_doubles_division() or entry_division(),
         'doubles_division_url': doubles_division_url,
         'doubles_label': DIVISIONS[active_doubles_division() or entry_division()],
@@ -2097,30 +2101,8 @@ def vollis_stats_default():
 
 @app.route('/vollis_stats/<year>/')
 def vollis_stats(year):
-    """Redesigned vollis stats page."""
-    current_year = str(date.today().year)
-    showing_previous_year = False
-    display_year = year
-    
-    all_years = all_vollis_years()
-    stats = vollis_stats_per_year(year, 0)
-    
-    # If no stats for current year, fall back to previous year
-    if not stats and year == current_year and all_years and not any(active_location_filter()):
-        previous_year = str(int(current_year) - 1)
-        if previous_year in all_years:
-            stats = vollis_stats_per_year(previous_year, 0)
-            display_year = previous_year
-            showing_previous_year = True
-    
-    rating_info = vollis_ratings(display_year)
-    if rating_info['rating_sort']:
-        stats.sort(key=lambda row: rating_info['ratings'].get(row[0], {}).get('rating', float('-inf')), reverse=True)
-    today_stats = todays_vollis_stats()
-    today_games = todays_vollis_games()
-    return render_template('vollis_stats.html', stats=stats, all_years=all_years, year=year,
-        display_year=display_year, showing_previous_year=showing_previous_year,
-        today_stats=today_stats, today_games=today_games, rating_info=rating_info)
+    import one_on_one as singles
+    return render_template('vollis_stats.html', **singles.standings(year, singles.selected_format()))
 
 @app.route('/vollis_games/')
 def vollis_games_default():
@@ -2128,11 +2110,16 @@ def vollis_games_default():
 
 @app.route('/vollis_games/<year>/')
 def vollis_games(year):
-    """Redesigned vollis games page."""
-    all_years = all_vollis_years()
-    games = vollis_year_games(year)
-    return render_template('vollis_games.html',
-        editable_game_ids=_editable_game_ids('vollis_games', [g[0] for g in games]), games=games, all_years=all_years, year=year)
+    import one_on_one as singles
+    format_name = singles.selected_format()
+    rows = singles.games(year, format_name)
+    editable = set()
+    for source, table in [('vollis', 'vollis_games'), ('other', 'other_games')]:
+        ids = _editable_game_ids(table, [g['source_id'] for g in rows if g['source'] == source])
+        editable.update(g['id'] for g in rows if g['source'] == source and g['source_id'] in ids)
+    return render_template('vollis_games.html', games=singles.tuples(rows, display=True),
+        editable_game_ids=editable, all_years=singles.years(format_name), year=year,
+        format_name=format_name, one_on_one_formats=singles.FORMATS)
 
 
 # ============================================
@@ -2200,6 +2187,9 @@ def other_games(year):
 @app.route('/other_games/<year>/<game_name>/')
 def other_games_by_name(year, game_name):
     """Other games page filtered by game name."""
+    from one_on_one import canonical_format
+    if canonical_format(game_name):
+        return redirect(url_for('vollis_games', year=year, format=canonical_format(game_name)))
     from other_functions import total_game_name_stats
     all_years = all_other_years()
     all_games = other_year_games(year)
@@ -4208,6 +4198,10 @@ def add_other_game():
 
         if not game_type or not game_name or not winners or not losers:
             flash('Some fields missing!')
+        elif request.args.get('one_on_one') == '1' and (
+                not __import__('one_on_one').canonical_format(game_name) or game_type != 'Volleyball'
+                or len(winners) != 1 or len(losers) != 1 or winners == losers):
+            flash('Choose a 1v1 volleyball format and one different player on each side.')
         elif requires_scores and not has_scores:
             if score_type == 'team':
                 flash('This game type uses team scores. Please enter both Winner and Loser team scores.')
@@ -4221,7 +4215,7 @@ def add_other_game():
                 now = get_user_now_only()
                 if now is None:
                     flash('Could not determine your timezone. Please refresh the page and try again.')
-                    return redirect(url_for('add_other_game'))
+                    return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
                 game_dt = now.strftime('%Y-%m-%d %H:%M:%S')
             tz = request.form.get('entered_timezone', '').strip() or session.get('timezone') or None
             add_other_stats(
@@ -4243,7 +4237,7 @@ def add_other_game():
                 'losers': ', '.join(f'{n} ({v})' if score_type == 'individual' and v != '' else n for n, v in zip(losers, loser_scores)),
                 'winner_score': team_winner_score, 'loser_score': team_loser_score,
                 'location': location, 'comment': comment}
-        return redirect(url_for('add_other_game'))
+        return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
     
     from other_functions import other_game_entry_catalog
     catalog = other_game_entry_catalog()
@@ -4353,17 +4347,11 @@ def player_stats(year, name):
 
 @app.route('/vollis_player/<year>/<name>/')
 def vollis_player_stats(year, name):
-    """Vollis player stats page."""
-    all_years = all_years_vollis_player(name)
-    games = games_from_vollis_player_by_year(year, name)
-    stats = total_vollis_stats(name, games)
-    # Vollis is 1v1 — one opponent per game.
-    winpct_min_games = player_matchup_min_games(len(games) if games else 0)
-    opponent_stats = vollis_opponent_stats_by_year(name, games, winpct_min_games)
-    return render_template('vollis_player.html', opponent_stats=opponent_stats,
-        year=year, player=name, all_years=all_years, stats=stats, games=games,
-        winpct_min_games=winpct_min_games,
-        **player_avatar_context(name))
+    import one_on_one as singles
+    context = singles.player_data(year, name.strip(), singles.selected_format())
+    context['games'] = singles.tuples(context['games'], display=True)
+    return render_template('vollis_player.html', year=year, player=name,
+        **context, **player_avatar_context(name))
 
 @app.route('/other_player/<year>/<name>/')
 def other_player_stats(year, name):
@@ -4802,6 +4790,9 @@ def build_volleyball_game_cards_styled(year):
         volleyball_games = [g for g in games if g.get('game_type') == 'Volleyball']
         game_names = other_game_names(volleyball_games)
         for game_name in game_names:
+            from one_on_one import canonical_format
+            if canonical_format(game_name) and (not request.path.startswith('/api/') or request.args.get('one_on_one') == '1'):
+                continue
             game_specific = [g for g in volleyball_games if g.get('game_name') == game_name]
             stats_for_game = total_game_name_stats(game_specific)
             if not stats_for_game:
@@ -5090,6 +5081,9 @@ def game_name_stats(game_name):
 def game_name_stats_with_year(game_name, year):
     """Stats page for a single other game type."""
     from other_functions import game_name_years
+    from one_on_one import canonical_format
+    if canonical_format(game_name):
+        return redirect(url_for('vollis_stats', year=year, format=canonical_format(game_name)))
 
     all_years = game_name_years(game_name)
     if str(year) not in {str(value) for value in all_years}:
@@ -5490,7 +5484,7 @@ def api_search_all_players():
                 years_doubles = []
             
             try:
-                years_vollis = all_years_vollis_player(player_name) or []
+                years_vollis = [y for y in __import__('one_on_one').years(player=player_name) if y != 'All years']
             except:
                 years_vollis = []
             
@@ -6020,9 +6014,9 @@ def run_benchmark():
         ('/stats/2026/', 'Stats 2026'),
         ('/player_list/', 'Player List'),
         ('/games/', 'Games List'),
-        ('/vollis_games/', 'Vollis Games'),
+        ('/vollis_games/', '1v1 Games'),
         ('/other_games/', 'Other Games'),
-        ('/vollis_stats/', 'Vollis Stats'),
+        ('/vollis_stats/', '1v1 Stats'),
         ('/other_stats/', 'Other Stats'),
         ('/volleyball_stats/', 'Volleyball Stats'),
         ('/tournaments/', 'Tournaments'),

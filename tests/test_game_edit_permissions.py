@@ -152,10 +152,12 @@ class GameEditPermissionTests(unittest.TestCase):
         env = Environment(loader=ChoiceLoader([DictLoader({
             'base': '{% block content %}{% endblock %}',
             'partials/page_header_actions.html': '', 'partials/section_tabs.html': '',
+            'partials/one_on_one_filter.html': '',
         }), FileSystemLoader(ROOT / 'templates')]))
         env.globals['url_for'] = lambda endpoint, **kw: '/' + endpoint + '/' + str(kw.get('id', ''))
+        env.globals['player_stats_url'] = lambda year, name: '/player/' + name
         doubles = [[id, '10/05/2026 10:00 AM', 'A', 'B', 21, 'C', 'D', 15] for id in (1, 2)]
-        vollis = [[id, '10/05/26 10:00 AM', 'A', 21, 'B', 15] for id in (1, 2)]
+        vollis = [[id, '10/05/26 10:00 AM', 'A', 21, 'B', 15, '', 'Vollis', 'vollis', id] for id in (1, 2)]
         other = [dict(game_id=id, game_name='No jump', game_date_only='10/05/26', game_time='10:00 AM',
                       winners=[dict(name='A', score=None), dict(name='B', score=None)],
                       losers=[dict(name='C', score=None)], winner_score=21, loser_score=15) for id in (1, 2)]

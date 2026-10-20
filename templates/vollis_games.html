@@ -1,7 +1,7 @@
 {% extends base_template %}
 {% block active_tab %}vollis{% endblock %}
 {% block header_mode %}games{% endblock %}
-{% block title %}{{ year }} Vollis Games{% endblock %}
+{% block title %}{{ year }} 1v1 Games{% endblock %}
 {% block extra_css %}
 <style>
 .sr-games-grid {
@@ -120,12 +120,13 @@
 {% endblock %}
 {% block content %}
 <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ year }} Vollis Games</h1>
+            <h1 class="sr-title">{{ year }} 1v1 Games</h1>
             <div class="sr-header-actions">
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 {% include 'partials/section_tabs.html' %}
+        {% include 'partials/one_on_one_filter.html' %}
 
 
         <section class="sr-table-section">
@@ -138,7 +139,8 @@
                 <p class="sr-section-label" id="games-count">{{ games|length }} games</p>
                 <div class="sr-games-grid" id="games-grid">
                     {% for game in games %}
-                    <div class="sr-game-card" data-search="{{ game[1] }} {{ game[2]|lower }} {{ game[4]|lower }}">
+                    <div class="sr-game-card" data-search="{{ game[7]|lower }} {{ game[1] }} {{ game[2]|lower }} {{ game[4]|lower }}">
+                        <div class="sr-section-label">{{ game[7] }}</div>
                         <div class="sr-game-row">
                             <div class="sr-game-date">
                                 {% set date_parts = game[1].split(' ', 1) %}
@@ -147,17 +149,17 @@
                             </div>
                             <div class="sr-game-team winners">
                                 <span class="sr-team-score">{{ game[3] }}</span>
-                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2]) }}">{{ game[2] }}</a></div>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[2], format=format_name) }}">{{ game[2] }}</a></div>
                             </div>
                             <span class="sr-vs">vs</span>
                             <div class="sr-game-team losers">
                                 <span class="sr-team-score">{{ game[5] }}</span>
-                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4]) }}">{{ game[4] }}</a></div>
+                                <div class="sr-game-player"><a href="{{ url_for('vollis_player_stats', year=year, name=game[4], format=format_name) }}">{{ game[4] }}</a></div>
                             </div>
                         </div>
                         {% if game[0] in editable_game_ids %}
                         <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-                            <a href="{{ url_for('update_vollis_game', id=game[0], games_year=year) }}" class="sr-link-btn" aria-label="Edit game"><i class="fas fa-pen" aria-hidden="true"></i> Edit</a>
+                            <a href="{{ url_for('update_vollis_game' if game[8] == 'vollis' else 'update_other_game', id=game[9], games_year=year) }}" class="sr-link-btn" aria-label="Edit game"><i class="fas fa-pen" aria-hidden="true"></i> Edit</a>
                         </div>
                         {% endif %}
                     </div>
@@ -170,7 +172,7 @@
                 {% else %}
                 <div class="sr-empty">
                     <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
-                    <p class="sr-empty-text">No vollis games recorded for {{ year }} yet.</p>
+                    <p class="sr-empty-text">No 1v1 volleyball games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>

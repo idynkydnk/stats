@@ -119,7 +119,7 @@ class StatsResponseCache:
         self.code_revision = [(name, (root / name).stat().st_mtime_ns) for name in (
             'stats_response_cache.py', 'account_stats_views.py', 'ios_api.py',
             'stats.py', 'stat_functions.py', 'vollis_functions.py',
-            'other_functions.py', 'game_ratings.py', 'doubles_division.py',
+            'other_functions.py', 'one_on_one.py', 'game_ratings.py', 'doubles_division.py',
             'stats_location_filter.py', 'time_display.py', 'prepared_calculations.py',
             'stats_snapshot_cache.py', 'request_cache.py')]
 
@@ -151,6 +151,8 @@ class StatsResponseCache:
                     endpoint, arguments, division]
         key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         tables = ('players', 'games') if 'doubles' in endpoint else (('players', 'vollis_games') if 'vollis' in endpoint else ('players', 'other_games'))
+        if 'vollis' in endpoint and ('one_on_one', '1') in arguments:
+            tables = ('players', 'vollis_games', 'other_games')
         return key, paths, json.dumps(database_revisions(paths, tables)), tables
 
     def load(self, ticket):

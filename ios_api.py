@@ -302,7 +302,7 @@ def register_ios_api(app):
         from other_functions import all_other_years
         return jsonify({
             'doubles': grab_all_years(),
-            'vollis': all_vollis_years(),
+            'vollis': __import__('one_on_one').years() if request.args.get('one_on_one') == '1' else all_vollis_years(),
             'other': all_other_years(),
         })
 
@@ -423,6 +423,9 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/stats')
     def api_vollis_stats():
+        if request.args.get('one_on_one') == '1':
+            from one_on_one import api_stats
+            return jsonify(api_stats(_year_arg('All years')))
         from vollis_functions import (
             vollis_stats_per_year, all_vollis_years,
             todays_vollis_stats, todays_vollis_games,
@@ -458,6 +461,9 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/games', methods=['GET'])
     def api_vollis_list():
+        if request.args.get('one_on_one') == '1':
+            from one_on_one import api_games
+            return jsonify(api_games(_year_arg('All years')))
         if 'limit' in request.args and not request.args.get('since'):
             from game_browse_page import game_page
             from stats_location_filter import filter_stats_connection
@@ -612,6 +618,9 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/players/<path:name>')
     def api_vollis_player(name):
+        if request.args.get('one_on_one') == '1':
+            from one_on_one import api_player
+            return jsonify(api_player(_year_arg('All years'), name.strip()))
         from vollis_functions import (
             all_years_vollis_player, games_from_vollis_player_by_year,
             total_vollis_stats, vollis_opponent_stats_by_year,
@@ -675,6 +684,8 @@ def register_ios_api(app):
         today_by_game = todays_other_stats_by_game()
         today_json = []
         for block in (today_by_game or []):
+            if request.args.get('one_on_one') == '1' and __import__('one_on_one').canonical_format(block.get('game_name')):
+                continue
             today_json.append({
                 'game_name': block.get('game_name'),
                 'game_count': block.get('game_count'),
@@ -706,6 +717,7 @@ def register_ios_api(app):
         return jsonify({
             'game_names': names, 'game_types': types, 'type_for_name': mapping,
             'entry_defaults': defaults,
+            'one_on_one_formats': list(__import__('one_on_one').FORMATS),
             'default_years': {name: _S().browse_game_year(name) for name in names},
             'vollis_default_year': _S().browse_game_year(kind='vollis'),
         })

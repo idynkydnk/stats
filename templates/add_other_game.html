@@ -3,6 +3,9 @@
 {% block title %}Add Other Game{% endblock %}
 {% block extra_css %}
 <style>
+{% if request.args.get('one_on_one') == '1' %}
+#game_name-wrap, #game_type-wrap, #add-winner-btn, #add-loser-btn { display: none !important; }
+{% endif %}
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
         .autocomplete input {
@@ -216,6 +219,7 @@
                 <input type="hidden" name="client_time" id="client_time" value="">
                 <input type="hidden" name="entered_timezone" id="entered_timezone" value="">
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
+                {% if request.args.get('one_on_one') == '1' %}{% include 'partials/one_on_one_entry.html' %}{% endif %}
                 <datalist id="game_names"><option value="Vollis">{% for name in game_names %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in game_types %}<option value="{{ type }}">{% endfor %}</datalist>
                 
@@ -586,6 +590,7 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
     const field = document.getElementById(fieldId);
     const list = document.getElementById(fieldId + 'List');
     if (!field || !list) return;
+    if (onSelect) field.addEventListener('change', () => onSelect(field));
     
     field.addEventListener('focus', () => showList(field, list, getItems(field)));
     field.addEventListener('input', () => {
@@ -675,6 +680,7 @@ function ensurePlayerRowCountFromLastGame(wCount, lCount) {
 }
 
 function applyGameInfo(data) {
+    if (document.getElementById('one-on-one-entry')) data = {...data, winner_count: 1, loser_count: 1};
     if (data.score_type) setScoreType(data.score_type);
     const wCount = Math.max(1, parseInt(data.winner_count, 10) || 1);
     const lCount = Math.max(1, parseInt(data.loser_count, 10) || 1);
@@ -1117,7 +1123,13 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     cachedCommonScoresGameName = null;
     hidePickerUi();
     document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(updateClearVisibility);
+    {% if request.args.get('one_on_one') == '1' and request.args.get('format') in one_on_one_formats %}
+    document.getElementById('game_name').value = {{ request.args.get('format')|tojson }};
+    document.getElementById('game_type').value = 'Volleyball';
+    document.getElementById('game_name').dispatchEvent(new Event('change'));
+    {% else %}
     document.getElementById('game_name')?.focus();
+    {% endif %}
 });
 
 // Game names that already have scores in the DB — new entries for these must include scores
@@ -1164,5 +1176,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
     setTimeout(() => (!document.getElementById('saved-game-popup') && document.getElementById('game_name')?.focus()), 100);
 });
+
+{% if request.args.get('one_on_one') == '1' and request.args.get('format') in one_on_one_formats %}
+document.getElementById('game_name').value = {{ request.args.get('format')|tojson }};
+document.getElementById('game_type').value = 'Volleyball';
+document.getElementById('game_name').dispatchEvent(new Event('change'));
+{% endif %}
 </script>
 {% endblock %}

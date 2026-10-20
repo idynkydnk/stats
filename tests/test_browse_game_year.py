@@ -19,6 +19,9 @@ class BrowseGameYearTests(unittest.TestCase):
         }
         exec(compile(ast.Module(body=[node], type_ignores=[]), 'stats.py', 'exec'), self.namespace)
         self.choose = self.namespace['browse_game_year']
+        self.singles_years = patch('one_on_one.years', return_value=['2024', 'All years'])
+        self.singles_years.start()
+        self.addCleanup(self.singles_years.stop)
 
     @patch('other_functions.game_name_years')
     def test_destination_defaults(self, years):
@@ -31,7 +34,8 @@ class BrowseGameYearTests(unittest.TestCase):
             years.return_value = recorded
             self.assertEqual(self.choose('Matterhorn'), expected)
         self.assertEqual(self.choose(kind='doubles'), str(date.today().year))
-        self.assertEqual(self.choose(kind='vollis'), '2024')
+        with patch('one_on_one.years', return_value=['2024', 'All years']):
+            self.assertEqual(self.choose(kind='vollis'), '2024')
 
     @patch('other_functions.game_name_years', return_value=['2023', 'All years'])
     def test_explicit_empty_year_remains_selected(self, years):

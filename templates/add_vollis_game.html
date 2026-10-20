@@ -115,14 +115,11 @@
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
-        {% set add_section = "other" %}
+        {% set add_section = "vollis" %}
         {% include 'partials/add_game_navigation.html' %}
 
         <div class="sr-form-container">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
-                <span>Game name: Vollis</span>
-                <a href="{{ url_for('add_other_game') }}" class="sr-link-btn">Change game</a>
-            </div>
+            {% include 'partials/one_on_one_entry.html' %}
             <form method="post" action="{{ url_for('add_vollis_game') }}" id="add-vollis-form">
                 <input type="hidden" name="client_date" id="client_date" value="">
                 <input type="hidden" name="client_time" id="client_time" value="">

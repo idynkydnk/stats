@@ -1,7 +1,7 @@
 {% extends base_template %}
 {% import 'partials/game_rating.html' as game_rating %}
 {% block active_tab %}vollis{% endblock %}
-{% block title %}{{ display_year|default(year) }} Vollis Stats{% endblock %}
+{% block title %}{{ display_year|default(year) }} 1v1 Stats{% endblock %}
 {% block extra_css %}
 <style>
     /* Search dropdown stacking is in stats.css (.sr-card:has(#sr-search)). */
@@ -53,18 +53,19 @@
 {% endblock %}
 {% block content %}
         <header class="sr-header sr-header-compact">
-            <h1 class="sr-title">{{ display_year|default(year) }} Vollis Stats</h1>
+            <h1 class="sr-title">{{ display_year|default(year) }} 1v1 Stats</h1>
             <div class="sr-header-actions">
                 {% include 'partials/page_header_actions.html' %}
             </div>
         </header>
 
         {% include 'partials/section_tabs.html' %}
+        {% include 'partials/one_on_one_filter.html' %}
 
         {% if showing_previous_year %}
         <div class="sr-notice" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
             <i class="fas fa-info-circle" style="color: #fbbf24;"></i>
-            <span style="color: var(--sr-text); font-size: 14px;">No vollis games played in {{ year }} yet. Showing <strong>{{ display_year }}</strong> stats.</span>
+            <span style="color: var(--sr-text); font-size: 14px;">No 1v1 volleyball games played in {{ year }} yet. Showing <strong>{{ display_year }}</strong> stats.</span>
         </div>
         {% endif %}
 
@@ -94,7 +95,7 @@
                             {% for player in today_stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=display_year|default(year), name=player[0], format=format_name) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
                                 <td class="sr-numeric" data-value="{{ player[4] }}" style="color: {% if player[4] > 0 %}var(--sr-win){% elif player[4] < 0 %}var(--sr-loss){% else %}var(--sr-muted){% endif %};">
@@ -145,7 +146,7 @@
                             {% for player in stats %}
                             <tr>
                                 <td class="sr-rank {% if loop.index == 1 %}sr-rank-1{% elif loop.index == 2 %}sr-rank-2{% elif loop.index == 3 %}sr-rank-3{% endif %}" data-value="{{ loop.index }}">{{ loop.index }}</td>
-                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=display_year|default(year), name=player[0]) }}">{{ player[0] }}</a></td>
+                                <td class="sr-player"><a href="{{ url_for('vollis_player_stats', year=display_year|default(year), name=player[0], format=format_name) }}">{{ player[0] }}</a></td>
                                 {{ game_rating.cell(rating_info, player[0]) }}
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
@@ -164,7 +165,7 @@
                 {% else %}
                 <div class="sr-empty">
                     <div class="sr-empty-icon"><i class="fas fa-volleyball-ball"></i></div>
-                    <p class="sr-empty-text">No vollis games recorded for {{ year }} yet.</p>
+                    <p class="sr-empty-text">No 1v1 volleyball games recorded for {{ year }} yet.</p>
                 </div>
                 {% endif %}
             </div>
