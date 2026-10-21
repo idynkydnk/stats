@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-21-faster-winner-names",
+    "date": "2026-10-21",
+    "subject": "iPhone: Faster player names in Winner 1",
+    "body": "Player names get a head start when the app opens. Doubles, 1v1, and Other games reuse saved player suggestions while refreshing, including after saving a game or reopening the app with Face ID."
+  },
+  {
     "id": "ios-2026-10-20-other-game-suggestions",
     "date": "2026-10-20",
     "subject": "iPhone: Recent games first in Other game",
