@@ -3,105 +3,36 @@ from create_other_database import *
 from datetime import datetime, date
 import sqlite3
 from request_cache import request_cached
+from other_game_outcomes import is_tied_game, parse_is_tie, validate_tie_scores, validate_tie_game_type
 
 def get_other_dashboard_data(year):
-    """Get dashboard data for other games"""
+    """Get dashboard data, counting ties separately from wins and losses."""
     games = other_year_games(year)
     players = all_other_players(games)
-    
-    # Calculate stats for each player
-    player_stats = []
-    for player in players:
-        wins, losses = 0, 0
-        for game in games:
-            # Get all valid winner names from the game
-            winner_names = []
-            for i in range(1, 16):
-                val = game.get(f'winner{i}')
-                if _is_valid_player_name(val):
-                    winner_names.append(val)
-            
-            # Get all valid loser names from the game
-            loser_names = []
-            for i in range(1, 16):
-                val = game.get(f'loser{i}')
-                if _is_valid_player_name(val):
-                    loser_names.append(val)
-            
-            if player in winner_names:
-                wins += 1
-            elif player in loser_names:
-                losses += 1
-        
-        if wins + losses > 0:
-            win_percentage = wins / (wins + losses)
-            player_stats.append([player, wins, losses, win_percentage, wins - losses])
-    
-    # Sort by win percentage
-    player_stats.sort(key=lambda x: x[3], reverse=True)
-    
-    # Get top players by win percentage and games played
-    top_win_percentage = player_stats[:20]
-    top_games_played = sorted(player_stats, key=lambda x: x[1] + x[2], reverse=True)[:20]
-    
-    # Get recent games
-    recent_games = games[-10:] if games else []
-    
-    # Get game types
-    game_types = other_game_types(games)
-    
-    # Get game-specific data
+    totals = total_game_name_stats(games)
+    player_stats = [[r[0], r[1], r[2], r[3], r[1] - r[2], r[5]] for r in totals]
     game_specific_data = {}
     for game_name in ['Sequence', 'Coed', 'No jump', 'Mixed doubles', 'Euchre']:
         game_games = [g for g in games if g.get('game_name') == game_name]
         if game_games:
-            game_players = all_other_players(game_games)
-            game_player_stats = []
-            for player in game_players:
-                wins, losses = 0, 0
-                for g in game_games:
-                    # Get all valid winner names from the game
-                    winner_names = []
-                    for i in range(1, 16):
-                        val = g.get(f'winner{i}')
-                        if _is_valid_player_name(val):
-                            winner_names.append(val)
-                    
-                    # Get all valid loser names from the game
-                    loser_names = []
-                    for i in range(1, 16):
-                        val = g.get(f'loser{i}')
-                        if _is_valid_player_name(val):
-                            loser_names.append(val)
-                    
-                    if player in winner_names:
-                        wins += 1
-                    elif player in loser_names:
-                        losses += 1
-                
-                if wins + losses > 0:
-                    win_percentage = wins / (wins + losses)
-                    game_player_stats.append([player, wins, losses, win_percentage, wins - losses])
-            
-            game_player_stats.sort(key=lambda x: x[3], reverse=True)
+            game_totals = total_game_name_stats(game_games)
             game_specific_data[game_name] = {
-                'top_players': game_player_stats[:10],
+                'top_players': [[r[0], r[1], r[2], r[3], r[1] - r[2], r[5]]
+                                for r in game_totals[:10]],
                 'total_games': len(game_games),
-                'total_players': len(game_players)
+                'total_players': len(game_totals)
             }
-    
     return {
-        'top_win_percentage': top_win_percentage,
-        'top_games_played': top_games_played,
-        'recent_games': recent_games,
+        'top_win_percentage': player_stats[:20],
+        'top_games_played': sorted(player_stats, key=lambda r: r[1] + r[2] + r[5], reverse=True)[:20],
+        'recent_games': games[-10:] if games else [],
         'total_players': len(players),
         'total_games': len(games),
-        'game_types': game_types,
+        'game_types': other_game_types(games),
         'game_specific': game_specific_data
     }
 
 MAX_OTHER_PLAYERS = 15
-
 
 def _normalize_players(players, scores):
     """Ensure exactly MAX_OTHER_PLAYERS entries and convert blank scores to None."""
@@ -121,13 +52,19 @@ def _normalize_players(players, scores):
 def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
                     losers, loser_scores, comment, updated_at,
                     team_winner_score=None, team_loser_score=None, entered_timezone=None,
-                    entered_by=None, location='', one_on_one=False):
+                    entered_by=None, location='', one_on_one=False, is_tie=False):
     """Insert an other-game record with per-player scores or team scores.
     
     If team_winner_score/team_loser_score are provided, they are used as the
     aggregate scores (for team games). Otherwise, the first individual score
     is used as the aggregate (for individual games).
     """
+    is_tie = parse_is_tie(is_tie)
+    validate_tie_game_type(is_tie, game_type)
+    individual_scores = list(winner_scores or []) + list(loser_scores or [])
+    score_type = 'individual' if any(score not in (None, '') for score in individual_scores) else 'team'
+    validate_tie_scores(is_tie, score_type, winner_scores, loser_scores,
+                        team_winner_score, team_loser_score)
     winners_normalized, winner_scores_normalized = _normalize_players(winners, winner_scores)
     losers_normalized, loser_scores_normalized = _normalize_players(losers, loser_scores)
 
@@ -168,7 +105,7 @@ def add_other_stats(game_date, game_type, game_name, winners, winner_scores,
             + [aggregate_loser_score, comment, updated_at, entered_timezone,
                entered_by or '', (location or '').strip()]
         )
-        create_other_game(conn, tuple(values))
+        create_other_game(conn, tuple(values), is_tie=is_tie)
 
 def _parse_datetime_string(value):
     if not value:
@@ -182,8 +119,7 @@ def _parse_datetime_string(value):
 
 def _build_other_game_display(game, include_time=False):
     from time_display import format_game_time
-    # sqlite3.Row: dict(row) uses integer keys; use column names for winner1/loser1 etc.
-    record = dict(zip(game.keys(), game)) if hasattr(game, 'keys') else dict(game)
+    record = dict(game)
     updated_dt = _parse_datetime_string(record.get('updated_at'))
     combined_date = format_game_time(record.get('game_date'), record.get('entered_timezone'))
     parts = combined_date.split(' ', 1)
@@ -197,6 +133,7 @@ def _build_other_game_display(game, include_time=False):
         'game_time': game_time if include_time else '',
         'game_type': record.get('game_type'),
         'game_name': record.get('game_name'),
+        'is_tie': is_tied_game(record),
         'location': record.get('location') or '',
         'comment': record.get('comment') or '',
         'updated_at': updated_dt.strftime("%m/%d/%y %I:%M %p") if updated_dt else (record.get('updated_at') or '')
@@ -274,13 +211,13 @@ def readable_games_data(games):
     return [_build_other_game_display(game, include_time=False) for game in games]
 
 def other_stats_per_year(year, minimum_games):
-    return [row[:4] for row in total_game_name_stats(other_year_games(year))
+    return [row for row in total_game_name_stats(other_year_games(year))
             if row[4] >= minimum_games]
 
 
 def rare_other_stats_per_year(year, minimum_games):
     """Get stats for players below the minimum games threshold."""
-    return [row[:4] for row in total_game_name_stats(other_year_games(year))
+    return [row for row in total_game_name_stats(other_year_games(year))
             if row[4] < minimum_games]
 
 
@@ -310,6 +247,9 @@ def _is_valid_player_name(value):
 
 def _other_game_point_margin(game):
     """Point margin for the winning side: winner team total minus loser team total."""
+    if is_tied_game(game):
+        return 0
+
     def _to_int(v):
         if v is None or v == "":
             return None
@@ -862,9 +802,9 @@ def _other_player_result(player, game):
              for side in ('winner', 'loser')]
     winners, losers = sides
     if player in winners:
-        return True, set(losers) - {player}
+        return ('tie' if is_tied_game(game) else True), set(losers) - {player}
     if player in losers:
-        return False, set(winners) - {player}
+        return ('tie' if is_tied_game(game) else False), set(winners) - {player}
     return None, set()
 
 
@@ -879,124 +819,68 @@ def all_other_opponents(player, games):
 def other_opponent_stats_by_year(name, games, min_games=None):
     records = {}
     for game in games:
-        won, opponents = _other_player_result(name, game)
+        outcome, opponents = _other_player_result(name, game)
         for opponent in opponents:
-            counts = records.setdefault(opponent, [0, 0])
-            counts[0 if won else 1] += 1
+            counts = records.setdefault(opponent, [0, 0, 0])
+            counts[2 if outcome == 'tie' else 0 if outcome is True else 1] += 1
     stats = []
-    for opponent, (wins, losses) in sorted(records.items()):
-        total_games = wins + losses
-        stats.append({'opponent': opponent, 'wins': wins, 'losses': losses,
+    for opponent, (wins, losses, ties) in sorted(records.items()):
+        total_games = wins + losses + ties
+        stats.append({'opponent': opponent, 'wins': wins, 'losses': losses, 'ties': ties,
                       'win_percentage': wins / total_games, 'total_games': total_games})
     from stat_functions import player_matchup_min_games, sort_by_winpct_with_minimum
     if min_games is None:
         min_games = player_matchup_min_games(len(games))
     return sort_by_winpct_with_minimum(stats, min_games)
 
-
 def total_other_stats(name, games):
-    wins, losses = 0, 0
+    wins, losses, ties = 0, 0, 0
     for game in games:
-        won, _ = _other_player_result(name, game)
-        if won is True:
+        outcome, _ = _other_player_result(name, game)
+        if outcome is True:
             wins += 1
-        elif won is False:
+        elif outcome is False:
             losses += 1
-    total_games = wins + losses
+        elif outcome == 'tie':
+            ties += 1
+    total_games = wins + losses + ties
     win_percent = wins / total_games if total_games else 0
-    return [[name, wins, losses, win_percent, total_games]]
+    return [[name, wins, losses, win_percent, total_games, ties]]
 
-def todays_other_stats():
-    games = todays_other_games()
-    players = all_other_players(games)
-    stats = []
-    for player in players:
-        wins, losses, differential = 0, 0, 0
-        for game in games:
-            # Get all valid winner names from the game
-            winner_names = []
-            for i in range(1, 16):
-                val = game.get(f'winner{i}')
-                if _is_valid_player_name(val):
-                    winner_names.append(val)
-            
-            # Get all valid loser names from the game
-            loser_names = []
-            for i in range(1, 16):
-                val = game.get(f'loser{i}')
-                if _is_valid_player_name(val):
-                    loser_names.append(val)
-            
-            margin = _other_game_point_margin(game)
-            if player in winner_names:
-                wins += 1
-                differential += margin
-            elif player in loser_names:
-                losses += 1
-                differential -= margin
-        played = wins + losses
-        win_percentage = (wins / played) if played else 0
-        stats.append([player, wins, losses, win_percentage, differential])
-    # Win % first, then point differential (higher is better, so -2 ranks above -4 above -14)
-    stats.sort(key=lambda x: (x[3], x[4]), reverse=True)
+def _other_stats_with_differential(games):
+    stats = total_game_name_stats(games)
+    margins = {row[0]: 0 for row in stats}
+    for game in games:
+        margin = _other_game_point_margin(game)
+        if not margin:
+            continue
+        winners = {game.get(f'winner{i}') for i in range(1, 16)}
+        losers = {game.get(f'loser{i}') for i in range(1, 16)} - winners
+        for name in winners:
+            if name in margins:
+                margins[name] += margin
+        for name in losers:
+            if name in margins:
+                margins[name] -= margin
+    for row in stats:
+        row[4] = margins[row[0]]
+    stats.sort(key=lambda row: (row[3], row[4], row[1]), reverse=True)
     return stats
 
 
+def todays_other_stats():
+    return _other_stats_with_differential(todays_other_games())
+
 def todays_other_stats_by_game():
     """Get today's other stats grouped by game name."""
-    games = todays_other_games()
-    
-    # Group games by game_name
     games_by_name = {}
-    for game in games:
-        game_name = game.get('game_name', 'Unknown')
-        if game_name not in games_by_name:
-            games_by_name[game_name] = []
-        games_by_name[game_name].append(game)
-    
-    # Build stats for each game name
-    result = []
-    for game_name, game_list in games_by_name.items():
-        players = all_other_players(game_list)
-        stats = []
-        for player in players:
-            wins, losses, differential = 0, 0, 0
-            for game in game_list:
-                winner_names = []
-                for i in range(1, 16):
-                    val = game.get(f'winner{i}')
-                    if _is_valid_player_name(val):
-                        winner_names.append(val)
-                
-                loser_names = []
-                for i in range(1, 16):
-                    val = game.get(f'loser{i}')
-                    if _is_valid_player_name(val):
-                        loser_names.append(val)
-                
-                margin = _other_game_point_margin(game)
-                if player in winner_names:
-                    wins += 1
-                    differential += margin
-                elif player in loser_names:
-                    losses += 1
-                    differential -= margin
-            
-            win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
-            stats.append([player, wins, losses, win_pct, differential])
-        
-        # Win %, then +/- (higher is better), then wins
-        stats.sort(key=lambda x: (x[3], x[4], x[1]), reverse=True)
-        result.append({
-            'game_name': game_name,
-            'game_count': len(game_list),
-            'stats': stats
-        })
-    
-    # Sort by game count descending
-    result.sort(key=lambda x: -x['game_count'])
+    for game in todays_other_games():
+        games_by_name.setdefault(game.get('game_name', 'Unknown'), []).append(game)
+    result = [{'game_name': name, 'game_count': len(games),
+               'stats': _other_stats_with_differential(games)}
+              for name, games in games_by_name.items()]
+    result.sort(key=lambda group: -group['game_count'])
     return result
-
 
 def other_winning_scores():
     scores = [11,12,13]
@@ -1025,23 +909,23 @@ def game_name_years(game_name):
 
 
 def total_game_name_stats(games):
-    """Count every player's results in one pass, preserving tie order."""
+    """Count results in one pass; append ties without moving existing fields."""
     counts = {}
     for game in games:
         winners = dict.fromkeys(game.get(f'winner{i}') for i in range(1, 16)
                                 if _is_valid_player_name(game.get(f'winner{i}')))
         losers = dict.fromkeys(game.get(f'loser{i}') for i in range(1, 16)
                                if _is_valid_player_name(game.get(f'loser{i}')))
+        tied = is_tied_game(game)
         for player in winners:
-            counts.setdefault(player, [0, 0])[0] += 1
+            counts.setdefault(player, [0, 0, 0])[2 if tied else 0] += 1
         for player in losers:
             if player not in winners:
-                counts.setdefault(player, [0, 0])[1] += 1
-    stats = [[player, wins, losses, wins / (wins + losses), wins + losses]
-             for player, (wins, losses) in counts.items()]
+                counts.setdefault(player, [0, 0, 0])[2 if tied else 1] += 1
+    stats = [[player, wins, losses, wins / (wins + losses + ties), wins + losses + ties, ties]
+             for player, (wins, losses, ties) in counts.items()]
     stats.sort(key=lambda row: row[3], reverse=True)
     return stats
-
 
 def game_name_games(year, game_name):
     games = other_year_games(year)
@@ -1073,32 +957,11 @@ def player_game_name_games(year, game_name, player_name):
 
 def player_game_name_stats(games, player_name):
     """Calculate stats for a specific player from a list of games."""
-    wins, losses = 0, 0
-    for game in games:
-        # Get all valid winner names from the game
-        winner_names = []
-        for i in range(1, 16):
-            val = game.get(f'winner{i}')
-            if _is_valid_player_name(val):
-                winner_names.append(val)
-        
-        # Get all valid loser names from the game
-        loser_names = []
-        for i in range(1, 16):
-            val = game.get(f'loser{i}')
-            if _is_valid_player_name(val):
-                loser_names.append(val)
-        
-        if player_name in winner_names:
-            wins += 1
-        elif player_name in loser_names:
-            losses += 1
-    
-    total_games = wins + losses
-    win_percentage = wins / total_games if total_games > 0 else 0
+    _, wins, losses, win_percentage, total_games, ties = total_other_stats(player_name, games)[0]
     return {
         'wins': wins,
         'losses': losses,
+        'ties': ties,
         'win_percentage': win_percentage,
         'total_games': total_games
     }

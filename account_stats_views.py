@@ -77,11 +77,15 @@ def sources_for_user(path, username, admin=False):
         rows = conn.execute('''SELECT a.rowid AS source_number, a.* FROM private_accounts a
             JOIN site_users u ON u.username=a.username COLLATE NOCASE WHERE u.active=1
             ORDER BY a.username COLLATE NOCASE''').fetchall()
+    from content_safety import restricted_authors
+    restricted = restricted_authors(username or '')
     sources = []
-    if own:
+    if own and 'kyle' not in restricted:
         sources.append(dict(owner='kyle', title='KT Stats', enabled=selected.get('kyle', bool(own['show_starter_stats'])), number=1, account_id=None))
     for row in rows:
         owner = row['username']
+        if owner.casefold() in restricted:
+            continue
         if username and owner.casefold() == username.casefold():
             continue
         if not admin and (not group_member or not row['share_stats']):
@@ -101,6 +105,8 @@ def _database_path(site_path, source):
 
 def recap_authors_for_viewer(site_path):
     """Personal recap directories include the owner and optionally KT Stats."""
+    if not session.get('logged_in'):
+        return {'kyle'}
     account = getattr(g, 'private_account', None)
     if not account:
         return None
@@ -110,6 +116,20 @@ def recap_authors_for_viewer(site_path):
            for source in sources_for_user(site_path, username)):
         authors.add('kyle')
     return authors
+
+
+def may_read_private_profile_fields():
+    """Contact details and birthdays belong to the database owner, not a share link."""
+    if (not has_request_context() or not session.get('logged_in')
+            or getattr(g, 'stats_shared_read_only', False)):
+        return False
+    username = (session.get('username') or '').casefold()
+    account = getattr(g, 'private_account', None)
+    if account:
+        return bool(getattr(g, 'private_database', None)) and account['username'].casefold() == username
+    # A legacy login without a personal database is not the public archive's
+    # owner. Admin privileges likewise do not grant another owner's details.
+    return username == 'kyle'
 
 
 def build_stats_view(site_path, own_path, sources):
@@ -122,6 +142,8 @@ def build_stats_view(site_path, own_path, sources):
             for name, ddl in schema.execute("SELECT name, sql FROM sqlite_master WHERE type='table'"):
                 if name in DATA_TABLES and ddl:
                     target.execute(ddl)
+            from other_game_outcomes import ensure_other_game_outcome_column
+            ensure_other_game_outcome_column(target)
             # Owner first: their player metadata wins when names overlap.
             databases = [(own_path, 0)] + [(_database_path(site_path, s), s['number']) for s in sources if s['enabled']]
             names = set()
@@ -150,6 +172,12 @@ def build_stats_view(site_path, own_path, sources):
                                 if name in names:
                                     continue
                                 names.add(name)
+                                if namespace:
+                                    # Selected foreign databases share sports profiles,
+                                    # never their owners' private contact details.
+                                    for field in ('email', 'date_of_birth'):
+                                        if field in values:
+                                            values[field] = None
                             if namespace and values.get('id') is not None:
                                 if not 0 < values['id'] < SOURCE_ID_STRIDE:
                                     raise ValueError('Game ID outside supported range')
@@ -259,6 +287,9 @@ def register_stats_views(app, service, site_path):
 
     def share_selection(username, sources):
         from private_accounts import account_for_user
+        from content_safety import author_suspended
+        if author_suspended(username or 'kyle'):
+            return None
         own = account_for_user(site_path, username)
         # An admin's access to somebody's private stats is not permission to
         # publish them. Their owner must enable sharing first.
@@ -272,6 +303,8 @@ def register_stats_views(app, service, site_path):
                                  sources=[source['account_id'] for source in selected]))
 
     def read_selection(token):
+        from content_safety import restricted_authors
+        restricted = restricted_authors(current_user() or '')
         try:
             selection = signer.loads(token)
         except BadSignature:
@@ -281,6 +314,8 @@ def register_stats_views(app, service, site_path):
         if selection['base'] is None and not selection['sources']:
             # The public archive has no personal sources to authorize or label.
             # Avoid scanning every account and roster to resolve this common link.
+            if 'kyle' in restricted:
+                abort(404, description='This stats link is no longer available.')
             return dict(owner='kyle', title='KT Stats', account_id=None, number=1, enabled=True), []
         with sqlite3.connect(site_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -292,9 +327,12 @@ def register_stats_views(app, service, site_path):
 
         def resolve(account_id, base=False):
             if account_id is None:
+                if 'kyle' in restricted:
+                    abort(404, description='This stats link is no longer available.')
                 return dict(owner='kyle', title='KT Stats', account_id=None, number=1, enabled=True)
             account = accounts.get(account_id)
-            if not account or (not base and not account['share_stats']):
+            if (not account or account['username'].casefold() in restricted
+                    or (not base and not account['share_stats'])):
                 abort(404, description='This stats link is no longer available.')
             source = dict(owner=account['username'], title=display_names[account['username'].casefold()] + '’s stats',
                           account_id=account_id, number=account['source_number'] + 1, enabled=True)
@@ -364,6 +402,11 @@ def register_stats_views(app, service, site_path):
                 g.stats_source_databases = databases
                 g.stats_data_revision = source_revision(databases)
             return
+        from content_safety import author_suspended
+        # A suspended author keeps their own private view, but ordinary public
+        # browsing must not reveal a suspended public archive owner.
+        if not private_database() and author_suspended('kyle') and (current_user() or '').casefold() != 'kyle':
+            abort(404, description='These shared stats are no longer available.')
         if request.path.startswith('/api/') and request.headers.get('X-Stats-Owned') == '1' and request.headers.get('X-Stats-Combined') != '1' and request.headers.get('X-Stats-Preview') != '1':
             return prepared_stats(private_database() or site_path, [])
         username = current_user()

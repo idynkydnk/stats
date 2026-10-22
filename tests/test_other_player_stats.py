@@ -16,11 +16,11 @@ class OtherPlayerStatsTests(unittest.TestCase):
             dict(winner1='Ashleigh', loser1='Kyle', loser15='Lisa'),
             dict(winner1='Kyle', loser1='Leonel'),
         ]
-        self.assertEqual(total_other_stats('Lisa', games), [['Lisa', 1, 1, .5, 2]])
+        self.assertEqual(total_other_stats('Lisa', games), [['Lisa', 1, 1, .5, 2, 0]])
         opponents = {r['opponent']: (r['wins'], r['losses'])
                      for r in other_opponent_stats_by_year('Lisa', games)}
         self.assertEqual(opponents, {'Ashleigh': (1, 1), 'Leonel': (1, 0)})
-        self.assertEqual(total_other_stats('Nobody', games), [['Nobody', 0, 0, 0, 0]])
+        self.assertEqual(total_other_stats('Nobody', games), [['Nobody', 0, 0, 0, 0, 0]])
         self.assertEqual(other_opponent_stats_by_year('Nobody', games), [])
 
     def test_native_player_endpoint_with_real_game_conversion_and_empty_season(self):

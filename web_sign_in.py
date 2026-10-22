@@ -154,7 +154,9 @@ def register_web_sign_in(app, service, site_path):
         # Prompt browser visits, including restored sessions, without interrupting
         # native app/API requests or asset downloads. Login itself stays public.
         if (request.method == 'GET' and request.endpoint and
-                request.endpoint not in {'login', 'logout', 'static'} and
+                request.endpoint not in {'login', 'logout', 'static', 'privacy_policy',
+                                         'support_page', 'community_guidelines',
+                                         'privacy_settings', 'report_content_page'} and
                 not request.path.startswith('/api/') and
                 'text/html' in request.headers.get('Accept', '') and enrollment_user()):
             session['email_login_next'] = safe_login_next(request.full_path.rstrip('?'))

@@ -53,3 +53,4 @@ static/recaps/*
 recaps/*
 !recaps/.gitkeep
 private_data/
+.account-locks/

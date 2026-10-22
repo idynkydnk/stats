@@ -2,6 +2,8 @@ import sqlite3
 from private_accounts import connect_data, data_path
 from sqlite3 import Error
 from other_game_categories import canonical_other_category
+from other_game_outcomes import (ensure_other_game_outcome_column, parse_is_tie,
+                                 validate_tie_scores, validate_tie_game_type)
 
 WINNER_FIELDS = [f"winner{i}" for i in range(1, 16)]
 LOSER_FIELDS = [f"loser{i}" for i in range(1, 16)]
@@ -64,24 +66,47 @@ def create_table(conn, create_table_sql):
         print(e)
 
 
-def create_other_game(conn, game):
+def _validate_record_tie(columns, values, is_tie):
+    record = dict(zip(columns, values))
+    validate_tie_game_type(is_tie, record.get('game_type'))
+    individual = any(record.get(column) not in (None, '')
+                     for column in WINNER_SCORE_FIELDS + LOSER_SCORE_FIELDS)
+    validate_tie_scores(is_tie, 'individual' if individual else 'team',
+                        [record.get(column) for column in WINNER_SCORE_FIELDS],
+                        [record.get(column) for column in LOSER_SCORE_FIELDS],
+                        record.get('winner_score'), record.get('loser_score'))
+
+
+def create_other_game(conn, game, is_tie=False):
     game = list(game)
+    is_tie = parse_is_tie(is_tie)
+    _validate_record_tie(BASE_INSERT_COLUMNS, game, is_tie)
     game[BASE_INSERT_COLUMNS.index("game_type")] = canonical_other_category(game[BASE_INSERT_COLUMNS.index("game_type")])
     columns = {row[1] for row in conn.execute('PRAGMA table_info(other_games)').fetchall()}
     if 'location' not in columns:
         conn.execute('ALTER TABLE other_games ADD COLUMN location TEXT')
-    placeholders = ",".join(["?"] * len(BASE_INSERT_COLUMNS))
-    sql = f"""INSERT INTO other_games({', '.join(BASE_INSERT_COLUMNS)})
+    ensure_other_game_outcome_column(conn)
+    insert_columns = BASE_INSERT_COLUMNS + ['is_tie']
+    game.append(int(is_tie))
+    placeholders = ",".join(["?"] * len(insert_columns))
+    sql = f"""INSERT INTO other_games({', '.join(insert_columns)})
               VALUES({placeholders})"""
     cur = conn.cursor()
     cur.execute(sql, game)
     conn.commit()
 
 
-def database_update_other_game(conn, game):
+def database_update_other_game(conn, game, is_tie=None):
     game = list(game)
+    ensure_other_game_outcome_column(conn)
+    if is_tie is None:
+        saved = conn.execute('SELECT is_tie FROM other_games WHERE id = ?', (game[-1],)).fetchone()
+        is_tie = saved[0] if saved else False
+    is_tie = parse_is_tie(is_tie)
+    _validate_record_tie(BASE_UPDATE_COLUMNS, game, is_tie)
     game[BASE_UPDATE_COLUMNS.index("game_type")] = canonical_other_category(game[BASE_UPDATE_COLUMNS.index("game_type")])
-    set_clause = ", ".join([f"{col} = ?" for col in BASE_UPDATE_COLUMNS])
+    set_clause = ", ".join([f"{col} = ?" for col in BASE_UPDATE_COLUMNS + ['is_tie']])
+    game.insert(-1, int(is_tie))
     sql = f"""UPDATE other_games
               SET {set_clause}
               WHERE id = ?"""
@@ -113,7 +138,8 @@ def main():
                                     updated_at DATETIME NOT NULL,
                                     entered_timezone text,
                                     entered_by text,
-                                    location text
+                                    location text,
+                                    is_tie integer NOT NULL DEFAULT 0
                                 );"""
 
     # create a database connection

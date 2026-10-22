@@ -304,8 +304,20 @@ class PersonalRecapAccessTests(unittest.TestCase):
         self.assertEqual(self.a.get('/recap/missing/').status_code, 404)
         self.assertEqual(self.a.get('/admin').status_code, 403)
 
-    def test_public_directory_and_single_creator_filter_are_preserved(self):
-        self.assertEqual(self.app.test_client().get('/ai-recaps/').json['total_entries'], 32)
+    def test_public_directories_show_only_kyle_and_keep_personal_creator_filters(self):
+        anonymous = self.app.test_client()
+        for path, key, total_key in [('/ai-recaps/', 'entries', 'total_entries'),
+                                     ('/api/ai/recaps', 'recaps', 'total')]:
+            rows = []
+            for page in (1, 2):
+                response = anonymous.get(path + '?page=' + str(page))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json[total_key], 30)
+                rows.extend(response.json[key])
+            self.assertEqual({row['share_id'] for row in rows}, {f'kyle-{i:02}' for i in range(30)})
+            self.assertEqual({row['username'].casefold() for row in rows}, {'kyle'})
+            self.assertNotIn('alice-own', {row['share_id'] for row in rows})
+            self.assertNotIn('bob-own', {row['share_id'] for row in rows})
         self.assertEqual(admin.list_ai_recap_pages(username='alice')[1], 1)
         self.assertEqual(admin.list_ai_recap_pages(usernames=set()), ([], 0))
 
@@ -333,6 +345,8 @@ class PersonalRecapAccessTests(unittest.TestCase):
     def test_remake_summary_uses_owner_games_and_restores_admin_identity(self):
         from private_accounts import private_database, account_for_user, provision_database
         self.register(self.a, 'alice')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO site_users(username,password_hash,is_admin,active) VALUES ('moderator','test-only',1,1)")
         account = account_for_user(self.path, 'alice')
         owner_path = provision_database(self.path, account['id'])
         admin.update_ai_recap_page('alice-own', game_ids_json='[1]')

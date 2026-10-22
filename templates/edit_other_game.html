@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}Edit Other Game{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
@@ -183,6 +184,7 @@
                     <div class="autocomplete-list" id="score_typeList"></div>
                 </div>
 
+                {% include 'partials/other_game_result.html' %}
                 <div class="player-entry" id="winner1-entry">
                     <div class="autocomplete has-clear empty" id="winner1-wrap">
                         <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off"
@@ -282,6 +284,7 @@
         </div>
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/other-game-outcomes.js', v='20261021') }}"></script>
 <script>
 const allPlayers = Array.from(document.getElementById('players').options).map(o => o.value);
 const allGameNames = Array.from(document.getElementById('game_names').options).map(o => o.value);

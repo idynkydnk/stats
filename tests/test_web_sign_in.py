@@ -381,9 +381,22 @@ class WebSignInTests(unittest.TestCase):
         self.assertEqual(self.a.post('/admin/users/email', data=data).status_code, 303)
         self.assertEqual(self.service.adminfx.get_site_user('Kyle')['login_email'], 'updated@example.com')
         self.service.log_activity.assert_called_once()
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO site_users (username) VALUES ('not-admin')")
         with self.a.session_transaction() as saved:
             saved.update(logged_in=True, username='not-admin')
         self.assertEqual(self.a.post('/admin/users/email', data=data).status_code, 403)
+
+    def test_public_privacy_and_support_do_not_require_email_enrollment(self):
+        for path, endpoint in [('/privacy', 'privacy_policy'), ('/support', 'support_page'),
+                               ('/community-guidelines', 'community_guidelines')]:
+            self.app.add_url_rule(path, endpoint, lambda: 'Public information')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET login_email=NULL WHERE username='Kyle'")
+        with self.a.session_transaction() as saved:
+            saved.update(logged_in=True, username='Kyle')
+        for path in ('/privacy', '/support', '/community-guidelines'):
+            self.assertEqual(self.a.get(path, headers={'Accept': 'text/html'}).status_code, 200)
 
     def test_admin_email_change_rejects_conflicts_and_revokes_pending_codes(self):
         from web_sign_in import set_login_email

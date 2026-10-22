@@ -30,6 +30,20 @@ class PlayerProfileTests(unittest.TestCase):
         card_node = next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == 'build_player_list_cards')
         ns = dict(url_for=url_for, _cache_busted_static_url=lambda path: '/static/' + path if path else None)
         exec(compile(ast.Module(body=[card_node], type_ignores=[]), 'stats.py', 'exec'), ns)
+        profile_node = next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == 'player_profile_fields_for')
+        ns['_ensure_player_record'] = get_player_profile_by_name
+        exec(compile(ast.Module(body=[profile_node], type_ignores=[]), 'stats.py', 'exec'), ns)
+
+        @self.app.get('/profile/<path:name>', endpoint='player_stats')
+        def profile_template_fields(name):
+            # This is the exact projection used by website avatar/modal templates
+            # and the native doubles player-detail response.
+            return jsonify(ns['player_profile_fields_for'](name))
+
+        @self.app.get('/api/profile-details', endpoint='api_doubles_player')
+        def player_detail_fields():
+            return jsonify(ns['player_profile_fields_for'](request.args['name']))
+
         service = SimpleNamespace(build_player_list_cards=ns['build_player_list_cards'], EMAIL_SITE_BASE_URL='https://stats.example')
         tree = ast.parse((ROOT / 'ios_api.py').read_text())
         node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == 'api_player_profile')
@@ -77,6 +91,77 @@ class PlayerProfileTests(unittest.TestCase):
             self.assertEqual(get_player_profile_by_name('Jose')[1], 'Jose')
         with self.assertRaises(sqlite3.ProgrammingError):
             conn.execute('SELECT 1')
+
+    def test_public_and_shared_profile_fields_are_redacted_but_owner_keeps_details(self):
+        from urllib.parse import parse_qs, urlsplit
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE players SET date_of_birth='1990-04-01'")
+        public = self.profile(self.app.test_client(), 'Shared player').json['player']
+        self.assertEqual((public['email'], public['dateOfBirth']), ('', ''))
+        self.assertEqual(public['nickname'], 'Shared')
+        admin = self.profile(self.app.test_client(), 'Shared player', {'Authorization': 'Bearer shared-token'}).json['player']
+        self.assertEqual((admin['email'], admin['dateOfBirth']), ('shared@example.test', '1990-04-01'))
+
+        own = self.register(self.a, 'alice')
+        self.register(self.b, 'bob')
+        alice = account_for_user(self.path, 'alice')
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            conn.execute("""INSERT INTO players (full_name, nickname, email, date_of_birth)
+                VALUES ('Alice player', 'Ace', 'alice@example.test', '1991-02-03')""")
+        self.a.put('/api/account/stats-sources', headers=own, json={'owner': 'kyle', 'enabled': False})
+        link = self.a.get('/profile/Alice%20player').location
+        token = parse_qs(urlsplit(link).query)['view'][0]
+        for client in [self.app.test_client(), self.b]:
+            fields = client.get(link).json
+            self.assertEqual((fields['email'], fields['date_of_birth'], fields['nickname']), ('', '', 'Ace'))
+            card = client.get('/api/player-profile', query_string={'name': 'Alice player', 'view': token}).json['player']
+            self.assertEqual((card['email'], card['dateOfBirth'], card['nickname']), ('', '', 'Ace'))
+        # Owner of a shared link still has an editable view of their own roster.
+        self.assertEqual(self.a.get(link).json['email'], 'alice@example.test')
+        card = self.profile(self.a, 'Alice player', own).json['player']
+        self.assertEqual((card['email'], card['dateOfBirth']), ('alice@example.test', '1991-02-03'))
+
+    def test_selected_foreign_profile_redacts_private_columns_without_changing_source(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE players SET date_of_birth='1990-04-01'")
+        own = self.register(self.a, 'alice')
+        alice = account_for_user(self.path, 'alice')
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            conn.execute("""INSERT INTO players (full_name, email, date_of_birth)
+                VALUES ('Alice player', 'alice@example.test', '1991-02-03')""")
+        combined = {**own, 'X-Stats-Combined': '1'}
+        foreign = self.profile(self.a, 'Shared player', combined).json['player']
+        self.assertEqual((foreign['email'], foreign['dateOfBirth']), ('', ''))
+        own_card = self.profile(self.a, 'Alice player', combined).json['player']
+        self.assertEqual((own_card['email'], own_card['dateOfBirth']), ('alice@example.test', '1991-02-03'))
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT email,date_of_birth FROM players').fetchone(),
+                             ('shared@example.test', '1990-04-01'))
+
+    def test_preview_keeps_personal_owner_and_redacts_foreign_or_legacy_identity(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE players SET date_of_birth='1990-04-01'")
+            conn.execute("INSERT INTO site_users (username,password_hash,is_admin,active) VALUES ('legacy', 'unused', 1, 1)")
+        self.tokens['legacy-token'] = 'legacy'
+        legacy = self.profile(self.app.test_client(), 'Shared player', {'Authorization': 'Bearer legacy-token'}).json['player']
+        self.assertEqual((legacy['email'], legacy['dateOfBirth']), ('', ''))
+
+        own = self.register(self.a, 'alice')
+        alice = account_for_user(self.path, 'alice')
+        with sqlite3.connect(provision_database(self.path, alice['id'])) as conn:
+            conn.execute("""INSERT INTO players (full_name, email, date_of_birth)
+                VALUES ('Alice player', 'alice@example.test', '1991-02-03')""")
+        preview = {**own, 'X-Stats-Preview': '1'}
+        for name, expected in [('Alice player', ('alice@example.test', '1991-02-03')),
+                               ('Shared player', ('', ''))]:
+            result = self.a.get('/api/profile-details', query_string={'name': name}, headers=preview)
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual((result.json['email'], result.json['date_of_birth']), expected)
+        guest = self.app.test_client().get('/api/profile-details', query_string={'name': 'Shared player'},
+                                          headers={'X-Stats-Preview': '1'})
+        self.assertEqual((guest.json['email'], guest.json['date_of_birth']), ('', ''))
+        # Editing APIs cannot use Preview to sidestep owned-profile scoping.
+        self.assertEqual(self.profile(self.a, 'Shared player', preview).status_code, 403)
 
     def test_owned_combined_and_disabled_sources(self):
         own = self.register(self.a, 'alice')

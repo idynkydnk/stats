@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}{{ player_name }} - {{ game_name }} {{ year }}{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-player-header {
             display: flex;
@@ -44,7 +45,7 @@
         }
         .sr-stat-cards {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 8px;
             margin-bottom: 24px;
         }
@@ -151,6 +152,10 @@
                 <div class="sr-stat-label">Losses</div>
             </div>
             <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ stats.ties|default(0) }}</div>
+                <div class="sr-stat-label">Ties</div>
+            </div>
+            <div class="sr-stat-card">
                 <div class="sr-stat-value">{{ "%.0f"|format(stats.win_percentage * 100) }}%</div>
                 <div class="sr-stat-label">Win %</div>
             </div>
@@ -171,8 +176,8 @@
                             <tr>
                                 <th data-sort="date">Date <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="result">Result <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="winners">Winners <span class="sr-sort-arrow">▼</span></th>
-                                <th data-sort="losers">Losers <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="winners">Side 1 <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="losers">Side 2 <span class="sr-sort-arrow">▼</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -185,17 +190,19 @@
                             {% endfor %}
                             <tr>
                                 <td style="white-space: nowrap;" data-value="{{ game.game_date_only }}">{{ game.game_date_only }}</td>
-                                <td class="sr-result-cell" data-value="{{ 'W' if ns.is_winner else 'L' }}">
-                                    {% if ns.is_winner %}
+                                <td class="sr-result-cell" data-value="{{ 'T' if game.get('is_tie') else ('W' if ns.is_winner else 'L') }}">
+                                    {% if game.get('is_tie') %}
+                                        <span class="sr-result-t">Tie</span>
+                                    {% elif ns.is_winner %}
                                         <span class="sr-result-w">W</span>
                                     {% else %}
                                         <span class="sr-result-l">L</span>
                                     {% endif %}
                                 </td>
-                                <td class="sr-win">
+                                <td class="{{ 'sr-tie' if game.get('is_tie') else 'sr-win' }}">
                                     {% for winner in game.winners %}{{ winner.name }}{% if not loop.last %}, {% endif %}{% endfor %}
                                 </td>
-                                <td class="sr-loss">
+                                <td class="{{ 'sr-tie' if game.get('is_tie') else 'sr-loss' }}">
                                     {% for loser in game.losers %}{{ loser.name }}{% if not loop.last %}, {% endif %}{% endfor %}
                                 </td>
                             </tr>

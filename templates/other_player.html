@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}{{ player }} {{ year }} Other Stats{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-player-header {
             display: flex;
@@ -44,7 +45,7 @@
         }
         .sr-stat-cards {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 8px;
             margin-bottom: 24px;
         }
@@ -135,11 +136,15 @@
                 <div class="sr-stat-label">Losses</div>
             </div>
             <div class="sr-stat-card">
+                <div class="sr-stat-value">{{ stats[0][5]|default(0) }}</div>
+                <div class="sr-stat-label">Ties</div>
+            </div>
+            <div class="sr-stat-card">
                 <div class="sr-stat-value">{{ "%.0f"|format(stats[0][3] * 100) }}%</div>
                 <div class="sr-stat-label">Win %</div>
             </div>
             <div class="sr-stat-card">
-                <div class="sr-stat-value">{{ stats[0][1] + stats[0][2] }}</div>
+                <div class="sr-stat-value">{{ stats[0][4] }}</div>
                 <div class="sr-stat-label">Games</div>
             </div>
         </div>
@@ -156,6 +161,7 @@
                     <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                 </tr></thead>
                 <tbody id="opponent-tbody">
                 {% for stat in opponent_stats %}
@@ -165,6 +171,7 @@
                     <td data-value="{{ stat['win_percentage'] }}">{{ "%.0f"|format(stat['win_percentage'] * 100) }}%</td>
                     <td class="sr-win" data-value="{{ stat['wins'] }}">{{ stat['wins'] }}</td>
                     <td class="sr-loss" data-value="{{ stat['losses'] }}">{{ stat['losses'] }}</td>
+                    <td data-value="{{ stat.ties|default(0) }}">{{ stat.ties|default(0) }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>

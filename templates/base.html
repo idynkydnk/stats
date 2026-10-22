@@ -50,10 +50,16 @@
             <div class="sr-flash" style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 14px; {% if category == 'error' %}background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);{% elif category == 'success' %}background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);{% else %}background: rgba(102, 217, 239, 0.15); color: #66d9ef; border: 1px solid rgba(102, 217, 239, 0.3);{% endif %}">{{ message }}</div>
         {% endfor %}
         {% include 'partials/ai_summary_progress.html' %}
+        {% set consent_pages = ['ai_summary', 'select_ai_prompt', 'select_ai_style', 'preview_ai_summary_with_prompt', 'create_flyer', 'create_flyer_roster', 'create_flyer_generate', 'view_flyer', 'player_list', 'edit_player'] %}
+        {% if request.endpoint in consent_pages %}{% include 'partials/content_safety_controls.html' %}{% endif %}
         {% block content %}{% endblock %}
+        <footer style="margin-top:32px;padding:16px 0;font-size:13px">
+            <a href="/privacy">Privacy</a> · <a href="/support">Support</a> · <a href="/community-guidelines">Community guidelines</a>
+        </footer>
     </div>
 
     <script>{{ inline_common_script }}</script>
+    {% if request.endpoint in consent_pages %}<script src="{{ url_for('static', filename='js/content_safety.js', v='20261021') }}" defer></script>{% endif %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

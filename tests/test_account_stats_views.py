@@ -410,6 +410,81 @@ class SharedStatsLinkTests(unittest.TestCase):
         self.assertEqual({r[1] for r in page.json['rows']}, {'Shared player', 'dan game', 'bob game'})
 
 
+class SharedStatsSafetyTests(unittest.TestCase):
+    register = SharedStatsLinkTests.register
+    own_game = SharedStatsLinkTests.own_game
+
+    def setUp(self):
+        SharedStatsLinkTests.setUp(self)
+        from content_safety import register_content_safety
+        register_content_safety(self.app, self.service)
+
+    def test_block_removes_selected_author_and_rejects_existing_share_links(self):
+        a = self.own_game(self.a, 'dan')
+        b = self.own_game(self.b, 'bob')
+        apply_rollout_to_existing_users(self.path)
+        for client, headers in [(self.a, a), (self.b, b)]:
+            client.put('/api/account/stats-sources', headers=headers,
+                       json={'owner': 'kyle', 'enabled': False})
+        link = self.a.get('/stats/2026/').location
+        combined = {**b, 'X-Stats-Combined': '1'}
+        # Warm both snapshots and response caches before changing visibility.
+        self.assertEqual({row[1] for row in self.b.get('/api/games', headers=combined).json['rows']},
+                         {'dan game', 'bob game'})
+        self.assertEqual(self.b.get(link).status_code, 200)
+        blocked = self.b.post('/api/content/blocked-users', headers=b, json={'username': 'dan'})
+        self.assertEqual(blocked.status_code, 200)
+        sources = self.b.get('/api/account/stats-sources', headers=b).json['sources']
+        self.assertNotIn('dan', [source['owner'] for source in sources])
+        self.assertEqual(self.b.get('/api/games', headers=combined).json['rows'], [[2, 'bob game']])
+        self.assertEqual(self.b.get(link).status_code, 404)
+        self.assertEqual(self.app.test_client().get(link).status_code, 200)
+        self.assertEqual(self.a.get('/api/games', headers=a).json['rows'], [[2, 'dan game']])
+        self.b.delete('/api/content/blocked-users', headers=b, json={'username': 'dan'})
+        self.assertEqual(self.b.get(link).status_code, 200)
+
+    def test_suspension_revokes_links_but_keeps_owned_read_and_account_deletion(self):
+        a = self.own_game(self.a, 'dan')
+        b = self.own_game(self.b, 'bob')
+        apply_rollout_to_existing_users(self.path)
+        for client, headers in [(self.a, a), (self.b, b)]:
+            client.put('/api/account/stats-sources', headers=headers,
+                       json={'owner': 'kyle', 'enabled': False})
+        link = self.a.get('/stats/2026/').location
+        guest = self.app.test_client()
+        self.assertEqual(guest.get(link).status_code, 200)
+        combined = {**b, 'X-Stats-Combined': '1'}
+        self.assertEqual(len(self.b.get('/api/games', headers=combined).json['rows']), 2)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO content_suspensions(username) VALUES ('dan')")
+        self.assertEqual(guest.get(link).status_code, 404)
+        self.assertEqual(self.b.get('/api/games', headers=combined).json['rows'], [[2, 'bob game']])
+        self.assertEqual(self.a.get('/api/games', headers=a).json['rows'], [[2, 'dan game']])
+        own_page = self.a.get('/stats/2026/')
+        self.assertEqual(own_page.status_code, 200)
+        self.assertIsNone(own_page.json['token'])
+        self.assertEqual(self.a.put('/api/games', headers=a,
+                                   json={'id': 2, 'name': 'changed'}).status_code, 403)
+        self.assertEqual(guest.get('/api/games').json['rows'], [[1, 'Shared player']])
+        deleted = self.a.delete('/api/account', headers=a)
+        self.assertEqual(deleted.status_code, 200, deleted.json)
+        self.assertIsNone(account_for_user(self.path, 'dan'))
+
+    def test_blocking_public_author_hides_their_stats_only_for_that_viewer(self):
+        a = self.own_game(self.a, 'dan')
+        self.a.put('/api/account/stats-sources', headers=a, json={'owner': 'kyle', 'enabled': True})
+        guest = self.app.test_client()
+        public_link = guest.get('/stats/2026/').location
+        combined = {**a, 'X-Stats-Combined': '1'}
+        self.assertEqual(len(self.a.get('/api/games', headers=combined).json['rows']), 2)
+        self.a.post('/api/content/blocked-users', headers=a, json={'username': 'kyle'})
+        self.assertEqual(self.a.get('/api/account/stats-sources', headers=a).json['sources'], [])
+        self.assertEqual(self.a.get('/api/games', headers=combined).json['rows'], [[2, 'dan game']])
+        self.assertEqual(self.a.get(public_link).status_code, 404)
+        self.assertEqual(guest.get(public_link).json['rows'], [[1, 'Shared player']])
+        self.assertEqual(guest.get('/api/games').json['rows'], [[1, 'Shared player']])
+
+
 class ExistingAccountMigrationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

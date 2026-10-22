@@ -15,8 +15,9 @@
     <h2 id="saved-game-title" tabindex="-1" aria-live="polite">Game added</h2>
     <p id="saved-game-status" class="saved-details" role="status" hidden></p>
     <p data-saved-game="title">{{ saved_game.title }}</p>
-    <div class="saved-side"><span><strong>Winners</strong><br><span data-saved-game="winners">{{ saved_game.winners }}</span></span><strong data-saved-game="winner_score">{{ saved_game.winner_score if saved_game.winner_score is not none else '' }}</strong></div>
-    <div class="saved-side"><span><strong>Losers</strong><br><span data-saved-game="losers">{{ saved_game.losers }}</span></span><strong data-saved-game="loser_score">{{ saved_game.loser_score if saved_game.loser_score is not none else '' }}</strong></div>
+    <p data-saved-game="result" {% if not saved_game.is_tie %}hidden{% endif %}>{{ 'Tie' if saved_game.is_tie else '' }}</p>
+    <div class="saved-side"><span><strong data-saved-game="winner_label">{{ 'Side 1' if saved_game.is_tie else 'Winners' }}</strong><br><span data-saved-game="winners">{{ saved_game.winners }}</span></span><strong data-saved-game="winner_score">{{ saved_game.winner_score if saved_game.winner_score is not none else '' }}</strong></div>
+    <div class="saved-side"><span><strong data-saved-game="loser_label">{{ 'Side 2' if saved_game.is_tie else 'Losers' }}</strong><br><span data-saved-game="losers">{{ saved_game.losers }}</span></span><strong data-saved-game="loser_score">{{ saved_game.loser_score if saved_game.loser_score is not none else '' }}</strong></div>
     <p class="saved-details" data-saved-game="location" {% if not saved_game.location %}hidden{% endif %}>{{ saved_game.location }}</p>
     <p class="saved-details" data-saved-game="comment" {% if not saved_game.comment %}hidden{% endif %}>{{ saved_game.comment }}</p>
     <div class="saved-actions">
@@ -43,6 +44,15 @@
         done.textContent = 'Done';
         popup.querySelectorAll('[data-saved-game]').forEach(function (element) {
             const key = element.dataset.savedGame;
+            if (key === 'winner_label' || key === 'loser_label') {
+                element.textContent = receipt.is_tie ? (key === 'winner_label' ? 'Side 1' : 'Side 2') : (key === 'winner_label' ? 'Winners' : 'Losers');
+                return;
+            }
+            if (key === 'result') {
+                element.textContent = receipt.is_tie ? 'Tie' : '';
+                element.hidden = !receipt.is_tie;
+                return;
+            }
             element.textContent = receipt[key] == null ? '' : receipt[key];
             if (key === 'location' || key === 'comment') element.hidden = !receipt[key];
         });

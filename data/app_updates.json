@@ -1,5 +1,29 @@
 [
   {
+    "id": "ios-2026-10-21-tied-games",
+    "date": "2026-10-21",
+    "subject": "iPhone: Record tied games",
+    "body": "Choose Tie when adding or editing a card, board, or other non-volleyball game, including 1–1 in Sequence. Tied games show both sides equally and count as ties instead of wins or losses."
+  },
+  {
+    "id": "ios-2026-10-21-shared-profile-privacy",
+    "date": "2026-10-21",
+    "subject": "iPhone: Keep personal profile details private",
+    "body": "Shared stats leave out player email addresses and birth dates. Blocking an author also hides their shared stats, and you can still manage your own player details."
+  },
+  {
+    "id": "ios-2026-10-21-privacy-and-safety",
+    "date": "2026-10-21",
+    "subject": "iPhone: Control AI sharing and report content",
+    "body": "Choose whether to share information and photos with OpenAI for AI features, and change that choice in Privacy and safety. You can report a recap or flyer, block its author, and find privacy information and support in More."
+  },
+  {
+    "id": "ios-2026-10-21-apple-and-account-deletion",
+    "date": "2026-10-21",
+    "subject": "iPhone: Apple sign-in and complete account deletion",
+    "body": "Sign in with Apple from the login screen. Deleting your personal account also removes its saved games, player records, photos, recaps, and flyers; the app disconnects Apple access or explains how to do that manually for an older account."
+  },
+  {
     "id": "ios-2026-10-21-faster-winner-names",
     "date": "2026-10-21",
     "subject": "iPhone: Faster player names in Winner 1",

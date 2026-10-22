@@ -2,6 +2,7 @@
 {% block active_tab %}{{ 'vollis' if request.args.get('one_on_one') == '1' else 'other' }}{% endblock %}
 {% block title %}{{ 'Add 1v1 Game' if request.args.get('one_on_one') == '1' else 'Add Other Game' }}{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 {% if request.args.get('one_on_one') == '1' %}
 #game_type-wrap, #add-winner-btn, #add-loser-btn, #add-more-players-btn { display: none !important; }
@@ -243,6 +244,7 @@
                     <div class="autocomplete-list" id="score_typeList"></div>
                 </div>
                 
+                {% include 'partials/other_game_result.html' %}
                 <div class="player-entry" id="winner1-entry">
                     <div class="autocomplete has-clear empty" id="winner1-wrap">
                         <input type="text" name="winner1" id="winner1" placeholder="Winner 1" autocomplete="off">
@@ -332,6 +334,7 @@
                     <th data-column="player">Player</th>
                     <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                    <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="winpct" class="sr-numeric">% <span class="sr-sort-arrow">▼</span></th>
                     <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
                 </tr></thead>
@@ -342,6 +345,7 @@
                     <td><a href="{{ url_for('other_player_stats', year=year, name=stat[0]) }}">{{ stat[0] }}</a></td>
                     <td data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                     <td data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                    <td class="sr-numeric" data-value="{{ stat[5]|default(0) }}">{{ stat[5]|default(0) }}</td>
                     <td data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3]*100) }}</td>
                     <td data-value="{{ stat[4] }}">{% if stat[4] > 0 %}+{% endif %}{{ stat[4] }}</td>
                 </tr>
@@ -359,7 +363,7 @@
             <div class="sr-game-card">
                 <div class="sr-game-header">
                     <div>
-                        <div class="sr-game-title">{{ game['game_name'] }}</div>
+                        <div class="sr-game-title">{{ game['game_name'] }}{% if game.get('is_tie') %}<span class="sr-tie-badge">Tie</span>{% endif %}</div>
                         <div class="sr-game-date">{{ game['game_time'] or game['game_date_only'] }}</div>
                     </div>
                     <div class="sr-game-actions">
@@ -368,7 +372,7 @@
                     </div>
                 </div>
                 <div class="sr-game-body">
-                    <div class="sr-team-block winners">
+                    <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'winners' }}">
                         <div class="sr-team-content">
                             <div class="sr-team-players">
                                 {% for winner in game['winners'] %}
@@ -383,7 +387,7 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="sr-team-block losers">
+                    <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'losers' }}">
                         <div class="sr-team-content">
                             <div class="sr-team-players">
                                 {% for loser in game['losers'] %}
@@ -407,6 +411,7 @@
         {% endif %}
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/other-game-outcomes.js', v='20261021') }}"></script>
 <script>{{ inline_stats_script }}</script>
 <script src="{{ url_for('static', filename='js/player-suggestions.js', v='20261009') }}"></script>
 <script src="{{ url_for('static', filename='js/score-suggestions.js', v='20261012') }}"></script>
@@ -758,6 +763,7 @@ setupAutocomplete('game_name', () => allGameNames, field => {
                 if (gtWrap) updateClearVisibility(gtWrap);
             }
             applyGameInfo(data);
+            window.updateOtherGameOutcome?.();
             const gt = document.getElementById('game_type');
             if (!gt.value.trim()) setTimeout(() => gt.focus(), 100);
             else setTimeout(() => document.getElementById('winner1')?.focus(), 100);
@@ -1165,7 +1171,7 @@ document.getElementById('add-other-form').addEventListener('submit', function(e)
             var loserScore = (document.getElementById('loser_score').value || '').trim();
             if (!winnerScore || !loserScore) {
                 e.preventDefault();
-                alert('This game type uses team scores. Please enter both Winner and Loser team scores.');
+                alert('This game type uses team scores. Please enter a score for each side.');
                 return;
             }
         } else {
@@ -1178,7 +1184,7 @@ document.getElementById('add-other-form').addEventListener('submit', function(e)
             }
             if (!hasWinnerScore || !hasLoserScore) {
                 e.preventDefault();
-                alert('This game type uses scores. Please enter at least one score for winners and one for losers.');
+                alert('This game type uses scores. Please enter at least one score for each side.');
                 return;
             }
         }

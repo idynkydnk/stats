@@ -16,6 +16,7 @@ import uuid
 from flask import g, has_request_context, jsonify, request, session
 from werkzeug.security import generate_password_hash
 from account_names import account_label, clean_display_name, ensure_display_name_column
+from account_lifecycle import AccountBusy, account_lock, username_digest
 
 
 DATA_TABLES = {
@@ -54,12 +55,18 @@ PRIVATE_ENDPOINTS = {
     'view_flyer', 'remake_flyer_image',
     'remake_ai_recap_summary', 'remake_ai_recap_image',
     'upload_ai_recap_image', 'rebuild_ai_recap_instagram',
+    'api_ai_consent', 'api_content_report', 'api_content_blocks',
+    'ai_privacy_settings', 'report_content',
+    'privacy_policy', 'support_page', 'community_guidelines', 'privacy_settings',
+    'report_content_page',
 }
 PREVIEW_ENDPOINTS = {
     'api_years', 'api_doubles_stats', 'api_doubles_player',
     'api_doubles_list', 'api_doubles_get', 'api_vollis_stats', 'api_vollis_player',
     'api_vollis_list', 'api_vollis_get', 'api_other_stats', 'api_other_player',
     'api_other_list', 'api_other_get', 'api_other_game_types', 'api_volleyball_stats',
+    'privacy_policy', 'support_page', 'community_guidelines', 'privacy_settings',
+    'report_content_page', 'api_content_report',
 }
 AUTH_ENDPOINTS = {'api_login', 'private_register', 'private_google', 'private_auth_config',
                   'private_apple', 'private_apple_challenge', 'login', 'api_email_login',
@@ -96,6 +103,16 @@ def init_accounts(path):
         conn.execute('''CREATE TABLE IF NOT EXISTS private_auth_challenges (
             nonce_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL
         )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS private_deleted_accounts (
+            username_hash TEXT PRIMARY KEY
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS apple_account_tokens (
+            username TEXT PRIMARY KEY COLLATE NOCASE,
+            encrypted_refresh_token TEXT NOT NULL
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS account_deletion_work (
+            username TEXT PRIMARY KEY COLLATE NOCASE, cleanup_json TEXT NOT NULL
+        )''')
 
 
 def account_for_user(path, username):
@@ -124,6 +141,8 @@ def provision_database(site_path, account_id):
                 exists = target.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone()
                 if not exists:
                     target.execute(ddl)
+        from other_game_outcomes import ensure_other_game_outcome_column
+        ensure_other_game_outcome_column(target)
     os.chmod(destination, 0o600)
     return str(destination)
 
@@ -133,6 +152,9 @@ def create_account(path, username, password=None, google_subject=None, apple_sub
     with sqlite3.connect(path) as conn:
         # Serialize the case-insensitive name check, including legacy usernames.
         conn.execute('BEGIN IMMEDIATE')
+        if conn.execute('SELECT 1 FROM private_deleted_accounts WHERE username_hash=?',
+                        (username_digest(username),)).fetchone():
+            raise ValueError('That username is no longer available.')
         if conn.execute('SELECT 1 FROM site_users WHERE lower(username)=lower(?)', (username,)).fetchone():
             raise ValueError('That username is already taken.')
         # Older deletions kept social identities attached to inactive accounts;
@@ -165,16 +187,29 @@ def register_private_accounts(app, service):
     from account_stats_views import init_stats_views, register_stats_views, PERSONAL_WEB_ENDPOINTS
     init_stats_views(site_path)
 
+    def hold_account(username, exclusive=False):
+        lock = account_lock(site_path, username, exclusive=exclusive)
+        lock.__enter__()
+        g.account_lifecycle_lock = lock
+
+    @app.teardown_request
+    def release_account_lock(error):
+        lock = g.pop('account_lifecycle_lock', None)
+        if lock is not None:
+            lock.__exit__(None, None, None)
+
     @app.before_request
     def scope_personal_account():
         # Static files are already public; asset downloads need no account
         # lookup, personal database provisioning, or session-cookie refresh.
-        if request.endpoint in {'static', 'image_preview'}:
+        if request.endpoint in {'static', 'image_preview', 'privacy_policy',
+                                'support_page', 'community_guidelines'}:
             return None
         if (Path(site_path).resolve().parent / '.personal-migration-maintenance').exists() and request.endpoint != 'static':
             return jsonify(error='Stats are being updated. Please try again in a few minutes.'), 503
         preview = request.headers.get('X-Stats-Preview') == '1'
-        if preview and (request.method != 'GET' or request.endpoint not in PREVIEW_ENDPOINTS):
+        public_report = request.endpoint in {'api_content_report', 'report_content_page'} and request.method == 'POST'
+        if preview and not public_report and (request.method != 'GET' or request.endpoint not in PREVIEW_ENDPOINTS):
             return jsonify(error="KT Stats is read-only."), 403
         if request.endpoint in AUTH_ENDPOINTS:
             return None
@@ -197,8 +232,12 @@ def register_private_accounts(app, service):
             return None
         if not username:
             return None
+        try:
+            hold_account(username, exclusive=request.endpoint == 'private_delete_account')
+        except AccountBusy as exc:
+            return jsonify(error=str(exc), code='account_busy'), 409
         user = service.adminfx.get_site_user(username)
-        if user and not user.get('active', 1):
+        if not user or not user.get('active', 1):
             session.clear()
             return jsonify(error='This account is inactive.'), 401
         account = account_for_user(site_path, username)
@@ -277,6 +316,13 @@ def register_private_accounts(app, service):
             except sqlite3.IntegrityError:
                 with sqlite3.connect(site_path) as conn:
                     username = conn.execute(f'SELECT username FROM private_accounts WHERE {column}=?', (subject,)).fetchone()[0]
+        try:
+            hold_account(username)
+        except AccountBusy as exc:
+            return jsonify(error=str(exc), code='account_busy'), 409
+        user = service.adminfx.get_site_user(username)
+        if not user or not user.get('active', 1):
+            return jsonify(error='Please sign in again.'), 401
         display_name = clean_display_name(full_name)
         if display_name:
             with sqlite3.connect(site_path) as conn:
@@ -397,7 +443,16 @@ def register_private_accounts(app, service):
         except Exception:
             app.logger.exception('Apple verification unavailable')
             return jsonify(error='Apple sign-in is temporarily unavailable.'), 503
+        from apple_account_tokens import AppleAccountError, exchange_code, save_token
+        try:
+            encrypted_token = exchange_code(body.get('authorization_code'), claims['sub'], nonce_hash)
+        except AppleAccountError as exc:
+            return jsonify(error=str(exc)), 503
+        def complete_apple(username):
+            save_token(site_path, username, encrypted_token)
+            return issue_session(username)
         return social_session('apple', claims['sub'], body.get('full_name'),
+                              complete=complete_apple,
                               verified_email=claims.get('email') if claims.get('email_verified') in (True, 'true') else None)
 
     @app.delete('/api/account')
@@ -405,27 +460,39 @@ def register_private_accounts(app, service):
         account = getattr(g, 'private_account', None)
         if not account:
             return jsonify(error='A personal account is required.'), 403
-        # Keep the identity tombstone so this username can never regain access
-        # to old tokens or an in-flight request after account deletion.
-        with sqlite3.connect(site_path) as conn:
-            conn.execute('UPDATE site_users SET active=0, password_hash=? WHERE username=?',
-                         (generate_password_hash(secrets.token_urlsafe(48)), account['username']))
-            conn.execute('DELETE FROM auth_tokens WHERE lower(username)=lower(?)', (account['username'],))
-            conn.execute('''UPDATE private_accounts SET apple_subject=NULL, google_subject=NULL
-                WHERE id=?''', (account['id'],))
-        with sqlite3.connect(private_database()) as conn:
-            for table in DATA_TABLES:
-                if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
-                    conn.execute('DELETE FROM "' + table + '"')
+        from apple_account_tokens import AppleAccountError, revoke_account_token
+        from account_lifecycle import delete_owned_media, delete_identity_and_data
+        manual_apple_revocation = False
+        try:
+            if account.get('apple_subject'):
+                manual_apple_revocation = not revoke_account_token(site_path, account['username'])
+            recap_ids = delete_owned_media(site_path, account['username'], account['id'])
+            delete_identity_and_data(site_path, account, private_database(), recap_ids)
+        except AppleAccountError as exc:
+            return jsonify(error=str(exc)), 503
+        except AccountBusy as exc:
+            return jsonify(error=str(exc), code='account_busy'), 409
+        except (OSError, sqlite3.Error, ValueError):
+            app.logger.error('Account deletion cleanup failed; retry required')
+            return jsonify(error='Account deletion could not finish. Please try again.'), 503
         session.clear()
-        return jsonify(ok=True)
+        result = dict(ok=True, apple_manual_revocation_required=manual_apple_revocation)
+        if manual_apple_revocation:
+            result['apple_manual_revocation_url'] = 'https://support.apple.com/en-us/102571'
+        response = jsonify(result)
+        response.delete_cookie('remember_token')
+        return response
 
 
 @contextmanager
 def ai_account_context(app, site_path, username):
     """Resolve worker storage from trusted account identity, never job-supplied paths."""
     # Isolate g as well as session when called inside an existing web request.
-    with app.app_context(), app.test_request_context():
+    with account_lock(site_path, username), app.app_context(), app.test_request_context():
+        with sqlite3.connect(site_path) as conn:
+            user = conn.execute('SELECT active FROM site_users WHERE username=? COLLATE NOCASE', (username,)).fetchone()
+        if not user or not user[0]:
+            raise PermissionError('This account is no longer active.')
         account = account_for_user(site_path, username)
         if account:
             g.private_account = account

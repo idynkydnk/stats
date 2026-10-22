@@ -859,6 +859,8 @@ def save_player_ai_image_bytes(player_id, image_bytes, ext='png'):
     """
     if not image_bytes:
         raise ValueError('Empty AI image.')
+    from content_safety import moderate_content
+    moderate_content(image_bytes=image_bytes, image_mime=_mime_for_photo_path('image.' + (ext or 'png').lstrip('.')))
     ext = (ext or 'png').lower().lstrip('.')
     if ext == 'jpeg':
         ext = 'jpg'
@@ -1159,6 +1161,10 @@ def read_player_image_file(rel_path):
 def save_player_photo_upload(player_id, file_storage):
     """Validate and save a face photo upload. Returns relative static path."""
     ext = _validate_photo_upload(file_storage)
+    from content_safety import moderate_content
+    raw = file_storage.read()
+    file_storage.stream.seek(0)
+    moderate_content(image_bytes=raw, image_mime=_mime_for_photo_path('image' + ext))
     dest_dir = player_photos_dir()
     # Remove any previous face photo with a different extension.
     for old_ext in ALLOWED_PHOTO_EXTENSIONS:
@@ -1186,6 +1192,10 @@ def set_player_full_body_photo_path(player_id, photo_path):
 def save_player_full_body_photo_upload(player_id, file_storage):
     """Validate and save/replace the full-body photo upload. Returns relative static path."""
     ext = _validate_photo_upload(file_storage)
+    from content_safety import moderate_content
+    raw = file_storage.read()
+    file_storage.stream.seek(0)
+    moderate_content(image_bytes=raw, image_mime=_mime_for_photo_path('image' + ext))
     for path in get_player_full_body_photo_paths_by_id(player_id):
         _remove_stored_photo(path)
 

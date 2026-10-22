@@ -1630,10 +1630,12 @@ def player_face_photo_focus_for(name):
 
 def player_profile_fields_for(name):
     """Email, birthday, height, and nickname for player profile editing."""
+    from account_stats_views import may_read_private_profile_fields
     row = _ensure_player_record(name)
+    private_fields = may_read_private_profile_fields()
     return {
-        'email': (row[2] or '') if row else '',
-        'date_of_birth': (row[3] or '') if row else '',
+        'email': (row[2] or '') if row and private_fields else '',
+        'date_of_birth': (row[3] or '') if row and private_fields else '',
         'height': (row[4] or '') if row else '',
         'nickname': (row[10] or '') if row and len(row) > 10 else '',
     }
@@ -1666,6 +1668,7 @@ def player_list_card_data(player_row):
 
 def build_player_list_cards(players):
     """Build list-page card payloads for many players with batched DB lookups."""
+    from account_stats_views import may_read_private_profile_fields
     from player_functions import get_players_list_extras
 
     if not players:
@@ -1675,6 +1678,7 @@ def build_player_list_cards(players):
     extras = get_players_list_extras(names)
     default_focus = {'x': 50.0, 'y': 50.0, 'z': 1.0}
     cards = []
+    private_fields = may_read_private_profile_fields()
 
     for player_row in players:
         name = player_row[1]
@@ -1686,8 +1690,8 @@ def build_player_list_cards(players):
             'id': player_row[0] if player_row[0] is not None else None,
             'name': name,
             'nickname': player_row[10] if len(player_row) > 10 and player_row[10] else '',
-            'email': player_row[2] or '',
-            'dateOfBirth': player_row[3] or '',
+            'email': (player_row[2] or '') if private_fields else '',
+            'dateOfBirth': (player_row[3] or '') if private_fields else '',
             'height': player_row[4] or '',
             'games': int(player_row[12]) if len(player_row) > 12 and player_row[12] is not None else 0,
             'firstGame': player_row[11] if len(player_row) > 11 and player_row[11] else '',
@@ -2489,6 +2493,7 @@ def _serialize_ai_summary_game(game_type, game):
         'id': game['game_id'],
         'date': game['game_date'],
         'game_name': game.get('game_name') or '',
+        'is_tie': game.get('is_tie', False),
         'winners': game.get('winners') or [],
         'losers': game.get('losers') or [],
         'winner_score': game.get('winner_score'),
@@ -4140,6 +4145,7 @@ def add_other_game():
     """Add other game page."""
     from other_functions import all_combined_players
     from one_on_one import canonical_format
+    from other_game_outcomes import parse_is_tie, validate_tie_scores, validate_tie_game_type
     year = str(date.today().year)
     
     if request.method == 'POST':
@@ -4182,6 +4188,14 @@ def add_other_game():
 
         comment = request.form.get('comment', '')
         location = _new_game_location(request.form.get('location'))
+        try:
+            is_tie = parse_is_tie(request.form.get('is_tie', False))
+            validate_tie_game_type(is_tie, game_type)
+            validate_tie_scores(is_tie, score_type, winner_scores, loser_scores,
+                                team_winner_score, team_loser_score)
+        except ValueError as error:
+            flash(str(error))
+            return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
 
         # Games that have had scores before (by game_name) must have scores on this entry too (unless user chose "No Scores")
         from other_functions import game_name_requires_scores
@@ -4228,13 +4242,15 @@ def add_other_game():
                     team_winner_score, team_loser_score, tz,
                     entered_by=session.get('username', ''), location=location,
                     one_on_one=request.args.get('one_on_one') == '1',
+                    is_tie=is_tie,
                 )
             except ValueError as error:
                 flash(str(error))
-                return redirect(url_for('add_other_game', one_on_one='1', format=game_name))
+                return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
             _remember_game_location(location)
             user = session.get('username', 'unknown')
-            details = f"Game: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
+            result_labels = ('Tied side 1', 'Tied side 2') if is_tie else ('Winners', 'Losers')
+            details = f"Game: {game_type} - {game_name}; {result_labels[0]}: {', '.join(winners)}; {result_labels[1]}: {', '.join(losers)}"
             log_user_action(user, 'Added other game', details)
             new_row = adminfx.snapshot_last_row('other_game')
             log_activity('Added other game', target='other_game',
@@ -4244,7 +4260,7 @@ def add_other_game():
                 'winners': ', '.join(f'{n} ({v})' if score_type == 'individual' and v != '' else n for n, v in zip(winners, winner_scores)),
                 'losers': ', '.join(f'{n} ({v})' if score_type == 'individual' and v != '' else n for n, v in zip(losers, loser_scores)),
                 'winner_score': team_winner_score, 'loser_score': team_loser_score,
-                'location': location, 'comment': comment}
+                'location': location, 'comment': comment, 'is_tie': is_tie}
         return redirect(url_for('add_other_game', **({'one_on_one': '1', 'format': game_name} if request.args.get('one_on_one') == '1' else {})))
     
     from other_functions import other_game_entry_catalog
@@ -4672,8 +4688,8 @@ def build_other_game_cards(year, exclude_volleyball=True, minimum_games=1):
                 card_minimum_games = num_games // 30
             
             # Split stats into qualified and rare
-            qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
-            rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
+            qualified_stats = [s for s in stats_for_game if s[4] >= card_minimum_games]
+            rare_stats = [s for s in stats_for_game if s[4] < card_minimum_games]
             
             game_cards.append(attach_other_ratings({
                 'game_name': game_name,
@@ -4698,8 +4714,8 @@ def build_other_game_cards(year, exclude_volleyball=True, minimum_games=1):
                     vb_minimum_games = len(volleyball_games) // 30
                 
                 # Split stats by minimum games requirement
-                qualified_stats = [s for s in volleyball_stats if (s[1] + s[2]) >= vb_minimum_games]
-                rare_stats = [s for s in volleyball_stats if (s[1] + s[2]) < vb_minimum_games]
+                qualified_stats = [s for s in volleyball_stats if s[4] >= vb_minimum_games]
+                rare_stats = [s for s in volleyball_stats if s[4] < vb_minimum_games]
                 
                 game_cards.append({
                     'game_name': 'Volleyball',
@@ -4807,8 +4823,8 @@ def build_volleyball_game_cards_styled(year):
                 continue
             num_games = len(game_specific)
             card_minimum_games = 1 if num_games < 30 else num_games // 30
-            qualified_stats = [s for s in stats_for_game if (s[1] + s[2]) >= card_minimum_games]
-            rare_stats = [s for s in stats_for_game if (s[1] + s[2]) < card_minimum_games]
+            qualified_stats = [s for s in stats_for_game if s[4] >= card_minimum_games]
+            rare_stats = [s for s in stats_for_game if s[4] < card_minimum_games]
             game_cards.append(attach_other_ratings({
                 'game_name': game_name,
                 'stats': qualified_stats,
@@ -4906,6 +4922,7 @@ def volleyball_player_stats(year, name):
 @app.route('/edit_other_game/<int:id>/',methods = ['GET','POST'])
 @login_required
 def update_other_game(id):
+    from other_game_outcomes import parse_is_tie, validate_tie_scores, validate_tie_game_type
     game_id = id
     x = find_other_game(game_id)
     if not x:
@@ -4968,6 +4985,14 @@ def update_other_game(id):
         # Get team scores (for team scoring mode)
         team_winner_score = request.form.get('winner_score', '').strip()
         team_loser_score = request.form.get('loser_score', '').strip()
+        result_error = None
+        try:
+            is_tie = parse_is_tie(request.form.get('is_tie', game_data_dict.get('is_tie', False)))
+            validate_tie_game_type(is_tie, game_type)
+            validate_tie_scores(is_tie, score_type, winner_scores, loser_scores,
+                                team_winner_score, team_loser_score)
+        except ValueError as error:
+            result_error = str(error)
 
         # Games that have had scores before (by game_name) must have scores on this entry too (unless "No Scores")
         from other_functions import game_name_requires_scores
@@ -4987,6 +5012,8 @@ def update_other_game(id):
 
         if invalid_datetime:
             flash('Please enter a valid game date and time.')
+        elif result_error:
+            flash(result_error)
         elif not game_type or not game_name or not winners or not losers:
             flash('Required fields missing!')
         elif requires_scores and not has_scores:
@@ -5027,11 +5054,12 @@ def update_other_game(id):
                     + [(int(score) if score not in ("", None) else None) for score in (loser_scores + [None] * 15)[:15]]
                     + [aggregate_loser_score, comment, get_user_now(), game_id]
                 )
-                database_update_other_game(conn, game_data)
+                database_update_other_game(conn, game_data, is_tie=is_tie)
             
             # Log the action for the activity feed
             user = session.get('username', 'unknown')
-            details = f"Game ID {game_id}: {game_type} - {game_name}; Winners: {', '.join(winners)}; Losers: {', '.join(losers)}"
+            result_labels = ('Tied side 1', 'Tied side 2') if is_tie else ('Winners', 'Losers')
+            details = f"Game ID {game_id}: {game_type} - {game_name}; {result_labels[0]}: {', '.join(winners)}; {result_labels[1]}: {', '.join(losers)}"
             log_user_action(user, 'Edited other game', details)
             log_activity('Edited other game', target='other_game', target_id=game_id,
                          summary=details, before=before_row,
@@ -7524,6 +7552,10 @@ import ios_api
 ios_api.register_ios_api(app)
 from private_accounts import register_private_accounts
 register_private_accounts(app, __import__(__name__))
+from content_safety import register_content_safety
+register_content_safety(app, __import__(__name__))
+from policy_pages import register_policy_pages
+register_policy_pages(app, __import__(__name__))
 from template_delivery import register_template_delivery
 register_template_delivery(app)
 

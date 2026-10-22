@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% block title %}Edit {{ year }} Other Games{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-games-grid { display: flex; flex-direction: column; gap: 8px; }
         .sr-edit-card { background: var(--sr-panel); border: 1px solid var(--sr-line); border-radius: 10px; padding: 12px 14px; transition: all 0.2s; }
@@ -90,7 +91,7 @@
                                     {% if game['game_id'] in editable_game_ids %}<a href="{{ url_for('update_other_game', id=game['game_id']) }}" class="sr-action-btn" title="Edit"><i class="fas fa-pen"></i></a>{% endif %}
                                     <a href="{{ url_for('delete_other_game', id=game['game_id']) }}" class="sr-action-btn delete" title="Delete"><i class="fas fa-trash"></i></a>
                                 </div>
-                                <h3 class="sr-edit-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
+                                <h3 class="sr-edit-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a>{% if game.get('is_tie') %}<span class="sr-tie-badge">Tie</span>{% endif %}</h3>
                             </div>
                             <div class="sr-edit-meta">
                                 <span class="sr-edit-date">{{ game['game_date_only'] }}{% if game['game_time'] %} {{ game['game_time'] }}{% endif %}</span>
@@ -98,7 +99,7 @@
                             </div>
                         </div>
                         <div class="sr-edit-body">
-                            <div class="sr-edit-team winners">
+                            <div class="sr-edit-team {{ 'tied' if game.get('is_tie') else 'winners' }}">
                                 <div class="sr-edit-team-content">
                                     <div class="sr-edit-players">
                                         {% for winner in game['winners'] %}
@@ -115,7 +116,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="sr-edit-team losers">
+                            <div class="sr-edit-team {{ 'tied' if game.get('is_tie') else 'losers' }}">
                                 <div class="sr-edit-team-content">
                                     <div class="sr-edit-players">
                                         {% for loser in game['losers'] %}

@@ -1,0 +1,25 @@
+{% extends 'policy_base.html' %}
+{% block title %}Privacy and safety settings{% endblock %}
+{% block content %}
+<h1>Privacy and safety settings</h1>
+<section data-ai-consent>
+  <h2>AI and content safety permission</h2>
+  <p data-consent-disclosure>Loading the current data-sharing notice…</p>
+  <p>Your choice applies to this account on the website and in the app. You can use ordinary game tracking and browse stats without allowing AI data sharing.</p>
+  <p><a href="/privacy">Read the privacy policy</a></p>
+  <div class="actions">
+    <button class="primary" type="button" data-consent-grant disabled>Allow sharing for AI and safety checks</button>
+    <button type="button" data-consent-withdraw disabled>Don't allow / withdraw permission</button>
+  </div>
+  <p class="status" data-consent-status role="status" aria-live="polite"></p>
+</section>
+<section data-blocked-users>
+  <h2>Blocked authors</h2>
+  <p>Blocked authors' recaps and flyers are hidden while you are signed in. Unblocking makes their available content visible again.</p>
+  <ul class="block-list" data-blocked-list></ul>
+  <p class="status" data-blocked-status role="status" aria-live="polite"></p>
+</section>
+<p><a href="{{ return_path }}">Return to Stats</a></p>
+<noscript><p>Enable JavaScript to change permission or manage blocked authors. You can also use More → Privacy and safety in the iPhone app.</p></noscript>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/content_safety.js', v='20261021') }}" defer></script>{% endblock %}

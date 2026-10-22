@@ -70,7 +70,7 @@ function checkPopup() {
         dispatchEvent(event) { assert.equal(event.type, 'focus'); dropdownOpen = true; },
         scrollIntoView() {},
     };
-    const content = ['title', 'winners', 'losers', 'winner_score', 'loser_score', 'location', 'comment']
+    const content = ['title', 'winners', 'losers', 'winner_score', 'loser_score', 'location', 'comment', 'winner_label', 'loser_label', 'result']
         .map(key => ({ dataset: { savedGame: key } }));
     const listeners = {};
     const popup = { open: false, close() { this.open = false; }, showModal() { this.open = true; },
@@ -118,6 +118,15 @@ function checkPopup() {
     assert.equal(content[1].textContent, '<script>unsafe</script>');
     assert.equal(content[3].textContent, 0);
     assert.equal(content[5].hidden, true);
+    context.window.showSavedGamePopup({title: 'Sequence', is_tie: true, winner_score: 1, loser_score: 1});
+    assert.equal(content[7].textContent, 'Side 1');
+    assert.equal(content[8].textContent, 'Side 2');
+    assert.equal(content[9].textContent, 'Tie');
+    assert.equal(content[9].hidden, false);
+    context.window.showSavedGamePopup({title: 'Sequence', is_tie: false});
+    assert.equal(content[7].textContent, 'Winners');
+    assert.equal(content[8].textContent, 'Losers');
+    assert.equal(content[9].hidden, true);
     add.onclick({ stopPropagation() { stopped = true; } });
     // Model the page's outside-click handler, which closes lists if the click bubbles.
     if (!stopped) dropdownOpen = false;

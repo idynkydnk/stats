@@ -187,13 +187,21 @@ def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
     Returns the generated text (stripped). Raises ValueError if no key is
     configured or every model fails.
     """
+    from content_safety import moderate_content, require_ai_consent, reject_unsupported_ai_provider
+    require_ai_consent()
     provider = active_ai_provider()
+    if provider == 'gemini':
+        reject_unsupported_ai_provider()
+    moderate_content(prompt, image_bytes=image_bytes, image_mime=image_mime)
     image_args = {} if image_bytes is None else {'image_bytes': image_bytes, 'image_mime': image_mime}
     if provider == 'openai':
-        return _generate_ai_text_openai(prompt, require_ai_api_key(), **image_args)
-    if provider == 'gemini':
-        return _generate_ai_text_gemini(prompt, require_ai_api_key(), **image_args)
-    raise ValueError(ai_api_key_error_message())
+        result = _generate_ai_text_openai(prompt, require_ai_api_key(), **image_args)
+    elif provider == 'gemini':
+        result = _generate_ai_text_gemini(prompt, require_ai_api_key(), **image_args)
+    else:
+        raise ValueError(ai_api_key_error_message())
+    moderate_content(result)
+    return result
 
 
 _LEGACY_RECAP_PARAGRAPH_LIMIT = (
@@ -2378,6 +2386,7 @@ def _generate_image_bytes_openai_responses(
     }
     payload = {
         'model': OPENAI_RESPONSES_MODEL,
+        'store': False,
         'input': [{'role': 'user', 'content': content}],
         'tools': [tool],
         'tool_choice': {'type': 'image_generation'},
@@ -2578,23 +2587,39 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
 def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None,
                           add_body_side_convention=True, output_size=None, edit=False):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
+    from content_safety import moderate_content, require_ai_consent, reject_unsupported_ai_provider
+    require_ai_consent()
+    provider = active_ai_provider()
+    if provider == 'gemini':
+        reject_unsupported_ai_provider()
+    moderate_content('\n'.join([prompt] + [str(part.get('text') or part.get('image_name') or '')
+                                          for part in reference_parts or []]))
+    # Existing stored references may predate upload checks. Check them before
+    # sending to a generation provider, including when a queued job starts later.
+    for part in reference_parts or []:
+        inline = part.get('inline_data') or part.get('inlineData') or {}
+        if inline.get('data'):
+            raw = base64.b64decode(inline['data'])
+            moderate_content(image_bytes=raw, image_mime=inline.get('mime_type') or inline.get('mimeType') or 'image/png')
     if add_body_side_convention:
         prompt = _append_body_side_convention(prompt)
-    provider = active_ai_provider()
     if provider == 'openai':
         # Prefer the live OpenAI key even if a Gemini key was passed by callers.
         key = (os.environ.get('OPENAI_API_KEY') or api_key or '').strip()
-        return _generate_image_bytes_openai(
+        result = _generate_image_bytes_openai(
             prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
             **({'output_size': output_size} if output_size else {}),
             **({'edit': True} if edit else {}),
         )
-    if provider == 'gemini':
+    elif provider == 'gemini':
         key = (api_key or os.environ.get('GEMINI_API_KEY') or '').strip()
-        return _generate_image_bytes_gemini(
+        result = _generate_image_bytes_gemini(
             prompt, key, reference_parts=reference_parts, aspect_ratio=aspect_ratio,
         )
-    raise ValueError(ai_api_key_error_message())
+    else:
+        raise ValueError(ai_api_key_error_message())
+    moderate_content(image_bytes=result[0], image_mime=result[1])
+    return result
 
 
 def _save_email_image(image_bytes, ext, prefix=''):
@@ -4406,8 +4431,9 @@ def create_other_email_plain_text(summary, stats, games, date_obj, game_name_lab
         win_pct = stat[3] * 100
         differential = stat[4]
         diff_sign = '+' if differential >= 0 else ''
+        tie_text = f', {stat[5]} tie' + ('s' if stat[5] != 1 else '') if len(stat) > 5 and stat[5] else ''
         lines.append(
-            f'{index}. {player_name} — {wins}-{losses} ({win_pct:.0f}%), {diff_sign}{differential}'
+            f'{index}. {player_name} — {wins}-{losses}{tie_text} ({win_pct:.0f}%), {diff_sign}{differential}'
         )
     lines.append('')
 
@@ -4416,10 +4442,11 @@ def create_other_email_plain_text(summary, stats, games, date_obj, game_name_lab
         time_display = _plain_game_time_dict(game)
         winners = ', '.join(w['name'] for w in game.get('winners', []) if w.get('name'))
         losers = ', '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
-        w_score = game.get('winner_score') or ''
-        l_score = game.get('loser_score') or ''
+        w_score = game.get('winner_score') if game.get('winner_score') is not None else ''
+        l_score = game.get('loser_score') if game.get('loser_score') is not None else ''
+        outcome = 'tied with' if game.get('is_tie') else 'beat'
         lines.append(
-            f'- {time_display}: {winners} beat {losers} ({w_score}-{l_score})'
+            f'- {time_display}: {winners} {outcome} {losers} ({w_score}-{l_score})'
         )
 
     lines.extend(_plain_footer_lines(f'{SITE_BASE_URL}/other_stats/{date_obj.year}/', date_obj))
@@ -5209,6 +5236,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                                     <th>Player</th>
                                     <th>W</th>
                                     <th>L</th>
+                                    <th>T</th>
                                     <th>Win %</th>
                                     <th>+/-</th>
                                 </tr>
@@ -5239,6 +5267,7 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                                     <td class="stats-player">{player_name_link_html('other', stats_year, player_name, css_class='')}</td>
                                     <td>{wins}</td>
                                     <td>{losses}</td>
+                                    <td>{stat[5] if len(stat) > 5 else 0}</td>
                                     <td>{win_pct:.0f}%</td>
                                     <td class="{diff_class}">{diff_sign}{differential}</td>
                                 </tr>
@@ -5263,9 +5292,9 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
                             <thead>
                                 <tr>
                                     <th>Time</th>
-                                    <th>Winners</th>
+                                    <th>Side 1</th>
                                     <th></th>
-                                    <th>Losers</th>
+                                    <th>Side 2</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -5285,16 +5314,18 @@ def create_other_email_html(summary, stats, games, date_obj, game_name_label='',
             player_name_link_html('other', stats_year, l['name'], css_class='')
             for l in losers if l.get('name')
         )
-        w_score = game.get('winner_score') or ''
-        l_score = game.get('loser_score') or ''
+        w_score = game.get('winner_score') if game.get('winner_score') is not None else ''
+        l_score = game.get('loser_score') if game.get('loser_score') is not None else ''
+        tied = bool(game.get('is_tie'))
+        tie_label = '<br>Tie' if tied else ''
 
         html_body += f"""
                                 <tr>
-                                    <td class="time-cell">{time_display}</td>
-                                    <td class="team-cell winner-team">{winner_names}</td>
-                                    <td class="score-winner">{w_score}</td>
-                                    <td class="team-cell loser-team">{loser_names}</td>
-                                    <td class="score-loser">{l_score}</td>
+                                    <td class="time-cell">{time_display}{tie_label}</td>
+                                    <td class="team-cell {'' if tied else 'winner-team'}">{winner_names}</td>
+                                    <td class="{'' if tied else 'score-winner'}">{w_score}</td>
+                                    <td class="team-cell {'' if tied else 'loser-team'}">{loser_names}</td>
+                                    <td class="{'' if tied else 'score-loser'}">{l_score}</td>
                                 </tr>
                 """
 
@@ -5525,31 +5556,22 @@ def build_other_email_payload(
     games = readable_games_data(raw_games)
     summary_location = _summary_location_from_rows(raw_games)
 
-    # Calculate stats from the selected games
-    player_stats = {}
-    for game in games:
-        margin = _other_game_point_margin(game)
-        for w in game.get('winners', []):
-            name = w.get('name', '')
-            if name and _is_valid_player_name(name):
-                if name not in player_stats:
-                    player_stats[name] = {'wins': 0, 'losses': 0, 'diff': 0}
-                player_stats[name]['wins'] += 1
-                player_stats[name]['diff'] += margin
-        for l in game.get('losers', []):
-            name = l.get('name', '')
-            if name and _is_valid_player_name(name):
-                if name not in player_stats:
-                    player_stats[name] = {'wins': 0, 'losses': 0, 'diff': 0}
-                player_stats[name]['losses'] += 1
-                player_stats[name]['diff'] -= margin
-
+    # Reuse the same outcomes as standings, so tied sides stay neutral in recaps.
+    from other_functions import all_other_players, total_other_stats
     stats = []
-    for name, s in player_stats.items():
-        total = s['wins'] + s['losses']
-        if total > 0:
-            stats.append([name, s['wins'], s['losses'], s['wins'] / total, s['diff']])
-    stats.sort(key=lambda x: x[3], reverse=True)
+    for name in all_other_players(games):
+        total = total_other_stats(name, games)[0]
+        differential = 0
+        for game in games:
+            if game.get('is_tie'):
+                continue
+            margin = _other_game_point_margin(game)
+            if any(player.get('name') == name for player in game.get('winners', [])):
+                differential += margin
+            elif any(player.get('name') == name for player in game.get('losers', [])):
+                differential -= margin
+        stats.append([name, total[1], total[2], total[3], differential, total[5]])
+    stats.sort(key=lambda row: row[3], reverse=True)
 
     game_dates = sorted(set(str(game.get('game_date', '')).split(' ')[0] for game in games if game.get('game_date')))
     if len(game_dates) == 1:
@@ -5564,7 +5586,7 @@ def build_other_email_payload(
     context += "Player Stats:\n"
     for stat in stats[:10]:
         win_pct = stat[3] * 100
-        context += f"- {stat[0]}: {stat[1]}-{stat[2]} ({win_pct:.1f}%), Point Diff: {stat[4]:+d}\n"
+        context += f"- {stat[0]}: {stat[1]} wins, {stat[2]} losses, {stat[5]} ties ({win_pct:.1f}%), Point Diff: {stat[4]:+d}\n"
 
     context += "\nGames Played (in chronological order):\n"
     for game in reversed(games):
@@ -5572,12 +5594,13 @@ def build_other_email_payload(
         loser_names = ' & '.join(l['name'] for l in game.get('losers', []) if l.get('name'))
         w_score = game.get('winner_score', '')
         l_score = game.get('loser_score', '')
-        score_str = f" ({w_score}-{l_score})" if w_score and l_score else ""
+        score_str = f" ({w_score}-{l_score})" if w_score is not None and l_score is not None else ""
         gn = game.get('game_name', '')
         game_label = f" [{gn}]" if gn else ""
         comment = game.get('comment', '')
         comment_str = f" - {comment}" if comment else ""
-        context += f"- {winner_names} def. {loser_names}{score_str}{game_label}{comment_str}\n"
+        outcome = "tied with" if game.get("is_tie") else "def."
+        context += f"- {winner_names} {outcome} {loser_names}{score_str}{game_label}{comment_str}\n"
 
     character_context = _recap_character_context([stat[0] for stat in stats])
     context = character_context + '\n\n' + context

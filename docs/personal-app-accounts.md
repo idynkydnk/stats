@@ -109,11 +109,68 @@ for another bundle ID.
 The server issues a ten-minute, single-use nonce and verifies Apple's token
 signature with Apple's signing keys, including issuer, audience, expiry, and
 nonce. Accounts use Apple's stable subject ID, so Hide My Email is supported.
-Test completion and cancellation on a signed device before release. Apple token
-revocation and developer server notifications are not integrated in this change;
-include that lifecycle work in the App Store release review.
+The native app must also send `authorization_code`. The server exchanges this
+single-use code with Apple, verifies the returned identity against the native
+subject and nonce, and stores only a Fernet-encrypted refresh token. Tokens,
+authorization codes, client secrets, and provider response bodies must not be
+logged. Old app builds without the authorization code must be updated.
+
+Configure `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and either `APPLE_PRIVATE_KEY_PATH`
+(preferred, a protected server-only `.p8` file) or `APPLE_PRIVATE_KEY` (PEM text).
+Generate `APPLE_TOKEN_ENCRYPTION_KEY` once using `Fernet.generate_key()`, keep it
+outside Git, and back it up securely. Replacing that key without migrating stored
+tokens prevents their decryption. `.env.example` lists the configuration names;
+no live Apple credentials are included in the repository.
+
+Account deletion revokes Apple's refresh token before deleting local records.
+Apple treats revoking an already-revoked token as successful, so retries are safe.
+An older account with no saved token, or a token that cannot be decrypted with the
+configured valid encryption key, still deletes successfully. The HTTP 200 response
+includes `apple_manual_revocation_required: true` and
+`apple_manual_revocation_url: https://support.apple.com/en-us/102571`; the app signs
+out and shows Apple's manual disconnection instructions. It does not require
+reauthentication to delete the account. Normal deletion returns the flag as false.
+Provider/network failures or missing/invalid server configuration return 503 and
+leave the local account available for retry. Test initial sign-in,
+Hide My Email, cancellation, repeat sign-in, and deletion on a signed device with
+the production developer configuration before release. No live-provider test is
+implied by the mocked tests. Developer server notifications are not configured by
+this change; assess and configure them for the developer account's requirements.
 
 Reference: [Apple user verification](https://developer.apple.com/documentation/signinwithapple/verifying-a-user).
+Token lifecycle: [Apple token validation](https://developer.apple.com/documentation/signinwithapplerestapi/generate-and-validate-tokens),
+[Apple token revocation](https://developer.apple.com/documentation/signinwithapplerestapi/revoke-tokens).
+Missing-token fallback: [Apple TN3194](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple).
+
+## Account deletion and recovery operations
+
+The More menu deletes the personal identity record (including email and names),
+private game database and journals, owned player photos and AI character files,
+saved recaps and flyers, queued/completed AI job payloads, account activity and
+prompt history, authentication tokens and passkeys, email challenges, stats
+sharing/preferences, and the matching recap email subscription. Moderation
+records lose the account identity and original author-report details. Images
+still referenced by another published page remain with that page. Shared games
+owned by another person are not this account's private data and are not removed.
+Derived server stats response/snapshot caches are discarded. A username hash
+remains solely to reserve the deleted name, preventing old signed sessions from
+ever referring to a replacement account. It contains no email or profile data.
+
+Web requests and AI workers hold a shared per-account filesystem lock; deletion
+requires its exclusive lock. If a save, generation, or recap email is still
+finishing, deletion returns HTTP 409 `account_busy` so the person can retry.
+Future queued jobs for a deleted or inactive identity fail closed and never fall
+back to the public database. Deletion failures are reported rather than claiming
+success with a remaining identity. Some media may already have been removed
+when a filesystem error requires retrying.
+
+Operator backups and historical process/access logs are outside this cleanup.
+Before release, choose and document their retention and erasure process. Restore
+backups only during maintenance: reconcile all deletions since the snapshot,
+purge restored deleted-account records/media/tokens and derived caches, preserve
+the current deletion-name reservations, and verify the account cannot sign in
+before serving requests or restarting workers. Restoring an old database alone
+would resurrect deleted data and is not a supported recovery procedure.
 
 ## Verification
 
@@ -126,7 +183,7 @@ account's storage context; job pages and polling retain their ownership checks.
 Run `venv/bin/python -m unittest tests.test_personal_recap_creation` to check the
 web flow, personal game isolation, synchronous fallback, and job access.
 
-Run `venv/bin/python -m unittest tests.test_private_accounts` for registration,
+Run `venv/bin/python -m unittest tests.test_private_accounts tests.test_account_lifecycle` for registration,
 private storage, account isolation, inactive accounts, cache isolation, Google
 verification, and Apple's signature/nonce/audience/replay checks. Provider tests
 do not contact live identity providers.
@@ -134,5 +191,6 @@ do not contact live identity providers.
 Test two new accounts on devices: save games in each, switch accounts, sign out,
 relaunch, and confirm neither account shows the other's games or shared history.
 Check password sign-in plus Google and Apple sign-in. The app offers personal
-account deletion under More; it removes private data and revokes local sessions,
-retaining an inactive identity marker to prevent reuse of old access.
+account deletion under More; verify owned files and records disappear, other
+accounts remain intact, local sessions are revoked, and Apple authorization is
+revoked or the missing-token manual-disconnection instructions are shown.

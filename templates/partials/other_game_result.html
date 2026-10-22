@@ -1,0 +1,12 @@
+{% set tie_value = request.form.get('is_tie', ('1' if game.get('is_tie') else '0') if game is defined else '0') %}
+{% set outcome_game_type = request.form.get('game_type', game.get('game_type', '') if game is defined else '') %}
+{% set allows_tie = 'volleyball' not in outcome_game_type|lower and request.args.get('one_on_one') != '1' %}
+{% if not allows_tie %}{% set tie_value = '0' %}{% endif %}
+<div class="sr-result-field" data-one-on-one="{{ '1' if request.args.get('one_on_one') == '1' else '0' }}"{% if not allows_tie %} hidden{% endif %}>
+    <label for="is_tie">Result</label>
+    <select name="is_tie" id="is_tie" aria-describedby="tie-help">
+        <option value="0"{% if tie_value != '1' %} selected{% endif %}>Win / loss</option>
+        <option value="1"{% if tie_value == '1' %} selected{% endif %}>Tie</option>
+    </select>
+    <p id="tie-help"{% if tie_value != '1' %} hidden{% endif %}>Enter players on each side. For a 1–1 tie, enter 1 for both scores. A tie counts as a game, with no win or loss.</p>
+</div>

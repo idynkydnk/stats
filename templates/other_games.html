@@ -3,6 +3,7 @@
 {% block header_mode %}games{% endblock %}
 {% block title %}{{ year }} {% if game_name %}{{ game_name }}{% else %}Other{% endif %} Games{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-games-grid {
             display: flex;
@@ -161,14 +162,14 @@
                     {% for game in games %}
                     <div class="sr-game-card" data-search="{{ game['game_date_only'] }} {{ game['game_time'] }} {{ game['game_name']|lower }} {% for w in game['winners'] %}{{ w.name|lower }} {% endfor %}{% for l in game['losers'] %}{{ l.name|lower }} {% endfor %}">
                         <div class="sr-game-card-header">
-                            <h3 class="sr-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a></h3>
+                            <h3 class="sr-game-name"><a href="{{ url_for('game_name_stats', game_name=game['game_name']) }}">{{ game['game_name'] }}</a>{% if game.get('is_tie') %}<span class="sr-tie-badge">Tie</span>{% endif %}</h3>
                             <div class="sr-game-date">
                                 {{ game['game_date_only'] }}
                                 {% if game['game_time'] %}<br>{{ game['game_time'] }}{% endif %}
                             </div>
                         </div>
                         <div class="sr-game-body">
-                            <div class="sr-team-block winners">
+                            <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'winners' }}">
                                 <div class="sr-team-content">
                                     <div class="sr-players-list">
                                         {% for winner in game['winners'] %}
@@ -185,7 +186,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="sr-team-block losers">
+                            <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'losers' }}">
                                 <div class="sr-team-content">
                                     <div class="sr-players-list">
                                         {% for loser in game['losers'] %}

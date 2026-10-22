@@ -1,0 +1,12 @@
+{% extends 'policy_base.html' %}
+{% set support_email = 'idynkydnk@gmail.com' %}
+{% block title %}Content could not be submitted{% endblock %}
+{% block content %}
+<h1>Content could not be submitted</h1>
+<p role="alert">{{ error }}</p>
+{% if code == 'ai_consent_required' %}
+<p>Open <a href="/privacy-settings" target="_blank" rel="noopener">Privacy and safety settings</a> to review the data-sharing notice and make your choice. Then return to your original page and submit again. Your permission is not granted automatically.</p>
+{% else %}
+<p>Return to your original page to revise the content or try again later. If the problem continues, <a href="/support">contact support</a>.</p>
+{% endif %}
+{% endblock %}

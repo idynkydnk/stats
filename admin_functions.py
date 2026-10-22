@@ -141,6 +141,12 @@ def update_ai_recap_page(share_id, html_body=None, **meta_updates):
     import recap_email_queue
 
     safe_id = _safe_recap_share_id(share_id)
+    if html_body is not None or any(key in meta_updates for key in ('subject', 'plain_text_body')):
+        from content_safety import check_publication_text
+        from bs4 import BeautifulSoup
+        check_publication_text('\n'.join([BeautifulSoup(html_body or '', 'html.parser').get_text(' ', strip=True),
+                                         str(meta_updates.get('subject') or ''),
+                                         str(meta_updates.get('plain_text_body') or '')]))
     # Prompt-only changes and failed image attempts do not postpone mail.
     meta = _read_recap_meta_file(safe_id) or get_ai_recap_page(safe_id)
     if not meta:
@@ -917,6 +923,9 @@ def insert_ai_recap_page(share_id, username, game_type, html_body, subject='',
                          style_instructions='', scene_prompt='',
                          illustrated_players_json=''):
     """Persist a published recap to disk (no SQLite — avoids db disk I/O errors)."""
+    from content_safety import check_publication_text
+    from bs4 import BeautifulSoup
+    check_publication_text((subject or '') + '\n' + BeautifulSoup(html_body or '', 'html.parser').get_text(' ', strip=True))
     safe_id = _safe_recap_share_id(share_id)
     write_recap_html_file(safe_id, html_body)
     _write_json_atomic(_recap_meta_path(safe_id), {
@@ -1274,6 +1283,8 @@ def list_ai_recap_pages(page=1, per_page=25, username=None, usernames=None):
             item for item in pages
             if (item.get('username') or '').strip().lower() == filter_username
         ]
+    from content_safety import filter_content
+    pages = filter_content('recap', pages)
     pages.sort(key=lambda item: item.get('created_at') or '', reverse=True)
     total = len(pages)
     start = (page - 1) * per_page

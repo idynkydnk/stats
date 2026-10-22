@@ -84,12 +84,13 @@ class StandingsTests(unittest.TestCase):
                  for g in self.games]
         sides = lambda game: ([game['winner1'], game['winner2']], [game['loser1'], game['loser2']])
         expected = reference(games, sides, 0)
-        self.assertEqual(other.total_game_name_stats(games), [row + [row[1] + row[2]] for row in expected])
+        self.assertEqual(other.total_game_name_stats(games), [row + [row[1] + row[2], 0] for row in expected])
         with patch.object(other, 'other_year_games', return_value=games):
             for minimum in (1, 40, 100):
-                self.assertEqual(other.other_stats_per_year('All years', minimum), reference(games, sides, minimum))
+                self.assertEqual(other.other_stats_per_year('All years', minimum),
+                                 [row + [row[1] + row[2], 0] for row in reference(games, sides, minimum)])
                 self.assertEqual(other.rare_other_stats_per_year('All years', minimum),
-                                 reference(games, sides, minimum, rare=True))
+                                 [row + [row[1] + row[2], 0] for row in reference(games, sides, minimum, rare=True)])
 
 
 if __name__ == '__main__':

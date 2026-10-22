@@ -3,6 +3,7 @@
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ display_year|default(year) }} Other Stats{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-expand-btn {
             background: var(--sr-panel);
@@ -160,6 +161,7 @@
                                 <th data-column="player">Player</th>
                                 <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="plusminus" class="sr-numeric">+/- <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
@@ -172,9 +174,10 @@
                                 <td class="sr-player"><a href="{{ url_for('player_game_stats', year=display_year|default(year), game_name=game_stats.game_name, player_name=player[0]) }}">{{ player[0] }}</a></td>
                                 <td class="sr-numeric sr-win" data-value="{{ player[1] }}">{{ player[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ player[2] }}">{{ player[2] }}</td>
+                                <td class="sr-numeric" data-value="{{ player[5]|default(0) }}">{{ player[5]|default(0) }}</td>
                                 <td class="sr-numeric" data-value="{{ player[4] }}">{% if player[4] > 0 %}+{% endif %}{{ player[4] }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ player[3] }}">{{ "%.0f"|format(player[3] * 100) }}%</td>
-                                <td class="sr-numeric" data-value="{{ player[1] + player[2] }}">{{ player[1] + player[2] }}</td>
+                                <td class="sr-numeric" data-value="{{ player[1] + player[2] + (player[5]|default(0)) }}">{{ player[1] + player[2] + (player[5]|default(0)) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -194,7 +197,7 @@
                     <div class="sr-today-game-card">
                         <div class="sr-game-header">
                             <div>
-                                <div class="sr-game-title">{{ game['game_name'] }}</div>
+                                <div class="sr-game-title">{{ game['game_name'] }}{% if game.get('is_tie') %}<span class="sr-tie-badge">Tie</span>{% endif %}</div>
                                 <div class="sr-game-date">{{ game['game_time'] or game['game_date_only'] }}</div>
                             </div>
                             {% if session.logged_in and not stats_shared_read_only %}
@@ -205,7 +208,7 @@
                             {% endif %}
                         </div>
                         <div class="sr-game-body">
-                            <div class="sr-team-block winners">
+                            <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'winners' }}">
                                 <div class="sr-team-content">
                                     <div class="sr-team-players">
                                         {% for winner in game['winners'] %}
@@ -220,7 +223,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="sr-team-block losers">
+                            <div class="sr-team-block {{ 'tied' if game.get('is_tie') else 'losers' }}">
                                 <div class="sr-team-content">
                                     <div class="sr-team-players">
                                         {% for loser in game['losers'] %}
@@ -269,6 +272,7 @@
                                 {{ game_rating.header(card) }}
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                                <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                                 <th data-sort="games" class="sr-numeric">Games <span class="sr-sort-arrow">▼</span></th>
                             </tr>
@@ -285,8 +289,9 @@
                                 {{ game_rating.cell(card, stat[0]) }}
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                                 <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                                <td class="sr-numeric" data-value="{{ stat[5]|default(0) }}">{{ stat[5]|default(0) }}</td>
                                 <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
-                                <td class="sr-numeric" data-value="{{ stat[1] + stat[2] }}">{{ stat[1] + stat[2] }}</td>
+                                <td class="sr-numeric" data-value="{{ stat[1] + stat[2] + (stat[5]|default(0)) }}">{{ stat[1] + stat[2] + (stat[5]|default(0)) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

@@ -50,9 +50,15 @@
     <li class="menu-section-label">Admin</li>
     <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin dashboard</a></li>
     <li><a href="{{ url_for('admin_site_updates') }}"><i class="fas fa-bullhorn"></i> Site updates</a></li>
+    <li><a href="/admin/content-reports"><i class="fas fa-flag" aria-hidden="true"></i> Content reports</a></li>
     {% endif %}
     {% else %}
     <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
     {% endif %}
+    <li class="menu-section-label">Help and privacy</li>
+    {% if session.logged_in %}<li><a href="/privacy-settings"><i class="fas fa-shield-alt" aria-hidden="true"></i> Privacy and safety</a></li>{% endif %}
+    <li><a href="/privacy">Privacy policy</a></li>
+    <li><a href="/support">Support</a></li>
+    <li><a href="/community-guidelines">Community guidelines</a></li>
 </ul>

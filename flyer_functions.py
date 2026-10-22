@@ -48,6 +48,8 @@ def insert_flyer_page(
     scene_prompt='',
 ):
     """Persist a new flyer page meta JSON on disk."""
+    from content_safety import check_publication_text
+    check_publication_text('\n'.join([str(value) for value in (players, game_name, location, image_details, scene_prompt) if value]))
     safe_id = _safe_flyer_share_id(share_id)
     meta = {
         'share_id': safe_id,
@@ -85,6 +87,10 @@ def get_flyer_page(share_id):
 @serialized
 def update_flyer_page(share_id, **meta_updates):
     """Update flyer metadata fields on disk."""
+    public_fields = {'title', 'location', 'image_details', 'scene_prompt', 'players', 'game_name'}
+    if public_fields.intersection(meta_updates):
+        from content_safety import check_publication_text
+        check_publication_text('\n'.join(str(value) for key, value in meta_updates.items() if key in public_fields and value))
     safe_id = _safe_flyer_share_id(share_id)
     meta = get_flyer_page(safe_id)
     if not meta:
@@ -192,6 +198,8 @@ def list_flyer_pages(page=1, per_page=25, username=None):
     except Exception:
         pass
 
+    from content_safety import filter_content
+    entries = filter_content('flyer', entries)
     entries.sort(key=lambda e: e.get('created_at') or '', reverse=True)
     total = len(entries)
     start = (page - 1) * per_page

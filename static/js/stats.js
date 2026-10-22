@@ -394,7 +394,8 @@ function rowGamesPlayed(table, row) {
     }
     const wins = cellNumericValue(row, findSortColumnIndex(table, 'wins'));
     const losses = cellNumericValue(row, findSortColumnIndex(table, 'losses'));
-    if (!isNaN(wins) && !isNaN(losses)) return wins + losses;
+    const ties = cellNumericValue(row, findSortColumnIndex(table, 'ties'));
+    if (!isNaN(wins) && !isNaN(losses)) return wins + losses + (isNaN(ties) ? 0 : ties);
     return 0;
 }
 

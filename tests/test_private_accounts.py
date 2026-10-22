@@ -26,6 +26,27 @@ class PrivateAccountTests(unittest.TestCase):
                                          'STATS_RESPONSE_CACHE_DIR': str(Path(self.directory.name) / 'cache')})
         self.env.start()
         self.addCleanup(self.env.stop)
+        # Every filesystem-backed media store stays inside the test sandbox.
+        import admin_functions, flyer_functions, player_functions, ai_auto_send_jobs
+        media = Path(self.directory.name) / 'account-media'
+        media.mkdir()
+        self.account_media_path = media
+        for name in ('recaps', 'flyers', 'photos', 'images'):
+            (media / name).mkdir()
+        self.apple_exchange = patch('apple_account_tokens.exchange_code', return_value='encrypted-test-token')
+        self.apple_revoke = patch('apple_account_tokens.revoke_account_token', return_value=True)
+        for replacement in (
+            patch.object(admin_functions, 'stats_db_path', return_value=self.path),
+            patch.object(admin_functions, '_recap_storage_dir', return_value=str(media / 'recaps')),
+            patch.object(admin_functions, '_legacy_recap_dir', return_value=str(media / 'legacy')),
+            patch.object(admin_functions, 'email_images_dir', return_value=str(media / 'images')),
+            patch.object(flyer_functions, '_flyer_storage_dir', return_value=str(media / 'flyers')),
+            patch.object(player_functions, 'player_photos_dir', return_value=str(media / 'photos')),
+            patch.object(ai_auto_send_jobs, 'stats_db_path', return_value=self.path),
+            self.apple_exchange, self.apple_revoke,
+        ):
+            replacement.start()
+            self.addCleanup(replacement.stop)
         with sqlite3.connect(self.path) as conn:
             conn.executescript('''
                 CREATE TABLE site_users (username TEXT PRIMARY KEY, password_hash TEXT,
@@ -240,11 +261,11 @@ class PrivateAccountTests(unittest.TestCase):
     def test_deactivated_account_and_deleted_account_are_denied(self):
         a = self.register(self.a, 'alice')
         self.a.post('/api/games', headers=a, json={'name': 'Private'})
+        account = account_for_user(self.path, 'alice')
         self.assertEqual(self.a.delete('/api/account', headers=a).status_code, 200)
         self.assertEqual(self.a.get('/api/games', headers=a).status_code, 401)
-        account = account_for_user(self.path, 'alice')
-        with sqlite3.connect(Path(self.directory.name) / 'personal' / (account['id'] + '.db')) as conn:
-            self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [])
+        self.assertIsNone(account_for_user(self.path, 'alice'))
+        self.assertFalse((Path(self.directory.name) / 'personal' / (account['id'] + '.db')).exists())
 
     def test_google_requires_configuration_and_verified_identity(self):
         with patch.dict(os.environ, {'GOOGLE_IOS_CLIENT_ID': ''}):
@@ -322,12 +343,13 @@ class PrivateAccountTests(unittest.TestCase):
                         self.tokens.pop(first.json['token'])
                     else:
                         self.assertEqual(self.a.delete('/api/account', headers=old_headers).status_code, 200)
-                        self.assertIsNone(account_for_user(self.path, old_name)[provider + '_subject'])
+                        self.assertIsNone(account_for_user(self.path, old_name))
                     if legacy_link is True:
                         # Reproduce accounts deleted before identities were released.
                         with sqlite3.connect(self.path) as conn:
-                            conn.execute(f'UPDATE private_accounts SET {provider}_subject=? WHERE username=?',
-                                         (subject, old_name))
+                            conn.execute('INSERT INTO site_users(username,password_hash,active) VALUES (?, ?, 0)', (old_name, 'disabled'))
+                            conn.execute(f'INSERT INTO private_accounts(id,username,{provider}_subject) VALUES (?,?,?)',
+                                         (old_account['id'], old_name, subject))
 
                     fresh = sign_in()
                     self.assertEqual(fresh.status_code, 200, fresh.json)
@@ -340,10 +362,10 @@ class PrivateAccountTests(unittest.TestCase):
                     self.assertEqual(sign_in().json['username'], fresh.json['username'])
                     self.assertEqual(self.a.get('/api/games', headers=old_headers).status_code, 401)
                     old_user = self.service.adminfx.get_site_user(old_name)
-                    if legacy_link == 'admin-deleted':
-                        self.assertIsNone(old_user)
-                    else:
+                    if legacy_link is True:
                         self.assertFalse(old_user['active'])
+                    else:
+                        self.assertIsNone(old_user)
                     with sqlite3.connect(self.path) as conn:
                         self.assertEqual(conn.execute('SELECT * FROM auth_tokens WHERE username=?', (old_name,)).fetchall(), [])
                         self.assertEqual(conn.execute('SELECT * FROM games').fetchall(), [(1, 'Shared player')])

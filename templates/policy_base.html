@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Privacy and support{% endblock %} · Beach Volleyball Statistics</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/policy.css', v='20261021') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header><a class="brand" href="/">Beach Volleyball Statistics</a>
+    <nav aria-label="Help and privacy">
+      <a href="/privacy">Privacy</a><a href="/support">Support</a>
+      <a href="/community-guidelines">Community guidelines</a>
+      {% if signed_in %}<a href="/privacy-settings">Privacy and safety settings</a>{% endif %}
+    </nav>
+  </header>
+  <main id="main">{% block content %}{% endblock %}</main>
+  <footer><a href="/">Back to Stats</a> · <a href="mailto:{{ support_email }}">{{ support_email }}</a></footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

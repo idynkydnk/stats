@@ -1,0 +1,22 @@
+{% extends 'policy_base.html' %}
+{% block title %}Report content{% endblock %}
+{% block content %}
+<h1>Report this {{ content_kind }}</h1>
+<p>Explain what is wrong so the administrator can review it. Do not include passwords or unrelated personal information. <a href="/community-guidelines">Community guidelines</a></p>
+<form data-content-report data-kind="{{ content_kind }}" data-id="{{ content_id }}">
+  <label for="report-reason">What should we review?</label>
+  <textarea id="report-reason" name="reason" minlength="5" maxlength="2000" rows="5" required></textarea>
+  <button class="primary" type="submit">Send report</button>
+  <p class="status" data-report-status role="status" aria-live="polite"></p>
+</form>
+{% if signed_in and content_author %}
+<section data-block-author="{{ content_author }}">
+  <h2>Hide this author's content</h2>
+  <p>Blocking hides this author's recaps and flyers for your account. The administrator still receives your report.</p>
+  <button type="button" data-block-button>Block author</button>
+  <p class="status" data-block-status role="status" aria-live="polite"></p>
+</section>
+{% elif not signed_in %}<p>You can report without signing in. To block an author, sign in and return to this page.</p>{% endif %}
+<noscript><p>JavaScript is required to send this form. You can email <a href="mailto:{{ support_email }}">{{ support_email }}</a> with the content link and your concern.</p></noscript>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/content_safety.js', v='20261021') }}" defer></script>{% endblock %}

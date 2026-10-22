@@ -1,0 +1,13 @@
+{% extends 'policy_base.html' %}
+{% block title %}Content reports{% endblock %}
+{% block content %}
+<h1>Content reports</h1>
+<p>Review open reports promptly. Remove inappropriate content or suspend an abusive author. Dismiss reports only after checking the content. Suspended authors cannot publish, but can still manage their privacy and delete their account.</p>
+<section data-admin-reports>
+  <button type="button" data-reports-refresh>Refresh reports</button>
+  <p class="status" data-reports-status role="status" aria-live="polite"></p>
+  <div data-reports-list></div>
+</section>
+<noscript><p>Enable JavaScript to review reports.</p></noscript>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/content_safety.js', v='20261021') }}" defer></script>{% endblock %}

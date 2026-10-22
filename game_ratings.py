@@ -7,6 +7,7 @@ No inferred ordering among individual losers and no cross-game rating pooling.
 import math
 from collections import defaultdict
 from request_cache import request_cached
+from other_game_outcomes import is_tied_game
 
 HEAD_TO_HEAD_GAMES = {'backgammon', 'scrabble', 'sequence', 'euchre', 'gin rummy',
                       'otrio', 'spot it!', 'sushi go!', 'catan', 'tic-tac-toe', 'ping pong'}
@@ -17,6 +18,9 @@ ROTATING_GAMES = {'kings', 'coed kings/queens', 'vollis kings', 'one dollar wedn
 
 
 def match_teams(game):
+    # The current rating update models decisive results only.
+    if is_tied_game(game):
+        return None
     name = (game.get('game_name') or '').strip().casefold()
     category = (game.get('game_type') or '').strip().casefold()
     volleyball = category == 'volleyball' and name not in ROTATING_GAMES

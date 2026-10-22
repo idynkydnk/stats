@@ -1,0 +1,10 @@
+/* Shared outcome controls and neutral styling for tied games. */
+.sr-result-field { margin-bottom: 16px; }
+.sr-result-field label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--sr-muted); }
+.sr-result-field select { width: 100%; padding: 12px; border: 1px solid var(--sr-line); border-radius: 8px; background: var(--sr-panel); color: var(--sr-text); font: inherit; font-size: 16px; }
+.sr-result-field select:focus { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.sr-result-field p { margin: 8px 0 0; color: var(--sr-muted); font-size: 13px; line-height: 1.45; }
+.sr-tie-badge { display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 6px; background: var(--sr-accent-dim); color: var(--sr-text); font-size: 12px; font-weight: 600; vertical-align: middle; }
+.sr-team-block.tied, .sr-edit-team.tied { background: var(--sr-accent-dim); border-left: 2px solid var(--sr-muted); }
+.sr-team-block.tied .sr-player-score, .sr-team-block.tied .sr-team-score, .sr-edit-team.tied .sr-edit-player-score, .sr-edit-team.tied .sr-edit-team-score, .sr-tie { color: var(--sr-text); }
+.sr-result-t { color: var(--sr-text); font-weight: 700; font-size: 15px; }

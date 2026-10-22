@@ -194,6 +194,16 @@ def _ranking(row, rating_key='rating'):
     return out
 
 
+def _other_ranking(row, today=False):
+    """Other-game records keep draws separate from wins, losses and ratings."""
+    out = _ranking(row[:4])
+    out['ties'] = row[5] if len(row) > 5 else 0
+    out['games'] += out['ties']
+    if today and len(row) > 4:
+        out['plus_minus'] = row[4]
+    return out
+
+
 def _doubles_game_dict(row):
     S = _S()
     return S._api_game_row_to_dict(row)
@@ -225,7 +235,7 @@ def _card_stats(card):
     def rows(items):
         result = []
         for row in (items or []):
-            entry = _ranking(row[:4])
+            entry = _other_ranking(row)
             info = card.get('ratings', {}).get(row[0])
             if info:
                 entry.update(rating=info['rating'], provisional=info['provisional'], rated_games=info['rated_games'])
@@ -689,7 +699,7 @@ def register_ios_api(app):
             today_json.append({
                 'game_name': block.get('game_name'),
                 'game_count': block.get('game_count'),
-                'stats': [_ranking(r, rating_key='plus_minus') for r in (block.get('stats') or [])],
+                'stats': [_other_ranking(r, today=True) for r in (block.get('stats') or [])],
             })
         return jsonify({
             'year': year,
@@ -697,8 +707,8 @@ def register_ios_api(app):
             'showing_previous_year': showing_previous_year,
             'minimum_games': minimum_games,
             'all_years': all_years,
-            'stats': [_ranking(r) for r in (stats or [])],
-            'rare_stats': [_ranking(r) for r in (rare or [])],
+            'stats': [_other_ranking(r) for r in (stats or [])],
+            'rare_stats': [_other_ranking(r) for r in (rare or [])],
             'game_cards': [_card_stats(c) for c in (cards or [])],
             'includes_volleyball': request.args.get('include_volleyball') == '1',
             'today_stats_by_game': today_json,
@@ -777,6 +787,7 @@ def register_ios_api(app):
         return jsonify(_other_game_json(parsed[0] if parsed else {}))
 
     def _other_payload_from_json(data):
+        from other_game_outcomes import parse_is_tie, validate_tie_scores, validate_tie_game_type
         game_type = (data.get('game_type') or '').strip()
         game_name = (data.get('game_name') or '').strip()
         score_type = (data.get('score_type') or 'individual') or 'individual'
@@ -791,10 +802,22 @@ def register_ios_api(app):
         comment = data.get('comment') or data.get('comments') or ''
         team_winner_score = data.get('winner_score')
         team_loser_score = data.get('loser_score')
+        if score_type not in ('team', 'individual', 'none'):
+            raise ValueError('Choose team scores, individual scores, or no scores.')
+        if score_type != 'individual':
+            winner_scores = [''] * len(winners)
+            loser_scores = [''] * len(losers)
+        if score_type != 'team':
+            team_winner_score = team_loser_score = None
+        is_tie = parse_is_tie(data.get('is_tie', False))
+        validate_tie_game_type(is_tie, game_type)
+        validate_tie_scores(is_tie, score_type, winner_scores, loser_scores,
+                            team_winner_score, team_loser_score)
         return {
             'game_type': game_type,
             'game_name': game_name,
             'score_type': score_type,
+            'is_tie': is_tie,
             'winners': winners,
             'losers': losers,
             'winner_scores': winner_scores,
@@ -813,7 +836,10 @@ def register_ios_api(app):
         from other_functions import add_other_stats
         S = _S()
         data = request.get_json(force=True, silent=True) or {}
-        p = _other_payload_from_json(data)
+        try:
+            p = _other_payload_from_json(data)
+        except (ValueError, TypeError) as error:
+            return jsonify({'error': str(error)}), 400
         p['location'] = S._new_game_location(p['location'])
         if not p['game_type'] or not p['game_name'] or not p['winners'] or not p['losers']:
             return jsonify({'error': 'game_type, game_name, winners, and losers required'}), 400
@@ -824,6 +850,7 @@ def register_ios_api(app):
                 p['team_winner_score'], p['team_loser_score'], p['entered_timezone'],
                 entered_by=session.get('username', ''), location=p['location'],
                 one_on_one=data.get('one_on_one') is True,
+                is_tie=p['is_tie'],
             )
         except ValueError as error:
             return jsonify({'error': str(error)}), 400
@@ -852,7 +879,13 @@ def register_ios_api(app):
             return jsonify({'error': 'You can only edit games you entered.'}), 403
         game_row = rows[0]
         data = request.get_json(force=True, silent=True) or {}
-        p = _other_payload_from_json(data)
+        # Older clients do not send the result field when editing a saved tie.
+        if 'is_tie' not in data and hasattr(game_row, 'keys') and 'is_tie' in game_row.keys():
+            data['is_tie'] = game_row['is_tie']
+        try:
+            p = _other_payload_from_json(data)
+        except (ValueError, TypeError) as error:
+            return jsonify({'error': str(error)}), 400
         if not p['game_type'] or not p['game_name'] or not p['winners'] or not p['losers']:
             return jsonify({'error': 'game_type, game_name, winners, and losers required'}), 400
         score_type = p['score_type']
@@ -883,7 +916,7 @@ def register_ios_api(app):
                 + [(int(s) if s not in ('', None) else None) for s in (p['loser_scores'] + [None] * 15)[:15]]
                 + [aggregate_loser_score, p['comment'], S.get_user_now(), game_id]
             )
-            database_update_other_game(conn, game_data)
+            database_update_other_game(conn, game_data, is_tie=p['is_tie'])
             conn.execute('UPDATE other_games SET location = ? WHERE id = ?', (p['location'], game_id))
         S._remember_game_location(p['location'])
         S.clear_stats_cache()
@@ -933,7 +966,7 @@ def register_ios_api(app):
         min_games = player_matchup_min_games(len(games) if games else 0)
         opponents = other_opponent_stats_by_year(name, games, min_games)
         avatar = S.player_avatar_context(name)
-        stat_row = _ranking(stats[0]) if stats and isinstance(stats[0], (list, tuple)) else stats
+        stat_row = _other_ranking(stats[0]) if stats and isinstance(stats[0], (list, tuple)) else stats
         return jsonify({
             'name': name,
             'year': year,

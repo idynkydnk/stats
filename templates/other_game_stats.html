@@ -3,6 +3,7 @@
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ year }} {{ game_name }} Stats{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 .sr-game-card-link {
     font-size: 12px;
@@ -67,6 +68,7 @@
                             {{ game_rating.header(card) }}
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                         </tr>
                     </thead>
@@ -78,6 +80,7 @@
                             {{ game_rating.cell(card, stat[0]) }}
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                             <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                            <td class="sr-numeric" data-value="{{ stat[5]|default(0) }}">{{ stat[5]|default(0) }}</td>
                             <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
                         </tr>
                         {% endfor %}
@@ -101,6 +104,7 @@
                             {{ game_rating.header(card) }}
                             <th data-sort="wins" class="sr-numeric">W <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="losses" class="sr-numeric">L <span class="sr-sort-arrow">▼</span></th>
+                            <th data-sort="ties" class="sr-numeric" title="Ties">T <span class="sr-sort-arrow">▼</span></th>
                             <th data-sort="winpct" class="sr-numeric">Win% <span class="sr-sort-arrow">▼</span></th>
                         </tr>
                     </thead>
@@ -112,6 +116,7 @@
                             {{ game_rating.cell(card, stat[0]) }}
                             <td class="sr-numeric sr-win" data-value="{{ stat[1] }}">{{ stat[1] }}</td>
                             <td class="sr-numeric sr-loss" data-value="{{ stat[2] }}">{{ stat[2] }}</td>
+                            <td class="sr-numeric" data-value="{{ stat[5]|default(0) }}">{{ stat[5]|default(0) }}</td>
                             <td class="sr-numeric sr-winpct" data-value="{{ stat[3] }}">{{ "%.0f"|format(stat[3] * 100) }}%</td>
                         </tr>
                         {% endfor %}
