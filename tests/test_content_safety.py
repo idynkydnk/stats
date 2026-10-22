@@ -65,18 +65,43 @@ class ContentSafetyTests(unittest.TestCase):
         response.json.return_value = {'results': [{'flagged': flagged}]}
         return response
 
-    def test_consent_is_explicit_versioned_scoped_and_revocable(self):
-        self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
+    def test_sharing_defaults_on_and_explicit_choices_are_scoped_and_persistent(self):
+        self.assertTrue(self.client.get('/api/privacy/ai-consent').json['granted'])
+        self.assertEqual(self.client.post('/generate', json={}).status_code, 200)
         self.assertEqual(self.consent(version='old').status_code, 400)
-        self.assertTrue(self.consent().json['granted'])
-        self.sign_in('bob')
-        self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
-        self.sign_in()
         self.assertFalse(self.consent(False).json['granted'])
+        safety.init_safety(self.path)
+        self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
+        self.sign_in('bob')
+        self.assertTrue(self.client.get('/api/privacy/ai-consent').json['granted'])
+        self.sign_in()
+        self.saved.clear()
         self.assertEqual(self.client.post('/generate', json={}).status_code, 403)
         self.assertEqual(self.saved, [])
+        self.assertTrue(self.consent().json['granted'])
+        self.assertEqual(self.client.post('/generate', json={}).status_code, 200)
 
-    def test_no_upload_or_provider_transfer_before_consent(self):
+    def test_legacy_schema_and_old_opt_ins_use_new_default(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('DROP TABLE ai_data_consent')
+            conn.execute('CREATE TABLE ai_data_consent (username TEXT PRIMARY KEY COLLATE NOCASE, '
+                         'version TEXT NOT NULL, granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)')
+            conn.execute("INSERT INTO ai_data_consent(username,version) VALUES ('alice','old')")
+        safety.init_safety(self.path)
+        self.assertTrue(self.client.get('/api/privacy/ai-consent').json['granted'])
+        self.assertFalse(self.consent(False).json['granted'])
+        self.sign_in('bob')
+        self.assertTrue(self.client.get('/api/privacy/ai-consent').json['granted'])
+
+    def test_default_does_not_allow_unauthenticated_generation(self):
+        self.sign_in(None)
+        response = self.client.post('/generate', json={})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json['code'], 'authentication_required')
+        self.assertEqual(self.saved, [])
+
+    def test_no_upload_or_provider_transfer_when_sharing_is_off(self):
+        self.consent(False)
         with patch('requests.post') as post:
             response = self.client.post('/api/upload', data={'photo': (BytesIO(b'photo'), 'face.jpg')},
                                         headers={'Accept': 'application/json'})
@@ -85,6 +110,7 @@ class ContentSafetyTests(unittest.TestCase):
         self.assertEqual(self.saved, [])
 
     def test_cross_origin_and_form_mutations_cannot_change_consent(self):
+        self.consent(False)
         response = self.client.put('/api/privacy/ai-consent', json=dict(granted=True, version=safety.CONSENT_VERSION),
                                    headers={'Origin': 'https://attacker.example'})
         self.assertEqual(response.status_code, 403)
@@ -93,7 +119,6 @@ class ContentSafetyTests(unittest.TestCase):
         self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
 
     def test_flagged_and_unavailable_moderation_never_save(self):
-        self.consent()
         with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=self.moderation_response(True)):
             self.assertEqual(self.client.post('/generate', json={'custom_prompt': 'A story'}).status_code, 400)
         with patch.dict('os.environ', {'OPENAI_API_KEY': ''}):
@@ -103,7 +128,6 @@ class ContentSafetyTests(unittest.TestCase):
         self.assertEqual(self.saved, [])
 
     def test_allowed_content_uses_named_moderation_service(self):
-        self.consent()
         with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=self.moderation_response()) as post:
             response = self.client.post('/generate', json={'custom_prompt': 'Friendly volleyball recap'})
         self.assertEqual(response.status_code, 200)
@@ -169,7 +193,9 @@ class ContentSafetyTests(unittest.TestCase):
         with sqlite3.connect(self.path) as conn:
             conn.execute("INSERT INTO content_reports(reporter,kind,content_id,author,reason) VALUES ('bob','recap','r1','alice','personal details')")
             safety.delete_account_safety_data(conn, 'alice')
-        self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
+        with sqlite3.connect(self.path) as conn:
+            self.assertEqual(conn.execute('SELECT count(*) FROM ai_data_consent WHERE username=?',
+                                          ('alice',)).fetchone()[0], 0)
         self.assertEqual(self.client.get('/api/content/blocked-users').json['users'], [])
         with self.app.test_request_context():
             report = safety.list_reports()[0]
@@ -190,6 +216,8 @@ class ContentSafetyTests(unittest.TestCase):
             self.assertFalse(safety.content_visible('recap', {'username': 'bob', 'share_id': 'r1'}))
 
     def test_admin_cannot_substitute_own_consent_for_content_owner(self):
+        self.sign_in('bob')
+        self.consent(False)
         self.sign_in('admin')
         self.consent()
         with patch.object(safety, '_load_content', return_value={'username': 'bob', 'share_id': 'r1'}), patch('requests.post') as post:

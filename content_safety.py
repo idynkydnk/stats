@@ -1,4 +1,4 @@
-"""Consent, content review, and personal blocking shared by web and native clients.
+"""AI sharing preferences, content review, and personal blocking for web and native clients.
 
 Automated checks are one layer, not a promise that every harmful item is caught.
 Reports remain available for human review. No moderation service failure permits
@@ -25,8 +25,9 @@ CONSENT_DISCLOSURE = (
     'you submit for sharing are also sent to OpenAI to check for harmful content. '
     'Only include people’s photos and personal details when you have their permission. '
     'Generated recaps and flyers have public share links. Automated checks can miss '
-    'harmful content; you can report it for review. You can withdraw this permission '
-    'in AI privacy settings. Withdrawal stops future processing; it does not recall '
+    'harmful content; you can report it for review. AI sharing is on by default when '
+    'you use these features. You can turn it off in Privacy and safety settings. '
+    'Turning it off stops future processing; it does not recall '
     'data already sent. See the privacy policy for retention and deletion details.'
 )
 AI_ENDPOINTS = {
@@ -78,6 +79,7 @@ def init_safety(path):
         conn.executescript('''
         CREATE TABLE IF NOT EXISTS ai_data_consent (
             username TEXT PRIMARY KEY COLLATE NOCASE, version TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
             granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS content_blocks (
             viewer TEXT COLLATE NOCASE, author TEXT COLLATE NOCASE,
@@ -96,13 +98,20 @@ def init_safety(path):
             kind TEXT, content_id TEXT, author TEXT COLLATE NOCASE, assets_json TEXT NOT NULL,
             PRIMARY KEY(kind, content_id));
         ''')
+        # Existing installations recorded only opt-ins. Store an explicit off
+        # choice now so it can override the new default for future requests.
+        columns = {row[1] for row in conn.execute('PRAGMA table_info(ai_data_consent)')}
+        if 'enabled' not in columns:
+            conn.execute('ALTER TABLE ai_data_consent ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1')
 
 
 def consent_state(username=None):
     username = _username() if username is None else username
     with sqlite3.connect(_path()) as conn:
-        row = conn.execute('SELECT version FROM ai_data_consent WHERE username=?', (username,)).fetchone()
-    return dict(version=CONSENT_VERSION, granted=bool(row and row[0] == CONSENT_VERSION),
+        row = conn.execute('SELECT enabled FROM ai_data_consent WHERE username=?', (username,)).fetchone()
+    # Keep the existing response shape for older iPhone clients. The default is
+    # availability, not a claim that the user has made an explicit opt-in.
+    return dict(version=CONSENT_VERSION, granted=bool(username and (row is None or row[0])),
                 disclosure=CONSENT_DISCLOSURE, providers=['OpenAI'])
 
 
@@ -113,8 +122,8 @@ def set_consent(username, granted, version):
         raise ContentSafetyError('Review the current AI privacy notice before choosing.', 'invalid_consent')
     with sqlite3.connect(_path()) as conn:
         conn.execute('DELETE FROM ai_data_consent WHERE username=?', (username,))
-        if granted:
-            conn.execute('INSERT INTO ai_data_consent(username,version) VALUES (?,?)', (username, version))
+        conn.execute('INSERT INTO ai_data_consent(username,version,enabled) VALUES (?,?,?)',
+                     (username, version, int(granted)))
     return consent_state(username)
 
 
@@ -123,11 +132,13 @@ def require_ai_consent():
         return
     owner = getattr(g, 'content_owner', None) if has_request_context() else None
     username = owner or _username()
+    if not username:
+        raise ContentSafetyError('Please sign in first.', 'authentication_required', 401)
     if not consent_state(username)['granted']:
         if owner and owner.casefold() != _username().casefold():
-            raise ContentSafetyError('This content’s creator must allow AI data sharing before it can be changed.',
+            raise ContentSafetyError('This content’s creator has turned off AI sharing. They can turn it on in Privacy and safety settings.',
                                      'content_owner_consent_required', 403)
-        raise ContentSafetyError('Review AI privacy settings and allow data sharing before using this feature.',
+        raise ContentSafetyError('AI sharing is turned off for your account. Turn it on in More → Privacy and safety, or visit https://idynkydnk.pythonanywhere.com/privacy-settings.',
                                  'ai_consent_required', 403)
     with sqlite3.connect(_path()) as conn:
         if conn.execute('SELECT 1 FROM content_suspensions WHERE username=?', (username,)).fetchone():
@@ -135,7 +146,7 @@ def require_ai_consent():
 
 
 def reject_unsupported_ai_provider():
-    # The deployed general-audience app uses only the provider named in consent.
+    # Use only the provider named in the AI sharing notice.
     # Legacy non-app tools retain their separate provider configuration.
     if enabled():
         raise ContentSafetyError('AI generation is temporarily unavailable. OpenAI must be configured for this app.',
@@ -143,7 +154,7 @@ def reject_unsupported_ai_provider():
 
 
 def moderate_content(text='', image_bytes=None, image_mime='image/jpeg'):
-    """Check text/images with OpenAI after consent; never log submitted contents."""
+    """Check text/images with OpenAI when sharing is on; never log submitted contents."""
     if not enabled() or (not text and not image_bytes):
         return
     require_ai_consent()

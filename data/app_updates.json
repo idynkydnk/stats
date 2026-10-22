@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-21-ai-sharing-default",
+    "date": "2026-10-21",
+    "subject": "iPhone: Create AI recaps without an extra setup step",
+    "body": "AI sharing is on by default, so you can create recaps and pictures without first enabling it in privacy settings. You can still turn sharing off or back on in Privacy and safety."
+  },
+  {
     "id": "ios-2026-10-21-tied-games",
     "date": "2026-10-21",
     "subject": "iPhone: Record tied games",

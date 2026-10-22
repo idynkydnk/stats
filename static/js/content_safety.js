@@ -34,7 +34,7 @@
             section.dataset.granted = data.granted ? 'true' : 'false';
             allow.disabled = data.granted;
             withdraw.disabled = !data.granted;
-            status(output, data.granted ? 'Permission is on. You can withdraw it at any time.' : 'Permission is off. Browsing and ordinary game tracking remain available.');
+            status(output, data.granted ? 'AI sharing is on. You can turn it off at any time.' : 'AI sharing is off. Browsing and ordinary game tracking remain available.');
         }
         async function choose(granted) {
             if (!version) return;
