@@ -139,7 +139,7 @@ def add_game_stats(game, updated_by=None):
     all_games.append(full_game)
     return enter_data_into_database(all_games)
 
-def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2, updated_by=None):
+def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2, updated_by=None, location=None):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -150,7 +150,7 @@ def update_game(game_id, game_date, winner1, winner2, winner_score, loser1, lose
             game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2)
         else:
             game = (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, game_id2)
-        return database_update_game(conn, game)
+        return database_update_game(conn, game, location=location)
 
 def _get_db_path():
     database = '/home/Idynkydnk/stats/stats.db'
@@ -840,8 +840,11 @@ def all_games_player(name):
 	row = cur.fetchall()
 	return row
 
-def find_game(id):
+def find_game(id, named=False):
 	cur = set_cur()
+	if named:
+		from sqlite3 import Row
+		cur.row_factory = Row
 	cur.execute("SELECT * FROM games WHERE id=?", (id,))
 	row = cur.fetchall()
 	return row

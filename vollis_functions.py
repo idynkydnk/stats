@@ -105,13 +105,16 @@ def new_vollis_game(game_date, winner, winner_score, loser, loser_score, updated
         )
         create_vollis_game(conn, game)
 
-def find_vollis_game(game_id):
+def find_vollis_game(game_id, named=False):
     cur = set_cur()
+    if named:
+        from sqlite3 import Row
+        cur.row_factory = Row
     cur.execute("SELECT * FROM vollis_games WHERE id=?", (game_id,))
     row = cur.fetchall()
     return row
 
-def edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2):
+def edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2, location=None):
     database = '/home/Idynkydnk/stats/stats.db'
     conn = create_connection(database)
     if conn is None:
@@ -119,7 +122,7 @@ def edit_vollis_game(game_id, game_date, winner, winner_score, loser, loser_scor
         conn = create_connection(database)
     with conn: 
         game = (game_id, game_date, winner, winner_score, loser, loser_score, updated_at, game_id2);
-        database_update_vollis_game(conn, game)
+        database_update_vollis_game(conn, game, location=location)
 
 def remove_vollis_game(game_id):
     database = '/home/Idynkydnk/stats/stats.db'

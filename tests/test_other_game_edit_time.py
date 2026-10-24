@@ -68,6 +68,23 @@ class OtherGameEditTimeTests(unittest.TestCase):
         self.assertIn(b'value="15:31"', response.data)
         self.assertIn(b'name="game_time"', response.data)
 
+    def test_location_can_be_added_changed_cleared_and_retained(self):
+        for fields, expected in (({'location': '  Beach  '}, 'Beach'),
+                                 ({}, 'Beach'),
+                                 ({'location': 'The Oasis'}, 'The Oasis'),
+                                 ({'location': ''}, '')):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.submit(**fields).status_code, 302)
+                self.assertEqual(self.row()['location'], expected)
+                response = self.client.get('/edit_other_game/921/')
+                self.assertIn(b'name="location"', response.data)
+                self.assertIn(f'value="{expected}"'.encode(), response.data)
+
+    def test_invalid_edit_retains_typed_location(self):
+        response = self.submit(game_date='bad', game_time='06:30', location='New court')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'value="New court"', response.data)
+
     def test_correct_time_and_date(self):
         response = self.submit(game_date='2026-10-04', game_time='06:30')
         self.assertEqual(response.status_code, 302)

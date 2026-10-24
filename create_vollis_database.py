@@ -56,7 +56,7 @@ def create_vollis_game(conn, game):
     cur.execute(sql, tuple(value for _, value in fields))
     conn.commit()
 
-def database_update_vollis_game(conn, game):
+def database_update_vollis_game(conn, game, location=None):
     sql = ''' UPDATE vollis_games
               SET id = ? ,
                     game_date = ?,
@@ -68,6 +68,12 @@ def database_update_vollis_game(conn, game):
               WHERE id = ?'''
     cur = conn.cursor()
     cur.execute(sql, game)
+    if location is not None:
+        columns = {row[1] for row in conn.execute('PRAGMA table_info(vollis_games)')}
+        if 'location' not in columns:
+            conn.execute('ALTER TABLE vollis_games ADD COLUMN location TEXT')
+        conn.execute('UPDATE vollis_games SET location = ? WHERE id = ?',
+                     (location.strip(), game[-1]))
     conn.commit()
 
 def database_delete_vollis_game(conn, game_id):

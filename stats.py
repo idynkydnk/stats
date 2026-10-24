@@ -4434,7 +4434,7 @@ def calculate_tile_stats(year, stats, games):
 @login_required
 def update(id):
     game_id = id
-    x = find_game(id)
+    x = find_game(id, named=True)
     if not x:
         flash('Game not found.')
         return redirect(url_for('edit_games', year=str(date.today().year)))
@@ -4458,6 +4458,7 @@ def update(id):
         raw_game[8],  # updated_at
         existing_comment
     ]
+    game_location = (raw_game['location'] or '') if hasattr(raw_game, 'keys') and 'location' in raw_game.keys() else ''
     w_scores = winners_scores()
     l_scores = losers_scores()
     games = year_games(str(date.today().year))
@@ -4480,7 +4481,7 @@ def update(id):
             # Combine date and time into the format expected by the database
             combined_datetime = f"{game_date} {game_time}:00"
             before_row = adminfx.snapshot_row('doubles_game', game_id)
-            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'))
+            update_game(game_id, combined_datetime, winner1, winner2, winner_score, loser1, loser2, loser_score, get_user_now(), comment, game_id, updated_by=session.get('username'), location=request.form.get('location'))
             
             # Clear stats cache after editing a game
             clear_stats_cache()
@@ -4504,7 +4505,7 @@ def update(id):
             else:
                 return redirect(return_url or url_for('edit_games', year=str(date.today().year)))
  
-    return render_template('edit_game.html', return_url=return_url, games_year=games_year, game=game, players=players,
+    return render_template('edit_game.html', return_url=return_url, games_year=games_year, game_location=game_location, game=game, players=players,
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
         from_add_game=request.args.get('from_add_game'))
 
@@ -4562,7 +4563,7 @@ def delete_game(id):
 @login_required
 def update_vollis_game(id):
     game_id = id
-    x = find_vollis_game(game_id)
+    x = find_vollis_game(game_id, named=True)
     if not x:
         abort(404)
     if id not in _editable_game_ids('vollis_games', [id]):
@@ -4570,6 +4571,7 @@ def update_vollis_game(id):
     games_year = request.form.get('games_year') or request.args.get('games_year')
     return_url = url_for('vollis_games', year=games_year) if games_year else None
     game = [x[0][0], x[0][1], x[0][2], x[0][3], x[0][4], x[0][5], x[0][6]]
+    game_location = (x[0]['location'] or '') if hasattr(x[0], 'keys') and 'location' in x[0].keys() else ''
     games = vollis_year_games(str(date.today().year))
     players = all_vollis_players(games)
     if request.method == 'POST':
@@ -4582,7 +4584,7 @@ def update_vollis_game(id):
             flash('All fields required!')
         else:
             before_row = adminfx.snapshot_row('vollis_game', game_id)
-            edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, get_user_now(), game_id)
+            edit_vollis_game(game_id, game[1], winner, winner_score, loser, loser_score, get_user_now(), game_id, location=request.form.get('location'))
             
             # Log the action for the activity feed
             user = session.get('username', 'unknown')
@@ -4594,7 +4596,7 @@ def update_vollis_game(id):
             
             return redirect(return_url or url_for('edit_vollis_games', year=str(date.today().year)))
  
-    return render_template('edit_vollis_game.html', return_url=return_url, games_year=games_year, game=game, players=players, year=str(date.today().year))
+    return render_template('edit_vollis_game.html', return_url=return_url, games_year=games_year, game_location=game_location, game=game, players=players, year=str(date.today().year))
 
 
 @app.route('/delete_vollis_game/<int:id>/',methods = ['GET','POST'])
@@ -5054,7 +5056,7 @@ def update_other_game(id):
                     + [(int(score) if score not in ("", None) else None) for score in (loser_scores + [None] * 15)[:15]]
                     + [aggregate_loser_score, comment, get_user_now(), game_id]
                 )
-                database_update_other_game(conn, game_data, is_tie=is_tie)
+                database_update_other_game(conn, game_data, is_tie=is_tie, location=request.form.get('location'))
             
             # Log the action for the activity feed
             user = session.get('username', 'unknown')

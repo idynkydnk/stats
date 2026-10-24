@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from create_games_database import create_game, database_update_game, database_delete_game
 from create_other_database import BASE_INSERT_COLUMNS, create_other_game
-from create_vollis_database import create_vollis_game
+from create_vollis_database import create_vollis_game, database_update_vollis_game
 from email_content import (
     _summary_location_from_rows,
     build_scene_image_prompt,
@@ -51,6 +51,12 @@ class GameLocationTests(unittest.TestCase):
             conn.execute('SELECT winner_score, loser_score, location, updated_by FROM games WHERE id=?', (game_id,)).fetchone(),
             (22, 20, 'Mission Beach', 'tester'),
         )
+        for location in ('  The Oasis  ', ''):
+            database_update_game(conn, (
+                game_id, game[0], 'A', 'B', 22, 'C', 'D', 20,
+                game[7], 'Updated score', 'tester', game_id,
+            ), location=location)
+            self.assertEqual(conn.execute('SELECT location FROM games').fetchone()[0], location.strip())
         database_delete_game(conn, game_id)
         self.assertEqual(conn.execute('SELECT COUNT(*) FROM games').fetchone()[0], 0)
         conn.close()
@@ -79,6 +85,14 @@ class GameLocationTests(unittest.TestCase):
             conn.execute('SELECT location FROM vollis_games').fetchone()[0],
             'Mission Beach',
         )
+        game_id = conn.execute('SELECT id FROM vollis_games').fetchone()[0]
+        for location in ('  The Oasis  ', None, ''):
+            database_update_vollis_game(conn, (
+                game_id, '2026-09-03 10:00:00', 'A', 11, 'B', 9,
+                '2026-09-03 11:00:00', game_id,
+            ), location=location)
+            expected = 'The Oasis' if location is None else location.strip()
+            self.assertEqual(conn.execute('SELECT location FROM vollis_games').fetchone()[0], expected)
         conn.close()
 
     def test_other_insert_adds_and_saves_location_column(self):

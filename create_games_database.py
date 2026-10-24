@@ -76,7 +76,7 @@ def create_game(conn, game):
     _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
     return new_id
 
-def database_update_game(conn, game):
+def database_update_game(conn, game, location=None):
     from game_entry_ownership import ensure_game_entry_owner
     ensure_game_entry_owner(conn, 'games')
     # game: (game_id, game_date, winner1, winner2, winner_score, loser1, loser2, loser_score, updated_at, comments, updated_by, game_id2) when len==12
@@ -105,6 +105,12 @@ def database_update_game(conn, game):
                   SET game_date = ?, winner1 = ?, winner2 = ?, winner_score = ?, loser1 = ?, loser2 = ?, loser_score = ?, updated_at = ?, comments = ?
                   WHERE id = ?'''
         cur.execute(sql, (game[1], game[2], game[3], game[4], game[5], game[6], game[7], game[8], game[9], game[10]))
+    if location is not None:
+        columns = {row[1] for row in conn.execute('PRAGMA table_info(games)')}
+        if 'location' not in columns:
+            conn.execute('ALTER TABLE games ADD COLUMN location TEXT')
+        conn.execute('UPDATE games SET location = ? WHERE id = ?',
+                     (location.strip(), game[-1]))
     conn.commit()
     _update_player_last_played(conn, game[1], game[2], game[3], game[5], game[6])
 

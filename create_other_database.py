@@ -96,7 +96,7 @@ def create_other_game(conn, game, is_tie=False):
     conn.commit()
 
 
-def database_update_other_game(conn, game, is_tie=None):
+def database_update_other_game(conn, game, is_tie=None, location=None):
     game = list(game)
     ensure_other_game_outcome_column(conn)
     if is_tie is None:
@@ -112,6 +112,12 @@ def database_update_other_game(conn, game, is_tie=None):
               WHERE id = ?"""
     cur = conn.cursor()
     cur.execute(sql, game)
+    if location is not None:
+        columns = {row[1] for row in conn.execute('PRAGMA table_info(other_games)')}
+        if 'location' not in columns:
+            conn.execute('ALTER TABLE other_games ADD COLUMN location TEXT')
+        conn.execute('UPDATE other_games SET location = ? WHERE id = ?',
+                     (location.strip(), game[-1]))
     conn.commit()
 
 def database_delete_other_game(conn, game_id):
