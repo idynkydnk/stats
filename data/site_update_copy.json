@@ -322,5 +322,9 @@
   "f0bc70c9e409406c73f0867789e46b0fdab33def": {
     "subject": "Keep AI character details in group pictures",
     "body": "Group pictures and flyers now ask to preserve saved AI characters, including their clothing, pets, and props, and ignore separate signature traits when a character is available."
+  },
+  "953792e4442bd46af45b606e0ec82488eea5ac60": {
+    "subject": "Change a game's location",
+    "body": "You can now change or clear the location when editing doubles, one-on-one, and other games."
   }
 }
