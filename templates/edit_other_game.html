@@ -149,11 +149,8 @@
         <div class="sr-form-container">
             <form method="post" action="{{ url_for('update_other_game', id=game['id']) }}" id="edit-other-form">
                 {% if games_year %}<input type="hidden" name="games_year" value="{{ games_year }}">{% endif %}
-                <div class="autocomplete has-clear">
-                    <input type="text" name="location" id="location" aria-label="Location" placeholder="Location (optional)" maxlength="160"
-                           value="{{ request.form.get('location', game.get('location') or '') }}">
-                    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear location"><i class="fas fa-times"></i></button>
-                </div>
+                {% set location_value = request.form.get('location', game.get('location') or '') %}
+                {% include 'partials/edit_game_location.html' %}
                 <datalist id="players">{% for player in players %}<option value="{{ player }}">{% endfor %}</datalist>
                 <datalist id="game_names">{% for name in (game_names | default([])) %}<option value="{{ name }}">{% endfor %}</datalist>
                 <datalist id="game_types">{% for type in (game_types | default([])) %}<option value="{{ type }}">{% endfor %}</datalist>

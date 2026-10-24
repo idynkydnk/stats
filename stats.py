@@ -4505,7 +4505,7 @@ def update(id):
             else:
                 return redirect(return_url or url_for('edit_games', year=str(date.today().year)))
  
-    return render_template('edit_game.html', return_url=return_url, games_year=games_year, game_location=game_location, game=game, players=players,
+    return render_template('edit_game.html', return_url=return_url, games_year=games_year, locations=saved_game_locations(), game_location=game_location, game=game, players=players,
         w_scores=w_scores, l_scores=l_scores, year=str(date.today().year),
         from_add_game=request.args.get('from_add_game'))
 
@@ -4596,7 +4596,7 @@ def update_vollis_game(id):
             
             return redirect(return_url or url_for('edit_vollis_games', year=str(date.today().year)))
  
-    return render_template('edit_vollis_game.html', return_url=return_url, games_year=games_year, game_location=game_location, game=game, players=players, year=str(date.today().year))
+    return render_template('edit_vollis_game.html', return_url=return_url, games_year=games_year, locations=saved_game_locations(), game_location=game_location, game=game, players=players, year=str(date.today().year))
 
 
 @app.route('/delete_vollis_game/<int:id>/',methods = ['GET','POST'])
@@ -5069,7 +5069,7 @@ def update_other_game(id):
             
             return redirect(return_url or url_for('edit_other_games', year=str(date.today().year)))
  
-    return render_template('edit_other_game.html', return_url=return_url, games_year=games_year, game=game_data_dict, players=players, year=str(date.today().year),
+    return render_template('edit_other_game.html', return_url=return_url, games_year=games_year, locations=saved_game_locations(), game=game_data_dict, players=players, year=str(date.today().year),
         game_names=game_names, game_types=game_types, winner_count=winner_count, loser_count=loser_count)
 
 

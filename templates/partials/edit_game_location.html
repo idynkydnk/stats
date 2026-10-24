@@ -1,0 +1,7 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/edit-game-location.css') }}">
+<div class="autocomplete has-clear game-location{% if not location_value %} empty{% endif %}" data-locations="{{ locations|default([])|tojson|forceescape }}">
+    <input type="text" name="location" id="location" aria-label="Location" placeholder="Location (optional)" autocomplete="off" maxlength="160" value="{{ location_value }}">
+    <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear location"><i class="fas fa-times"></i></button>
+    <div class="autocomplete-list" id="locationList"></div>
+</div>
+<script src="{{ url_for('static', filename='js/edit-game-location.js') }}" defer></script>

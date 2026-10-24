@@ -32,10 +32,8 @@
 	<div>
 	   <form method="post">
               {% if games_year %}<input type="hidden" name="games_year" value="{{ games_year }}">{% endif %}
-                <div class="autocomplete has-clear">
-                    <input type="text" name="location" id="location" aria-label="Location" placeholder="Location (optional)" maxlength="160"
-                           value="{{ request.form.get('location', game_location or '') }}">
-                </div>
+                {% set location_value = request.form.get('location', game_location or '') %}
+                {% include 'partials/edit_game_location.html' %}
 			  <datalist id="players">
 					 {% for player in players %}
 							<option value= "{{ player }}">

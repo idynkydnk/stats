@@ -42,7 +42,7 @@ class OtherGameEditTimeTests(unittest.TestCase):
                          find_other_game=lambda game_id: self.conn.execute(
                              'SELECT * FROM other_games WHERE id=?', (game_id,)).fetchall(),
                          other_year_games=lambda year: [], all_other_players=lambda games: [],
-                         other_game_names=lambda games: [], other_game_types=lambda games: [],
+                         other_game_names=lambda games: [], other_game_types=lambda games: [], saved_game_locations=lambda: ['Beach', 'The Oasis'],
                          get_user_now=lambda: '2026-10-05 16:00:00',
                          adminfx=SimpleNamespace(snapshot_row=Mock(return_value=None)),
                          log_user_action=Mock(), log_activity=Mock())

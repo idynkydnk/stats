@@ -42,7 +42,7 @@ class GameEditPermissionTests(unittest.TestCase):
             all_players=lambda games: [], vollis_year_games=lambda year: [],
             all_vollis_players=lambda games: [], other_year_games=lambda year: [],
             all_other_players=lambda games: [], other_game_names=lambda games: [],
-            other_game_types=lambda games: [], render_template=lambda *a, **kw: 'editor',
+            other_game_types=lambda games: [], saved_game_locations=lambda: ['Beach', 'The Oasis'], render_template=lambda *a, **kw: 'editor',
             update_game=self.writes, edit_vollis_game=self.writes,
             clear_stats_cache=Mock(), update_kobs=Mock(), log_user_action=Mock(), log_activity=Mock(),
             get_user_now=lambda: '2026-10-05 11:00:00',

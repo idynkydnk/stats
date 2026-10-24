@@ -1,0 +1,26 @@
+.game-location { position: relative; margin-bottom: 12px; }
+.game-location input {
+    width: 100%; padding: 14px 40px 14px 16px; box-sizing: border-box;
+    background: var(--sr-panel); border: 1px solid var(--sr-line);
+    border-radius: 10px; color: var(--sr-text); font-size: 16px; text-align: center;
+}
+.game-location input:focus { outline: none; border-color: var(--sr-accent); }
+.game-location .clear-field-btn {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; border: none; border-radius: 6px;
+    background: rgba(255,255,255,0.08); color: var(--sr-muted); cursor: pointer;
+    display: none; align-items: center; justify-content: center; z-index: 2;
+}
+.game-location:not(.empty) .clear-field-btn { display: flex; }
+.game-location .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--sr-panel); border: 1px solid var(--sr-line);
+    border-radius: 10px; margin-top: 4px; z-index: 100;
+    max-height: 300px; overflow-y: auto;
+}
+.game-location .autocomplete-list div {
+    padding: 12px 16px; cursor: pointer; font-size: 18px;
+    line-height: 1.4; border-bottom: 1px solid var(--sr-line);
+}
+.game-location .autocomplete-list div:last-child { border-bottom: none; }
+.game-location .autocomplete-list div:hover { background: var(--sr-accent-dim); color: var(--sr-accent); }
