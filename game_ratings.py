@@ -64,7 +64,7 @@ def _decisive_deltas(prior, winners, losers):
             for side, sign in ((winners, 1), (losers, -1)) for p in side}
 
 
-def rate_matches(matches):
+def rate_matches(matches, rating_observer=None):
     """Replay validated sides; one winner/multiple losers means individuals.
 
     Multiplayer updates average winner-versus-loser deltas from the same
@@ -73,7 +73,7 @@ def rate_matches(matches):
     """
     ratings = defaultdict(lambda: (25.0, 25.0 / 3))
     counts, opponents = defaultdict(int), defaultdict(set)
-    for winners, losers in matches:
+    for game_index, (winners, losers) in enumerate(matches):
         players = winners + losers
         prior = {p: (ratings[p][0], ratings[p][1] ** 2 + (25 / 300) ** 2) for p in players}
         if len(winners) == 1 and len(losers) > 1:
@@ -93,6 +93,9 @@ def rate_matches(matches):
                 counts[p] += 1
                 # Losing players were not compared with one another.
                 opponents[p].update(rivals)
+                if rating_observer is not None:
+                    mu, sigma = ratings[p]
+                    rating_observer(game_index, p, round(mu - 3 * sigma, 2))
     return {p: {'rating': round(mu - 3 * sigma, 2), 'mu': mu, 'sigma': sigma,
                 'rated_games': counts[p], 'opponents': len(opponents[p]),
                 'provisional': counts[p] < 10 or len(opponents[p]) < 3 or sigma > 6}

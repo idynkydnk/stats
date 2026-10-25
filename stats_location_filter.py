@@ -7,6 +7,9 @@ without changing stored games or leaking a filter to another request.
 from flask import has_request_context, request
 
 STATS_ENDPOINTS = {
+    'api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
+    'api_vollis_stats', 'api_vollis_player', 'api_vollis_list',
+    'api_other_stats', 'api_other_player', 'api_other_list', 'api_volleyball_stats',
     'index', 'stats', 'stats_default', 'stats_by_date', 'games', 'games_default',
     'vollis_stats', 'vollis_stats_default', 'vollis_games', 'vollis_games_default',
     'other_stats', 'other_stats_default', 'other_games', 'other_games_default',

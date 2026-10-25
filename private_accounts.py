@@ -25,6 +25,8 @@ DATA_TABLES = {
 }
 GOOGLE_IOS_CLIENT_ID = '195048170299-63t84plh4cae8a7r5nk70d8l8hkr3t8p.apps.googleusercontent.com'
 PRIVATE_ENDPOINTS = {
+    'seasons_list', 'season_create', 'season_detail', 'season_edit', 'season_delete',
+    'season_share', 'season_public', 'api_seasons', 'api_season', 'api_season_share',
     'image_preview', 'performance_sample', 'performance_report',
     'api_me', 'api_logout', 'api_years',
     'api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
@@ -61,6 +63,7 @@ PRIVATE_ENDPOINTS = {
     'report_content_page',
 }
 PREVIEW_ENDPOINTS = {
+    'account_stats_share',
     'api_years', 'api_doubles_stats', 'api_doubles_player',
     'api_doubles_list', 'api_doubles_get', 'api_vollis_stats', 'api_vollis_player',
     'api_vollis_list', 'api_vollis_get', 'api_other_stats', 'api_other_player',
@@ -242,7 +245,7 @@ def register_private_accounts(app, service):
             return jsonify(error='This account is inactive.'), 401
         account = account_for_user(site_path, username)
         if account:
-            if request.endpoint not in PRIVATE_ENDPOINTS | PERSONAL_WEB_ENDPOINTS | {'account_stats_sources', 'account_stats_sharing', 'stats_sources_page', 'passkey_settings'}:
+            if request.endpoint not in PRIVATE_ENDPOINTS | PERSONAL_WEB_ENDPOINTS | {'account_stats_sources', 'account_stats_sharing', 'account_stats_share', 'stats_time_frame', 'stats_sources_page', 'passkey_settings'}:
                 return jsonify(error='This feature is not available for personal accounts.'), 403
             g.private_account = account
             g.private_database = provision_database(site_path, account['id'])

@@ -112,3 +112,28 @@ class SharedDateRangeTests(unittest.TestCase):
         self.assertNotIn(b'Outside range', shared.data)
         unfiltered = self.b.get('/stats/All%20years/', follow_redirects=True)
         self.assertIn(b'Outside range', unfiltered.data)
+
+
+class APIDateRangeTests(DateRangeQueries):
+    def test_api_filters_and_pagination_totals(self):
+        from game_browse_page import game_page
+        endpoints = ['api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
+                     'api_vollis_stats', 'api_vollis_player', 'api_vollis_list',
+                     'api_other_stats', 'api_other_player', 'api_other_list', 'api_volleyball_stats']
+        for endpoint in endpoints:
+            self.app.add_url_rule('/' + endpoint, endpoint, lambda: '')
+            with self.app.test_request_context('/' + endpoint + '?year=All+years&start_date=2011-01-01&end_date=2011-02-01&location=California&limit=1'):
+                for table in ('games', 'vollis_games', 'other_games'):
+                    with sqlite3.connect(self.path) as conn:
+                        filter_stats_connection(conn, table)
+                        rows, page = game_page(conn, table)
+                        self.assertEqual([row[0] for row in rows], [2])
+                        self.assertEqual(page, {'total': 1, 'next_offset': None})
+
+    def test_api_range_overrides_year_and_rejects_invalid_days(self):
+        register_stats_date_filter(self.app)
+        self.app.add_url_rule('/api/doubles/stats', 'api_doubles_stats', lambda: 'OK')
+        result = self.app.test_client().get('/api/doubles/stats?year=2026&start_date=2025-12-31&end_date=2026-01-02')
+        self.assertEqual(result.status_code, 302)
+        self.assertEqual(parse_qs(urlsplit(result.location).query)['year'], ['All years'])
+        self.assertEqual(self.app.test_client().get('/api/doubles/stats?start_date=2026-02-30&end_date=2026-03-01').status_code, 400)

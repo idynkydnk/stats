@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-25-seasons",
+    "date": "2026-10-25",
+    "subject": "iPhone: Create and share seasons",
+    "body": "Create a named season with your own game entries, dates, and an automatic or custom minimum games requirement. Browse one game at a time, follow standings and season awards, keep your place when returning to a screen, and share read-only links that also work on the website."
+  },
+  {
+    "id": "ios-2026-10-24-custom-days-location",
+    "date": "2026-10-24",
+    "subject": "iPhone: Stats for custom days and locations",
+    "body": "Choose Custom time frame or Location in the More menu to narrow standings, player stats, and game lists. Both boundary days are included, and copied stats links share the same dates, location, and selected stats sources."
+  },
+  {
     "id": "ios-2026-10-21-ai-sharing-default",
     "date": "2026-10-21",
     "subject": "iPhone: Create AI recaps without an extra setup step",

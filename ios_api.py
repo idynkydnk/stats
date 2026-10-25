@@ -12,6 +12,7 @@ from private_accounts import connect_data, private_database
 from datetime import date, datetime, timedelta
 from functools import wraps
 
+from stats_location_filter import active_location_filter
 from flask import g, jsonify, request, session, url_for
 from werkzeug.security import generate_password_hash
 
@@ -308,12 +309,14 @@ def register_ios_api(app):
     @app.route('/api/years')
     def api_years():
         from stat_functions import grab_all_years
+        from database_functions import saved_game_locations
         from vollis_functions import all_vollis_years
         from other_functions import all_other_years
         return jsonify({
             'doubles': grab_all_years(),
             'vollis': __import__('one_on_one').years() if request.args.get('one_on_one') == '1' else all_vollis_years(),
             'other': all_other_years(),
+            'locations': saved_game_locations(),
         })
 
     # ----- Doubles stats (public) -----
@@ -332,7 +335,7 @@ def register_ios_api(app):
         minimum_games = max(1, game_count // 30)
         all_years = grab_all_years()
         stats = stats_per_year(year, minimum_games)
-        if not stats and year == current_year and all_years:
+        if not stats and year == current_year and all_years and not any(active_location_filter()):
             previous_year = str(int(current_year) - 1)
             if previous_year in all_years:
                 previous_game_count = year_games_count(previous_year)
@@ -446,7 +449,7 @@ def register_ios_api(app):
         showing_previous_year = False
         all_years = all_vollis_years()
         stats = vollis_stats_per_year(year, 0)
-        if not stats and year == current_year and all_years:
+        if not stats and year == current_year and all_years and not any(active_location_filter()):
             previous_year = str(int(current_year) - 1)
             if previous_year in all_years:
                 stats = vollis_stats_per_year(previous_year, 0)
@@ -678,7 +681,7 @@ def register_ios_api(app):
         games = other_year_games(year)
         minimum_games = 1 if not games or len(games) < 30 else len(games) // 30
         stats = other_stats_per_year(year, minimum_games)
-        if not stats and year == current_year and all_years:
+        if not stats and year == current_year and all_years and not any(active_location_filter()):
             previous_year = str(int(current_year) - 1)
             if previous_year in all_years:
                 games = other_year_games(previous_year)

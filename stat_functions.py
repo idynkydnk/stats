@@ -1806,7 +1806,7 @@ def _calculate_trueskill_rankings_fresh(year=None):
 	return _calculate_trueskill_from_games(games)
 
 
-def _calculate_trueskill_from_games(games):
+def _calculate_trueskill_from_games(games, rating_observer=None):
 	"""Shared rating engine; callers supply games in chronological order."""
 	import math
 	from collections import defaultdict
@@ -1824,7 +1824,7 @@ def _calculate_trueskill_from_games(games):
 	})
 	
 	# Process games chronologically
-	for game in games:
+	for game_index, game in enumerate(games):
 		# Get teams
 		winners = [game[2], game[3]]  # winner1, winner2
 		losers = [game[5], game[6]]   # loser1, loser2
@@ -1878,6 +1878,10 @@ def _calculate_trueskill_from_games(games):
 			
 			player_ratings[loser]['mu'] = old_mu + mu_multiplier * loser_v
 			player_ratings[loser]['sigma'] = math.sqrt((old_sigma**2 + TAU**2) * (1 - sigma_multiplier * loser_w))
+		if rating_observer is not None:
+			for player in winners + losers:
+				value = player_ratings[player]
+				rating_observer(game_index, player, round(value['mu'] - 3 * value['sigma'], 2))
 	
 	# Calculate minimum games requirement
 	if len(games) < 30:

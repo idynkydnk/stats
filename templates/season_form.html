@@ -1,0 +1,31 @@
+{% extends 'season_base.html' %}
+{% block title %}{{ 'Edit' if editing else 'Create' }} season{% endblock %}
+{% block season_title %}{{ 'Edit' if editing else 'Create' }} season{% endblock %}
+{% block season_content %}
+<div class="sr-card season-form">
+    <p>Choose the dates for your own game entries. Your season syncs with the app.</p>
+    {% if error %}<p role="alert" class="sr-flash" id="season-form-error" tabindex="-1">{{ error }}</p>{% endif %}
+    <form method="post" class="season-fields" data-season-form data-busy-label="Saving…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="group" value="{{ request.values.get('group', '') }}">
+        <label for="season-name">Season name</label>
+        <input id="season-name" name="name" value="{{ values.name }}" maxlength="80" autocomplete="off" placeholder="e.g. Winter league" required>
+        <div class="season-grid">
+            <div><label for="season-start">Start day</label><input id="season-start" name="start_date" type="date" value="{{ values.start_date }}" required></div>
+            <div><label for="season-end">End day</label><input id="season-end" name="end_date" type="date" value="{{ values.end_date }}" min="{{ values.start_date }}" required></div>
+        </div>
+        <p class="sr-muted">Both days are included.</p>
+        <label for="season-minimum-mode">Minimum games per player</label>
+        <select name="minimum_mode" id="season-minimum-mode" aria-describedby="season-minimum-help">
+            <option value="automatic" {% if values.minimum_mode == 'automatic' %}selected{% endif %}>Automatic · same as the site</option>
+            <option value="fixed" {% if values.minimum_mode == 'fixed' %}selected{% endif %}>Choose a fixed number</option>
+        </select>
+        <p id="season-minimum-help" class="sr-muted">Automatic divides each game format’s total games by 30, rounds down, and uses at least 1. It adapts to how busy your season is.</p>
+        <details class="season-help"><summary>Why use automatic?</summary><p>{{ minimum_explanation }}</p></details>
+        <div id="season-fixed-minimum" {% if values.minimum_mode == 'automatic' %}hidden{% endif %}><label for="season-minimum">Fixed minimum</label><input id="season-minimum" name="minimum_games" type="number" inputmode="numeric" min="1" max="100000" step="1" value="{{ values.minimum_games or 1 }}"></div>
+        <noscript><style>#season-fixed-minimum[hidden] { display: block; }</style></noscript>
+        <p class="sr-muted">Players below the minimum stay visible with their progress. Your season stays private until you share it.</p>
+        <div class="season-actions"><button class="sr-link-btn sr-link-btn-accent" type="submit">{{ 'Save changes' if editing else 'Create season' }}</button><a class="sr-link-btn" href="{{ cancel_url }}">Cancel</a></div>
+    </form>
+</div>
+{% endblock %}

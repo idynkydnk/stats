@@ -49,6 +49,11 @@ def register_stats_date_filter(app):
 
     @app.before_request
     def normalize_stats_date_range():
+        if active_date_range() and request.endpoint.startswith('api_') and request.args.get('year') != 'All years':
+            values = dict(request.args)
+            values.update(request.view_args or {})
+            values['year'] = 'All years'
+            return redirect(url_for(request.endpoint, **values))
         if active_date_range() and request.view_args and 'year' in request.view_args:
             if request.view_args['year'] != 'All years':
                 values = dict(request.args)

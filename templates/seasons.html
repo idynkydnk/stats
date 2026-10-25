@@ -1,0 +1,25 @@
+{% extends 'season_base.html' %}
+{% block title %}Seasons{% endblock %}
+{% block season_content %}
+<p>Your seasons use only games you entered. Select a season for standings, player stats, and awards.</p>
+<p><a class="sr-link-btn sr-link-btn-accent" href="{{ url_for('season_create') }}">Create season</a></p>
+<div class="season-grid" id="season-library" data-season-items>
+{% for season in seasons %}
+<a class="sr-card season-card" href="{{ url_for('season_detail', season_id=season.id) }}">
+    <p class="sr-section-label">{{ season.status }}</p><h2>{{ season.name }}</h2>
+    <p>{{ season.start_date }} – {{ season.end_date }}</p>
+    <p class="sr-muted">{{ 'Automatic minimum games' if season.minimum_games is none else (season.minimum_games|string + ' games to qualify') }}</p>
+</a>
+{% else %}<div class="sr-card"><h2>Your first season</h2><p>Choose a name and dates to bring a league, tournament, or stretch of games together.</p></div>{% endfor %}
+</div>
+{% if seasons|length > 25 %}<button type="button" class="sr-link-btn season-show-more" data-season-expand="season-library" aria-controls="season-library" aria-expanded="false" hidden>Show all {{ seasons|length }} seasons</button>{% endif %}
+<section class="sr-card season-block">
+    <h2>All-time champions board</h2>
+    <p class="sr-muted">Completed seasons, with each game format’s champion, win percentage, and final rating. Equal results share the title.</p>
+    {% if champions %}<div class="sr-table-wrap"><table class="sr-table"><thead><tr><th>Season</th><th>Game</th><th>Champion</th><th class="sr-numeric">Win%</th><th class="sr-numeric">Rating</th></tr></thead><tbody id="season-champions" data-season-rows>
+    {% for winner in champions %}<tr><td><a href="{{ url_for('season_detail', season_id=winner.season_id) }}">{{ winner.season_name }}</a><br><small>{{ winner.start_date }} – {{ winner.end_date }}</small></td><td>{{ winner.group_title }}</td><td><a href="{{ url_for('season_detail', season_id=winner.season_id, group=winner.group_id, player=winner.name) }}">{{ winner.name }}</a></td><td class="sr-numeric">{{ '%.0f'|format(winner.win_pct * 100) }}%</td><td class="sr-numeric sr-rating">{{ '%.2f'|format(winner.rating) if winner.rating is not none else '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if champions|length > 25 %}<button type="button" class="sr-link-btn season-show-more" data-season-expand="season-champions" aria-controls="season-champions" aria-expanded="false" hidden>Show all {{ champions|length }} champions</button>{% endif %}
+    {% else %}<p>Champions will appear here after a season ends and players qualify.</p>{% endif %}
+</section>
+{% endblock %}

@@ -158,6 +158,7 @@ def delete_identity_and_data(site_path, account, private_path, recap_ids):
             ('stats_source_group', 'username'), ('account_stats_sources', 'viewer'),
             ('account_stats_sources', 'owner'), ('apple_account_tokens', 'username'),
             ('account_deletion_work', 'username'),
+            ('seasons', 'owner'),
         ):
             _delete_matching(conn, table, column, username)
         if email:

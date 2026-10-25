@@ -39,12 +39,14 @@
 
     {% if session.logged_in %}
     <li class="menu-section-label">Browse</li>
+    <li><a href="{{ url_for('seasons_list') }}"><i class="fas fa-calendar-alt"></i> Seasons</a></li>
     <li><a href="{{ url_for('stats_sources_page') }}"><i class="fas fa-layer-group"></i> Stats to include</a></li>
     <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
     <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>
 
     <li class="menu-section-label">Create</li>
+    <li><a href="{{ url_for('season_create') }}"><i class="fas fa-calendar-plus"></i> Season</a></li>
     <li><a href="{{ url_for('ai_summary') }}"><i class="fas fa-share-alt"></i> AI Recap</a></li>
     <li><a href="{{ url_for('create_flyer') }}"><i class="fas fa-bullhorn"></i> Flyer</a></li>
 

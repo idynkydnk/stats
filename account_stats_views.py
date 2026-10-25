@@ -462,6 +462,18 @@ def register_stats_views(app, service, site_path):
             except FileNotFoundError:
                 pass
 
+    @app.get('/api/account/stats-share')
+    def account_stats_share():
+        username = current_user()
+        if request.args.get('preview') == '1':
+            username = None
+        sources = (sources_for_user(site_path, username, service.is_admin(username))
+                   if username and request.args.get('owned') != '1' else [])
+        token = share_selection(username, sources)
+        if not token:
+            return jsonify(error='These stats include a source that cannot be shared.'), 403
+        return jsonify(view=token)
+
     @app.route('/api/account/stats-sources', methods=['GET', 'PUT'])
     def account_stats_sources():
         username = current_user()

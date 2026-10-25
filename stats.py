@@ -7558,6 +7558,8 @@ from private_accounts import register_private_accounts
 register_private_accounts(app, __import__(__name__))
 from content_safety import register_content_safety
 register_content_safety(app, __import__(__name__))
+from seasons import register_seasons
+register_seasons(app, __import__(__name__))
 from policy_pages import register_policy_pages
 register_policy_pages(app, __import__(__name__))
 from template_delivery import register_template_delivery
