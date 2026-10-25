@@ -1,4 +1,5 @@
 """Reuse read-only calculations within one request, never between accounts."""
+from stats_date_filter import active_date_range
 from functools import wraps
 
 from flask import g, has_request_context, request
@@ -13,7 +14,7 @@ def request_cached(function):
         from stats_location_filter import active_location_filter
         from doubles_division import active_doubles_division
         key = (function.__module__, function.__name__, args, tuple(sorted(kwargs.items())),
-               data_path('stats.db'), active_location_filter(), active_doubles_division())
+               data_path('stats.db'), active_location_filter(), active_date_range(), active_doubles_division())
         memo = g.setdefault('read_calculations', {})
         if key not in memo:
             if getattr(g, 'stats_data_revision', None):

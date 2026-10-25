@@ -1,4 +1,5 @@
 """Bounded per-worker reuse of read-only calculations after source authorization."""
+from stats_date_filter import active_date_range
 from collections import OrderedDict
 import pickle
 import threading
@@ -31,7 +32,7 @@ def reuse_calculation(function, args, kwargs, ttl=300, revision=None):
             revisions[table] = source_revision(databases, ('players', table))
         revision = revisions[table]
     key = (revision, function.__module__, function.__name__, repr(args),
-           repr(sorted(kwargs.items())), active_doubles_division(), active_location_filter(), session.get('timezone'))
+           repr(sorted(kwargs.items())), active_doubles_division(), active_location_filter(), active_date_range(), session.get('timezone'))
     now = time.monotonic()
     with _lock:
         found = _values.get(key)

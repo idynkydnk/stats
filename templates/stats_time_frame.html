@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Custom time frame{% endblock %}
+{% block content %}
+<div style="max-width:560px;margin:24px auto;padding:16px">
+    <h1>Custom time frame</h1>
+    <p>See stats for a tournament or any set of days. Both the start and end day are included, regardless of the time games were played.</p>
+    {% if error %}<p role="alert" class="sr-flash">{{ error }}</p>{% endif %}
+    <form method="get">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <p><label for="start-date">Start day</label><br><input id="start-date" type="date" name="start_date" value="{{ start }}" required></p>
+        <p><label for="end-date">End day</label><br><input id="end-date" type="date" name="end_date" value="{{ end }}" required></p>
+        <button type="submit" name="apply" value="1">Show stats</button>
+    </form>
+</div>
+{% endblock %}

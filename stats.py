@@ -65,6 +65,8 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 app = Flask(__name__)
+from stats_date_filter import register_stats_date_filter
+register_stats_date_filter(app)
 from asset_delivery import register_asset_delivery
 register_asset_delivery(app)
 from image_previews import register_image_previews

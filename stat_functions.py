@@ -1,3 +1,4 @@
+from stats_date_filter import active_date_range
 from player_identity import unique_player_names
 from player_identity import is_unknown_player
 from doubles_division import active_doubles_division
@@ -27,7 +28,7 @@ def cached(ttl=CACHE_TTL):
                 from prepared_calculations import reuse_calculation
                 return reuse_calculation(func, args, kwargs, ttl)
             # Create cache key from function name and arguments
-            key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_doubles_division())
+            key = (func.__name__, args, tuple(sorted(kwargs.items())), active_location_filter(), active_date_range(), active_doubles_division())
             if has_request_context() and (private_database() or getattr(g, 'stats_view_database', None)
                                           or getattr(g, 'stats_response_ticket', None)):
                 # Reuse calculations within this authorized request, never
@@ -1768,7 +1769,7 @@ def calculate_trueskill_rankings(year=None):
 	"""Calculate TrueSkill rankings - uses database cache when available"""
 	from database_functions import get_trueskill_from_db, save_trueskill_to_db, get_trueskill_last_updated, get_last_game_date
 	
-	if any(active_location_filter()) or active_doubles_division():
+	if any(active_location_filter()) or active_date_range() or active_doubles_division():
 		return _calculate_trueskill_rankings_fresh(year)
 
 	# Check if we have cached rankings in the database

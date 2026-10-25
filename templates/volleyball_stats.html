@@ -18,13 +18,13 @@
     <h1 class="sr-title">{{ year }} Volleyball</h1>
     <div class="sr-header-actions">
         <a href="{{ url_for('other_stats', year=year) }}" class="sr-link-btn"><i class="fas fa-arrow-left"></i> Other Stats</a>
-        <div class="sr-year-select-wrap">
+        {% if not stats_date_range %}<div class="sr-year-select-wrap">
             <select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
                 {% for yr in all_years %}
                 <option value="{{ url_for('volleyball_stats', year=yr) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
                 {% endfor %}
             </select>
-        </div>
+        </div>{% endif %}
         {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>

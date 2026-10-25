@@ -17,7 +17,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function statsViewURL(path) {
     const url = new URL(path, window.location.href);
-    const view = new URL(window.location.href).searchParams.get('view');
-    if (view && url.origin === window.location.origin) url.searchParams.set('view', view);
+    const current = new URL(window.location.href);
+    if (url.origin === window.location.origin) {
+        for (const key of ['view', 'start_date', 'end_date']) {
+            const value = current.searchParams.get(key);
+            if (value && !url.searchParams.has(key)) url.searchParams.set(key, value);
+        }
+    }
     return url.pathname + url.search + url.hash;
 }

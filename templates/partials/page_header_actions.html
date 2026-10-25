@@ -37,7 +37,7 @@
     <a href="{{ games_url }}" class="sr-link-btn"><i class="fas fa-list-alt"></i> Games</a>
     {% endif %}
 
-    {% if not hide_year and all_years is defined and year_base is defined and yr is not none %}
+    {% if not stats_date_range and not hide_year and all_years is defined and year_base is defined and yr is not none %}
     <label class="sr-header-field sr-header-year">
         <span class="sr-year-select-wrap">
         <select class="sr-year-select" id="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">

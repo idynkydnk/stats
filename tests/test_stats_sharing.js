@@ -39,5 +39,11 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../static/js/stats-sharing
         '/api/search_all_players?q=Dan&view=signed-token');
     assert.equal(context.statsViewURL('/player/2026/Dan/#games'),
         '/player/2026/Dan/?view=signed-token#games');
+    context.window.location.href += '&start_date=2025-12-31&end_date=2026-01-02';
+    context.navigator.clipboard.writeText = async url => { copied = url; };
+    await click();
+    assert.equal(copied, context.window.location.href);
+    assert.equal(context.statsViewURL('/player/2026/Dan/#games'),
+        '/player/2026/Dan/?view=signed-token&start_date=2025-12-31&end_date=2026-01-02#games');
     console.log('Stats links preserve the selected view, filters, and clipboard fallback.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

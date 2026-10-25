@@ -33,6 +33,12 @@ def filter_stats_connection(conn, table):
     if location or missing:
         value = conn.execute('SELECT quote(?)', (location,)).fetchone()[0]
         clauses.append("TRIM(COALESCE(location, ''))=''" if missing else f'TRIM(location)={value} COLLATE NOCASE')
+    from stats_date_filter import active_date_range
+    selected = active_date_range()
+    if selected:
+        start, end = (conn.execute('SELECT quote(?)', (day,)).fetchone()[0] for day in selected)
+        # Stored dates are local calendar days; include every time on both days.
+        clauses.append(f"substr(game_date, 1, 10) BETWEEN {start} AND {end}")
     division = active_doubles_division() if table == 'games' else None
     if division:
         columns = {row[1] for row in conn.execute('PRAGMA main.table_info(games)')}
