@@ -1133,21 +1133,19 @@ def register_ios_api(app):
         })
 
     @app.route('/api/flyers', methods=['GET'])
-    @api_login_required
     def api_my_flyers():
         S = _S()
         import flyer_functions as flyerfx
-        username = S._browse_username_filter()
-        page = max(int(request.args.get('page', 1) or 1), 1)
+        page = max(request.args.get('page', 1, type=int) or 1, 1)
         per_page = 25
-        entries, total = flyerfx.list_flyer_pages(page=page, per_page=per_page, username=username)
+        entries, total = flyerfx.list_flyer_pages(page=page, per_page=per_page)
         site_base = (S.app.config.get('SITE_BASE_URL') or S.EMAIL_SITE_BASE_URL).rstrip('/')
         out = [S.serialize_flyer_list_entry(entry, site_base) for entry in entries]
         return jsonify({
             'flyers': out,
             'page': page,
             'total': total,
-            'showing_all': username is None,
+            'showing_all': True,
         })
 
     @app.route('/api/ai-library/<kind>/<share_id>/pin', methods=['POST'])

@@ -71,6 +71,25 @@ class DateRangeNavigation(unittest.TestCase):
             self.assertNotIn('start_date', context['stats_date_range_clear_url'])
             self.assertEqual(context['stats_date_range'], ('2025-12-31', '2026-01-02'))
 
+    def test_clear_all_filters_keeps_the_current_stats_view(self):
+        for location in ({'location': 'Beach'}, {'missing': '1'}):
+            with self.subTest(location=location), self.app.test_request_context(
+                '/games/All years/', query_string=dict(
+                    start_date='2025-12-31', end_date='2026-01-02',
+                    division='women', view='shared-stats', page='3', **location),
+            ):
+                context = {}
+                self.app.update_template_context(context)
+                dates_only = urlsplit(context['stats_date_range_clear_url'])
+                self.assertEqual(parse_qs(dates_only.query), dict(
+                    division=['women'], view=['shared-stats'],
+                    **{key: [value] for key, value in location.items()}))
+                all_filters = urlsplit(context['stats_filters_clear_url'])
+                self.assertEqual(all_filters.path, '/games/All%20years/')
+                self.assertEqual(parse_qs(all_filters.query), {
+                    'division': ['women'], 'view': ['shared-stats'],
+                })
+
     def test_invalid_ranges_and_safe_destination(self):
         for query in ('start_date=2026-02-30&end_date=2026-03-01',
                       'start_date=2026-03-02&end_date=2026-03-01', 'start_date=2026-03-01'):

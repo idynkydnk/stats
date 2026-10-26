@@ -74,9 +74,12 @@ def register_stats_date_filter(app):
         selected = active_date_range()
         endpoint, values = destination(request.full_path)
         values.update(start_date=None, end_date=None)
+        clear_dates_url = url_for(endpoint, **values)
+        values.update(location=None, missing=None)
         return dict(stats_date_range=selected,
                     stats_date_range_url=url_for('stats_time_frame', next=request.full_path),
-                    stats_date_range_clear_url=url_for(endpoint, **values))
+                    stats_date_range_clear_url=clear_dates_url,
+                    stats_filters_clear_url=url_for(endpoint, **values))
 
     @app.route('/stats-time-frame/')
     def stats_time_frame():

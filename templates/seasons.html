@@ -1,16 +1,19 @@
 {% extends 'season_base.html' %}
 {% block title %}Seasons{% endblock %}
 {% block season_content %}
-<p>Your seasons use only games you entered. Select a season for standings, player stats, and awards.</p>
+<p>Browse shared seasons for standings, player stats, and awards.{% if session.logged_in %} Your private seasons appear here too.{% endif %}</p>
+{% if session.logged_in %}
 <p><a class="sr-link-btn sr-link-btn-accent" href="{{ url_for('season_create') }}">Create season</a></p>
+{% endif %}
 <div class="season-grid" id="season-library" data-season-items>
 {% for season in seasons %}
 <a class="sr-card season-card" href="{{ url_for('season_detail', season_id=season.id) }}">
     <p class="sr-section-label">{{ season.status }}</p><h2>{{ season.name }}</h2>
+    <p class="sr-muted">{{ 'Your season' if season.can_manage else season.owner }} · {{ 'Shared' if season.share_url else 'Private' }}</p>
     <p>{{ season.start_date }} – {{ season.end_date }}</p>
     <p class="sr-muted">{{ 'Automatic minimum games' if season.minimum_games is none else (season.minimum_games|string + ' games to qualify') }}</p>
 </a>
-{% else %}<div class="sr-card"><h2>Your first season</h2><p>Choose a name and dates to bring a league, tournament, or stretch of games together.</p></div>{% endfor %}
+{% else %}<div class="sr-card"><h2>No seasons yet</h2><p>{% if session.logged_in %}Create a season to bring a league, tournament, or stretch of games together.{% else %}Shared seasons will appear here. Sign in to create your own.{% endif %}</p></div>{% endfor %}
 </div>
 {% if seasons|length > 25 %}<button type="button" class="sr-link-btn season-show-more" data-season-expand="season-library" aria-controls="season-library" aria-expanded="false" hidden>Show all {{ seasons|length }} seasons</button>{% endif %}
 <section class="sr-card season-block">

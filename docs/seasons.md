@@ -1,7 +1,8 @@
 # Seasons
 
-Create → Season and Browse → Seasons are available on the website and in the
-native app. The account owns the name, inclusive start/end dates, minimum-games
+Browse → Seasons is available to everyone on the website and in the native app.
+Signed-in users can choose Create season from that page. The account owns the
+name, inclusive start/end dates, minimum-games
 setting, and share permission in the website's `seasons` table. The app uses the
 same records through `/api/seasons`; saving on either platform updates both.
 
@@ -43,10 +44,17 @@ Deleting a season removes its board entry and link without deleting any games.
 
 ## Access and sharing
 
-Owner routes and JSON APIs require the existing validated account identity.
+The directory and read-only season APIs are available without signing in. They
+show seasons whose owners enabled sharing, plus the signed-in user's own private
+seasons. The champions board follows the same visibility rules. Read responses
+include `can_manage` so the app only shows editing and sharing controls to the
+owner. Private seasons cannot be read by another account, including an admin.
+Owner mutations require the existing validated account identity.
 Session-based writes require a season CSRF token; Bearer writes use the app's
-validated token. The owner can explicitly create a random, unlisted read-only
-link and revoke it. Re-enabling sharing creates a different link. A shared page
+validated token. The owner can explicitly share a season, adding it to the public
+directory and creating a random read-only link. Stopping sharing removes it from
+the directory and public APIs and revokes the link. Re-enabling sharing creates
+a different link. A shared page
 includes that season's standings, awards, and scoped player game histories. It
 never publishes another season, profile contact fields, or editing controls.
 Shared pages are excluded from search indexing and set no-store/no-referrer.

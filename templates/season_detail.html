@@ -11,12 +11,12 @@
         <label for="season-share-url">Read-only season link</label>
         <input id="season-share-url" readonly data-base-url="{{ season.share_url }}" value="{{ season.share_url }}?{{ {'group': selected_group}|urlencode }}">
         <button class="sr-link-btn" type="button" data-season-copy="season-share-url">Copy link</button>
-        <p class="sr-muted">Anyone with the link can view this season and its player stats.</p>
-        {% else %}<p>Your season is private. Create a read-only link to share it.</p>{% endif %}
+        <p class="sr-muted">Everyone can find this season in Seasons and view its standings and player stats.</p>
+        {% else %}<p>Your season is private. Sharing adds it to Seasons for everyone to browse and creates a read-only link.</p>{% endif %}
         <form action="{{ url_for('season_share', season_id=season.id) }}" method="post" data-season-form data-busy-label="Updating…">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="group" data-season-group-field value="{{ selected_group }}">
-            <button class="sr-link-btn" type="submit" name="action" value="{{ 'stop' if season.share_url else 'start' }}">{{ 'Stop sharing' if season.share_url else 'Create share link' }}</button>
+            <button class="sr-link-btn" type="submit" name="action" value="{{ 'stop' if season.share_url else 'start' }}">{{ 'Stop sharing' if season.share_url else 'Share season' }}</button>
         </form>
     </div>
 </details>
@@ -90,7 +90,7 @@
     {% if group.rare_stats %}<details class="season-qualification"><summary>Working toward qualification · {{ group.rare_stats|length }}</summary>{{ standings(group.rare_stats, group, false, 'season-qualifying-' ~ loop.index) }}</details>{% endif %}
     {% if group.rating_enabled and group.unrated_games %}<p class="sr-muted season-rating-coverage">{{ group.rated_games }} rated · {{ group.unrated_games }} excluded from ratings</p>{% endif %}
 </section>
-{% else %}<div class="sr-card season-block"><h2>No season games yet</h2><p>Games you enter between {{ season.start_date }} and {{ season.end_date }} will appear here automatically.</p></div>{% endfor %}
+{% else %}<div class="sr-card season-block"><h2>No season games yet</h2><p>Games {{ 'you enter' if is_owner else 'the creator enters' }} between {{ season.start_date }} and {{ season.end_date }} will appear here automatically.</p></div>{% endfor %}
 </div>
 <details class="sr-card season-block season-help"><summary>How this season works</summary><p>Both boundary days are included. Only the creator’s game entries count.</p><p>{{ minimum_explanation }}</p><p>{{ awards_explanation }}</p></details>
 {% if is_owner %}<details class="sr-card season-block"><summary>Delete season</summary><p>This removes the season and its shared link. Your game records stay saved.</p><form method="post" action="{{ url_for('season_delete', season_id=season.id) }}" data-season-delete data-season-form data-busy-label="Deleting…"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="sr-link-btn" type="submit">Delete season</button></form></details>{% endif %}

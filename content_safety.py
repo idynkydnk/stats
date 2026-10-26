@@ -602,7 +602,8 @@ def register_content_safety(app, service):
     def safety_response_headers(response):
         if request.endpoint in {'api_ai_consent', 'api_content_report', 'api_content_blocks',
                                 'api_content_reports_admin', 'api_content_report_resolve',
-                                'view_ai_recap', 'view_flyer', 'api_my_recaps', 'api_my_flyers'}:
+                                'view_ai_recap', 'view_flyer', 'my_ai_recaps', 'my_ai_flyers',
+                                'api_my_recaps', 'api_my_flyers'}:
             response.headers['Cache-Control'] = 'private, no-store'
             response.vary.add('Cookie')
             response.vary.add('Authorization')

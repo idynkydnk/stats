@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-26-consistent-menus",
+    "date": "2026-10-26",
+    "subject": "iPhone: Matching menus on the app and website",
+    "body": "The app and website menus put Account first and use the same section order, whether you are signed in or out. Home and Appearance are under General, Stats to include is under Stats filters, and the separate privacy and help section has been removed."
+  },
+  {
+    "id": "ios-2026-10-26-combined-browse-create",
+    "date": "2026-10-26",
+    "subject": "iPhone: Browse and create from one place",
+    "body": "AI Recaps, Flyers, and Seasons each have one menu entry. Browse published flyers and shared seasons without signing in; sign in to create from those pages and manage your own items. Your private seasons remain visible only to you."
+  },
+  {
     "id": "ios-2026-10-26-offline-games",
     "date": "2026-10-26",
     "subject": "iPhone: Save games and see stats without internet",

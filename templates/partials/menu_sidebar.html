@@ -1,15 +1,16 @@
 <ul class="menu-list">
-    <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
-    {% if session.logged_in %}
     <li class="menu-section-label">Account</li>
+    {% if session.logged_in %}
     <li class="menu-account-status">Signed in as {{ account_display_name }}</li>
     {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
     {% if passkeys_available %}<li><a href="{{ url_for('passkey_settings') }}"><i class="fas fa-key" aria-hidden="true"></i> Passkeys / Face ID</a></li>{% endif %}
     <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
+    {% else %}
+    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
     {% endif %}
 
-    <li><a href="{{ stats_date_range_url }}"><i class="fas fa-calendar-alt" aria-hidden="true"></i> Custom time frame</a></li>
-
+    <li class="menu-section-label">General</li>
+    <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
     <li class="sr-appearance">
         <details>
             <summary><i class="fas fa-palette" aria-hidden="true"></i> Appearance</summary>
@@ -37,18 +38,42 @@
         </details>
     </li>
 
+    <li class="menu-section-label">Stats filters</li>
+    <li><a href="{{ stats_date_range_url }}"><i class="fas fa-calendar-alt" aria-hidden="true"></i> Custom time frame</a></li>
+    <li class="sr-appearance">
+        <details>
+            <summary><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Location</summary>
+            <div class="sr-appearance-controls">
+                <label for="menu-location">Location</label>
+                <select id="menu-location" onchange="window.location.href=this.value">
+                    <option value="{{ stats_location_url() }}" {% if not stats_location and not stats_missing_location %}selected{% endif %}>All locations</option>
+                    <option value="{{ stats_location_url(missing=true) }}" {% if stats_missing_location %}selected{% endif %}>No location yet</option>
+                    {% for place in navigation_locations %}
+                    <option value="{{ stats_location_url(location=place) }}" {% if not stats_missing_location and stats_location|lower == place|lower %}selected{% endif %}>{{ place }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </details>
+    </li>
     {% if session.logged_in %}
+    <li><a href="{{ url_for('stats_sources_page') }}"><i class="fas fa-layer-group"></i> Stats to include</a></li>
+    {% endif %}
+    {% if stats_date_range or stats_location or stats_missing_location %}
+    <li class="menu-account-status">
+        {% if stats_date_range %}{{ stats_date_range[0] }} through {{ stats_date_range[1] }}{% endif %}
+        {% if stats_date_range and (stats_location or stats_missing_location) %} · {% endif %}
+        {% if stats_missing_location %}No location yet{% elif stats_location %}{{ stats_location }}{% endif %}
+    </li>
+    <li><a href="{{ stats_filters_clear_url }}"><i class="fas fa-times" aria-hidden="true"></i> Clear filters</a></li>
+    {% endif %}
+
     <li class="menu-section-label">Browse</li>
     <li><a href="{{ url_for('seasons_list') }}"><i class="fas fa-calendar-alt"></i> Seasons</a></li>
-    <li><a href="{{ url_for('stats_sources_page') }}"><i class="fas fa-layer-group"></i> Stats to include</a></li>
+    {% if session.logged_in %}
     <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
+    {% endif %}
     <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
     <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>
-
-    <li class="menu-section-label">Create</li>
-    <li><a href="{{ url_for('season_create') }}"><i class="fas fa-calendar-plus"></i> Season</a></li>
-    <li><a href="{{ url_for('ai_summary') }}"><i class="fas fa-share-alt"></i> AI Recap</a></li>
-    <li><a href="{{ url_for('create_flyer') }}"><i class="fas fa-bullhorn"></i> Flyer</a></li>
 
     {% if is_admin_user %}
     <li class="menu-section-label">Admin</li>
@@ -56,13 +81,4 @@
     <li><a href="{{ url_for('admin_site_updates') }}"><i class="fas fa-bullhorn"></i> Site updates</a></li>
     <li><a href="/admin/content-reports"><i class="fas fa-flag" aria-hidden="true"></i> Content reports</a></li>
     {% endif %}
-    {% else %}
-    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
-    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-    {% endif %}
-    <li class="menu-section-label">Help and privacy</li>
-    {% if session.logged_in %}<li><a href="/privacy-settings"><i class="fas fa-shield-alt" aria-hidden="true"></i> Privacy and safety</a></li>{% endif %}
-    <li><a href="/privacy">Privacy policy</a></li>
-    <li><a href="/support">Support</a></li>
-    <li><a href="/community-guidelines">Community guidelines</a></li>
 </ul>

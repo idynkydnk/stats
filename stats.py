@@ -860,6 +860,10 @@ def serialize_flyer_list_entry(entry, site_base=''):
     image = adminfx.absolutize_hero_image_url(entry.get('flyer_image_url') or '', site_base)
     title = entry.get('title') or _flyer_sport_label(entry.get('game_type'), entry.get('game_name')) + ' Flyer'
     out = dict(entry)
+    out['can_manage'] = bool(session.get('logged_in') and _is_owner_or_admin(entry.get('username')))
+    if not out['can_manage']:
+        for field in ('image_details', 'scene_prompt', 'flyer_image_error', 'solo_images'):
+            out.pop(field, None)
     out['flyer_image_url'] = image
     out['thumbnail_url'] = app.extensions['image_preview_url'](image)
     out['title'] = title
@@ -1282,7 +1286,7 @@ def doubles_division_url(division):
 def stats_location_url(location='', missing=False):
     """Change location on the current stats page while retaining its year."""
     endpoint = request.endpoint if request.endpoint in STATS_ENDPOINTS else 'stats'
-    values = dict(request.view_args or {}) if endpoint == request.endpoint else {'year': request.view_args.get('year', 'All years')}
+    values = dict(request.view_args or {}) if endpoint == request.endpoint else {'year': (request.view_args or {}).get('year', 'All years')}
     values.update({key: value for key, value in request.args.items() if key not in ('page', 'location', 'missing')})
     # Explicit None overrides url_defaults when clearing either filter.
     values.update(location=location or None, missing='1' if missing else None)
@@ -2410,16 +2414,14 @@ def my_ai_recaps_delete():
 
 
 @app.route('/flyers/')
-@login_required
 def my_ai_flyers():
-    """Browse flyer pictures. Admins see everyone's; everyone else sees their own."""
+    """Public directory of published flyer pictures, with owner controls."""
     import flyer_functions as flyerfx
 
-    username = _browse_username_filter()
-    page = max(int(request.args.get('page', 1) or 1), 1)
+    page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = 25
     entries, total_entries = flyerfx.list_flyer_pages(
-        page=page, per_page=per_page, username=username,
+        page=page, per_page=per_page,
     )
     total_pages = max((total_entries + per_page - 1) // per_page, 1)
     site_base = (app.config.get('SITE_BASE_URL') or EMAIL_SITE_BASE_URL).rstrip('/')
@@ -2430,7 +2432,7 @@ def my_ai_flyers():
         page=page,
         total_pages=total_pages,
         total_entries=total_entries,
-        showing_all=username is None,
+        showing_all=True,
     )
 
 

@@ -29,6 +29,7 @@ class SeasonTests(unittest.TestCase):
                     entered_by TEXT, is_tie INTEGER DEFAULT 0);''')
         register_seasons(self.app, self.service)
         self.app.jinja_loader = FileSystemLoader(str(Path(__file__).resolve().parents[1] / 'templates'))
+        self.app.context_processor(lambda: dict(stats_location_url=lambda **kwargs: '/stub/location'))
         # Render the real base/menu; the test app does not need unrelated implementations.
         for endpoint in ('index', 'login', 'logout', 'stats_default', 'stats_sources_page', 'player_list',
                          'my_ai_recaps', 'my_ai_flyers', 'ai_summary', 'create_flyer'):
@@ -149,6 +150,77 @@ class SeasonTests(unittest.TestCase):
         self.assertEqual(season_status(completed, '2026-01-02'), 'Active')
         self.assertEqual(season_status(completed, '2025-12-30'), 'Upcoming')
         self.assertEqual(season_status(completed, '2026-01-03'), 'Completed')
+
+    def test_public_library_and_details_include_shared_seasons_plus_own(self):
+        from bs4 import BeautifulSoup
+        self.game(1)
+        private = self.create(name='Alice private')['season']
+        shared = self.create(name='Alice shared')['season']
+        bob = self.b.post('/api/seasons', headers=self.other_headers,
+                          json=dict(self.defaults, name='Bob private')).json['season']
+        sid = shared['id']
+        self.a.post('/api/seasons/' + sid + '/share', headers=self.headers)
+        visitor = self.app.test_client()
+        for client, headers, expected, managed in (
+            (visitor, {}, {sid}, set()),
+            (self.a, self.headers, {sid, private['id']}, {sid, private['id']}),
+            (self.b, self.other_headers, {sid, bob['id']}, {bob['id']}),
+            (visitor, {'Authorization': 'Bearer shared-token'}, {sid}, set()),
+        ):
+            library = client.get('/api/seasons', headers=headers)
+            self.assertEqual(library.status_code, 200)
+            self.assertEqual({s['id'] for s in library.json['seasons']}, expected)
+            self.assertEqual({s['id'] for s in library.json['seasons'] if s['can_manage']}, managed)
+            self.assertTrue({w['season_id'] for w in library.json['champions']} <= expected)
+            page = client.get('/seasons/', headers=headers)
+            soup = BeautifulSoup(page.data, 'html.parser')
+            cards = soup.select('#season-library .season-card')
+            self.assertEqual({c['href'].strip('/').split('/')[-1] for c in cards}, expected)
+            menu = soup.select_one('.menu-list')
+            for label in ('Seasons', 'AI Recaps', 'Flyers'):
+                self.assertEqual(sum(a.get_text(strip=True) == label for a in menu.select('a')), 1)
+            self.assertNotIn('Create', [x.get_text(strip=True) for x in menu.select('.menu-section-label')])
+            self.assertEqual(bool(soup.select('a[href="/seasons/new/"]')), bool(headers))
+
+        visitor = self.app.test_client()
+        self.assertEqual(visitor.head('/api/seasons').status_code, 200)
+        self.assertEqual(visitor.head('/api/seasons/' + sid).status_code, 200)
+        detail = visitor.get('/api/seasons/' + sid, query_string={'group': 'doubles:open', 'player': 'A'})
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.json['season']['can_manage'])
+        self.assertEqual(len(detail.json['player']['games']), 1)
+        for client, headers in ((visitor, {}), (self.b, self.other_headers)):
+            page = client.get('/seasons/' + sid + '/', headers=headers)
+            self.assertEqual(page.status_code, 200)
+            self.assertNotIn(b'Edit season', page.data)
+            self.assertNotIn(b'Delete season', page.data)
+            self.assertNotIn(b'Stop sharing', page.data)
+            for method in ('put', 'delete'):
+                self.assertEqual(getattr(client, method)('/api/seasons/' + sid, headers=headers,
+                                  json=self.defaults).status_code, 404 if headers else 401)
+            self.assertEqual(client.post('/api/seasons/' + sid + '/share', headers=headers).status_code,
+                             404 if headers else 401)
+
+        self.a.delete('/api/seasons/' + sid + '/share', headers=self.headers)
+        self.assertEqual(visitor.get('/api/seasons').json['seasons'], [])
+        self.assertEqual(visitor.get('/api/seasons').json['champions'], [])
+        self.assertEqual(visitor.get('/seasons/' + sid + '/').status_code, 404)
+        self.assertEqual(visitor.get('/api/seasons/' + sid).status_code, 401)
+        self.assertEqual(self.b.get('/api/seasons/' + sid, headers=self.other_headers).status_code, 404)
+        self.assertTrue(self.a.get('/api/seasons/' + sid, headers=self.headers).json['season']['can_manage'])
+
+    def test_public_directory_excludes_restricted_and_inactive_owners(self):
+        self.game(1)
+        sid = self.create()['season']['id']
+        self.a.post('/api/seasons/' + sid + '/share', headers=self.headers)
+        visitor = self.app.test_client()
+        with patch('content_safety.restricted_authors', return_value={'alice'}):
+            self.assertEqual(visitor.get('/api/seasons').json, dict(seasons=[], champions=[]))
+            self.assertEqual(self.b.get('/seasons/' + sid + '/', headers=self.other_headers).status_code, 404)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("UPDATE site_users SET active=0 WHERE username='alice'")
+        self.assertEqual(visitor.get('/api/seasons').json, dict(seasons=[], champions=[]))
+        self.assertEqual(visitor.get('/seasons/' + sid + '/').status_code, 404)
 
     def test_private_crud_sharing_revocation_and_account_deletion(self):
         self.game(1, winner='Private athlete')

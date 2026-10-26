@@ -52,7 +52,7 @@ class RecapSubscriptionTests(unittest.TestCase):
 
     def test_public_directory_and_owner_controls(self):
         self.assertEqual(self.client.get('/ai-recaps/?page=bad').status_code, 200)
-        self.admin.list_ai_recap_pages.assert_called_with(page=1, per_page=25, usernames=None)
+        self.admin.list_ai_recap_pages.assert_called_with(page=1, per_page=25, usernames={'kyle'})
         self.assertFalse(self.render.call_args.kwargs['entries'][0]['can_manage'])
         with self.client.session_transaction() as sess:
             sess.update(logged_in=True, username='owner')
@@ -203,6 +203,7 @@ class RecapSubscriptionTests(unittest.TestCase):
     def test_public_menu_and_subscription_templates(self):
         with self.app.test_request_context('/'):
             self.app.jinja_env.globals.update(url_for=lambda endpoint, **kw: '/' + endpoint,
+                                             stats_location_url=lambda **kw: '/location',
                                              recap_subscription_token=lambda: 'token',
                                              ai_library_limits={'recap': 100, 'flyer': 50})
             menu = self.app.jinja_env.get_template('partials/menu_sidebar.html').render(session={})
@@ -219,6 +220,8 @@ class RecapSubscriptionTests(unittest.TestCase):
                                        page=1, total_pages=1)
                 self.assertEqual('> Edit' in html, manageable)
                 self.assertEqual('> Delete' in html, manageable)
+                self.assertEqual('Create recap' in html, manageable)
+                self.assertLess(html.index('adm-recap-card'), html.index('Get future AI recaps by email'))
             self.app.jinja_env.get_template('recap.html')
             form = self.app.jinja_env.get_template('partials/recap_subscription.html').render()
             self.assertIn('type="email"', form)

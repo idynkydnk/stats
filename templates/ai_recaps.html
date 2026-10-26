@@ -119,17 +119,12 @@
     <h1 class="sr-title">AI Recaps</h1>
     <div class="sr-header-actions">
         {% if session.logged_in %}
-        <a href="{{ url_for('ai_summary') }}" class="sr-link-btn"><i class="fas fa-robot"></i> New</a>
+        <a href="{{ url_for('ai_summary') }}" class="sr-link-btn"><i class="fas fa-robot"></i> Create recap</a>
         {% endif %}
         {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
-<p style="color:var(--sr-muted);margin:16px 0;">Keeps the latest {{ ai_library_limits.recap }} recaps per account after successful creation. Pinned favorites are protected. Protected items may exceed the limit. Removed items and their links expire.</p>
-
-
-{% include 'partials/recap_subscription.html' %}
-
 <div class="adm-section">
     <p style="color: var(--sr-muted); font-size: 14px; margin: 0 0 16px;">
         Browse published AI recaps and share your favorites.
@@ -208,11 +203,15 @@
     {% else %}
     <div class="sr-card sr-card-compact">
         <p style="color: var(--sr-muted); text-align: center; padding: 32px 16px; margin: 0;">
-            No AI recaps have been published yet. Subscribe above to receive future recap emails.
+            No AI recaps have been published yet. Subscribe below to receive future recap emails.
         </p>
     </div>
     {% endif %}
 </div>
+{% include 'partials/recap_subscription.html' %}
+{% if session.logged_in %}
+<details class="sr-card sr-card-compact" style="margin-top:16px;"><summary>Keeping your recaps</summary><p style="color:var(--sr-muted);">Keeps the latest {{ ai_library_limits.recap }} recaps per account after successful creation. Pinned favorites are protected. Protected items may exceed the limit. Removed items and their links expire.</p></details>
+{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>

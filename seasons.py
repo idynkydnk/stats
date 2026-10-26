@@ -1,5 +1,5 @@
-"""Private, cross-device seasons and revocable, read-only links."""
-from contextlib import closing
+"""Cross-device seasons with a public directory of shared, read-only seasons."""
+from contextlib import closing, contextmanager
 from functools import wraps
 import re
 import secrets
@@ -78,9 +78,17 @@ def register_seasons(app, service):
                 if request.path.startswith('/api/'):
                     return jsonify(error='Sign in to manage your seasons.'), 401
                 return redirect(url_for('login', next=request.path))
-            if request.method != 'GET':
+            if request.method not in {'GET', 'HEAD'}:
                 require_csrf()
             return fn(*args, **kwargs)
+        return wrapped
+
+    def public_reads(fn):
+        """Browsing is public; every mutation still needs identity and CSRF."""
+        protected = authenticated(fn)
+        @wraps(fn)
+        def wrapped(*args, **kwargs):
+            return fn(*args, **kwargs) if request.method in {'GET', 'HEAD'} else protected(*args, **kwargs)
         return wrapped
 
     def rows(query, params=()):
@@ -94,11 +102,50 @@ def register_seasons(app, service):
             abort(404)
         return result[0]
 
+    def is_owner(season):
+        return season['owner'].casefold() == (username() or '').casefold()
+
+    @contextmanager
+    def reading(season_id=None, token=None, optional=False):
+        from account_lifecycle import AccountBusy, account_lock
+        from content_safety import restricted_authors
+
+        def lookup():
+            result = rows('''SELECT s.* FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
+                             WHERE u.active=1 AND ''' + ('s.share_token=?' if token else 's.id=?'),
+                          (token or season_id,))
+            if not result:
+                return None
+            season = result[0]
+            if season['owner'].casefold() in restricted_authors(username() or ''):
+                return None
+            return season if season['share_token'] or (not token and is_owner(season)) else None
+
+        def unavailable():
+            if optional:
+                return
+            abort(401 if not username() and not token and request.path.startswith('/api/') else 404)
+
+        season = lookup()
+        if season is None:
+            unavailable()
+            yield None
+            return
+        try:
+            # Recheck permissions under the owner's lock, including during deletion.
+            with account_lock(site_path, season['owner']):
+                current = lookup()
+                if current is None:
+                    unavailable()
+                yield current
+        except AccountBusy:
+            abort(409, description='This season is being updated. Please try again in a moment.')
+
     def public_data(season, owner=False):
         data = {key: season[key] for key in ('id', 'name', 'start_date', 'end_date', 'minimum_games', 'timezone')}
         data.update(status=season_status(season), minimum_mode='automatic' if season['minimum_games'] is None else 'fixed')
-        if owner:
-            data['share_url'] = url_for('season_public', token=season['share_token'], _external=True) if season['share_token'] else None
+        data.update(can_manage=owner, owner=season['owner'])
+        data['share_url'] = url_for('season_public', token=season['share_token'], _external=True) if season['share_token'] else None
         return data
 
     def payload(season, owner=False, with_player=False):
@@ -111,16 +158,23 @@ def register_seasons(app, service):
                     minimum_explanation=MINIMUM_EXPLANATION, awards_explanation=AWARDS_EXPLANATION)
 
     def library():
-        entries = rows('SELECT * FROM seasons WHERE owner=? COLLATE NOCASE ORDER BY start_date DESC, created_at DESC', (username(),))
+        entries = rows('''SELECT s.id FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
+                          WHERE u.active=1 AND (s.share_token IS NOT NULL OR s.owner=? COLLATE NOCASE)
+                          ORDER BY s.start_date DESC, s.created_at DESC''', (username(),))
+        seasons = []
         champions = []
-        for season in entries:
-            if season_status(season) == 'Completed':
-                for group in season_results(site_path, season)['groups']:
-                    for champion in group['champions']:
-                        champions.append(dict(season_id=season['id'], season_name=season['name'],
-                                              start_date=season['start_date'], end_date=season['end_date'],
-                                              group_id=group['id'], group_title=group['title'], **champion))
-        return dict(seasons=[public_data(s, True) for s in entries], champions=champions)
+        for entry in entries:
+            with reading(season_id=entry['id'], optional=True) as season:
+                if season is None:
+                    continue
+                seasons.append(public_data(season, is_owner(season)))
+                if season_status(season) == 'Completed':
+                    for group in season_results(site_path, season)['groups']:
+                        for champion in group['champions']:
+                            champions.append(dict(season_id=season['id'], season_name=season['name'],
+                                                  start_date=season['start_date'], end_date=season['end_date'],
+                                                  group_id=group['id'], group_title=group['title'], **champion))
+        return dict(seasons=seasons, champions=champions)
 
     def save(body, existing=None):
         # Editing dates or minimums does not change the account, link, or time zone.
@@ -159,9 +213,9 @@ def register_seasons(app, service):
         return response
 
     @app.route('/api/seasons', methods=['GET', 'POST'])
-    @authenticated
+    @public_reads
     def api_seasons():
-        if request.method == 'GET':
+        if request.method in {'GET', 'HEAD'}:
             return jsonify(library())
         try:
             season = save(request.get_json(silent=True))
@@ -170,8 +224,11 @@ def register_seasons(app, service):
         return jsonify(payload(season, owner=True)), 201
 
     @app.route('/api/seasons/<season_id>', methods=['GET', 'PUT', 'DELETE'])
-    @authenticated
+    @public_reads
     def api_season(season_id):
+        if request.method in {'GET', 'HEAD'}:
+            with reading(season_id=season_id) as season:
+                return jsonify(payload(season, owner=is_owner(season), with_player=True))
         season = owned(season_id)
         if request.method == 'DELETE':
             delete(season)
@@ -189,7 +246,6 @@ def register_seasons(app, service):
         return jsonify(season=public_data(share(owned(season_id), request.method == 'POST'), True))
 
     @app.get('/seasons/')
-    @authenticated
     def seasons_list():
         return render_template('seasons.html', **library())
 
@@ -242,7 +298,7 @@ def register_seasons(app, service):
         selected = next((group['id'] for group in data['groups'] if group['id'] == request.args.get('group')),
                         data['groups'][0]['id'] if data['groups'] else '')
         player_back_url = request.path + '?' + urlencode({'group': selected})
-        back_url = player_back_url if data.get('player') else url_for('seasons_list') if is_owner else None
+        back_url = player_back_url if data.get('player') else url_for('seasons_list')
         return render_template('season_detail.html', **data, is_owner=is_owner,
                                selected_group=selected, season_back_url=back_url,
                                season_back_label='Back to season' if data.get('player') else 'Seasons',
@@ -250,29 +306,11 @@ def register_seasons(app, service):
                                detail_url=request.path)
 
     @app.get('/seasons/<season_id>/')
-    @authenticated
     def season_detail(season_id):
-        return show(owned(season_id), True)
+        with reading(season_id=season_id) as season:
+            return show(season, is_owner(season))
 
     @app.get('/season/s/<token>/')
     def season_public(token):
-        result = rows('''SELECT s.* FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
-                         WHERE s.share_token=? AND u.active=1''', (token,))
-        if not result:
-            abort(404)
-        from account_lifecycle import AccountBusy, account_lock
-        from content_safety import restricted_authors
-        season = result[0]
-        if season['owner'].casefold() in restricted_authors(username() or ''):
-            abort(404)
-        # Protect the owner's data during account deletion, independent of viewer identity.
-        try:
-            with account_lock(site_path, season['owner']):
-                # A concurrent revocation or deletion must not resurrect a link.
-                current = rows('''SELECT s.* FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
-                                  WHERE s.id=? AND s.share_token=? AND u.active=1''', (season['id'], token))
-                if not current:
-                    abort(404)
-                return show(current[0], False)
-        except AccountBusy:
-            abort(409, description='This season is being updated. Please try again in a moment.')
+        with reading(token=token) as season:
+            return show(season, False)

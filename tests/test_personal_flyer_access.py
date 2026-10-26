@@ -40,7 +40,7 @@ class PersonalFlyerAccessTests(unittest.TestCase):
                                      '2026-10-07', '17:00', 'Beach', flyer_image_url='/picture.jpg')
         self.service.app = self.app
         self.service.EMAIL_SITE_BASE_URL = 'https://example.com'
-        self.service.serialize_flyer_list_entry = lambda row, base: dict(row)
+        self.app.extensions['image_preview_url'] = lambda image: image
         self.service.note_user_presence = lambda username: None
         self.service.log_activity = lambda *args, **kwargs: None
         self.service.ai_jobs = SimpleNamespace(
@@ -73,7 +73,8 @@ class PersonalFlyerAccessTests(unittest.TestCase):
             ai_jobs=self.service.ai_jobs, unique_player_names=unique_player_names,
             build_ai_recap_roster_cards=lambda names: names,
             EMAIL_SITE_BASE_URL=self.service.EMAIL_SITE_BASE_URL,
-            serialize_flyer_list_entry=self.service.serialize_flyer_list_entry,
+            adminfx=SimpleNamespace(absolutize_hero_image_url=lambda image, base: base + image),
+            _format_utc_str=lambda value: value,
             _stats_db_path=lambda: self.path,
             is_admin=lambda: self.service.is_admin(session.get('username')),
             _generate_and_publish_flyer=self.generate,
@@ -87,7 +88,7 @@ class PersonalFlyerAccessTests(unittest.TestCase):
                           'my_ai_flyers_delete', 'create_flyer', 'create_flyer_roster',
                           'create_flyer_generate', 'flyer_job_status', 'api_flyer_prompts',
                           '_parse_flyer_form', '_flyer_form_template_kwargs',
-                          '_flyer_player_names', '_can_access_job'}),
+                          '_flyer_player_names', '_can_access_job', 'serialize_flyer_list_entry'}),
             ('ios_api.py', {'api_login_required', 'api_my_flyers',
                             'api_create_flyer', 'api_delete_flyer', 'api_pin_ai_library_item'}),
         ]:
@@ -99,21 +100,24 @@ class PersonalFlyerAccessTests(unittest.TestCase):
                      '_validate_flyer_payload', '_flyer_sport_label']:
             setattr(self.service, name, namespace[name])
         self.run_job = namespace['run_flyer_job']
+        self.namespace = namespace
+        self.service.serialize_flyer_list_entry = namespace['serialize_flyer_list_entry']
         self.app.add_url_rule('/flyer/<share_id>/', 'view_flyer', lambda share_id: share_id)
 
     def test_web_browse_and_delete_keep_personal_ownership(self):
         self.register(self.a, 'alice')
         response = self.a.get('/flyers/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([row['share_id'] for row in response.json['entries']], ['alice-own'])
+        self.assertEqual({row['share_id'] for row in response.json['entries']}, {'alice-own', 'bob-own', 'Kyle-own'})
+        self.assertEqual({row['share_id'] for row in response.json['entries'] if row['can_manage']}, {'alice-own'})
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
-        self.assertFalse(response.json['showing_all'])
+        self.assertTrue(response.json['showing_all'])
         response = self.a.post('/flyers/delete', data={'share_id': 'bob-own'})
         self.assertEqual(response.status_code, 302)
         self.assertIsNotNone(flyers.get_flyer_page('bob-own'))
         response = self.a.post('/flyers/delete', data={'share_id': 'alice-own'}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['entries'], [])
+        self.assertEqual({row['share_id'] for row in response.json['entries']}, {'bob-own', 'Kyle-own'})
         self.assertIsNone(flyers.get_flyer_page('alice-own'))
 
     def test_web_creation_and_progress_use_personal_account(self):
@@ -155,19 +159,64 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         self.assertEqual(self.generate.call_args.args[0], 'alice')
 
     def test_web_flyer_flow_still_requires_sign_in(self):
-        for path, method in [('/flyers/', 'get'), ('/create_flyer/', 'get'),
+        for path, method in [('/create_flyer/', 'get'),
                              ('/flyers/delete', 'post'), ('/create_flyer/roster/', 'post'),
                              ('/create_flyer/generate/', 'post'), ('/api/flyer_prompts/', 'post'),
                              ('/create_flyer/job/42/', 'get')]:
             with self.subTest(path=path):
                 self.assertEqual(getattr(self.a, method)(path).status_code, 401)
 
+    def test_public_flyer_browsing_redacts_creator_fields_and_checks_permissions(self):
+        flyers.update_flyer_page('alice-own', scene_prompt='Private creation instructions', image_details='Private notes')
+        for path, key in (('/flyers/', 'entries'), ('/api/flyers', 'flyers')):
+            for query in ('', '?page=invalid'):
+                response = self.app.test_client().get(path + query)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.json[key]), 3)
+                self.assertFalse(any(row['can_manage'] for row in response.json[key]))
+                self.assertNotIn('Private creation instructions', response.text)
+                self.assertNotIn('Private notes', response.text)
+                self.assertTrue(all(row['download_url'] for row in response.json[key]))
+            with patch('content_safety.filter_content', side_effect=lambda kind, entries: [e for e in entries if e['username'] != 'alice']):
+                response = self.app.test_client().get(path)
+                self.assertEqual({e['share_id'] for e in response.json[key]}, {'bob-own', 'Kyle-own'})
+        self.register(self.a, 'alice')
+        response = self.a.get('/api/flyers')
+        own = next(row for row in response.json['flyers'] if row['share_id'] == 'alice-own')
+        self.assertTrue(own['can_manage'])
+        self.assertEqual(own['scene_prompt'], 'Private creation instructions')
+
+    def test_flyer_page_controls_follow_login_and_item_ownership(self):
+        from bs4 import BeautifulSoup
+        from flask import render_template
+        from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
+        self.app.jinja_loader = ChoiceLoader([
+            DictLoader({'test_base.html': '{% block content %}{% endblock %}',
+                        'partials/page_header_actions.html': ''}),
+            FileSystemLoader(str(ROOT / 'templates')),
+        ])
+        self.app.add_url_rule('/pin/<kind>/<share_id>', 'pin_ai_library_item', lambda kind, share_id: '')
+        self.app.context_processor(lambda: dict(base_template='test_base.html',
+                                               ai_library_limits={'flyer': 25}, recap_subscription_token=lambda: 'test'))
+        self.namespace['render_template'] = render_template
+        visitor = self.app.test_client()
+        page = BeautifulSoup(visitor.get('/flyers/').data, 'html.parser')
+        self.assertFalse(page.select('form'))
+        self.assertNotIn('Create flyer', page.get_text())
+        self.assertEqual(len(page.select('.adm-flyer-card')), 3)
+        self.register(self.a, 'alice')
+        page = BeautifulSoup(self.a.get('/flyers/').data, 'html.parser')
+        self.assertIn('Create flyer', page.get_text())
+        self.assertEqual(len(page.select('form[action="/flyers/delete"]')), 1)
+        self.assertEqual(page.select_one('form[action="/flyers/delete"] input[name="share_id"]')['value'], 'alice-own')
+
     def test_browse_delete_and_download_personal_flyers(self):
         headers = self.register(self.a, 'alice')
         self.register(self.b, 'bob')
         response = self.a.get('/api/flyers', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([row['share_id'] for row in response.json['flyers']], ['alice-own'])
+        self.assertEqual({row['share_id'] for row in response.json['flyers']}, {'alice-own', 'bob-own', 'Kyle-own'})
+        self.assertEqual({row['share_id'] for row in response.json['flyers'] if row['can_manage']}, {'alice-own'})
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
         self.assertEqual(self.a.delete('/api/flyers/bob-own', headers=headers).status_code, 403)
         self.assertIsNotNone(flyers.get_flyer_page('bob-own'))
@@ -177,9 +226,10 @@ class PersonalFlyerAccessTests(unittest.TestCase):
             self.assertEqual(response.data, b'test flyer image')
             response.close()
         self.assertEqual(self.a.delete('/api/flyers/alice-own', headers=headers).status_code, 200)
-        self.assertEqual(self.a.get('/api/flyers', headers=headers).json['flyers'], [])
+        self.assertEqual({row['share_id'] for row in self.a.get('/api/flyers', headers=headers).json['flyers']}, {'bob-own', 'Kyle-own'})
         admin = self.app.test_client().get('/api/flyers', headers={'Authorization': 'Bearer shared-token'})
         self.assertEqual(admin.json['total'], 2)
+        self.assertTrue(all(row['can_manage'] for row in admin.json['flyers']))
 
     def test_favorites_require_owner_or_admin_and_boolean_setting(self):
         headers = self.register(self.a, 'alice')
@@ -190,13 +240,13 @@ class PersonalFlyerAccessTests(unittest.TestCase):
         self.assertEqual(self.a.post(path, headers=headers, json=['pinned']).status_code, 400)
         self.assertEqual(self.a.post('/api/ai-library/flyer/bob-own/pin', headers=headers, json={'pinned': True}).status_code, 403)
         self.assertEqual(self.a.post(path, headers=headers, json={'pinned': True}).status_code, 200)
-        self.assertTrue(self.a.get('/api/flyers', headers=headers).json['flyers'][0]['pinned'])
+        self.assertTrue(next(row for row in self.a.get('/api/flyers', headers=headers).json['flyers'] if row['share_id'] == 'alice-own')['pinned'])
         self.assertEqual(self.app.test_client().post(path, headers={'Authorization': 'Bearer shared-token'}, json={'pinned': False}).status_code, 200)
         self.assertFalse(flyers.get_flyer_page('alice-own')['pinned'])
         self.assertEqual(self.a.post('/api/ai-library/flyer/missing/pin', headers=headers, json={'pinned': True}).status_code, 404)
 
     def test_create_requires_login_and_queues_for_current_account(self):
-        self.assertEqual(self.a.get('/api/flyers').status_code, 401)
+        self.assertEqual(self.a.get('/api/flyers').status_code, 200)
         self.assertEqual(self.a.post('/api/flyers', json={}).status_code, 401)
         headers = self.register(self.a, 'alice')
         self.assertEqual(self.a.post('/api/flyers', headers=headers, json={}).status_code, 400)
