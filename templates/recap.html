@@ -577,7 +577,6 @@
     <div style="max-width:900px;margin:16px auto;padding:0 16px;color:#e4e8eb">
         <a style="color:#66d9ef" href="/report-content?kind=recap&amp;id={{ share_id|urlencode }}">Report content or block author</a>
         · <a style="color:#66d9ef" href="/privacy">Privacy</a> · <a style="color:#66d9ef" href="/support">Support</a>
-        {% if can_remake %}{% include 'partials/content_safety_controls.html' %}{% endif %}
     </div>
     {% if session.logged_in %}
     <div class="menu-overlay" id="menu-overlay"></div>
