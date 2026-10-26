@@ -52,6 +52,15 @@ class StatsResponseCacheTests(unittest.TestCase):
         self.assertEqual(self.cache.directory.stat().st_mode & 0o777, 0o700)
         self.assertEqual(self.cache.path.stat().st_mode & 0o777, 0o600)
 
+    def test_mobile_snapshot_protocol_has_separate_cache_entries(self):
+        ordinary = self.get()
+        mobile = self.get(headers={'X-Stats-Local-Snapshot': '1'})
+        self.assertEqual(ordinary, mobile)
+        self.assertEqual(len(self.calls), 2)
+        self.get(headers={'X-Stats-Local-Snapshot': '1'})
+        self.get()
+        self.assertEqual(len(self.calls), 2)
+
     def test_combined_hit_skips_snapshot_and_edits_deletes_additions_invalidate(self):
         own = self.register(self.a, 'alice')
         headers = {**own, 'X-Stats-Combined': '1'}

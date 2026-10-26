@@ -1,5 +1,6 @@
 """Check native browsing metadata and division filtering without app startup."""
 import ast
+from mobile_game_sync import local_game_snapshot, idempotent_game
 from datetime import date
 from contextlib import ExitStack
 from pathlib import Path
@@ -9,7 +10,7 @@ import unittest
 from unittest.mock import Mock, patch
 from flask import Flask, jsonify, request
 from doubles_division import active_doubles_division
-from stats_location_filter import filter_stats_connection
+from stats_location_filter import filter_stats_connection, active_location_filter
 
 
 class IOSBrowseNavigationTests(unittest.TestCase):
@@ -24,6 +25,7 @@ class IOSBrowseNavigationTests(unittest.TestCase):
                                   _stats_db_path=lambda: ':memory:',
                                   serialize_recap_list_entry=lambda row, base: row)
         namespace = {'app': app, 'jsonify': jsonify, 'request': request, '_S': lambda: service}
+        namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         for suffix, page in [('', 1), ('?page=bad', 1), ('?page=2', 2)]:
             response = app.test_client().get('/api/ai/recaps' + suffix)
@@ -40,6 +42,7 @@ class IOSBrowseNavigationTests(unittest.TestCase):
         def default_year(name=None, kind='other'):
             return '2023' if name == 'Matterhorn' else 'All years'
         namespace = {'app': app, 'jsonify': jsonify, '_S': lambda: SimpleNamespace(browse_game_year=default_year)}
+        namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         with patch('other_functions.other_year_games', return_value=[]), \
              patch('other_functions.other_game_names', return_value=['Matterhorn', 'Gin Rummy']), \
@@ -61,7 +64,9 @@ class IOSBrowseNavigationTests(unittest.TestCase):
         namespace = {
             'app': app, 'date': date, 'jsonify': jsonify,
             '_year_arg': lambda default: default, '_ranking': lambda *a, **k: {},
+            'active_location_filter': active_location_filter,
         }
+        namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         with ExitStack() as stack:
             stack.enter_context(patch('stat_functions.year_games_count', return_value=0))

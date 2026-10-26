@@ -11,6 +11,7 @@ import sqlite3
 from private_accounts import connect_data, private_database
 from datetime import date, datetime, timedelta
 from functools import wraps
+from mobile_game_sync import idempotent_game, local_game_snapshot
 
 from stats_location_filter import active_location_filter
 from flask import g, jsonify, request, session, url_for
@@ -306,6 +307,10 @@ def register_ios_api(app):
         resp.set_cookie('remember_token', '', expires=0)
         return resp
 
+    @app.get('/api/mobile-sync')
+    def api_mobile_sync():
+        return jsonify(version=1)
+
     @app.route('/api/years')
     def api_years():
         from stat_functions import grab_all_years
@@ -322,6 +327,7 @@ def register_ios_api(app):
     # ----- Doubles stats (public) -----
 
     @app.route('/api/doubles/stats')
+    @local_game_snapshot
     def api_doubles_stats():
         from stat_functions import (
             year_games_count, grab_all_years, stats_per_year, rare_stats_per_year,
@@ -360,6 +366,7 @@ def register_ios_api(app):
         })
 
     @app.route('/api/doubles/players/<path:name>')
+    @local_game_snapshot
     def api_doubles_player(name):
         from stat_functions import (
             games_from_player_by_year, all_years_player, total_stats,
@@ -435,6 +442,7 @@ def register_ios_api(app):
     # ----- Vollis -----
 
     @app.route('/api/vollis/stats')
+    @local_game_snapshot
     def api_vollis_stats():
         if request.args.get('one_on_one') == '1':
             from one_on_one import api_stats
@@ -473,6 +481,7 @@ def register_ios_api(app):
         })
 
     @app.route('/api/vollis/games', methods=['GET'])
+    @local_game_snapshot
     def api_vollis_list():
         if request.args.get('one_on_one') == '1':
             from one_on_one import api_games
@@ -520,6 +529,7 @@ def register_ios_api(app):
 
     @app.route('/api/vollis/games', methods=['POST'])
     @api_login_required
+    @idempotent_game('vollis')
     def api_vollis_create():
         from vollis_functions import add_vollis_stats, find_vollis_game
         S = _S()
@@ -630,6 +640,7 @@ def register_ios_api(app):
         return jsonify(merge_roster_into_player_names(all_vollis_players(games)))
 
     @app.route('/api/vollis/players/<path:name>')
+    @local_game_snapshot
     def api_vollis_player(name):
         if request.args.get('one_on_one') == '1':
             from one_on_one import api_player
@@ -667,6 +678,7 @@ def register_ios_api(app):
     # ----- Other / volleyball -----
 
     @app.route('/api/other/stats')
+    @local_game_snapshot
     def api_other_stats():
         from other_functions import (
             all_other_years, other_year_games, other_stats_per_year,
@@ -736,6 +748,7 @@ def register_ios_api(app):
         })
 
     @app.route('/api/volleyball/stats')
+    @local_game_snapshot
     def api_volleyball_stats():
         S = _S()
         year = _year_arg('All years')
@@ -748,6 +761,7 @@ def register_ios_api(app):
         })
 
     @app.route('/api/other/games', methods=['GET'])
+    @local_game_snapshot
     def api_other_list():
         if 'limit' in request.args and not request.args.get('since'):
             from game_browse_page import game_page
@@ -835,6 +849,7 @@ def register_ios_api(app):
 
     @app.route('/api/other/games', methods=['POST'])
     @api_login_required
+    @idempotent_game('other')
     def api_other_create():
         from other_functions import add_other_stats
         S = _S()
@@ -955,6 +970,7 @@ def register_ios_api(app):
         return jsonify({'message': 'Deleted', 'id': game_id})
 
     @app.route('/api/other/players/<path:name>')
+    @local_game_snapshot
     def api_other_player(name):
         from other_functions import (
             all_years_other_player, games_from_other_player_by_year,

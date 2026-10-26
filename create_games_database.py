@@ -67,12 +67,12 @@ def create_game(conn, game):
     insert_fields = [(name, value) for name, value in field_values if name in columns]
     names = ', '.join(name for name, _ in insert_fields)
     placeholders = ','.join('?' for _ in insert_fields)
-    cur.execute(
-        f'INSERT INTO games({names}) VALUES({placeholders})',
-        tuple(value for _, value in insert_fields),
-    )
-    new_id = cur.lastrowid
-    conn.commit()
+    from mobile_game_sync import commit_insert
+    def insert():
+        cur.execute(f'INSERT INTO games({names}) VALUES({placeholders})',
+                    tuple(value for _, value in insert_fields))
+        return cur.lastrowid
+    new_id = commit_insert(conn, 'doubles', insert)
     _update_player_last_played(conn, game[0], game[1], game[2], game[4], game[5])
     return new_id
 

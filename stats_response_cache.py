@@ -117,7 +117,7 @@ class StatsResponseCache:
         # A deployment must not reuse answers produced by old calculation code.
         root = Path(__file__).resolve().parent
         self.code_revision = [(name, (root / name).stat().st_mtime_ns) for name in (
-            'stats_response_cache.py', 'account_stats_views.py', 'ios_api.py',
+            'stats_response_cache.py', 'account_stats_views.py', 'ios_api.py', 'mobile_game_sync.py',
             'stats.py', 'stat_functions.py', 'vollis_functions.py',
             'other_functions.py', 'one_on_one.py', 'game_ratings.py', 'doubles_skill.py', 'doubles_division.py',
             'stats_location_filter.py', 'time_display.py', 'prepared_calculations.py',

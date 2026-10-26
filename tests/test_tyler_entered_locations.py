@@ -1,4 +1,5 @@
 import ast
+from mobile_game_sync import local_game_snapshot, idempotent_game
 from datetime import datetime
 import json
 import os
@@ -120,6 +121,7 @@ class TylerAPILocationTests(unittest.TestCase):
             tree = ast.parse((root / 'stats.py').read_text())
             for name in ('_new_game_location', 'api_doubles_create'):
                 node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
+                namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
                 exec(compile(ast.Module(body=[node], type_ignores=[]), 'stats.py', 'exec'), namespace)
             namespace['_S'] = lambda: SimpleNamespace(**namespace)
             namespace['_normalize_game_date'] = lambda value: value
@@ -127,6 +129,7 @@ class TylerAPILocationTests(unittest.TestCase):
                             if isinstance(n, ast.FunctionDef) and n.name == 'register_ios_api')
             for name in ('_other_payload_from_json', 'api_vollis_create', 'api_other_create'):
                 node = next(n for n in register.body if isinstance(n, ast.FunctionDef) and n.name == name)
+                namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
                 exec(compile(ast.Module(body=[node], type_ignores=[]), 'ios_api.py', 'exec'), namespace)
             client = app.test_client()
             with client.session_transaction() as state:

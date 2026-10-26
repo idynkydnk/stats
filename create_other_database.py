@@ -92,8 +92,11 @@ def create_other_game(conn, game, is_tie=False):
     sql = f"""INSERT INTO other_games({', '.join(insert_columns)})
               VALUES({placeholders})"""
     cur = conn.cursor()
-    cur.execute(sql, game)
-    conn.commit()
+    from mobile_game_sync import commit_insert
+    def insert():
+        cur.execute(sql, game)
+        return cur.lastrowid
+    return commit_insert(conn, 'other', insert)
 
 
 def database_update_other_game(conn, game, is_tie=None, location=None):

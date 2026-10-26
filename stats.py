@@ -1,3 +1,4 @@
+from mobile_game_sync import idempotent_game, local_game_snapshot
 from flask import Flask, render_template, request, url_for, flash, get_flashed_messages, redirect, session, jsonify, make_response, send_from_directory, abort
 from werkzeug.security import check_password_hash
 # Flask-Caching is optional - the custom caching in stat_functions.py will still work
@@ -5206,6 +5207,7 @@ def api_login():
     return jsonify({'token': token, 'username': username})
 
 @app.route('/api/doubles/games', methods=['GET'])
+@local_game_snapshot
 def api_doubles_list():
     """List doubles games. Query: year=YYYY (optional), since=ISO8601 (optional, for sync - games with updated_at >= since). Public read."""
     database = _api_get_db()
@@ -5259,6 +5261,7 @@ def api_doubles_get(game_id):
 
 @app.route('/api/doubles/games', methods=['POST'])
 @api_login_required
+@idempotent_game('doubles')
 def api_doubles_create():
     """Create a doubles game, including an optional location."""
     data = request.get_json(force=True, silent=True) or {}
@@ -5467,6 +5470,7 @@ def api_doubles_players():
 
 @app.route('/api/todays_doubles_dashboard')
 @api_login_required
+@local_game_snapshot
 def api_todays_doubles_dashboard():
     """Today's stats + games for add doubles page (updates after AJAX submit)."""
     return jsonify(todays_doubles_dashboard_payload())

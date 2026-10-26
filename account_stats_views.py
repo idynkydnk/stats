@@ -144,6 +144,8 @@ def build_stats_view(site_path, own_path, sources):
                     target.execute(ddl)
             from other_game_outcomes import ensure_other_game_outcome_column
             ensure_other_game_outcome_column(target)
+            from mobile_game_sync import ensure_receipts
+            ensure_receipts(target)
             # Owner first: their player metadata wins when names overlap.
             databases = [(own_path, 0)] + [(_database_path(site_path, s), s['number']) for s in sources if s['enabled']]
             names = set()
@@ -152,6 +154,10 @@ def build_stats_view(site_path, own_path, sources):
                     continue
                 with closing(sqlite3.connect('file:' + str(path) + '?mode=ro', uri=True)) as source:
                     source.row_factory = sqlite3.Row
+                    source.execute('BEGIN')
+                    if namespace == 0 and source.execute("SELECT 1 FROM sqlite_master WHERE name='mobile_game_receipts'").fetchone():
+                        target.executemany('INSERT INTO mobile_game_receipts VALUES (?, ?, ?, ?, ?)',
+                                           source.execute('SELECT owner, client_id, kind, payload_hash, game_id FROM mobile_game_receipts'))
                     # Custom 1v1 names follow the same selected sources as games.
                     if source.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='one_on_one_formats'").fetchone():
                         target.execute('CREATE TABLE IF NOT EXISTS one_on_one_formats (name_key TEXT PRIMARY KEY, name TEXT NOT NULL)')
@@ -265,7 +271,7 @@ def register_stats_views(app, service, site_path):
             if request.endpoint not in RESPONSE_ENDPOINTS:
                 return None
             ticket = response_cache.prepare(databases, current_user(), request.endpoint,
-                                            list(request.args.items(multi=True)) + ([('route', sorted(request.view_args.items()))] if request.view_args else []), active_doubles_division())
+                                            list(request.args.items(multi=True)) + ([('local_snapshot', '1')] if request.headers.get('X-Stats-Local-Snapshot') == '1' else []) + ([('route', sorted(request.view_args.items()))] if request.view_args else []), active_doubles_division())
             g.stats_response_ticket = ticket
             body = response_cache.load(ticket)
         except (OSError, sqlite3.Error):

@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-10-26-offline-games",
+    "date": "2026-10-26",
+    "subject": "iPhone: Save games and see stats without internet",
+    "body": "New games save on your phone immediately and update wins, losses, ties, and game totals, even offline. Games sync automatically when connected without duplicate entries, and saved stats stay visible while ratings and website results catch up."
+  },
+  {
+    "id": "ios-2026-10-26-stable-stats-refresh",
+    "date": "2026-10-26",
+    "subject": "iPhone: Keep stats visible while browsing",
+    "body": "Fixed repeated stats loading that could leave standings blank or make them blink on and off, even when the selected filters had not changed."
+  },
+  {
     "id": "ios-2026-10-25-seasons",
     "date": "2026-10-25",
     "subject": "iPhone: Create and share seasons",

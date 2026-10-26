@@ -198,6 +198,7 @@ class IncrementalTournamentTests(unittest.TestCase):
 class BrowseRouteTests(unittest.TestCase):
     def test_actual_game_routes_return_bounded_serialized_pages(self):
         import ast
+        from mobile_game_sync import local_game_snapshot, idempotent_game
         import ios_api
         from types import SimpleNamespace
         from flask import request
@@ -216,6 +217,7 @@ class BrowseRouteTests(unittest.TestCase):
             nodes = [n for n in ast.parse(source.read_text()).body if isinstance(n, ast.FunctionDef)
                      and n.name in {'api_doubles_list', '_api_game_row_to_dict'}]
             namespace = dict(app=app, request=request, jsonify=jsonify, sqlite3=sqlite3, _api_get_db=lambda: path)
+            namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
             exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), 'exec'), namespace)
             with patch.object(ios_api, '_S', return_value=SimpleNamespace(_stats_db_path=lambda: path)):
                 for kind in ['doubles', 'vollis', 'other']:

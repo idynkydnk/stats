@@ -53,8 +53,11 @@ def create_vollis_game(conn, game):
     placeholders = ','.join('?' for _ in fields)
     sql = f'INSERT INTO vollis_games({names}) VALUES({placeholders})'
     cur = conn.cursor()
-    cur.execute(sql, tuple(value for _, value in fields))
-    conn.commit()
+    from mobile_game_sync import commit_insert
+    def insert():
+        cur.execute(sql, tuple(value for _, value in fields))
+        return cur.lastrowid
+    return commit_insert(conn, 'vollis', insert)
 
 def database_update_vollis_game(conn, game, location=None):
     sql = ''' UPDATE vollis_games

@@ -1,4 +1,5 @@
 import ast
+from mobile_game_sync import local_game_snapshot, idempotent_game
 from contextlib import ExitStack
 from datetime import date
 from pathlib import Path
@@ -24,6 +25,7 @@ class PlayerGameHistoryOrderTests(unittest.TestCase):
             '_year_arg': lambda default: '2026', '_abs': lambda value: value,
             '_doubles_game_dict': lambda game: {'id': game[0]},
         }
+        namespace.update(local_game_snapshot=local_game_snapshot, idempotent_game=idempotent_game)
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
         games = [
             [4, '2026-09-28 09:17:00', 'A', 'B', 21, 'Evan Murray', 'D', 18],
