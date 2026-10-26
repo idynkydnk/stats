@@ -14,7 +14,7 @@ from stats_location_filter import filter_stats_connection, active_location_filte
 
 
 class IOSBrowseNavigationTests(unittest.TestCase):
-    def test_public_recap_api_lists_all_creators_without_login(self):
+    def test_public_recap_api_lists_kt_stats_without_login(self):
         source = Path(__file__).resolve().parents[1] / 'ios_api.py'
         node = next(n for n in ast.walk(ast.parse(source.read_text()))
                     if isinstance(n, ast.FunctionDef) and n.name == 'api_my_recaps')
@@ -31,8 +31,8 @@ class IOSBrowseNavigationTests(unittest.TestCase):
             response = app.test_client().get('/api/ai/recaps' + suffix)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json['recaps'][0]['share_id'], 'public-recap')
-            self.assertTrue(response.json['showing_all'])
-            admin.list_ai_recap_pages.assert_called_with(page=page, per_page=25, usernames=None)
+            self.assertFalse(response.json['showing_all'])
+            admin.list_ai_recap_pages.assert_called_with(page=page, per_page=25, usernames={'kyle'})
 
     def test_default_year_metadata_uses_shared_website_policy(self):
         source = Path(__file__).resolve().parents[1] / 'ios_api.py'
