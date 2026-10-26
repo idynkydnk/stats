@@ -160,9 +160,9 @@
                                         Rating <span class="sr-sort-arrow">▼</span>
                                         <button type="button" class="sr-rating-info-btn" id="sr-rating-info-btn" aria-label="What is Rating?"><i class="fas fa-info-circle"></i></button>
                                         <div class="sr-rating-popover" id="sr-rating-popover" role="tooltip" hidden>
-                                            <div class="sr-rating-popover-title">Rating (TrueSkill)</div>
+                                            <div class="sr-rating-popover-title">Score-aware rating</div>
                                             <p><strong>What it is:</strong> A skill estimate that reflects how strong a player is based on who they beat and lose to. Higher = stronger.</p>
-                                            <p><strong>How it works:</strong> Everyone starts from the same baseline. After each game, winners’ ratings go up and losers’ go down—more when the result is an upset. We show a &ldquo;conservative&rdquo; rating (skill minus uncertainty) so the order is stable and not skewed by few games.</p>
+                                            <p><strong>How it works:</strong> Everyone starts from the same baseline. Wins and losses drive the rating, accounting for your partner and opponents. The score makes a small adjustment: a stronger-than-expected win earns more credit, and a closer-than-expected loss costs less. This adjustment is capped at 20% of each game's skill change. We subtract uncertainty from estimated skill so a short appearance does not count as strongly as an established record.</p>
                                             <p>The table is sorted by this rating by default.</p>
                                         </div>
                                     </span>
@@ -218,9 +218,9 @@
                                     Rating <span class="sr-sort-arrow">▼</span>
                                     <button type="button" class="sr-rating-info-btn sr-rating-info-btn-rare" aria-label="What is Rating?"><i class="fas fa-info-circle"></i></button>
                                     <div class="sr-rating-popover sr-rating-popover-rare" role="tooltip" hidden>
-                                        <div class="sr-rating-popover-title">Rating (TrueSkill)</div>
+                                        <div class="sr-rating-popover-title">Score-aware rating</div>
                                         <p><strong>What it is:</strong> A skill estimate that reflects how strong a player is based on who they beat and lose to. Higher = stronger.</p>
-                                        <p><strong>How it works:</strong> Everyone starts from the same baseline. After each game, winners&rsquo; ratings go up and losers&rsquo; go down—more when the result is an upset. We show a &ldquo;conservative&rdquo; rating (skill minus uncertainty) so the order is stable and not skewed by few games.</p>
+                                        <p><strong>How it works:</strong> Everyone starts from the same baseline. Wins and losses drive the rating, accounting for your partner and opponents. The score makes a small adjustment: a stronger-than-expected win earns more credit, and a closer-than-expected loss costs less. This adjustment is capped at 20% of each game's skill change. We subtract uncertainty from estimated skill so a short appearance does not count as strongly as an established record.</p>
                                         <p>The table is sorted by this rating by default.</p>
                                     </div>
                                 </span>

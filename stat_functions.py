@@ -1,3 +1,4 @@
+from doubles_skill import calculate_ratings as _calculate_trueskill_from_games
 from stats_date_filter import active_date_range
 from player_identity import unique_player_names
 from player_identity import is_unknown_player
@@ -1766,30 +1767,13 @@ def f(x, delta, phi, v, a, tau=0.5):
 
 @cached(ttl=1800)
 def calculate_trueskill_rankings(year=None):
-	"""Calculate TrueSkill rankings - uses database cache when available"""
-	from database_functions import get_trueskill_from_db, save_trueskill_to_db, get_trueskill_last_updated, get_last_game_date
-	
-	if any(active_location_filter()) or active_date_range() or active_doubles_division():
-		return _calculate_trueskill_rankings_fresh(year)
+	"""Use the shared calculation cache, never legacy result-only DB rankings.
 
-	# Check if we have cached rankings in the database
-	db_rankings = get_trueskill_from_db(year)
-	if db_rankings:
-		# Check if rankings are still fresh (newer than last game)
-		last_updated = get_trueskill_last_updated(year)
-		last_game = get_last_game_date()
-		
-		if last_updated and last_game and last_updated > last_game:
-			# Database rankings are fresh, use them
-			return db_rankings
-	
-	# Calculate fresh rankings
-	rankings = _calculate_trueskill_rankings_fresh(year)
-	
-	# Save to database for future use
-	save_trueskill_to_db(year, rankings)
-	
-	return rankings
+	The surrounding cache is scoped by authorized data revisions in requests.
+	Legacy persisted rows lack an algorithm version and cannot detect score edits
+	to older games, so they must not supply score-aware ratings.
+	"""
+	return _calculate_trueskill_rankings_fresh(year)
 
 def _calculate_trueskill_rankings_fresh(year=None):
 	"""Calculate TrueSkill rankings from scratch - expensive operation"""
@@ -1798,170 +1782,13 @@ def _calculate_trueskill_rankings_fresh(year=None):
 	
 	cur = set_cur()
 	if year and year != 'All years':
-		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date ASC", (str(year),))
+		cur.execute("SELECT * FROM games WHERE strftime('%Y', game_date) = ? ORDER BY game_date ASC, id ASC", (str(year),))
 	else:
-		cur.execute("SELECT * FROM games ORDER BY game_date ASC")
+		cur.execute("SELECT * FROM games ORDER BY game_date ASC, id ASC")
 	games = cur.fetchall()
 	
 	return _calculate_trueskill_from_games(games)
 
-
-def _calculate_trueskill_from_games(games, rating_observer=None):
-	"""Shared rating engine; callers supply games in chronological order."""
-	import math
-	from collections import defaultdict
-
-	# TrueSkill default parameters
-	INITIAL_MU = 25.0  # Mean skill
-	INITIAL_SIGMA = 8.333  # Skill uncertainty
-	BETA = 4.167  # Variance in performance
-	TAU = 0.0833  # Dynamics factor (skill change)
-	DRAW_PROBABILITY = 0.0  # No draws in doubles
-	
-	player_ratings = defaultdict(lambda: {
-		'mu': INITIAL_MU,
-		'sigma': INITIAL_SIGMA
-	})
-	
-	# Process games chronologically
-	for game_index, game in enumerate(games):
-		# Get teams
-		winners = [game[2], game[3]]  # winner1, winner2
-		losers = [game[5], game[6]]   # loser1, loser2
-		
-		# Filter out players with question marks
-		winners = [w for w in winners if '?' not in w]
-		losers = [l for l in losers if '?' not in l]
-		
-		if not winners or not losers:
-			continue
-		
-		# Calculate team ratings
-		winner_team_mu = sum(player_ratings[w]['mu'] for w in winners)
-		winner_team_sigma = math.sqrt(sum(player_ratings[w]['sigma']**2 for w in winners))
-		
-		loser_team_mu = sum(player_ratings[l]['mu'] for l in losers)
-		loser_team_sigma = math.sqrt(sum(player_ratings[l]['sigma']**2 for l in losers))
-		
-		# Total uncertainty
-		c = math.sqrt(winner_team_sigma**2 + loser_team_sigma**2 + 2 * BETA**2)
-		
-		# Team performance difference
-		winner_team_performance = (winner_team_mu - loser_team_mu) / c
-		loser_team_performance = (loser_team_mu - winner_team_mu) / c
-		
-		# Calculate v and w functions (simplified TrueSkill)
-		winner_v = v_win(winner_team_performance)
-		loser_v = v_lose(loser_team_performance)
-		
-		winner_w = w_win(winner_team_performance)
-		loser_w = w_lose(loser_team_performance)
-		
-		# Update winner ratings
-		for winner in winners:
-			old_mu = player_ratings[winner]['mu']
-			old_sigma = player_ratings[winner]['sigma']
-			
-			mu_multiplier = (old_sigma**2 + TAU**2) / c
-			sigma_multiplier = (old_sigma**2 + TAU**2) / (c**2)
-			
-			player_ratings[winner]['mu'] = old_mu + mu_multiplier * winner_v
-			player_ratings[winner]['sigma'] = math.sqrt((old_sigma**2 + TAU**2) * (1 - sigma_multiplier * winner_w))
-		
-		# Update loser ratings
-		for loser in losers:
-			old_mu = player_ratings[loser]['mu']
-			old_sigma = player_ratings[loser]['sigma']
-			
-			mu_multiplier = (old_sigma**2 + TAU**2) / c
-			sigma_multiplier = (old_sigma**2 + TAU**2) / (c**2)
-			
-			player_ratings[loser]['mu'] = old_mu + mu_multiplier * loser_v
-			player_ratings[loser]['sigma'] = math.sqrt((old_sigma**2 + TAU**2) * (1 - sigma_multiplier * loser_w))
-		if rating_observer is not None:
-			for player in winners + losers:
-				value = player_ratings[player]
-				rating_observer(game_index, player, round(value['mu'] - 3 * value['sigma'], 2))
-	
-	# Calculate minimum games requirement
-	if len(games) < 30:
-		minimum_games = 1
-	else:
-		minimum_games = len(games) // 30
-	
-	# Count games per player and wins/losses
-	player_game_counts = defaultdict(int)
-	player_wins = defaultdict(int)
-	player_losses = defaultdict(int)
-	for game in games:
-		winners = [game[2], game[3]]
-		losers = [game[5], game[6]]
-		
-		winners = [w for w in winners if '?' not in w]
-		losers = [l for l in losers if '?' not in l]
-		
-		for player in winners:
-			player_game_counts[player] += 1
-			player_wins[player] += 1
-		for player in losers:
-			player_game_counts[player] += 1
-			player_losses[player] += 1
-	
-	# Convert to list and sort by conservative rating (mu - 3*sigma)
-	all_rankings = []
-	for player, rating_data in player_ratings.items():
-		conservative_rating = rating_data['mu'] - 3 * rating_data['sigma']
-		all_rankings.append({
-			'player': player,
-			'mu': round(rating_data['mu'], 2),
-			'sigma': round(rating_data['sigma'], 2),
-			'rating': round(conservative_rating, 2),
-			'games_played': player_game_counts[player],
-			'wins': player_wins[player],
-			'losses': player_losses[player]
-		})
-	
-	# Sort by conservative rating (highest first)
-	all_rankings.sort(key=lambda x: x['rating'], reverse=True)
-	
-	return all_rankings
-
-def v_win(t):
-	"""TrueSkill v function for winners"""
-	import math
-	from math import sqrt, pi, exp, erf
-	
-	# Standard normal PDF and CDF
-	def phi(x):
-		return (1.0 / sqrt(2 * pi)) * exp(-0.5 * x**2)
-	
-	def Phi(x):
-		return 0.5 * (1 + erf(x / sqrt(2)))
-	
-	return phi(t) / Phi(t)
-
-def v_lose(t):
-	"""TrueSkill v function for losers"""
-	import math
-	from math import sqrt, pi, exp, erf
-	
-	def phi(x):
-		return (1.0 / sqrt(2 * pi)) * exp(-0.5 * x**2)
-	
-	def Phi(x):
-		return 0.5 * (1 + erf(x / sqrt(2)))
-	
-	return -phi(t) / Phi(-t)
-
-def w_win(t):
-	"""TrueSkill w function for winners"""
-	v = v_win(t)
-	return v * (v + t)
-
-def w_lose(t):
-	"""TrueSkill w function for losers"""
-	v = v_lose(t)
-	return v * (v + t)
 
 @cached(ttl=1800)
 def get_best_streaks_for_year(year):
