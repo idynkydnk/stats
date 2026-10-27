@@ -1486,6 +1486,8 @@ if _stats_db_path() == '/home/Idynkydnk/stats/stats.db':
     correct_john_max(_stats_db_path())
     from migrations.correct_john_trent import migrate as correct_john_trent
     correct_john_trent(_stats_db_path())
+    from migrations.clearwater_may_2019 import migrate as correct_clearwater_may_2019
+    correct_clearwater_may_2019(_stats_db_path())
 from migrations.normalize_other_game_categories import normalize_other_game_categories
 with sqlite3.connect(_stats_db_path(), timeout=30) as category_conn:
     normalize_other_game_categories(category_conn)
