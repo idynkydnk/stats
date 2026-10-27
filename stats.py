@@ -5455,8 +5455,9 @@ def get_other_game_type(game_name):
 @app.route('/api/other_game_common_scores/<game_name>')
 def get_other_game_common_scores(game_name):
     """API endpoint to get most common winner/loser scores for a game name (for Coed score dropdowns)."""
-    from other_functions import get_common_scores_for_game
-    data = get_common_scores_for_game(game_name)
+    from other_functions import get_common_scores_for_game, get_one_on_one_common_scores
+    data = (get_one_on_one_common_scores(game_name) if request.args.get('one_on_one') == '1'
+            else get_common_scores_for_game(game_name))
     return jsonify(data)
 
 
@@ -5478,6 +5479,7 @@ def api_todays_doubles_dashboard():
     return jsonify(todays_doubles_dashboard_payload())
 
 
+@app.route('/api/other_game_players', defaults={'game_name': ''})
 @app.route('/api/other_game_players/<game_name>')
 @api_login_required
 def get_other_game_players(game_name):

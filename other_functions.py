@@ -610,6 +610,43 @@ def get_common_individual_scores_for_game(game_name):
     }
 
 
+def get_one_on_one_common_scores(game_name):
+    """Rank actual 1v1 scores across both historical storage layouts."""
+    from collections import Counter
+    cur = set_cur()
+    try:
+        rows = cur.execute("""SELECT * FROM other_games
+            WHERE LOWER(TRIM(game_name)) = LOWER(TRIM(?))
+            ORDER BY game_date DESC, id DESC""", (game_name,)).fetchall()
+    finally:
+        cur.connection.close()
+    counts = {side: Counter() for side in ('winner', 'loser')}
+    for record in rows:
+        row = dict(record)
+        if 'volleyball' not in str(row.get('game_type') or '').lower():
+            continue
+        players = {side: [i for i in range(1, 16) if str(row.get(f'{side}{i}') or '').strip()]
+                   for side in counts}
+        if any(len(slots) != 1 for slots in players.values()):
+            continue
+        if str(row[f"winner{players['winner'][0]}"]).strip().casefold() == str(row[f"loser{players['loser'][0]}"]).strip().casefold():
+            continue
+        for side in counts:
+            # Match the score displayed in combined 1v1 history; count each game once.
+            value = row.get(f'{side}_score')
+            if value is None:
+                value = row.get(f'{side}{players[side][0]}_score')
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                continue
+            if value >= 0:
+                counts[side][value] += 1
+    scores = {side: [score for score, _ in count.most_common(10)] for side, count in counts.items()}
+    return {'winner_scores': scores['winner'], 'loser_scores': scores['loser'],
+            'winner_individual_scores': scores['winner'], 'loser_individual_scores': scores['loser']}
+
+
 def get_common_scores_for_game(game_name):
     """Return most common team and individual scores for this game name (for dropdowns).
     Returns dict with winner_scores, loser_scores (team), winner_individual_scores, loser_individual_scores.

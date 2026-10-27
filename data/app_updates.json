@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-26-one-on-one-entry",
+    "date": "2026-10-26",
+    "subject": "iPhone: Faster 1v1 game entry",
+    "body": "Adding 1v1 volleyball games follows the same player-and-score order as doubles. Saved player suggestions appear while names refresh, winning scores reflect the selected format’s most-used results, and losing scores count down from two below the winner’s score."
+  },
+  {
     "id": "ios-2026-10-26-consistent-menus",
     "date": "2026-10-26",
     "subject": "iPhone: Matching menus on the app and website",

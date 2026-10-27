@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/other-game-outcomes.css', v='20261021') }}">
 <style>
 {% if request.args.get('one_on_one') == '1' %}
-#game_type-wrap, #add-winner-btn, #add-loser-btn, #add-more-players-btn { display: none !important; }
+#game_type-wrap, #score_type-wrap, #add-winner-btn, #add-loser-btn, #add-more-players-btn { display: none !important; }
 {% endif %}
 .sr-form-container { max-width: 400px; margin: 0 auto; padding: 0 16px; }
         .autocomplete { position: relative; margin-bottom: 12px; }
@@ -297,12 +297,12 @@
                 <button type="button" class="add-player-btn" id="add-loser-btn" onclick="addLoser()">+ Add Loser</button>
                 
                 <div class="team-score-entry autocomplete field-with-clear empty" id="winner-team-score" style="display: none;">
-                    <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="Winner Team Score" autocomplete="off">
+                    <input type="number" pattern="[0-9]*" name="winner_score" id="winner_score" placeholder="{{ 'Winner Score' if request.args.get('one_on_one') == '1' else 'Winner Team Score' }}" autocomplete="off">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear winner team score"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="winner_scoreList"></div>
                 </div>
                 <div class="team-score-entry autocomplete field-with-clear empty" id="loser-team-score" style="display: none;">
-                    <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="Loser Team Score" autocomplete="off">
+                    <input type="number" pattern="[0-9]*" name="loser_score" id="loser_score" placeholder="{{ 'Loser Score' if request.args.get('one_on_one') == '1' else 'Loser Team Score' }}" autocomplete="off">
                     <button type="button" class="clear-field-btn" title="Clear" aria-label="Clear loser team score"><i class="fas fa-times"></i></button>
                     <div class="autocomplete-list" id="loser_scoreList"></div>
                 </div>
@@ -436,7 +436,6 @@ const isOneOnOne = {{ (request.args.get('one_on_one') == '1')|tojson }};
 const allGameTypes = Array.from(document.getElementById('game_types').options).map(o => o.value);
 let winnerCount = 1, loserCount = 1;
 let is2v2Mode = false;
-let cachedCommonScores = null;
 let cachedPlayerOrder = null;
 let cachedPlayerOrderGame = null;
 function getPlayerListForAutocomplete() {
@@ -445,25 +444,26 @@ function getPlayerListForAutocomplete() {
     return allPlayers;
 }
 
-let cachedCommonScoresGameName = null;
+const commonScoreRequests = new Map();
+const commonScoresByGame = new Map();
 function fetchCommonScoresThen(callback) {
-    const gameName = (document.getElementById('game_name') && document.getElementById('game_name').value || '').trim();
-    if (cachedCommonScores && cachedCommonScoresGameName === gameName) {
-        callback(cachedCommonScores);
-        return;
+    const gameName = (document.getElementById('game_name').value || '').trim();
+    const key = gameName.toLowerCase();
+    const fallback = isOneOnOne ? {winner_scores: [], loser_scores: []}
+        : {winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17]};
+    if (!gameName) { callback(fallback); return; }
+    if (commonScoresByGame.has(key)) { callback(commonScoresByGame.get(key)); return; }
+    if (!commonScoreRequests.has(key)) {
+        const pending = fetch(`/api/other_game_common_scores/${encodeURIComponent(gameName)}${isOneOnOne ? '?one_on_one=1' : ''}`)
+            .then(r => { if (!r.ok) throw new Error('Scores unavailable'); return r.json(); })
+            .then(data => { commonScoresByGame.set(key, data); return data; })
+            .catch(() => fallback)
+            .finally(() => commonScoreRequests.delete(key));
+        commonScoreRequests.set(key, pending);
     }
-    if (!gameName) {
-        callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] });
-        return;
-    }
-    fetch(`/api/other_game_common_scores/${encodeURIComponent(gameName)}`)
-        .then(r => r.json())
-        .then(data => {
-            cachedCommonScores = data;
-            cachedCommonScoresGameName = gameName;
-            callback(data);
-        })
-        .catch(() => callback({ winner_scores: [21, 25, 15, 18, 20], loser_scores: [19, 23, 12, 16, 17] }));
+    commonScoreRequests.get(key).then(data => {
+        if (document.getElementById('game_name').value.trim().toLowerCase() === key) callback(data);
+    });
 }
 
 function showScoreList(listEl, scores) {
@@ -515,9 +515,9 @@ function isVolleyballGame() {
 function buildVolleyballTeamLoserScoresFromWinnerInput() {
     const wsEl = document.getElementById('winner_score');
     const ws = wsEl ? parseInt(wsEl.value, 10) : NaN;
-    if (!Number.isFinite(ws) || ws < 2) return null;
+    if (!Number.isFinite(ws)) return null;
     const scores = [];
-    for (let s = ws - 2; s >= 0; s--) scores.push(s);
+    for (let s = Math.max(0, ws - 2); s >= 0; s--) scores.push(s);
     return scores;
 }
 function openCommonScoreDropdown(scoreInput) {
@@ -538,6 +538,11 @@ function openCommonScoreDropdown(scoreInput) {
     if (isWinner && (scoreInput.value || '').trim()) {
         displayScores([]);
         return;
+    }
+    // Losing scores depend only on the entered winner score, never a network response.
+    if (!isWinner && !useIndividual && isVolleyballGame() && scoreInput.id === 'loser_score') {
+        const scores = buildVolleyballTeamLoserScoresFromWinnerInput();
+        if (scores != null || isOneOnOne) { displayScores(scores || []); return; }
     }
     fetchCommonScoresThen(data => {
         const winScores = useIndividual
@@ -624,22 +629,14 @@ function setupAutocomplete(fieldId, getItems, onSelect) {
 }
 
 function setupPlayerAutocomplete(field, list, onSelectNext) {
-    field.addEventListener('focus', () => {
+    const refresh = () => {
         const players = getPlayerListForAutocomplete();
-        const available = players.filter(p => !getSelectedPlayers(field).includes(p));
+        const query = field.value.trim().toLowerCase();
+        const available = players.filter(p => !getSelectedPlayers(field).includes(p) && p.toLowerCase().includes(query));
         showList(field, list, available);
-    });
-    field.addEventListener('input', () => {
-        const q = (field.value || '').trim();
-        if (!q) {
-            list.innerHTML = '';
-            list.style.display = 'none';
-            return;
-        }
-        const players = getPlayerListForAutocomplete();
-        const available = players.filter(p => !getSelectedPlayers(field).includes(p) && p.toLowerCase().includes(field.value.trim().toLowerCase()));
-        showList(field, list, available);
-    });
+    };
+    field.addEventListener('focus', refresh);
+    field.addEventListener('input', refresh);
     list.addEventListener('click', e => {
         if (e.target.tagName === 'DIV') {
             field.value = e.target.textContent;
@@ -689,7 +686,7 @@ function ensurePlayerRowCountFromLastGame(wCount, lCount) {
 }
 
 function applyGameInfo(data) {
-    if (isOneOnOne) data = {...data, winner_count: 1, loser_count: 1};
+    if (isOneOnOne) data = {...data, score_type: 'team', winner_count: 1, loser_count: 1};
     if (data.score_type) setScoreType(data.score_type);
     const wCount = Math.max(1, parseInt(data.winner_count, 10) || 1);
     const lCount = Math.max(1, parseInt(data.loser_count, 10) || 1);
@@ -729,10 +726,23 @@ function showExtraPlayers() {
 
 const gameEntryDefaults = {{ game_defaults | default({}) | tojson }};
 
-// Game name: on select, fetch info and player order for this game; then focus game_type or winner1
+// Populate Winner immediately; refresh the selected format's ordering in place.
+function refreshGamePlayers(gameName) {
+    if (!gameName) { cachedPlayerOrder = null; cachedPlayerOrderGame = null; return; }
+    fetch(`/api/other_game_players/${encodeURIComponent(gameName)}`)
+        .then(r => { if (!r.ok) throw new Error('Players unavailable'); return r.json(); })
+        .then(data => {
+            if (document.getElementById('game_name').value.trim() !== gameName) return;
+            cachedPlayerOrder = data;
+            cachedPlayerOrderGame = gameName;
+            const active = document.activeElement;
+            if (/^(winner|loser)\d+$/.test(active?.id || '')) {
+                active.dispatchEvent(new Event('input'));
+            }
+        })
+        .catch(() => {});
+}
 setupAutocomplete('game_name', () => allGameNames, field => {
-    cachedCommonScores = null;
-    cachedCommonScoresGameName = null;
     let gameName = (field.value || '').trim();
     if (isOneOnOne) {
         const format = allGameNames.find(name => name.toLowerCase() === gameName.toLowerCase());
@@ -745,29 +755,24 @@ setupAutocomplete('game_name', () => allGameNames, field => {
         window.location.href = {{ url_for('add_vollis_game') | tojson }};
         return;
     }
-    if (gameName) {
-        fetch(`/api/other_game_players/${encodeURIComponent(gameName)}`)
-            .then(r => r.json())
-            .then(data => { cachedPlayerOrder = data; cachedPlayerOrderGame = gameName; })
-            .catch(() => { cachedPlayerOrder = null; cachedPlayerOrderGame = null; });
-    } else {
-        cachedPlayerOrder = null;
-        cachedPlayerOrderGame = null;
-    }
+    refreshGamePlayers(gameName);
+    fetchCommonScoresThen(() => {});
     const applyDefaults = data => {
-            if (field.value.trim() !== gameName) return;
-            if (isOneOnOne) data = {...data, game_type: 'Volleyball'};
-            if (data.game_type) {
-                document.getElementById('game_type').value = data.game_type;
-                const gtWrap = document.getElementById('game_type-wrap');
-                if (gtWrap) updateClearVisibility(gtWrap);
-            }
-            applyGameInfo(data);
-            window.updateOtherGameOutcome?.();
-            const gt = document.getElementById('game_type');
-            if (!gt.value.trim()) setTimeout(() => gt.focus(), 100);
-            else setTimeout(() => document.getElementById('winner1')?.focus(), 100);
+        if (field.value.trim() !== gameName) return;
+        if (data.game_type) {
+            document.getElementById('game_type').value = data.game_type;
+            const gtWrap = document.getElementById('game_type-wrap');
+            if (gtWrap) updateClearVisibility(gtWrap);
+        }
+        applyGameInfo(data);
+        window.updateOtherGameOutcome?.();
+        const gt = document.getElementById('game_type');
+        (gt.value.trim() ? document.getElementById('winner1') : gt)?.focus();
     };
+    if (isOneOnOne) {
+        applyDefaults({game_type: 'Volleyball', score_type: 'team', winner_count: 1, loser_count: 1});
+        return;
+    }
     const cached = gameEntryDefaults[gameName.toLowerCase()];
     if (cached) {
         applyDefaults(cached);
@@ -834,6 +839,7 @@ scoreTypeList.addEventListener('click', e => {
 });
 
 function setScoreType(value) {
+    if (isOneOnOne) value = 'team';
     document.getElementById('score_type').value = value;
     const displayVal = value === 'team' ? 'Team Scores' : value === 'none' ? 'No Scores' : 'Individual Scores';
     document.getElementById('score_type_display').value = displayVal;
@@ -1143,8 +1149,6 @@ document.getElementById('clear-form-btn')?.addEventListener('click', function() 
     setScoreType('individual');
     cachedPlayerOrder = null;
     cachedPlayerOrderGame = null;
-    cachedCommonScores = null;
-    cachedCommonScoresGameName = null;
     hidePickerUi();
     document.querySelectorAll('.autocomplete.has-clear, .field-with-clear').forEach(updateClearVisibility);
     document.getElementById('game_name')?.focus();
@@ -1190,6 +1194,7 @@ document.getElementById('add-other-form').addEventListener('submit', function(e)
         }
     }
 });
+if (isOneOnOne) setScoreType('team');
 document.addEventListener('DOMContentLoaded', () => {
     setupClearButtons();
     setTimeout(() => (!document.getElementById('saved-game-popup') && document.getElementById('game_name')?.focus()), 100);
