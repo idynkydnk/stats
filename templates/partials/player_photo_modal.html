@@ -633,6 +633,9 @@ window.PlayerPhotoManager = (function() {
     var playerName = '';
     var faceFocus = { x: 50, y: 50, z: 1 };
     var modal = document.getElementById('player-photo-modal');
+    // Escape the sticky player header's stacking context and transformed bounds.
+    // The editor and its backdrop must cover the page toolbar, even when scrolled.
+    if (modal) document.body.appendChild(modal);
     var faceInput = document.getElementById('face-photo-input');
     var faceRemoveBtn = document.getElementById('face-photo-remove-btn');
     var faceCropFrame = document.getElementById('face-crop-frame');
