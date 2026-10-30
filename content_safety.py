@@ -1,12 +1,10 @@
 """AI sharing preferences, content review, and personal blocking for web and native clients.
 
-Automated checks are one layer, not a promise that every harmful item is caught.
-Reports remain available for human review. No moderation service failure permits
-an unchecked upload or generation to continue.
+Content is not automatically screened by the site. AI generation providers apply
+their own rules; reports remain available for human review. Local validation only
+checks supported file formats and resource limits.
 """
 from contextlib import closing
-import base64
-import hashlib
 import io
 import json
 import os
@@ -21,11 +19,12 @@ CONSENT_VERSION = '2026-10-21'
 CONSENT_DISCLOSURE = (
     'AI features send your selected game records, player names or nicknames, comments, '
     'locations, prompts, signature looks, and selected player photos or saved characters '
-    'to OpenAI to create recaps and images. Uploaded images and text '
-    'you submit for sharing are also sent to OpenAI to check for harmful content. '
+    'to OpenAI to create recaps and images. Stats does not send content for '
+    'separate automated moderation. OpenAI may decline generation requests '
+    'under its own rules. '
     'Only include people’s photos and personal details when you have their permission. '
-    'Generated recaps and flyers have public share links. Automated checks can miss '
-    'harmful content; you can report it for review. AI sharing is on by default when '
+    'Generated recaps and flyers have public share links. You can report '
+    'harmful content for review. AI sharing is on by default when '
     'you use these features. You can turn it off in Privacy and safety settings. '
     'Turning it off stops future processing; it does not recall '
     'data already sent. See the privacy policy for retention and deletion details.'
@@ -46,14 +45,6 @@ TEXT_FIELDS = {
     'comments', 'comment', 'nickname', 'location', 'name', 'player_name',
     'ai_image_traits', 'phrases', 'style_instructions',
 }
-# A conservative local layer for ordinary score entry, which must remain usable
-# without sending that entry to an AI provider. This is not the publication check.
-_ABUSE_PHRASES = re.compile(r'\b(?:kill yourself|go kill yourself|kys|rape you|gas the jews|heil hitler)\b', re.I)
-
-
-def check_local_text(value):
-    if _ABUSE_PHRASES.search(str(value or '')):
-        raise ContentSafetyError('Please remove threats or abusive language before saving.')
 
 
 class ContentSafetyError(ValueError):
@@ -153,68 +144,34 @@ def reject_unsupported_ai_provider():
                                  'ai_provider_unavailable', 503)
 
 
-def moderate_content(text='', image_bytes=None, image_mime='image/jpeg'):
-    """Check text/images with OpenAI when sharing is on; never log submitted contents."""
+def validate_content(text='', image_bytes=None):
+    """Validate sizes and image files locally, without judging or sending content."""
     if not enabled() or (not text and not image_bytes):
         return
-    require_ai_consent()
+    if text and len(text) > 100000:
+        raise ContentSafetyError('Please shorten this text before submitting it.')
     if image_bytes:
+        if len(image_bytes) > 20 * 1024 * 1024:
+            raise ContentSafetyError('This image is too large. Choose an image under 20 MB.')
         from PIL import Image, UnidentifiedImageError
         try:
             with Image.open(io.BytesIO(image_bytes)) as picture:
                 if getattr(picture, 'n_frames', 1) != 1:
-                    raise ContentSafetyError('Choose a still image. Animated uploads cannot be checked completely.')
+                    raise ContentSafetyError('Choose a still image. Animated uploads are not supported.')
                 if picture.format not in {'JPEG', 'PNG', 'WEBP', 'GIF'}:
                     raise ContentSafetyError('Choose a JPG, PNG, WebP, or still GIF image.')
                 if picture.width * picture.height > 40_000_000:
                     raise ContentSafetyError('Choose an image with fewer than 40 million pixels.')
-                image_mime = Image.MIME[picture.format]
                 picture.verify()
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
-            raise ContentSafetyError('This image could not be checked. Please choose a different image.') from None
-    digest = hashlib.sha256((str(text) + '\0' + image_mime).encode() + (image_bytes or b'')).hexdigest()
-    approved = getattr(g, 'moderation_approved', set()) if has_request_context() else set()
-    if digest in approved:
-        return
-    import requests
-    key = (os.environ.get('OPENAI_API_KEY') or '').strip()
-    if not key:
-        raise ContentSafetyError('Content checks are temporarily unavailable. Please try again later.',
-                                 'moderation_unavailable', 503)
-    inputs = []
-    if text:
-        if len(text) > 100000:
-            raise ContentSafetyError('Please shorten this text before submitting it.')
-        inputs.append({'type': 'text', 'text': text})
-    if image_bytes:
-        if len(image_bytes) > 20 * 1024 * 1024:
-            raise ContentSafetyError('This image is too large to check.')
-        inputs.append({'type': 'image_url', 'image_url': {
-            'url': 'data:' + image_mime + ';base64,' + base64.b64encode(image_bytes).decode('ascii')}})
-    try:
-        response = requests.post('https://api.openai.com/v1/moderations',
-            headers={'Authorization': 'Bearer ' + key},
-            json={'model': 'omni-moderation-latest', 'input': inputs}, timeout=30)
-        response.raise_for_status()
-        results = response.json().get('results')
-        if not isinstance(results, list) or not results or any(
-                not isinstance(item, dict) or type(item.get('flagged')) is not bool for item in results):
-            raise ValueError('Invalid moderation response')
-    except (requests.RequestException, ValueError, TypeError):
-        raise ContentSafetyError('Content checks are temporarily unavailable. Please try again later.',
-                                 'moderation_unavailable', 503) from None
-    if any(item['flagged'] for item in results):
-        raise ContentSafetyError('This content could be harmful and cannot be shared. Please choose different text or a different image.')
-    if has_request_context():
-        approved.add(digest)
-        g.moderation_approved = approved
+            raise ContentSafetyError('This image could not be read. Please choose a different image.') from None
 
 
 def check_publication_text(text):
     """A final gate also covers queued jobs completed after consent withdrawal."""
     if enabled():
         require_ai_consent()
-        moderate_content(text)
+        validate_content(text)
 
 
 def _visible(kind, item, state):
@@ -575,10 +532,6 @@ def register_content_safety(app, service):
                 raise ContentSafetyError('This request must come from the stats app or website.', 'invalid_origin', 403)
         if request.method in {'POST', 'PUT', 'PATCH'}:
             submitted = request.get_json(silent=True) if request.is_json else request.form.to_dict()
-            if isinstance(submitted, dict):
-                for key, value in submitted.items():
-                    if key in TEXT_FIELDS:
-                        check_local_text(value)
             if _username() and endpoint not in {'api_ai_consent', 'privacy_settings', 'private_delete_account',
                                                'api_logout', 'logout', 'api_content_report', 'report_content_page'}:
                 with sqlite3.connect(_path()) as conn:
@@ -591,18 +544,19 @@ def register_content_safety(app, service):
             uploading = bool(request.files) and endpoint in UPLOAD_ENDPOINTS
             editing = endpoint == 'api_edit_ai_library_item' and request.method == 'PUT'
             if generating or uploading or editing:
-                require_ai_consent()
+                if generating or editing:
+                    require_ai_consent()
                 data = request.get_json(silent=True) if request.is_json else request.form.to_dict()
                 if not isinstance(data, dict):
                     raise ContentSafetyError('Send valid form data.', 'invalid_request')
                 text = '\n'.join(str(value) for key, value in data.items() if key in TEXT_FIELDS and value)
-                moderate_content(text)
+                validate_content(text)
                 for upload in request.files.values():
                     raw = upload.read(10 * 1024 * 1024 + 1)
                     upload.stream.seek(0)
                     if len(raw) > 10 * 1024 * 1024:
                         raise ContentSafetyError('Photos must be 10 MB or smaller.')
-                    moderate_content(image_bytes=raw, image_mime=upload.mimetype or 'image/jpeg')
+                    validate_content(image_bytes=raw)
         # Check public pages and derivative downloads before any cached file is served.
         if share_id and endpoint in {'view_ai_recap', 'recap_og_image', 'recap_instagram_slide',
                                      'recap_instagram_zip', 'view_flyer', 'download_flyer'}:

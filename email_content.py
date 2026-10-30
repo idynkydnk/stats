@@ -187,12 +187,12 @@ def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
     Returns the generated text (stripped). Raises ValueError if no key is
     configured or every model fails.
     """
-    from content_safety import moderate_content, require_ai_consent, reject_unsupported_ai_provider
+    from content_safety import validate_content, require_ai_consent, reject_unsupported_ai_provider
     require_ai_consent()
     provider = active_ai_provider()
     if provider == 'gemini':
         reject_unsupported_ai_provider()
-    moderate_content(prompt, image_bytes=image_bytes, image_mime=image_mime)
+    validate_content(prompt, image_bytes=image_bytes)
     image_args = {} if image_bytes is None else {'image_bytes': image_bytes, 'image_mime': image_mime}
     if provider == 'openai':
         result = _generate_ai_text_openai(prompt, require_ai_api_key(), **image_args)
@@ -200,7 +200,7 @@ def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
         result = _generate_ai_text_gemini(prompt, require_ai_api_key(), **image_args)
     else:
         raise ValueError(ai_api_key_error_message())
-    moderate_content(result)
+    validate_content(result)
     return result
 
 
@@ -2587,20 +2587,19 @@ def _generate_image_bytes_gemini(prompt, api_key, reference_parts=None, aspect_r
 def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=None,
                           add_body_side_convention=True, output_size=None, edit=False):
     """One image API call via the active provider (OpenAI preferred, else Gemini)."""
-    from content_safety import moderate_content, require_ai_consent, reject_unsupported_ai_provider
+    from content_safety import validate_content, require_ai_consent, reject_unsupported_ai_provider
     require_ai_consent()
     provider = active_ai_provider()
     if provider == 'gemini':
         reject_unsupported_ai_provider()
-    moderate_content('\n'.join([prompt] + [str(part.get('text') or part.get('image_name') or '')
-                                          for part in reference_parts or []]))
-    # Existing stored references may predate upload checks. Check them before
-    # sending to a generation provider, including when a queued job starts later.
+    validate_content('\n'.join([prompt] + [str(part.get('text') or part.get('image_name') or '')
+                                         for part in reference_parts or []]))
+    # Stored references still need valid files and bounded sizes before generation.
     for part in reference_parts or []:
         inline = part.get('inline_data') or part.get('inlineData') or {}
         if inline.get('data'):
             raw = base64.b64decode(inline['data'])
-            moderate_content(image_bytes=raw, image_mime=inline.get('mime_type') or inline.get('mimeType') or 'image/png')
+            validate_content(image_bytes=raw)
     if add_body_side_convention:
         prompt = _append_body_side_convention(prompt)
     if provider == 'openai':
@@ -2618,7 +2617,7 @@ def _generate_image_bytes(prompt, api_key, reference_parts=None, aspect_ratio=No
         )
     else:
         raise ValueError(ai_api_key_error_message())
-    moderate_content(image_bytes=result[0], image_mime=result[1])
+    validate_content(image_bytes=result[0])
     return result
 
 

@@ -112,42 +112,48 @@ class AISummaryNavigationTests(unittest.TestCase):
         self.assertEqual(len(soup.select('textarea')), 1)
         self.assertNotIn('<script>bad()</script>', page)
 
-    def test_preflight_blocks_restore_long_prompt_and_selection_without_queuing(self):
+    def test_sharing_disabled_restores_long_prompt_and_selection_without_queuing(self):
         self.register_safety()
         prompt = 'Beuks and Kyle won. Lynch was offended.\n' * 250 + '</textarea><script>bad()</script>'
         form = {'game_ids': ['1', '2'], 'game_type': 'doubles', 'prompt_style': 'combined',
                 'custom_prompt': prompt, 'image_mode': 'image'}
-        response = Mock()
-        response.json.return_value = {'results': [{'flagged': True}]}
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=response):
+        with patch.object(content_safety, 'consent_state', return_value={'granted': False}):
             blocked = self.client.post('/preview_ai_summary_with_prompt/', data=form)
-        self.assertEqual(blocked.status_code, 400)
+        self.assertEqual(blocked.status_code, 403)
         self.assertIn('no-store', blocked.headers['Cache-Control'])
         soup = BeautifulSoup(blocked.data, 'html.parser')
         self.assertEqual(soup.select_one('#custom-prompt-text').text, prompt)
         self.assertEqual([x['value'] for x in soup.select('#generate-form [name="game_ids"]')], ['1', '2'])
         self.assertEqual(soup.select_one('#image-mode')['value'], 'image')
-        self.assertIn('cannot be shared', soup.select_one('[role="alert"]').text)
+        self.assertIn('AI sharing is turned off', soup.select_one('[role="alert"]').text)
         self.assertEqual(len(soup.select('.sr-review-game')), 2)
         self.assertNotIn(b'<script>bad()</script>', blocked.data)
         self.jobs.enqueue_job.assert_not_called()
-        # Editing and submitting the recovered draft works normally.
-        response.json.return_value = {'results': [{'flagged': False}]}
-        form['custom_prompt'] = 'A funny volleyball recap.'
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=response):
-            retried = self.client.post('/preview_ai_summary_with_prompt/', data=form)
+        # Restoring sharing lets the original draft go through unchanged.
+        retried = self.client.post('/preview_ai_summary_with_prompt/', data=form)
         self.assertEqual(retried.status_code, 302)
         self.assertEqual(self.jobs.enqueue_job.call_args.args[4], form['custom_prompt'])
 
-    def test_unavailable_moderation_restores_draft(self):
+    def test_reported_prompt_queues_unchanged_on_web_and_native_without_moderation(self):
         self.register_safety()
-        with patch.dict('os.environ', {'OPENAI_API_KEY': ''}):
-            response = self.client.post('/preview_ai_summary_with_prompt/', data={
-                'game_ids': '1', 'custom_prompt': 'Keep this draft.',
-            })
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(BeautifulSoup(response.data, 'html.parser').select_one('textarea').text, 'Keep this draft.')
-        self.jobs.enqueue_job.assert_not_called()
+        prompt = (
+            'Dom was late. he came with his wife and little baby girl in a stroller.\n\n'
+            'kyle beat down mert and easton in 1v1 games before dom showed up.\n\n'
+            'easton kept saying kyle was a wizard because of his shots.\n\n'
+            'easton riding a bike down the strand with a giant boombox blasting music.\n\n'
+            'kyle made sure the get easton a win at the end, even though they started down 7-1.'
+        )
+        data = {'game_ids': ['1', '2'], 'game_type': 'doubles', 'custom_prompt': prompt, 'image_mode': 'image'}
+        with patch.dict('os.environ', {'OPENAI_API_KEY': ''}), patch('requests.post') as post:
+            response = self.client.post('/preview_ai_summary_with_prompt/', data=data)
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(self.jobs.enqueue_job.call_args.args[4], prompt)
+            website_call = self.jobs.enqueue_job.call_args
+            response = self.client.post('/api/ai/summary', json=data)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(self.jobs.enqueue_job.call_args, website_call)
+        self.assertEqual(self.jobs.enqueue_job.call_count, 2)
+        post.assert_not_called()
 
     def test_block_during_generation_restores_draft(self):
         self.jobs.daemon_is_alive = lambda: False

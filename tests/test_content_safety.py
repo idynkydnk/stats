@@ -1,5 +1,4 @@
 """Safety state and external-provider boundaries, using disposable storage only."""
-import base64
 from io import BytesIO
 from pathlib import Path
 import sqlite3
@@ -34,6 +33,11 @@ class ContentSafetyTests(unittest.TestCase):
             self.saved.append('uploaded')
             return jsonify(ok=True)
 
+        @self.app.post('/api/comment')
+        def comment():
+            self.saved.append('comment')
+            return jsonify(ok=True)
+
         @self.app.get('/recap/<share_id>/', endpoint='view_ai_recap')
         def recap(share_id):
             return 'Visible recap'
@@ -60,10 +64,11 @@ class ContentSafetyTests(unittest.TestCase):
     def consent(self, granted=True, version=safety.CONSENT_VERSION):
         return self.client.put('/api/privacy/ai-consent', json=dict(granted=granted, version=version))
 
-    def moderation_response(self, flagged=False):
-        response = Mock()
-        response.json.return_value = {'results': [{'flagged': flagged}]}
-        return response
+    def png_bytes(self):
+        from PIL import Image
+        raw = BytesIO()
+        Image.new('RGB', (2, 2), 'white').save(raw, format='PNG')
+        return raw.getvalue()
 
     def test_sharing_defaults_on_and_explicit_choices_are_scoped_and_persistent(self):
         self.assertTrue(self.client.get('/api/privacy/ai-consent').json['granted'])
@@ -100,14 +105,14 @@ class ContentSafetyTests(unittest.TestCase):
         self.assertEqual(response.json['code'], 'authentication_required')
         self.assertEqual(self.saved, [])
 
-    def test_no_upload_or_provider_transfer_when_sharing_is_off(self):
+    def test_local_upload_works_without_ai_sharing_or_provider_transfer(self):
         self.consent(False)
         with patch('requests.post') as post:
-            response = self.client.post('/api/upload', data={'photo': (BytesIO(b'photo'), 'face.jpg')},
+            response = self.client.post('/api/upload', data={'photo': (BytesIO(self.png_bytes()), 'face.png')},
                                         headers={'Accept': 'application/json'})
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
         post.assert_not_called()
-        self.assertEqual(self.saved, [])
+        self.assertEqual(self.saved, ['uploaded'])
 
     def test_cross_origin_and_form_mutations_cannot_change_consent(self):
         self.consent(False)
@@ -118,23 +123,26 @@ class ContentSafetyTests(unittest.TestCase):
         self.assertEqual(self.client.put('/api/privacy/ai-consent', json=[]).status_code, 400)
         self.assertFalse(self.client.get('/api/privacy/ai-consent').json['granted'])
 
-    def test_flagged_and_unavailable_moderation_never_save(self):
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=self.moderation_response(True)):
-            self.assertEqual(self.client.post('/generate', json={'custom_prompt': 'A story'}).status_code, 400)
-        with patch.dict('os.environ', {'OPENAI_API_KEY': ''}):
-            self.assertEqual(self.client.post('/generate', json={'custom_prompt': 'A story'}).status_code, 503)
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=Mock(json=lambda: {})):
-            self.assertEqual(self.client.post('/generate', json={'custom_prompt': 'A story'}).status_code, 503)
+    def test_submissions_are_not_screened_for_words_or_by_a_moderation_service(self):
+        prompt = 'Please do not use the phrase "kill yourself" in the recap.'
+        with patch.dict('os.environ', {'OPENAI_API_KEY': ''}), patch('requests.post') as post:
+            self.assertEqual(self.client.post('/generate', json={'custom_prompt': prompt}).status_code, 200)
+            self.assertEqual(self.client.post('/api/comment', json={'comment': prompt}).status_code, 200)
+            with patch.object(safety, '_load_content', return_value={'username': 'alice', 'share_id': 'r1'}):
+                self.assertEqual(self.client.put('/api/ai-library/recap/r1', json={'summary': prompt}).status_code, 200)
+        post.assert_not_called()
+        self.assertEqual(self.saved, ['generated', 'comment', 'edited'])
+
+    def test_oversized_text_and_invalid_files_still_do_not_save(self):
+        with patch('requests.post') as post:
+            self.assertEqual(self.client.post('/generate', json={'custom_prompt': 'x' * 100001}).status_code, 400)
+            response = self.client.post('/api/upload', data={'photo': (BytesIO(b'not an image'), 'face.jpg')})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('could not be read', response.json['error'])
+        post.assert_not_called()
         self.assertEqual(self.saved, [])
 
-    def test_allowed_content_uses_named_moderation_service(self):
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=self.moderation_response()) as post:
-            response = self.client.post('/generate', json={'custom_prompt': 'Friendly volleyball recap'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(post.call_args.args[0], 'https://api.openai.com/v1/moderations')
-        self.assertEqual(post.call_args.kwargs['json']['input'][0]['text'], 'Friendly volleyball recap')
-
-    def test_animated_upload_cannot_bypass_image_checks_with_safe_first_frame(self):
+    def test_animated_upload_still_requires_a_supported_still_image(self):
         from PIL import Image
         raw = BytesIO()
         Image.new('RGB', (2, 2), 'white').save(raw, format='GIF', save_all=True,
@@ -272,23 +280,51 @@ class ContentSafetyTests(unittest.TestCase):
                     email_content.generate_ai_text('A game story')
                 generate.assert_not_called()
 
-    def test_google_fallback_is_disabled_and_openai_output_is_checked(self):
+    def test_google_fallback_is_disabled_and_openai_generation_has_no_separate_screening(self):
         import email_content
         self.consent()
         with self.app.test_request_context():
             session['username'] = 'alice'
-            with patch.object(safety, 'moderate_content') as moderate, patch.object(email_content, 'active_ai_provider', return_value='gemini'), \
+            with patch.object(email_content, 'active_ai_provider', return_value='gemini'), \
                     patch.object(email_content, 'require_ai_api_key', return_value='test'), \
                     patch.object(email_content, '_generate_ai_text_gemini', return_value='A friendly recap') as generate:
                 with self.assertRaises(safety.ContentSafetyError):
                     email_content.generate_ai_text('A game story')
                 generate.assert_not_called()
-                moderate.assert_not_called()
-            with patch.object(safety, 'moderate_content') as moderate, patch.object(email_content, 'active_ai_provider', return_value='openai'), \
-                    patch.object(email_content, 'require_ai_api_key', return_value='test'), \
-                    patch.object(email_content, '_generate_ai_text_openai', return_value='A friendly recap'):
-                self.assertEqual(email_content.generate_ai_text('A game story'), 'A friendly recap')
-                self.assertEqual(moderate.call_args.args[0], 'A friendly recap')
+            response = Mock(status_code=200)
+            response.json.return_value = {'choices': [{'message': {'content': 'Kyle beat down Mert in 1v1.'}}]}
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), patch('requests.post', return_value=response) as post:
+                result = email_content.generate_ai_text('Kyle beat down Mert in 1v1.')
+                self.assertEqual(result, 'Kyle beat down Mert in 1v1.')
+                safety.check_publication_text(result)
+            post.assert_called_once()
+            self.assertEqual(post.call_args.args[0], 'https://api.openai.com/v1/chat/completions')
+            self.assertEqual(post.call_args.kwargs['json']['messages'][0]['content'], 'Kyle beat down Mert in 1v1.')
+
+    def test_images_reach_generation_without_screening_references_or_output(self):
+        import base64
+        import email_content
+        raw = self.png_bytes()
+        references = [{'inline_data': {'data': base64.b64encode(raw).decode(), 'mime_type': 'image/png'}}]
+        with self.app.test_request_context():
+            session['username'] = 'alice'
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), \
+                    patch.object(email_content, '_generate_image_bytes_openai', return_value=(raw, 'image/png')) as generate, \
+                    patch('requests.post') as post:
+                result = email_content._generate_image_bytes('A volleyball recap.', 'test', reference_parts=references)
+            self.assertEqual(result, (raw, 'image/png'))
+            generate.assert_called_once()
+            self.assertEqual(generate.call_args.kwargs['reference_parts'], references)
+            post.assert_not_called()
+
+    def test_provider_errors_are_still_reported(self):
+        import email_content
+        with self.app.test_request_context():
+            session['username'] = 'alice'
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'test'}), \
+                    patch.object(email_content, '_generate_ai_text_openai', side_effect=ValueError('OpenAI declined this request.')):
+                with self.assertRaisesRegex(ValueError, 'OpenAI declined this request'):
+                    email_content.generate_ai_text('A game story')
 
 
 if __name__ == '__main__':

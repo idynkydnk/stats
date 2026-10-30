@@ -1,9 +1,9 @@
 {% if session.get('logged_in') %}
 <section data-ai-consent class="sr-panel" style="margin:16px 0;padding:16px;border:1px solid var(--sr-line);border-radius:12px">
-  <h2 style="font-size:18px">AI and content safety permission</h2>
+  <h2 style="font-size:18px">AI sharing permission</h2>
   <p data-consent-disclosure>Loading the current data-sharing notice…</p>
   <p><a href="/privacy" target="_blank" rel="noopener">Privacy policy</a> · <a href="/privacy-settings" target="_blank" rel="noopener">Privacy and safety settings</a></p>
-  <button type="button" data-consent-grant disabled>Allow sharing for AI and safety checks</button>
+  <button type="button" data-consent-grant disabled>Allow sharing for AI generation</button>
   <button type="button" data-consent-withdraw disabled>Don't allow / withdraw permission</button>
   <p data-consent-status role="status" aria-live="polite"></p>
 </section>
