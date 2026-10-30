@@ -2584,27 +2584,34 @@ def select_ai_style():
     if not selected_game_ids:
         flash('Please select at least one game.', 'error')
         return redirect(url_for('ai_summary'))
-    return render_template(
-        'select_prompt.html',
-        game_ids=selected_game_ids,
-        game_type=game_type,
-        worker_alive=ai_jobs.daemon_is_alive(),
-    )
+    return _render_select_ai_prompt(selected_game_ids, game_type)
 
 
 def _render_select_ai_prompt(
     game_ids, game_type, prompt_style='', custom_prompt='', image_details='',
-    illustration_players=None, error=None,
+    illustration_players=None, error=None, image_mode='none',
 ):
     """Re-show the recap prompt with prior input after a recoverable error."""
-    if error:
-        flash(str(error), 'error')
+    from contextlib import closing
+    from ai_summary_games import load_ai_summary_selection
+    from private_accounts import data_path
+    selection = None
+    try:
+        with closing(sqlite3.connect(data_path(_stats_db_path()))) as conn:
+            conn.row_factory = sqlite3.Row
+            selection = load_ai_summary_selection(conn, game_type, session.get('username', ''), game_ids)
+    except Exception:
+        # A stale selection or unavailable database must not erase the draft.
+        app.logger.exception('Could not load recap selection for prompt review')
     return render_template(
         'select_prompt.html',
         game_ids=game_ids,
         game_type=game_type,
         custom_prompt_value=custom_prompt or '',
         image_details_value=image_details or '',
+        image_mode_value=_normalize_image_mode(image_mode),
+        prompt_error=str(error) if error else '',
+        selection=selection,
         worker_alive=ai_jobs.daemon_is_alive(),
     )
 
@@ -2637,6 +2644,7 @@ def preview_ai_summary_with_prompt():
             prompt_style=prompt_style,
             custom_prompt=custom_prompt,
             image_details=illustration_details,
+            image_mode=image_mode,
             error=error,
         )
 
@@ -2725,7 +2733,41 @@ def ai_summary_job_status(job_id):
         abort(403)
     if job.get('status') == 'completed' and job.get('share_id'):
         return redirect(url_for('view_ai_recap', share_id=job['share_id'], published=1))
+    edit_url = _ai_recap_edit_url(job)
+    if edit_url:
+        return redirect(edit_url)
     return render_template('ai_summary_job.html', job=job, job_id=job_id)
+
+
+def _ai_recap_edit_url(job):
+    """Only the creator can retry a failed recap using their selected games."""
+    if (job.get('status') == 'failed' and (job.get('job_type') or 'recap') == 'recap'
+            and (job.get('username') or '').casefold() == (session.get('username') or '').casefold()):
+        return url_for('edit_ai_summary_job', job_id=job['id'])
+    return ''
+
+
+@app.route('/ai_summary/job/<int:job_id>/edit/')
+@login_required
+def edit_ai_summary_job(job_id):
+    """Recover the original draft from a failed job; a GET never retries it."""
+    job = ai_jobs.get_job(job_id)
+    if not job:
+        abort(404)
+    if (job.get('username') or '').casefold() != (session.get('username') or '').casefold():
+        abort(403)
+    if not _ai_recap_edit_url(job):
+        return redirect(url_for('ai_summary_job_status', job_id=job_id))
+    if session.get('ai_summary_job_id') == job_id:
+        session.pop('ai_summary_job_id', None)
+    game_ids = json.loads(job.get('game_ids_json') or '[]')
+    return _render_select_ai_prompt(
+        game_ids, job.get('game_type') or 'doubles',
+        custom_prompt=job.get('custom_prompt') or '',
+        image_details=job.get('image_details') or '',
+        image_mode=job.get('image_mode') or 'none',
+        error=job.get('error') or 'Recap generation failed. Please try again.',
+    )
 
 
 @app.context_processor
@@ -2737,12 +2779,13 @@ def inject_ai_summary_progress():
     if not job or not _can_access_job(job):
         session.pop('ai_summary_job_id', None)
         return {}
-    # Terminal states are shown once; polling updates the current page too.
-    if job.get('status') in ('completed', 'failed'):
+    edit_url = _ai_recap_edit_url(job)
+    # Keep a failed draft reachable across navigation until its creator opens it.
+    if job.get('status') == 'completed' or (job.get('status') == 'failed' and not edit_url):
         session.pop('ai_summary_job_id', None)
-    return {'ai_summary_progress_job': {
-        key: job.get(key) for key in ('id', 'status', 'error', 'share_id')
-    }}
+    progress = {key: job.get(key) for key in ('id', 'status', 'error', 'share_id')}
+    progress['edit_url'] = edit_url
+    return {'ai_summary_progress_job': progress}
 
 
 @app.route('/api/ai_summary_job/<int:job_id>/')
@@ -2768,6 +2811,7 @@ def api_ai_summary_job_status(job_id):
         'share_id': share_id,
         'result_summary': summary,
         'ai_image_url': ai_image_url,
+        'edit_url': _ai_recap_edit_url(job),
         'recap_url': (
             url_for('view_ai_recap', share_id=share_id, published=1)
             if share_id else ''

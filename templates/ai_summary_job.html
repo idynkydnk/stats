@@ -92,6 +92,10 @@
                 }
                 if (data.status === 'failed') {
                     stopped = true;
+                    if (data.edit_url) {
+                        window.location.href = data.edit_url;
+                        return;
+                    }
                     titleEl.textContent = 'Generation failed';
                     if (spinEl) spinEl.className = 'fas fa-exclamation-triangle sr-job-spin';
                     errorEl.style.display = 'block';

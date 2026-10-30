@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from ai_summary_games import load_ai_summary_games, latest_owned_game_ids
+from ai_summary_games import load_ai_summary_games, load_ai_summary_selection, latest_owned_game_ids
 from game_entry_ownership import ensure_game_entry_owner
 from create_games_database import create_game, database_update_game
 from create_vollis_database import create_vollis_game
@@ -68,6 +68,35 @@ class AISummaryGamesTests(unittest.TestCase):
                 self.assertEqual(self.ids(kind, query='Alex Sam'), mine)
                 self.assertEqual(self.ids(kind, query='2020'), mine)
                 self.assertEqual(self.ids(kind, "mila' OR 1=1 --", query='Alex'), [])
+
+    def test_prompt_review_uses_exact_visible_selection_for_every_game_type(self):
+        for kind in ('doubles', 'vollis', 'other'):
+            with self.subTest(kind=kind):
+                selected = self.insert(kind, 'mila', '2020-01-01', 2)
+                self.insert(kind, 'mila', '2026-10-29', 65)
+                someone_elses = self.insert(kind, 'dan', '2020-01-01')
+                details = load_ai_summary_selection(self.conn, kind, 'mila', selected + someone_elses)
+                self.assertEqual(len(details['games']), 2)
+                alex = next(row for row in details['stats'] if row[0] == 'Alex')
+                self.assertEqual(alex[1:5], [2, 0, 1, 22])
+                kyle = load_ai_summary_selection(self.conn, kind, 'Kyle', selected + someone_elses)
+                self.assertEqual(len(kyle['games']), 3)
+                self.assertEqual(load_ai_summary_selection(self.conn, kind, 'mila', [])['games'], [])
+                self.assertEqual(load_ai_summary_selection(self.conn, kind, '', selected)['games'], [])
+
+    def test_prompt_review_has_no_browse_limit_and_ignores_duplicate_ids(self):
+        selected = self.insert('doubles', 'mila', '2020-01-01', 65)
+        details = load_ai_summary_selection(self.conn, 'doubles', 'mila', selected + selected)
+        self.assertEqual(len(details['games']), 65)
+        self.assertTrue(all(row[1] + row[2] == 65 for row in details['stats']))
+
+    def test_prompt_review_keeps_tied_other_games_neutral(self):
+        self.conn.execute('ALTER TABLE other_games ADD COLUMN is_tie INTEGER DEFAULT 0')
+        selected = self.insert('other', 'mila', '2026-10-29')
+        self.conn.execute('UPDATE other_games SET is_tie=1, winner_score=10, loser_score=10')
+        details = load_ai_summary_selection(self.conn, 'other', 'mila', selected)
+        self.assertTrue(details['games'][0]['is_tie'])
+        self.assertTrue(all(row[1:] == [0, 0, 0, 0, 1] for row in details['stats']))
 
     def test_editing_doubles_does_not_transfer_entry_owner(self):
         date = '2026-09-12 12:00:00'

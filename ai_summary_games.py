@@ -1,7 +1,7 @@
 """Recap visibility: Kyle can browse everyone; other users see their entries."""
 
 
-def load_ai_summary_games(conn, game_type, username, query='', limit=50):
+def load_ai_summary_games(conn, game_type, username, query='', limit=50, game_ids=None):
     from stat_functions import convert_ampm, _search_query_tokens, _multi_token_search_clause
     from vollis_functions import convert_vollis_ampm
     from other_functions import readable_games_data, MAX_OTHER_PLAYERS
@@ -24,7 +24,16 @@ def load_ai_summary_games(conn, game_type, username, query='', limit=50):
     owner_clause = '1 = 1' if showing_all else own_clause
     params = [] if showing_all else [username.strip()]
     tokens = _search_query_tokens(query)
-    if tokens:
+    if game_ids is not None:
+        ids = list(dict.fromkeys(int(value) for value in game_ids))
+        if not ids:
+            return []
+        placeholders = ','.join('?' for _ in ids)
+        rows = conn.execute(
+            f'SELECT * FROM {table} WHERE {owner_clause} AND id IN ({placeholders}) '
+            'ORDER BY game_date DESC, id DESC', params + ids,
+        ).fetchall()
+    elif tokens:
         clause, search_params = _multi_token_search_clause(tokens, text_columns)
         rows = conn.execute(
             f'SELECT * FROM {table} WHERE {owner_clause} AND ({clause}) '
@@ -51,6 +60,18 @@ def load_ai_summary_games(conn, game_type, username, query='', limit=50):
             params + [limit] + own_day_params,
         ).fetchall()
     return convert(rows)
+
+
+def load_ai_summary_selection(conn, game_type, username, game_ids):
+    """Review only the selected, visible games without generating any AI content."""
+    games = load_ai_summary_games(conn, game_type, username, game_ids=game_ids)
+    if game_type == 'other':
+        from other_functions import _other_stats_with_differential
+        stats = _other_stats_with_differential(games)
+    else:
+        from email_content import session_stats_for_illustration
+        stats = session_stats_for_illustration(game_type, games)
+    return {'games': games, 'stats': stats}
 
 
 def latest_owned_game_ids(conn, game_type, username):

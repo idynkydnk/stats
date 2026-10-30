@@ -21,6 +21,11 @@
         if (data.status === 'failed') {
             text.textContent = data.error || 'Recap generation failed. Please try again.';
             icon.className = 'fas fa-exclamation-triangle';
+            if (data.edit_url) {
+                link.textContent = 'Edit prompt and try again';
+                link.href = data.edit_url;
+                link.hidden = false;
+            }
             return true;
         }
         return false;
@@ -39,6 +44,7 @@
     if (!update({
         status: job.status,
         error: job.error,
+        edit_url: job.edit_url,
         recap_url: job.share_id ? '/recap/' + encodeURIComponent(job.share_id) : ''
     })) poll();
 })();

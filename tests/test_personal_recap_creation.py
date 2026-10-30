@@ -1,5 +1,6 @@
 """Real web routes and account middleware; external AI work is stubbed."""
 import ast
+import json
 from functools import wraps
 from pathlib import Path
 import sqlite3
@@ -51,7 +52,7 @@ class PersonalRecapCreationTests(unittest.TestCase):
             return {'players': own_players(ids, 'doubles'), 'database': private_database()}
 
         namespace = dict(
-            app=self.app, sqlite3=sqlite3, session=session, request=request, jsonify=jsonify,
+            app=self.app, sqlite3=sqlite3, json=json, session=session, request=request, jsonify=jsonify,
             flash=flash, redirect=redirect, url_for=url_for, abort=abort,
             login_required=login_required, api_login_required=login_required,
             _stats_db_path=lambda: self.path,
@@ -66,7 +67,8 @@ class PersonalRecapCreationTests(unittest.TestCase):
         )
         names = {'ai_summary', 'select_ai_prompt', 'select_ai_style', 'preview_ai_summary_with_prompt',
                  '_render_select_ai_prompt', 'ai_summary_job_status', 'api_ai_summary_job_status',
-                 'api_generate_and_send_ai_summary', '_can_access_job', '_is_owner_or_admin'}
+                 'api_generate_and_send_ai_summary', '_can_access_job', '_is_owner_or_admin',
+                 '_ai_recap_edit_url', 'edit_ai_summary_job'}
         tree = ast.parse(Path('stats.py').read_text())
         nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'stats.py', 'exec'), namespace)
@@ -105,7 +107,10 @@ class PersonalRecapCreationTests(unittest.TestCase):
                 roster = client.post('/select_ai_prompt/', data=form)
                 self.assertEqual(roster.status_code, 200)
                 self.assertEqual(roster.json['player_cards'], [username + ' player'])
-                self.assertEqual(client.post('/select_ai_style/', data=form).status_code, 200)
+                prompt_page = client.post('/select_ai_style/', data=form)
+                self.assertEqual(prompt_page.status_code, 200)
+                self.assertEqual(len(prompt_page.json['selection']['games']), 1)
+                self.assertEqual(prompt_page.json['selection']['games'][0][2], username + ' player')
                 self.assertEqual(client.post('/preview_ai_summary_with_prompt/', data=form).status_code, 302)
                 self.assertEqual(self.jobs.enqueue_job.call_args.args[:3], (username, ['1'], 'doubles'))
                 with client.session_transaction() as state:

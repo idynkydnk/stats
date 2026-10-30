@@ -1,0 +1,68 @@
+<section class="sr-card sr-selection-review" aria-labelledby="selected-stats-title">
+    <h2 class="sr-card-title" id="selected-stats-title">Selected stats</h2>
+    <p>These stats use only the games selected for this recap.</p>
+    {% if selection and selection.stats %}
+    <div class="sr-review-scroll" tabindex="0" role="region" aria-label="Selected player stats">
+        <table class="sr-review-stats">
+            <thead><tr>
+                <th scope="col">Player</th>
+                <th scope="col">W</th><th scope="col">L</th>
+                {% if game_type == 'other' %}<th scope="col">Ties</th>{% endif %}
+                <th scope="col">Win %</th><th scope="col">Point diff.</th>
+                {% if game_type == 'doubles' %}<th scope="col">Rating</th>{% endif %}
+            </tr></thead>
+            <tbody>
+            {% for stat in selection.stats %}
+                <tr>
+                    <th scope="row">{{ stat[0] }}</th>
+                    <td>{{ stat[1] }}</td><td>{{ stat[2] }}</td>
+                    {% if game_type == 'other' %}<td>{{ stat[5] }}</td>{% endif %}
+                    <td>{{ '%.1f'|format(stat[3] * 100) }}%</td>
+                    <td>{{ '%+d'|format(stat[4]) }}</td>
+                    {% if game_type == 'doubles' %}<td>{{ '%.2f'|format(stat[5]) if stat[5] is not none else '—' }}</td>{% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif selection is none %}
+    <p>Selected game details could not be loaded. Your prompt is still available above.</p>
+    {% else %}
+    <p>No selected games are available to review.</p>
+    {% endif %}
+</section>
+
+{% if selection and selection.games %}
+<section class="sr-card sr-selection-review" aria-labelledby="selected-games-title">
+    <h2 class="sr-card-title" id="selected-games-title">Selected games ({{ selection.games|length }})</h2>
+    {% for game in selection.games %}
+        {% if game_type == 'other' %}
+            {% set game_id = game.game_id %}
+            {% set game_date = game.game_date %}
+            {% set winners = game.winners|map(attribute='name')|join(' & ') %}
+            {% set losers = game.losers|map(attribute='name')|join(' & ') %}
+            {% set winner_score = game.winner_score %}
+            {% set loser_score = game.loser_score %}
+            {% set comment = game.comment %}
+            {% set tied = game.is_tie %}
+        {% elif game_type == 'vollis' %}
+            {% set game_id, game_date = game[0], game[1] %}
+            {% set winners, losers = game[2], game[4] %}
+            {% set winner_score, loser_score = game[3], game[5] %}
+            {% set comment, tied = '', false %}
+        {% else %}
+            {% set game_id, game_date = game[0], game[1] %}
+            {% set winners = [game[2], game[3]]|select|join(' & ') %}
+            {% set losers = [game[5], game[6]]|select|join(' & ') %}
+            {% set winner_score, loser_score = game[4], game[7] %}
+            {% set comment, tied = game[9], false %}
+        {% endif %}
+        <article class="sr-review-game" data-game-id="{{ game_id }}">
+            <div class="sr-review-game-meta">{{ game_date }}{% if game_type == 'other' %} · {{ game.game_name }}{% endif %}{% if tied %} · Tie{% endif %}</div>
+            <div class="sr-review-team{% if not tied %} winner{% endif %}"><span>{{ winners }}</span><strong>{{ winner_score if winner_score is not none and winner_score != '' else '—' }}</strong></div>
+            <div class="sr-review-team"><span>{{ losers }}</span><strong>{{ loser_score if loser_score is not none and loser_score != '' else '—' }}</strong></div>
+            {% if comment %}<p class="sr-review-comment">{{ comment }}</p>{% endif %}
+        </article>
+    {% endfor %}
+</section>
+{% endif %}

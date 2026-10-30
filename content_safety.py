@@ -478,6 +478,19 @@ def register_content_safety(app, service):
             payload['consent'] = consent_state()
         if request.path.startswith('/api/') or request.is_json:
             return jsonify(payload), exc.status
+        # Preflight checks run before the recap view can catch errors. Restore
+        # the submitted form here too, without queuing or publishing anything.
+        if (request.endpoint == 'preview_ai_summary_with_prompt'
+                and request.method == 'POST' and session.get('logged_in') and _username()
+                and request.form.getlist('game_ids')):
+            return service._render_select_ai_prompt(
+                request.form.getlist('game_ids'),
+                request.form.get('game_type', 'doubles'),
+                custom_prompt=request.form.get('custom_prompt', ''),
+                image_details=request.form.get('image_details', ''),
+                image_mode=request.form.get('image_mode', 'none'),
+                error=exc,
+            ), exc.status
         # Root's website page lets people consent before returning to their work.
         from flask import render_template
         return render_template('content_safety_error.html', error=str(exc), code=exc.code), exc.status
@@ -602,6 +615,7 @@ def register_content_safety(app, service):
     def safety_response_headers(response):
         if request.endpoint in {'api_ai_consent', 'api_content_report', 'api_content_blocks',
                                 'api_content_reports_admin', 'api_content_report_resolve',
+                                'select_ai_style', 'preview_ai_summary_with_prompt', 'edit_ai_summary_job',
                                 'view_ai_recap', 'view_flyer', 'my_ai_recaps', 'my_ai_flyers',
                                 'api_my_recaps', 'api_my_flyers'}:
             response.headers['Cache-Control'] = 'private, no-store'
