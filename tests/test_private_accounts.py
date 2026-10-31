@@ -1,3 +1,4 @@
+import ast
 import os
 import hashlib
 import time
@@ -123,6 +124,31 @@ class PrivateAccountTests(unittest.TestCase):
         response = client.post('/api/auth/register', json={'username': name, 'password': 'a strong password'})
         self.assertEqual(response.status_code, 201, response.json)
         return {'Authorization': 'Bearer ' + response.json['token'], 'X-Stats-Account-Required': '1', 'X-Stats-Owned': '1'}
+
+    def test_personal_account_can_check_mobile_sync_before_uploading(self):
+        # Exercise the real capability route through the account middleware.
+        # A 403 here prevents the phone from attempting any queued game upload.
+        source = Path(__file__).resolve().parents[1] / 'ios_api.py'
+        node = next(n for n in ast.walk(ast.parse(source.read_text()))
+                    if isinstance(n, ast.FunctionDef) and n.name == 'api_mobile_sync')
+        exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'),
+             {'app': self.app, 'jsonify': jsonify})
+        headers = self.register(self.a, 'alice')
+
+        for authentication in (headers, {}):
+            with self.subTest(authentication='bearer' if authentication else 'session'):
+                response = self.a.get('/api/mobile-sync', headers=authentication)
+                self.assertEqual(response.status_code, 200, response.json)
+                self.assertEqual(response.json, {'version': 1})
+                self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+        shared = self.b.get('/api/mobile-sync', headers={'Authorization': 'Bearer shared-token'})
+        self.assertEqual(shared.status_code, 200, shared.json)
+        self.assertEqual(shared.json, {'version': 1})
+        self.assertEqual(self.a.get('/admin', headers=headers).status_code, 403)
+        self.assertEqual(self.a.get('/api/mobile-sync', headers={
+            'Authorization': 'Bearer invalid',
+        }).status_code, 401)
 
     def test_private_read_write_delete_and_public_isolation(self):
         a = self.register(self.a, 'alice')

@@ -28,7 +28,7 @@ PRIVATE_ENDPOINTS = {
     'seasons_list', 'season_create', 'season_detail', 'season_edit', 'season_delete',
     'season_share', 'season_public', 'api_seasons', 'api_season', 'api_season_share',
     'image_preview', 'performance_sample', 'performance_report',
-    'api_me', 'api_logout', 'api_years',
+    'api_me', 'api_logout', 'api_years', 'api_mobile_sync',
     'api_doubles_stats', 'api_doubles_player', 'api_doubles_list',
     'api_doubles_get', 'api_doubles_create', 'api_doubles_update', 'api_doubles_delete',
     'api_vollis_stats', 'api_vollis_player', 'api_vollis_list',
