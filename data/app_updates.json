@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-10-31-face-photo-zoom",
+    "date": "2026-10-31",
+    "subject": "iPhone: Zoom and position player face photos",
+    "body": "Pinch to zoom or use the zoom slider, then drag to frame a player's face before uploading. Preview the crop, reset it, or cancel; if uploading fails, your framing stays ready to try again."
+  },
+  {
     "id": "ios-2026-10-26-one-on-one-entry",
     "date": "2026-10-26",
     "subject": "iPhone: Faster 1v1 game entry",
