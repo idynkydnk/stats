@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-11-01-instant-player-suggestions",
+    "date": "2026-11-01",
+    "subject": "iPhone: Player lists update right after saving",
+    "body": "Winner and loser suggestions immediately move the players from your saved game to the top. The lists keep those players available while the game syncs, including when you are offline."
+  },
+  {
     "id": "ios-2026-10-31-face-photo-zoom",
     "date": "2026-10-31",
     "subject": "iPhone: Zoom and position player face photos",
