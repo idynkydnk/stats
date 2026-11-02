@@ -1,5 +1,17 @@
 [
   {
+    "id": "ios-2026-11-01-edit-other-games",
+    "date": "2026-11-01",
+    "subject": "iPhone: Edit board games and other game results",
+    "body": "Long-press or swipe a saved game and choose Edit to correct its players, individual scores, and other details."
+  },
+  {
+    "id": "ios-2026-11-01-readable-game-scores",
+    "date": "2026-11-01",
+    "subject": "iPhone: Clearer player names and individual scores",
+    "body": "Game results give each player their own row so names stay readable in larger groups. Games with individual scoring show each player’s score beside their name, including separate scores for players on the same side."
+  },
+  {
     "id": "ios-2026-11-01-instant-player-suggestions",
     "date": "2026-11-01",
     "subject": "iPhone: Player lists update right after saving",
