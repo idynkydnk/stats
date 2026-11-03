@@ -32,6 +32,19 @@ def _get_json(url, params):
     return response.json()
 
 
+def picture_location(location):
+    """Expand known private venue names without guessing an address."""
+    location = (location or '').strip()
+    if location.casefold() == 'the oasis':
+        return (
+            "The Oasis, Tyler's house in Dunedin, Florida, with a beach volleyball "
+            'court, a black volleyball net, a creek in the back, a pool, a mango '
+            'tree, a banana tree, and court lights. For nighttime scenes, show '
+            'the court lights illuminating the court; keep daytime scenes in daylight'
+        )
+    return location
+
+
 def _selected_session(games):
     sessions = defaultdict(list)
     for game in games:
@@ -61,17 +74,23 @@ def recap_weather_context(games):
     # Hermosa is a common local shorthand. Pin it to the requested California
     # city, rather than trusting a similarly named geocoding result elsewhere.
     search = location
+    expected_state = None
+    if location.casefold() == 'the oasis':
+        # Search the known city, never the private venue's ambiguous name.
+        search = 'Dunedin'
+        expected_state = 'Florida'
     if location.casefold() in {'hermosa', 'hermosa beach', 'hermosa beach, ca',
                                'hermosa beach, california'}:
         search = 'Hermosa Beach, California'
+        expected_state = 'California'
     try:
         results = _get_json('https://geocoding-api.open-meteo.com/v1/search',
                             {'name': search, 'count': 5, 'language': 'en'}).get('results') or []
         # Do not silently pick a different or ambiguous city.
         city = search.split(',')[0].strip().casefold()
         matches = [row for row in results if str(row.get('name') or '').casefold() == city]
-        if search == 'Hermosa Beach, California':
-            matches = [row for row in matches if row.get('admin1') == 'California'
+        if expected_state:
+            matches = [row for row in matches if row.get('admin1') == expected_state
                        and row.get('country_code') == 'US']
         if len(matches) != 1:
             raise ValueError('Location could not be resolved unambiguously')
@@ -127,6 +146,7 @@ def recap_weather_context(games):
         if not descriptions:
             raise ValueError('No weather available for the selected game time')
         return (
+            f'Picture location: {picture_location(location)}.\n'
             f'Weather source: Open-Meteo, {place["name"]}, {place.get("admin1", "")}.\n'
             f'Picture setting: {timing}. Conditions: {"; ".join(descriptions)}.\n'
             'Match the sky, cloud cover, rain/fog, wind cues, clothing and lighting '
@@ -138,7 +158,7 @@ def recap_weather_context(games):
         )
     except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
         logging.getLogger(__name__).warning('Recap weather unavailable for %s: %s', location, exc)
-        return (f'Weather unavailable for {location} on {day.isoformat()}. '
+        return (f'Weather unavailable for {picture_location(location)} on {day.isoformat()}. '
                 'Do not invent specific weather or claim it was verified. Use a neutral '
                 'background without a prominent sunny sky, rain, fog, or sunset.')
 

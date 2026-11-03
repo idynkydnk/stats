@@ -24,6 +24,40 @@ def game(date='2020-06-01 15:30:00', location='Hermosa Beach', zone='America/Los
 
 class RecapWeatherTests(unittest.TestCase):
     @patch('recap_weather._get_json')
+    def test_oasis_uses_dunedin_florida_weather(self, get):
+        from email_content import build_scene_image_prompt, _location_context_block
+
+        for location in ('The Oasis', ' the OASIS '):
+            with self.subTest(location=location):
+                place = dict(PLACE, name='Dunedin', admin1='Florida',
+                             latitude=28.02, longitude=-82.77, timezone='America/New_York')
+                wrong = dict(place, country_code='NZ', admin1='Otago')
+                get.side_effect = [{'results': [wrong, place]}, weather()]
+                result = append_recap_weather(
+                    'Scene\n[RECAP WEATHER]\nAlaska weather\n[/RECAP WEATHER]',
+                    [game(location=location, zone="America/New_York")],
+                )
+                self.assertIn("Tyler's house in Dunedin, Florida", result)
+                self.assertIn('overcast', result)
+                self.assertEqual(get.call_args_list[-2].args[1]['name'], 'Dunedin')
+                self.assertEqual(get.call_args.args[1]['latitude'], place['latitude'])
+                self.assertEqual(get.call_args.args[1]['timezone'], 'America/New_York')
+                self.assertNotIn('Alaska', result)
+                self.assertIn("Tyler's house in Dunedin, Florida", _location_context_block(location))
+                self.assertIn("Tyler's house in Dunedin, Florida", build_scene_image_prompt(
+                    'doubles', [], location=location))
+
+    @patch('recap_weather._get_json')
+    def test_oasis_rejects_wrong_state_or_country(self, get):
+        for state, country in [('Alaska', 'US'), ('Florida', 'NZ')]:
+            get.return_value = {'results': [dict(PLACE, name='Dunedin',
+                                               admin1=state, country_code=country)]}
+            result = recap_weather_context([game(location='The Oasis')])
+            self.assertIn('Weather unavailable', result)
+            self.assertIn("Tyler's house in Dunedin, Florida", result)
+        self.assertEqual(get.call_count, 2)
+
+    @patch('recap_weather._get_json')
     def test_historical_weather_uses_hermosa_and_game_hour(self, get):
         get.side_effect = [{'results': [PLACE]}, weather()]
         result = recap_weather_context([game()])

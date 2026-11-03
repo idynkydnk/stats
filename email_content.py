@@ -1473,7 +1473,8 @@ def build_scene_image_prompt(
     if (image_details or '').strip():
         sections.append(image_details.strip())
     if (location or '').strip():
-        sections.append(f'Location: {location.strip()}.')
+        from recap_weather import picture_location
+        sections.append(f'Location: {picture_location(location)}.')
     sections.append('Vertical 4:5.')
     return _append_group_picture_details(
         '\n\n'.join(section for section in sections if section), players, player_stats,
@@ -1482,7 +1483,8 @@ def build_scene_image_prompt(
 
 def _location_context_block(location):
     """Strong location direction shared by default and edited recap prompts."""
-    location = (location or '').strip()
+    from recap_weather import picture_location
+    location = picture_location(location)
     if not location:
         return ''
     return (
