@@ -49,6 +49,27 @@ class AISummaryGamesTests(unittest.TestCase):
         rows = load_ai_summary_games(self.conn, kind, username, **kwargs)
         return [r['game_id'] if kind == 'other' else r[0] for r in rows]
 
+    def test_mixed_selection_keeps_colliding_ids_labels_comments_and_owners(self):
+        for kind in ('doubles', 'vollis', 'other'):
+            self.insert(kind, 'mila', '2026-11-03')
+            self.insert(kind, 'dan', '2026-11-03')
+        self.conn.execute("UPDATE other_games SET game_name='No jump', comment='Warm-up'")
+        self.conn.execute("UPDATE games SET comments='Long rally'")
+        ids = ['doubles:1', 'other:1', 'vollis:1', 'doubles:1', 'other:2']
+        selection = load_ai_summary_selection(self.conn, 'other', 'mila', ids)
+        games = {game['game_id']: game for game in selection['games']}
+        self.assertEqual(set(games), {'doubles:1', 'other:1', 'vollis:1'})
+        self.assertEqual(games['other:1']['game_name'], 'No jump')
+        self.assertEqual(games['other:1']['comment'], 'Warm-up')
+        self.assertEqual(games['doubles:1']['comment'], 'Long rally')
+        self.assertEqual(games['doubles:1']['game_name'], 'Doubles')
+        self.assertEqual(len(games['doubles:1']['winners']), 2)
+        alex = next(row for row in selection['stats'] if row[0] == 'Alex')
+        self.assertEqual(alex[1:5], [3, 0, 1, 33])
+        self.assertEqual(len(load_ai_summary_selection(self.conn, 'other', 'Kyle', ids)['games']), 4)
+        with self.assertRaises(ValueError):
+            load_ai_summary_selection(self.conn, 'other', 'mila', ['unknown:1'])
+
     def test_filters_owner_before_limit_and_keeps_entire_latest_day(self):
         for kind in ('doubles', 'vollis', 'other'):
             with self.subTest(kind=kind):

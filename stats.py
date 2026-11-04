@@ -663,6 +663,19 @@ def _publish_ai_recap(payload, prompt_style, custom_prompt, game_ids, username=N
 def _load_games_and_players_for_recap(game_type, game_ids, include_weather=False):
     """Load selected games, players, game name, and location for a recap image."""
     from email_content import _summary_location_from_rows
+    if game_type == 'other' and any(':' in str(value) for value in game_ids):
+        from ai_summary_games import load_mixed_recap_rows
+        from other_functions import readable_games_data, all_other_players
+        from database_functions import create_connection
+        conn = create_connection('/home/Idynkydnk/stats/stats.db') or create_connection('stats.db')
+        try:
+            rows = load_mixed_recap_rows(conn, game_ids, session.get('username', ''))
+        finally:
+            conn.close()
+        games = readable_games_data(rows)
+        names = ', '.join(sorted({g['game_name'] for g in games if g.get('game_name')}))
+        result = (games, set(all_other_players(games)), names, _summary_location_from_rows(rows))
+        return result + (rows,) if include_weather else result
     ids = [int(gid) for gid in game_ids]
     if not ids:
         raise ValueError('No games saved for this recap.')
@@ -2146,6 +2159,11 @@ def other_stats_default():
 @app.route('/other_stats/<year>/')
 def other_stats(year):
     """Other stats page."""
+    if request.args.get('category'):
+        from category_stats import category_results
+        result = category_results(_stats_db_path(), request.args['category'], year,
+                                  request.args.get('player', ''))
+        return render_template('category_stats.html', **result)
     current_year = str(date.today().year)
     showing_previous_year = False
     display_year = year

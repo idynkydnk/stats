@@ -64,7 +64,11 @@ def load_ai_summary_games(conn, game_type, username, query='', limit=50, game_id
 
 def load_ai_summary_selection(conn, game_type, username, game_ids):
     """Review only the selected, visible games without generating any AI content."""
-    games = load_ai_summary_games(conn, game_type, username, game_ids=game_ids)
+    if game_type == 'other' and any(':' in str(value) for value in game_ids):
+        from other_functions import readable_games_data
+        games = readable_games_data(load_mixed_recap_rows(conn, game_ids, username))
+    else:
+        games = load_ai_summary_games(conn, game_type, username, game_ids=game_ids)
     if game_type == 'other':
         from other_functions import _other_stats_with_differential
         stats = _other_stats_with_differential(games)
@@ -86,3 +90,33 @@ def latest_owned_game_ids(conn, game_type, username):
                 FROM {table} WHERE TRIM(entered_by) = ? COLLATE NOCASE)""",
         [username.strip(), username.strip()],
     )]
+
+
+def load_mixed_recap_rows(conn, game_ids, username=None):
+    """Resolve type-qualified IDs into the shared team-game format."""
+    groups = {}
+    for value in game_ids:
+        kind, separator, ident = str(value).partition(':')
+        if not separator or kind not in ('doubles', 'vollis', 'other') or not ident.isdigit():
+            raise ValueError('Invalid recap game selection.')
+        groups.setdefault(kind, set()).add(int(ident))
+    rows = []
+    for kind, ids in groups.items():
+        table = {'doubles': 'games', 'vollis': 'vollis_games', 'other': 'other_games'}[kind]
+        params = sorted(ids)
+        where = 'id IN (' + ','.join('?' for _ in params) + ')'
+        if username is not None and username.strip().casefold() != 'kyle':
+            where += ' AND TRIM(entered_by) = ? COLLATE NOCASE'
+            params.append(username.strip())
+        cursor = conn.execute(f'SELECT * FROM {table} WHERE {where}', params)
+        columns = [column[0] for column in cursor.description]
+        for row in cursor.fetchall():
+            record = dict(zip(columns, row))
+            record['id'] = f"{kind}:{record['id']}"
+            if kind != 'other':
+                record.update(game_type='Volleyball', game_name='Doubles' if kind == 'doubles' else 'Vollis',
+                              comment=record.get('comments', ''), is_tie=False)
+                if kind == 'vollis':
+                    record.update(winner1=record.get('winner'), loser1=record.get('loser'))
+            rows.append(record)
+    return sorted(rows, key=lambda row: (row.get('game_date') or '', row['id']), reverse=True)

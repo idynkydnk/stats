@@ -1,14 +1,4 @@
 <ul class="menu-list">
-    <li class="menu-section-label">Account</li>
-    {% if session.logged_in %}
-    <li class="menu-account-status">Signed in as {{ account_display_name }}</li>
-    {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
-    {% if passkeys_available %}<li><a href="{{ url_for('passkey_settings') }}"><i class="fas fa-key" aria-hidden="true"></i> Passkeys / Face ID</a></li>{% endif %}
-    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
-    {% else %}
-    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-    {% endif %}
-
     <li class="menu-section-label">General</li>
     <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
     <li class="sr-appearance">
@@ -38,8 +28,16 @@
         </details>
     </li>
 
+    <li class="menu-section-label">Browse</li>
+    <li><a href="{{ url_for('seasons_list') }}"><i class="fas fa-calendar-day"></i> Seasons</a></li>
+    {% if session.logged_in %}
+    <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
+    {% endif %}
+    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
+    <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>
+
     <li class="menu-section-label">Stats filters</li>
-    <li><a href="{{ stats_date_range_url }}"><i class="fas fa-calendar-alt" aria-hidden="true"></i> Custom time frame</a></li>
+    <li><a href="{{ stats_date_range_url }}"><i class="fas fa-calendar-day" aria-hidden="true"></i> Custom time frame</a></li>
     <li class="sr-appearance">
         <details>
             <summary><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Location</summary>
@@ -67,18 +65,20 @@
     <li><a href="{{ stats_filters_clear_url }}"><i class="fas fa-times" aria-hidden="true"></i> Clear filters</a></li>
     {% endif %}
 
-    <li class="menu-section-label">Browse</li>
-    <li><a href="{{ url_for('seasons_list') }}"><i class="fas fa-calendar-alt"></i> Seasons</a></li>
+    <li class="menu-section-label">Account</li>
     {% if session.logged_in %}
-    <li><a href="{{ url_for('player_list') }}"><i class="fas fa-users"></i> Players</a></li>
+    <li class="menu-account-status">Signed in as {{ account_display_name }}</li>
+    {% if is_admin_user %}<li class="menu-account-status">Admin</li>{% endif %}
+    {% if passkeys_available %}<li><a href="{{ url_for('passkey_settings') }}"><i class="fas fa-key" aria-hidden="true"></i> Passkeys / Face ID</a></li>{% endif %}
+    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Log out</a></li>
+    {% else %}
+    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
     {% endif %}
-    <li><a href="{{ url_for('my_ai_recaps') }}"><i class="fas fa-share-alt"></i> AI Recaps</a></li>
-    <li><a href="{{ url_for('my_ai_flyers') }}"><i class="fas fa-images"></i> Flyers</a></li>
 
     {% if is_admin_user %}
     <li class="menu-section-label">Admin</li>
     <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-user-shield"></i> Admin dashboard</a></li>
     <li><a href="{{ url_for('admin_site_updates') }}"><i class="fas fa-bullhorn"></i> Site updates</a></li>
-    <li><a href="/admin/content-reports"><i class="fas fa-flag" aria-hidden="true"></i> Content reports</a></li>
+    <li><a href="/admin/content-reports"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Content reports</a></li>
     {% endif %}
 </ul>

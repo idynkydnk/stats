@@ -5545,11 +5545,19 @@ def build_other_email_payload(
     if conn is None:
         conn = create_connection('stats.db')
     conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    placeholders = ','.join('?' * len(selected_game_ids))
-    cur.execute(f"SELECT * FROM other_games WHERE id IN ({placeholders}) ORDER BY game_date DESC",
-                [int(gid) for gid in selected_game_ids])
-    raw_games = cur.fetchall()
+    if any(':' in str(value) for value in selected_game_ids):
+        from ai_summary_games import load_mixed_recap_rows
+        from flask import has_request_context, session
+        raw_games = load_mixed_recap_rows(
+            conn, selected_game_ids, session.get('username', '') if has_request_context() else None,
+        )
+    else:
+        cur = conn.cursor()
+        placeholders = ','.join('?' * len(selected_game_ids))
+        cur.execute(f"SELECT * FROM other_games WHERE id IN ({placeholders}) ORDER BY game_date DESC",
+                    [int(gid) for gid in selected_game_ids])
+        raw_games = cur.fetchall()
+    conn.close()
 
     if not raw_games:
         raise ValueError('None of the selected games were found.')

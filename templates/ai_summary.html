@@ -271,6 +271,7 @@
 
             <form id="summary-form" method="POST" action="{{ url_for('select_ai_prompt') }}">
                 <input type="hidden" name="game_type" id="game-type-input" value="doubles">
+                <p>Choose games from any tab to include them together in one recap. Selections stay checked when you switch tabs or search.</p>
 
                 <!-- Doubles Games -->
                 <div id="tab-doubles" class="sr-tab-content active">
@@ -439,6 +440,17 @@
 {% block extra_js %}
 <script>
 let currentTab = 'doubles';
+        const selectedGames = new Set();
+
+        function selectionKey(card) {
+            return card.dataset.gameType + ':' + card.dataset.gameId;
+        }
+
+        function rememberSelection(card, checked) {
+            if (checked) selectedGames.add(selectionKey(card));
+            else selectedGames.delete(selectionKey(card));
+            updateSelectedCount();
+        }
         const selectAllIds = {{ select_all_ids|default({})|tojson }};
         const expandedTabs = {};
         const searchPlaceholders = {
@@ -523,7 +535,8 @@ let currentTab = 'doubles';
             var checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'sr-game-checkbox';
-            checkbox.name = 'game_ids';
+            checkbox.checked = selectedGames.has(selectionKey(card));
+            card.classList.toggle('selected', checkbox.checked);
             checkbox.value = String(game.id);
             checkbox.onclick = function(e) { e.stopPropagation(); };
             card.appendChild(checkbox);
@@ -589,8 +602,7 @@ let currentTab = 'doubles';
 
             card.appendChild(info);
             checkbox.addEventListener('change', function() {
-                card.classList.toggle('selected', checkbox.checked);
-                updateSelectedCount();
+                rememberSelection(card, checkbox.checked);
             });
             return card;
         }
@@ -640,13 +652,13 @@ let currentTab = 'doubles';
         }
 
         function runSearch(query) {
+            var requestId = ++searchRequestId;
             var q = (query || '').trim();
             if (!q) {
                 showBrowseMode();
                 return;
             }
 
-            var requestId = ++searchRequestId;
             setSearchStatus('Searching...');
             fetch('/api/ai_summary_game_search/?q=' + encodeURIComponent(q) + '&game_type=' + encodeURIComponent(currentTab), {
                 credentials: 'same-origin',
@@ -667,6 +679,8 @@ let currentTab = 'doubles';
         }
 
         function switchTab(tab) {
+            ++searchRequestId;
+            clearTimeout(searchTimer);
             document.querySelectorAll('.sr-tab').forEach(t => t.classList.remove('active'));
             document.querySelector('.sr-tab[data-tab="' + tab + '"]').classList.add('active');
 
@@ -684,24 +698,16 @@ let currentTab = 'doubles';
                 showBrowseMode();
             }
 
-            // Enable only checkboxes in the active tab, disable others
-            document.querySelectorAll('.sr-tab-content').forEach(content => {
-                var isActive = content.id === 'tab-' + tab;
-                content.querySelectorAll('.sr-game-checkbox').forEach(cb => {
-                    cb.disabled = !isActive;
-                    if (!isActive) {
-                        cb.checked = false;
-                        cb.closest('.sr-game-card').classList.remove('selected');
-                    }
-                });
-            });
-
             updateSelectedCount();
         }
 
         function updateSelectedCount() {
-            var activeTab = document.getElementById('tab-' + currentTab);
-            var checked = activeTab.querySelectorAll('.sr-game-checkbox:checked').length;
+            document.querySelectorAll('.sr-game-checkbox').forEach(function(cb) {
+                var card = cb.closest('.sr-game-card');
+                cb.checked = selectedGames.has(selectionKey(card));
+                card.classList.toggle('selected', cb.checked);
+            });
+            var checked = selectedGames.size;
             document.getElementById('selected-count').textContent = checked + ' game' + (checked !== 1 ? 's' : '') + ' selected';
             document.getElementById('generate-btn').disabled = checked === 0;
         }
@@ -719,8 +725,7 @@ let currentTab = 'doubles';
             var checkbox = card.querySelector('.sr-game-checkbox');
             if (checkbox.disabled) return;
             checkbox.checked = !checkbox.checked;
-            card.classList.toggle('selected', checkbox.checked);
-            updateSelectedCount();
+            rememberSelection(card, checkbox.checked);
         }
 
         function firstBrowseDay(tabEl) {
@@ -730,7 +735,10 @@ let currentTab = 'doubles';
 
         function selectAll() {
             var activeTab = document.getElementById('tab-' + currentTab);
-            // Select the current user's recent games even while viewing search results.
+            // Replace only this tab's choices with the user's latest day.
+            selectedGames.forEach(function(key) {
+                if (key.startsWith(currentTab + ':')) selectedGames.delete(key);
+            });
             ++searchRequestId;
             document.getElementById('game-search').value = '';
             showBrowseMode();
@@ -738,18 +746,14 @@ let currentTab = 'doubles';
                 var selected = (selectAllIds[currentTab] || []).includes(card.dataset.gameId);
                 if (selected) card.classList.remove('sr-hidden-game');
                 var checkbox = card.querySelector('.sr-game-checkbox');
-                checkbox.checked = selected;
-                card.classList.toggle('selected', selected);
+                if (selected) selectedGames.add(selectionKey(card));
             });
             updateSelectedCount();
         }
 
         function selectNone() {
-            var activeTab = document.getElementById('tab-' + currentTab);
-            activeTab.querySelectorAll('.sr-game-card').forEach(function(card) {
-                var checkbox = card.querySelector('.sr-game-checkbox');
-                checkbox.checked = false;
-                card.classList.remove('selected');
+            selectedGames.forEach(function(key) {
+                if (key.startsWith(currentTab + ':')) selectedGames.delete(key);
             });
             updateSelectedCount();
         }
@@ -808,19 +812,29 @@ let currentTab = 'doubles';
 
         // Show loading spinner on form submit
         document.getElementById('summary-form').addEventListener('submit', function() {
+            var form = this;
+            form.querySelectorAll('input[name="game_ids"]').forEach(function(input) { input.removeAttribute('name'); });
+            var kinds = new Set(Array.from(selectedGames, key => key.split(':')[0]));
+            document.getElementById('game-type-input').value = kinds.size === 1 ? Array.from(kinds)[0] : 'other';
+            selectedGames.forEach(function(key) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'game_ids';
+                input.value = kinds.size === 1 ? key.split(':')[1] : key;
+                form.appendChild(input);
+            });
             var btn = document.getElementById('generate-btn');
             btn.disabled = true;
             document.getElementById('generate-icon').className = 'fas fa-spinner fa-spin';
             document.getElementById('generate-text').textContent = 'Loading...';
         });
 
-        // Enable doubles checkboxes on load (default active tab)
-        document.querySelectorAll('#tab-doubles .sr-game-checkbox').forEach(function(cb) { cb.disabled = false; });
+        // All tabs share one selection, including games no longer in search results.
+        document.querySelectorAll('.sr-game-checkbox').forEach(function(cb) { cb.disabled = false; });
 
         document.querySelectorAll('.sr-game-checkbox').forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {
-                this.closest('.sr-game-card').classList.toggle('selected', this.checked);
-                updateSelectedCount();
+                rememberSelection(this.closest('.sr-game-card'), this.checked);
             });
         });
 </script>

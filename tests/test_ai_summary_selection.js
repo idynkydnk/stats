@@ -17,9 +17,10 @@ cards.push(card('2026-09-11', true));
 cards.forEach((c, i) => { c.dataset.gameId = String(i); });
 const tab = { querySelector: () => cards[0], querySelectorAll: () => cards };
 let updates = 0;
-const context = { currentTab: 'doubles', searchMode: false, searchRequestId: 0, selectAllIds: {doubles: cards.slice(0, 65).map(c => c.dataset.gameId)},
+const selectedGames = new Set(['doubles:65', 'other:0']);
+const context = { selectedGames, selectionKey: c => 'doubles:' + c.dataset.gameId, currentTab: 'doubles', searchMode: false, searchRequestId: 0, selectAllIds: {doubles: cards.slice(0, 65).map(c => c.dataset.gameId)},
     showBrowseMode: () => { context.searchMode = false; },
-    document: { getElementById: () => tab }, updateSelectedCount: () => updates++,
+    document: { getElementById: () => tab }, updateSelectedCount: () => { updates++; cards.forEach(c => { c.checkbox.checked = selectedGames.has('doubles:' + c.dataset.gameId); }); },
     visibleCards: () => cards.slice(0, 2) };
 vm.createContext(context);
 vm.runInContext(source, context);
@@ -49,3 +50,27 @@ context.searchMode = true;
 context.selectAll();
 assert.equal(cards.filter(c => c.checkbox.checked).length, 0, 'Search must not select other users or older games');
 console.log('Kyle browsing everyone preserves own-day Select All; search also respects ownership.');
+
+assert(selectedGames.has('other:0'), 'Select All must preserve selections on other tabs');
+const selectionSource = template.slice(template.indexOf('        function selectNone('), template.indexOf('        function toggleExpand('));
+vm.runInContext(selectionSource, context);
+context.selectNone();
+assert(selectedGames.has('other:0'), 'Select None only clears the current tab');
+// Exercise the actual shared selection and tab-switch code with a minimal DOM.
+const state = { document: {
+    querySelectorAll: () => [],
+    querySelector: () => ({classList: {add() {}}}),
+    getElementById: () => ({style: {}, value: ''}),
+}, searchRequestId: 0, searchTimer: null, clearTimeout() {},
+updateSearchPlaceholder() {}, showBrowseMode() {}, updateSelectedCount() {} };
+vm.createContext(state);
+vm.runInContext(template.slice(template.indexOf("let currentTab ="), template.indexOf('        const selectAllIds')), state);
+vm.runInContext(template.slice(template.indexOf('        function switchTab('), template.indexOf('        function updateSelectedCount(')), state);
+vm.runInContext(`
+rememberSelection({dataset: {gameType: 'doubles', gameId: '1'}}, true);
+switchTab('other');
+rememberSelection({dataset: {gameType: 'other', gameId: '1'}}, true);
+switchTab('doubles');
+if (selectedGames.size !== 2 || !selectedGames.has('doubles:1') || !selectedGames.has('other:1')) throw Error('Tab selection lost');
+`, state);
+console.log('Cross-tab selections survive switching and colliding IDs.');

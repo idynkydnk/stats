@@ -680,6 +680,18 @@ def register_ios_api(app):
     @app.route('/api/other/stats')
     @local_game_snapshot
     def api_other_stats():
+        if request.args.get('category'):
+            from category_stats import category_results
+            result = category_results(_S()._stats_db_path(), request.args['category'],
+                                      _year_arg('All years'), request.args.get('player', ''))
+            card = dict(game_name=result['category'], game_type=result['category'],
+                        stats=result['stats'], total_games=result['total_games'], minimum_games=1)
+            return jsonify(year=result['year'], display_year=result['year'],
+                           category=result['category'], showing_previous_year=False,
+                           minimum_games=1, all_years=result['all_years'],
+                           stats=[_other_ranking(r) for r in result['stats']], rare_stats=[],
+                           game_cards=[_card_stats(card)], includes_volleyball=True,
+                           today_stats_by_game=[], today_games=[])
         from other_functions import (
             all_other_years, other_year_games, other_stats_per_year,
             rare_other_stats_per_year, todays_other_stats_by_game, todays_other_games,

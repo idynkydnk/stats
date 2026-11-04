@@ -1,0 +1,52 @@
+{% extends base_template %}
+{% block active_tab %}other{% endblock %}
+{% block title %}{{ year }} {{ category }} Stats{% endblock %}
+{% block content %}
+<header class="sr-header sr-header-compact">
+    <h1 class="sr-title">{{ year }} {{ category }}{% if player %} · {{ player }}{% endif %}</h1>
+    <div class="sr-header-actions">
+        <a href="#category-games" class="sr-link-btn">Games</a>
+        {% if not stats_date_range %}
+        <select onchange="window.location.href=this.value" aria-label="Select year">
+            {% for yr in all_years %}
+            <option value="{{ url_for('other_stats', year=yr, category=category, player=player or none) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% set header_custom_nav = true %}
+        {% include 'partials/page_header_actions.html' %}
+    </div>
+</header>
+{% include 'partials/section_tabs.html' %}
+<div class="sr-container">
+    <section class="sr-card">
+        <p class="sr-section-label">{{ total_games }} game{{ 's' if total_games != 1 else '' }} · All {{ category|lower }} games combined</p>
+        {% if player %}<a class="sr-link-btn" href="{{ url_for('other_stats', year=year, category=category) }}">All players</a>{% endif %}
+        {% if stats %}
+        <div class="sr-table-wrap">
+            <table class="sr-table" data-default-sort="winpct" data-default-dir="desc">
+                <thead><tr><th>Player</th><th data-sort="games" class="sr-numeric">Games</th><th data-sort="wins" class="sr-numeric">W</th><th data-sort="losses" class="sr-numeric">L</th><th data-sort="ties" class="sr-numeric">T</th><th data-sort="winpct" class="sr-numeric">Win%</th></tr></thead>
+                <tbody>{% for row in stats %}<tr>
+                    <td class="sr-player"><a href="{{ url_for('other_stats', year=year, category=category, player=row[0]) }}">{{ row[0] }}</a></td>
+                    <td class="sr-numeric" data-value="{{ row[4] }}">{{ row[4] }}</td>
+                    <td class="sr-numeric sr-win" data-value="{{ row[1] }}">{{ row[1] }}</td>
+                    <td class="sr-numeric sr-loss" data-value="{{ row[2] }}">{{ row[2] }}</td>
+                    <td class="sr-numeric" data-value="{{ row[5] }}">{{ row[5] }}</td>
+                    <td class="sr-numeric" data-value="{{ row[3] }}">{{ '%.0f'|format(row[3] * 100) }}%</td>
+                </tr>{% endfor %}</tbody>
+            </table>
+        </div>
+        {% else %}<p>No games match these filters.</p>{% endif %}
+    </section>
+    <section id="category-games" class="sr-card">
+        <h2 class="sr-section-label">Games</h2>
+        <div class="sr-table-wrap"><table class="sr-table">
+            <thead><tr><th>Date</th><th>Game</th><th>Winners / tied side 1</th><th>Losers / tied side 2</th></tr></thead>
+            <tbody>{% for game in games %}<tr>
+                <td>{{ game.game_date }}</td><td>{{ game.game_name }}{% if game.is_tie %} · Tie{% endif %}</td>
+                <td>{{ game.winners|join(', ') }}</td><td>{{ game.losers|join(', ') }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+    </section>
+</div>
+{% endblock %}
