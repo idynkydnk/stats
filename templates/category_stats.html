@@ -1,31 +1,34 @@
 {% extends base_template %}
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ year }} {{ category }} Stats{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/category-stats.css', v='20261103') }}">
+{% endblock %}
 {% block content %}
 <header class="sr-header sr-header-compact">
     <h1 class="sr-title">{{ year }} {{ category }}{% if player %} · {{ player }}{% endif %}</h1>
     <div class="sr-header-actions">
         <a href="#category-games" class="sr-link-btn">Games</a>
         {% if not stats_date_range %}
-        <select onchange="window.location.href=this.value" aria-label="Select year">
+        <div class="sr-year-select-wrap"><select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
             {% for yr in all_years %}
             <option value="{{ url_for('other_stats', year=yr, category=category, player=player or none) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
             {% endfor %}
-        </select>
+        </select></div>
         {% endif %}
         {% set header_custom_nav = true %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 {% include 'partials/section_tabs.html' %}
-<div class="sr-container">
-    <section class="sr-card">
-        <p class="sr-section-label">{{ total_games }} game{{ 's' if total_games != 1 else '' }} · All {{ category|lower }} games combined</p>
+<div class="sr-container sr-category-page">
+    <section class="sr-card sr-card-compact">
+        <p class="sr-section-label">{{ total_games }} game{{ 's' if total_games != 1 else '' }} · Combined standings</p>
         {% if player %}<a class="sr-link-btn" href="{{ url_for('other_stats', year=year, category=category) }}">All players</a>{% endif %}
         {% if stats %}
         <div class="sr-table-wrap">
-            <table class="sr-table" data-default-sort="winpct" data-default-dir="desc">
-                <thead><tr><th>Player</th><th data-sort="games" class="sr-numeric">Games</th><th data-sort="wins" class="sr-numeric">W</th><th data-sort="losses" class="sr-numeric">L</th><th data-sort="ties" class="sr-numeric">T</th><th data-sort="winpct" class="sr-numeric">Win%</th></tr></thead>
+            <table class="sr-category-table" data-default-sort="winpct" data-default-dir="desc">
+                <thead><tr><th data-column="player" data-sort="player" scope="col">Player</th><th data-sort="games" class="sr-numeric">Games</th><th data-sort="wins" class="sr-numeric">W</th><th data-sort="losses" class="sr-numeric">L</th><th data-sort="ties" class="sr-numeric">T</th><th data-sort="winpct" class="sr-numeric">Win%</th></tr></thead>
                 <tbody>{% for row in stats %}<tr>
                     <td class="sr-player"><a href="{{ url_for('other_stats', year=year, category=category, player=row[0]) }}">{{ row[0] }}</a></td>
                     <td class="sr-numeric" data-value="{{ row[4] }}">{{ row[4] }}</td>
@@ -38,15 +41,28 @@
         </div>
         {% else %}<p>No games match these filters.</p>{% endif %}
     </section>
-    <section id="category-games" class="sr-card">
+    <section id="category-games" class="sr-card sr-card-compact">
         <h2 class="sr-section-label">Games</h2>
-        <div class="sr-table-wrap"><table class="sr-table">
-            <thead><tr><th>Date</th><th>Game</th><th>Winners / tied side 1</th><th>Losers / tied side 2</th></tr></thead>
-            <tbody>{% for game in games %}<tr>
-                <td>{{ game.game_date }}</td><td>{{ game.game_name }}{% if game.is_tie %} · Tie{% endif %}</td>
-                <td>{{ game.winners|join(', ') }}</td><td>{{ game.losers|join(', ') }}</td>
-            </tr>{% endfor %}</tbody>
-        </table></div>
+        <ul class="sr-category-game-list">
+            {% for game in games %}
+            <li class="sr-category-game">
+                <div class="sr-category-game-heading">
+                    <strong>{{ game.game_name }}</strong>
+                    <time datetime="{{ game.game_date }}">{{ (game.game_date|string)[:10] }}</time>
+                </div>
+                <div class="sr-category-result">
+                    <span class="sr-category-result-label">{{ 'Tied' if game.is_tie else 'Won' }}</span>
+                    <span>{{ game.winners|join(', ') }}</span>
+                    <span class="sr-category-score">{{ game.winner_score if game.winner_score is defined and game.winner_score is not none else '' }}</span>
+                </div>
+                <div class="sr-category-result">
+                    <span class="sr-category-result-label">{{ 'Tied' if game.is_tie else 'Lost' }}</span>
+                    <span>{{ game.losers|join(', ') }}</span>
+                    <span class="sr-category-score">{{ game.loser_score if game.loser_score is defined and game.loser_score is not none else '' }}</span>
+                </div>
+            </li>
+            {% else %}<li>No games match these filters.</li>{% endfor %}
+        </ul>
     </section>
 </div>
 {% endblock %}
