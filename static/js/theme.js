@@ -1,10 +1,10 @@
-// Apply saved appearance before first paint; keep the existing light/dark preference.
+// Apply saved appearance before first paint; default to Light, Forest, and Soft.
 (function() {
     var root = document.documentElement;
     var choices = {
-        mode: { key: 'srTheme', values: ['dark', 'light'], fallback: 'dark' },
-        palette: { key: 'srPalette', values: ['ocean', 'forest', 'sunset', 'violet'], fallback: 'ocean' },
-        style: { key: 'srStyle', values: ['classic', 'soft', 'sharp'], fallback: 'classic' }
+        mode: { key: 'srTheme', values: ['dark', 'light'], fallback: 'light' },
+        palette: { key: 'srPalette', values: ['ocean', 'forest', 'sunset', 'violet'], fallback: 'forest' },
+        style: { key: 'srStyle', values: ['classic', 'soft', 'sharp'], fallback: 'soft' }
     };
     var current = {};
 
