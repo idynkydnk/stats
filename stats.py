@@ -947,6 +947,7 @@ def _publish_flyer_page(username, payload, flyer_url='', flyer_error='', solo_im
             flyer_image_error=flyer_error or '',
             solo_images=solo_images or [],
             scene_prompt=scene_prompt or '',
+            season_id=payload.get('season_id') or '',
         )
         from ai_library import after_publish
         after_publish('flyer', share_id)
@@ -1059,6 +1060,7 @@ def _parse_flyer_form():
         'location': (request.form.get('location') or '').strip(),
         'image_details': (request.form.get('image_details') or '').strip(),
         'scene_prompt': (request.form.get('scene_prompt') or '').strip(),
+        'season_id': (request.form.get('season_id') or '').strip(),
         'custom_solo_prompts': custom_solo_prompts,
     }
 
@@ -1086,6 +1088,7 @@ def _generate_and_publish_flyer(username, payload):
             game_name=payload.get('game_name') or None,
             image_details=payload.get('image_details') or '',
             custom_scene_prompt=payload.get('scene_prompt') or None,
+            season_id=payload.get('season_id') or '',
         )
         return _publish_flyer_page(
             username,
@@ -2875,21 +2878,27 @@ def api_flyer_prompts():
     if game_type not in ('doubles', 'vollis', 'other'):
         game_type = 'doubles'
 
-    scene_prompt = build_flyer_scene_prompt(
-        cleaned,
-        game_type,
-        event_date=(data.get('event_date') or '').strip(),
-        event_time=(data.get('event_time') or '').strip(),
-        location=(data.get('location') or '').strip(),
-        game_name=(data.get('game_name') or '').strip() or None,
-        image_details=(data.get('image_details') or '').strip(),
-    )
+    try:
+        scene_prompt = build_flyer_scene_prompt(
+            cleaned,
+            game_type,
+            event_date=(data.get('event_date') or '').strip(),
+            event_time=(data.get('event_time') or '').strip(),
+            location=(data.get('location') or '').strip(),
+            game_name=(data.get('game_name') or '').strip() or None,
+            image_details=(data.get('image_details') or '').strip(),
+            season_id=data.get('season_id') or '',
+        )
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
     # solos kept empty for older create_flyer.js that still reads the key.
     return jsonify({'solos': [], 'scene_prompt': scene_prompt})
 
 
 def _flyer_form_template_kwargs(all_players, payload):
     """Template kwargs to re-show the create-flyer form with prior values."""
+    from seasons import available_seasons
+
     return {
         'players': all_players,
         'selected_players': payload.get('players') or [],
@@ -2901,6 +2910,8 @@ def _flyer_form_template_kwargs(all_players, payload):
         'image_details': payload.get('image_details') or '',
         'solo_prompts': payload.get('custom_solo_prompts') or {},
         'scene_prompt': payload.get('scene_prompt') or '',
+        'season_id': payload.get('season_id') or '',
+        'seasons': available_seasons(),
     }
 
 
@@ -2919,6 +2930,13 @@ def _validate_flyer_payload(payload):
         return 'Enter a game name for Other.'
     if not payload.get('event_date') or not payload.get('event_time') or not payload.get('location'):
         return 'Date, time, and location are required.'
+    if payload.get('season_id'):
+        from seasons import read_available_season
+        try:
+            with read_available_season(payload['season_id']):
+                pass
+        except ValueError as error:
+            return str(error)
     return None
 
 
@@ -2934,12 +2952,7 @@ def create_flyer():
     if request.method == 'GET':
         return render_template(
             'create_flyer.html',
-            players=all_players,
-            selected_players=[],
-            game_type='doubles',
-            event_date=date.today().isoformat(),
-            solo_prompts={},
-            scene_prompt='',
+            **_flyer_form_template_kwargs(all_players, {'event_date': date.today().isoformat()}),
         )
 
     # POST re-shows the form (e.g. Back from roster review).
@@ -2968,6 +2981,8 @@ def create_flyer_roster():
         'create_flyer_roster.html',
         player_cards=build_ai_recap_roster_cards(payload['players']),
         flyer=payload,
+        season_name=next((season['name'] for season in form_kwargs['seasons']
+                          if season['id'] == payload.get('season_id')), ''),
         worker_alive=ai_jobs.daemon_is_alive(),
     )
 
@@ -3182,6 +3197,7 @@ def remake_flyer_image(share_id):
                 game_name=row.get('game_name') or None,
                 image_details=row.get('image_details') or '',
                 custom_scene_prompt=scene_prompt or None,
+                season_id=row.get('season_id') or '',
             )
     except ImageGenerationError as e:
         flyerfx.update_flyer_page(

@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-11-04-flyer-season-stats",
+    "date": "2026-11-04",
+    "subject": "iPhone: Choose a season for flyer stats",
+    "body": "Choose a season when creating a flyer to show only that season’s player stats and ratings. Remaking the flyer keeps the same season."
+  },
+  {
     "id": "ios-2026-11-01-edit-other-games",
     "date": "2026-11-01",
     "subject": "iPhone: Edit board games and other game results",

@@ -46,6 +46,7 @@ def insert_flyer_page(
     flyer_image_error='',
     solo_images=None,
     scene_prompt='',
+    season_id='',
 ):
     """Persist a new flyer page meta JSON on disk."""
     from content_safety import check_publication_text
@@ -66,6 +67,7 @@ def insert_flyer_page(
         'flyer_image_error': flyer_image_error or '',
         'solo_images': list(solo_images or []),
         'scene_prompt': scene_prompt or '',
+        'season_id': season_id or '',
     }
     _write_json_atomic(_flyer_meta_path(safe_id), meta)
     return meta

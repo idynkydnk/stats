@@ -1342,21 +1342,88 @@ def _read_flyer_current_year_stats_block(players, labels_by_name=None):
     return '\n'.join(lines)
 
 
-def _refresh_flyer_current_year_stats(prompt, players, labels_by_name=None):
-    """Replace preview/saved records so edited and remade flyers use fresh stats."""
+def _flyer_season_stats_block(players, game_type, season_id, game_name=None, labels_by_name=None):
+    """Use the season standings, including players below its ranking minimum."""
+    from seasons import available_season_results
+
+    season, results = available_season_results(season_id)
+    players = _dedupe_players_preserve_order(players)
+    if not players:
+        return ''
+    groups = []
+    for group in results['groups']:
+        if game_type == 'doubles':
+            matches = group['id'].startswith('doubles:')
+        elif game_type == 'vollis':
+            matches = group['id'] == 'other:volleyball:vollis'
+        else:
+            matches = (group['id'].startswith('other:')
+                       and group['title'].casefold() == (game_name or '').strip().casefold())
+        if matches:
+            groups.append(group)
+    if not groups:
+        groups = [dict(title=game_name or ('Vollis' if game_type == 'vollis' else 'Doubles'),
+                       stats=[], rare_stats=[])]
+    labels_by_name = labels_by_name or {}
+    lines = [
+        '[SEASON STATS]',
+        f'Display heading: {season["name"]} STATS · {season["start_date"]} – {season["end_date"]}.',
+        'Use only the selected season’s records below. Ratings start fresh for this season. '
+        'Do not show year-to-date, lifetime, other-season, or event-result stats, even if '
+        'requested elsewhere in this prompt. Do not invent statistics or rankings. '
+        'Put each record beneath its own player portrait and name, with readable, '
+        'stacked, left-aligned lines in this order: Rating, Wins, Losses, Ties (if supplied), Win %. '
+        'Keep game formats separate and label each format. Do not show games played.',
+    ]
+    for group in groups:
+        records = {row['name'].strip().casefold(): row for row in group['stats'] + group['rare_stats']}
+        show_ties = any(row['ties'] for row in records.values())
+        lines.append(f'Game format: {group["title"]}')
+        for name in players:
+            row = records.get(name.casefold(), {})
+            rating = row.get('rating')
+            rating_text = f'{rating:.1f}' if rating is not None else '—'
+            percent = f'{100 * row["win_pct"]:.0f}%' if row.get('games') else '—'
+            lines.extend([
+                f'{name} (display name: {labels_by_name.get(name) or name}):',
+                f'Rating: {rating_text}',
+                f'Wins: {row.get("wins", 0)}',
+                f'Losses: {row.get("losses", 0)}',
+            ])
+            if show_ties:
+                lines.append(f'Ties: {row.get("ties", 0)}')
+            lines.append(f'Win %: {percent}')
+    lines.append('[/SEASON STATS]')
+    return '\n'.join(lines)
+
+
+def _flyer_stats_block(players, game_type, labels_by_name=None, season_id='', game_name=None):
+    if season_id:
+        return _flyer_season_stats_block(players, game_type, season_id, game_name, labels_by_name)
+    if game_type == 'doubles':
+        return _flyer_current_year_stats_block(players, labels_by_name)
+    return ''
+
+
+def _refresh_flyer_stats(prompt, players, game_type, labels_by_name=None, season_id='', game_name=None):
+    """Replace both kinds of saved records, never falling back from a chosen season."""
     import re
 
     prompt = re.sub(
-        r'\[CURRENT-YEAR DOUBLES STATS\].*?\[/CURRENT-YEAR DOUBLES STATS\]',
+        r'\[(CURRENT-YEAR DOUBLES STATS|SEASON STATS)\].*?\[/\1\]',
         '', prompt, flags=re.DOTALL,
     ).strip()
-    block = _flyer_current_year_stats_block(players, labels_by_name)
+    block = _flyer_stats_block(players, game_type, labels_by_name, season_id, game_name)
     return '\n\n'.join(part for part in (prompt, block) if part)
+
+
+def _refresh_flyer_current_year_stats(prompt, players, labels_by_name=None):
+    return _refresh_flyer_stats(prompt, players, 'doubles', labels_by_name)
 
 
 def build_flyer_scene_prompt(
     players, game_type, event_date='', event_time='', location='',
-    game_name=None, image_details='', labels_by_name=None,
+    game_name=None, image_details='', labels_by_name=None, season_id='',
 ):
     """Build the default Instagram flyer group prompt."""
     sport_desc = _sport_desc_for_image(game_type, game_name)
@@ -1399,7 +1466,7 @@ def build_flyer_scene_prompt(
             'Use only the supplied players, event details, and venue; do not invent '
             'a weekday, player count, venue logo, or sponsor.'
         )
-        sections.append(_flyer_current_year_stats_block(players, labels_by_name))
+    sections.append(_flyer_stats_block(players, game_type, labels_by_name, season_id, game_name))
     sections.append(
         'Energetic, fun, poster-quality illustration — not a plain photo collage.'
     )
@@ -3820,7 +3887,7 @@ def generate_flyer_image(
     api_key, players, game_type, event_date='', event_time='', location='',
     game_name=None, image_details='', existing_solo_images=None,
     reuse_existing_solos=False, custom_scene_prompt=None,
-    custom_solo_prompts=None,
+    custom_solo_prompts=None, season_id='',
 ):
     """Generate Instagram 4:5 flyer from saved AI characters and/or face photos (one API call).
 
@@ -3845,11 +3912,9 @@ def generate_flyer_image(
         players, labels_by_name=labels_by_name,
     )
     if (custom_scene_prompt or '').strip():
-        scene_prompt = custom_scene_prompt.strip()
-        if game_type == 'doubles':
-            scene_prompt = _refresh_flyer_current_year_stats(
-                scene_prompt, scene_players, labels_by_name,
-            )
+        scene_prompt = _refresh_flyer_stats(
+            custom_scene_prompt.strip(), scene_players, game_type, labels_by_name, season_id, game_name,
+        )
     else:
         scene_prompt = build_flyer_scene_prompt(
             scene_players,
@@ -3860,6 +3925,7 @@ def generate_flyer_image(
             game_name=game_name,
             image_details=image_details,
             labels_by_name=labels_by_name,
+            season_id=season_id,
         )
     scene_prompt = _append_volleyball_ball_lock(
         scene_prompt, game_type, game_name,

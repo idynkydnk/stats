@@ -231,7 +231,7 @@
 <div class="sr-card">
     <div class="sr-games-info">
         <i class="fas fa-users"></i>
-        <span>{{ flyer.players|length }} player{{ 's' if flyer.players|length != 1 else '' }} selected</span>
+        <span>{{ flyer.players|length }} player{{ 's' if flyer.players|length != 1 else '' }} selected{% if season_name %} · {{ season_name }} stats{% endif %}</span>
     </div>
 
     <h2 class="sr-card-title">Review player pictures &amp; signature looks</h2>
@@ -306,6 +306,7 @@
         {% endfor %}
         <input type="hidden" name="game_type" value="{{ flyer.game_type }}">
         <input type="hidden" name="game_name" value="{{ flyer.game_name }}">
+        <input type="hidden" name="season_id" value="{{ flyer.season_id }}">
         <input type="hidden" name="event_date" value="{{ flyer.event_date }}">
         <input type="hidden" name="event_time" value="{{ flyer.event_time }}">
         <input type="hidden" name="location" value="{{ flyer.location }}">

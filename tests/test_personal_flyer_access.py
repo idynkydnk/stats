@@ -25,6 +25,8 @@ class PersonalFlyerAccessTests(unittest.TestCase):
 
     def setUp(self):
         fixtures.PrivateAccountTests.setUp(self)
+        from seasons import register_seasons
+        register_seasons(self.app, self.service)
         storage = Path(self.directory.name) / 'flyers'
         storage.mkdir()
         for replacement in (

@@ -206,11 +206,13 @@ class PersonalRecapAccessTests(unittest.TestCase):
         from private_accounts import private_database, account_for_user, provision_database
         self.register(self.a, 'alice')
         owner_path = provision_database(self.path, account_for_user(self.path, 'alice')['id'])
-        flyerfx.insert_flyer_page('alice-own', 'alice', ['Alice'], 'doubles', '2026-10-09', '18:30', 'Beach')
+        flyerfx.insert_flyer_page('alice-own', 'alice', ['Alice'], 'doubles', '2026-10-09', '18:30', 'Beach',
+                                  season_id='selected-season')
         def generate(*args, **kwargs):
             self.assertEqual(private_database(), owner_path)
             self.assertEqual(session['username'], 'alice')
             self.assertEqual(kwargs['custom_scene_prompt'], 'Sunset')
+            self.assertEqual(kwargs['season_id'], 'selected-season')
             return '/new-picture.jpg', '', '', [], 'Sunset'
         with patch('email_content.require_ai_api_key', return_value='test'), \
              patch('email_content.generate_flyer_image', side_effect=generate):

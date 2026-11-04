@@ -4,8 +4,10 @@
 <style>
 .sr-flyer-form-grid {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
 }
+.sr-flyer-field { min-width: 0; }
 .sr-flyer-field label {
     display: block;
     font-size: 13px;
@@ -288,6 +290,20 @@
                        placeholder="e.g. Spikeball night">
             </div>
 
+            <div class="sr-flyer-field">
+                <label for="season_id">Season (optional)</label>
+                <select name="season_id" id="season_id" aria-describedby="season-hint">
+                    <option value="">No season (default stats)</option>
+                    {% for season in seasons %}
+                    <option value="{{ season.id }}" {% if season_id == season.id %}selected{% endif %}>{{ season.name }} · {{ season.start_date }} – {{ season.end_date }} · {{ season.owner }}</option>
+                    {% endfor %}
+                    {% if season_id and season_id not in seasons|map(attribute='id')|list %}
+                    <option value="{{ season_id }}" selected>Season unavailable — choose another</option>
+                    {% endif %}
+                </select>
+                <p id="season-hint" class="sr-prompts-hint">Choose a season to show only its stats and ratings. With no season, doubles flyers use year-to-date stats.</p>
+            </div>
+
             <div class="sr-flyer-row">
                 <div class="sr-flyer-field">
                     <label for="event_date">Date</label>
@@ -332,6 +348,7 @@
                 <div class="sr-prompts-loading" id="prompts-loading" hidden>
                     <i class="fas fa-spinner fa-spin"></i> Loading prompts…
                 </div>
+                <p id="prompts-error" class="sr-prompts-hint" role="alert" hidden></p>
                 <div id="solo-prompts" hidden></div>
                 <div class="sr-prompt-block">
                     <label for="scene_prompt">Flyer prompt</label>
@@ -545,6 +562,7 @@
         return {
             players: selected.slice(),
             game_type: gameType ? gameType.value : 'doubles',
+            season_id: document.getElementById('season_id').value,
             game_name: (document.getElementById('game_name').value || '').trim(),
             event_date: (dateInput.value || '').trim(),
             event_time: (document.getElementById('event_time').value || '').trim(),
@@ -565,6 +583,12 @@
         if (force || !dirtyScene) {
             scenePromptEl.value = (data && data.scene_prompt) || '';
             if (force) dirtyScene = false;
+        } else {
+            // Keep custom artwork instructions while replacing stale stats.
+            var statsPattern = /\[(CURRENT-YEAR DOUBLES STATS|SEASON STATS)\][\s\S]*?\[\/\1\]/g;
+            var blocks = ((data && data.scene_prompt) || '').match(statsPattern) || [];
+            var design = scenePromptEl.value.replace(statsPattern, '').trim();
+            scenePromptEl.value = [design].concat(blocks).filter(Boolean).join('\n\n');
         }
         renderSoloPromptFields();
     }
@@ -576,6 +600,8 @@
         }
         promptsSection.hidden = false;
         var seq = ++promptFetchSeq;
+        var errorEl = document.getElementById('prompts-error');
+        errorEl.hidden = true;
         if (promptsLoading) promptsLoading.hidden = false;
         fetch('{{ url_for("api_flyer_prompts") }}', {
             method: 'POST',
@@ -583,25 +609,35 @@
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(formPayload()),
         })
-            .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('prompts')); })
+            .then(function (r) {
+                return r.json().then(function (data) {
+                    if (!r.ok) throw new Error(data.error || 'Could not load flyer stats. Try again.');
+                    return data;
+                });
+            })
             .then(function (data) {
                 if (seq !== promptFetchSeq) return;
                 applyFetchedPrompts(data, !!force);
             })
-            .catch(function () { /* keep whatever the user already has */ })
+            .catch(function (error) {
+                if (seq !== promptFetchSeq) return;
+                errorEl.textContent = error.message || 'Could not load flyer stats. Try again.';
+                errorEl.hidden = false;
+            })
             .finally(function () {
                 if (seq === promptFetchSeq && promptsLoading) promptsLoading.hidden = true;
             });
     }
 
     function schedulePromptRefresh(force) {
+        ++promptFetchSeq;
         if (promptDebounce) clearTimeout(promptDebounce);
         promptDebounce = setTimeout(function () { fetchPrompts(force); }, force ? 0 : 280);
     }
 
     scenePromptEl.addEventListener('input', function () { dirtyScene = true; });
 
-    ['game_type', 'game_name', 'event_time', 'location', 'image_details'].forEach(function (id) {
+    ['game_type', 'game_name', 'season_id', 'event_time', 'location', 'image_details'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('change', function () { schedulePromptRefresh(); });
         if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {

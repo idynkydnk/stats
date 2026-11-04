@@ -501,4 +501,5 @@ def ai_account_context(app, site_path, username):
             g.private_account = account
             g.private_database = provision_database(site_path, account['id'])
         session['username'] = username
+        session['logged_in'] = True
         yield

@@ -7,13 +7,34 @@ import sqlite3
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from season_stats import AWARDS_EXPLANATION, MINIMUM_EXPLANATION, season_results, season_status
 from stats_date_filter import validate_date_range
 
 ENDPOINTS = {'seasons_list', 'season_create', 'season_detail', 'season_edit', 'season_delete',
              'season_share', 'season_public', 'api_seasons', 'api_season', 'api_season_share'}
+
+
+def available_seasons():
+    """Lightweight season choices using the directory's visibility rules."""
+    return current_app.extensions['season_access']['choices']()
+
+
+@contextmanager
+def read_available_season(season_id):
+    """Recheck access for previews, queued generation, and remakes."""
+    if not isinstance(season_id, str):
+        raise ValueError('Choose an available season.')
+    with current_app.extensions['season_access']['read'](season_id=season_id, optional=True) as season:
+        if season is None:
+            raise ValueError('This season is no longer available. Choose another season or no season.')
+        yield season
+
+
+def available_season_results(season_id):
+    with read_available_season(season_id) as season:
+        return season, season_results(current_app.extensions['season_access']['site_path'], season)
 
 
 def validate_season(body):
@@ -157,13 +178,25 @@ def register_seasons(app, service):
         return dict(season=public_data(season, owner), **results,
                     minimum_explanation=MINIMUM_EXPLANATION, awards_explanation=AWARDS_EXPLANATION)
 
-    def library():
-        entries = rows('''SELECT s.id FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
+    def entries():
+        return rows('''SELECT s.id FROM seasons s JOIN site_users u ON u.username=s.owner COLLATE NOCASE
                           WHERE u.active=1 AND (s.share_token IS NOT NULL OR s.owner=? COLLATE NOCASE)
                           ORDER BY s.start_date DESC, s.created_at DESC''', (username(),))
+
+    def choices():
+        result = []
+        for entry in entries():
+            with reading(season_id=entry['id'], optional=True) as season:
+                if season is not None:
+                    result.append(public_data(season, is_owner(season)))
+        return result
+
+    app.extensions['season_access'] = dict(read=reading, choices=choices, site_path=site_path)
+
+    def library():
         seasons = []
         champions = []
-        for entry in entries:
+        for entry in entries():
             with reading(season_id=entry['id'], optional=True) as season:
                 if season is None:
                     continue

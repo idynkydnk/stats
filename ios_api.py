@@ -1336,6 +1336,7 @@ def register_ios_api(app):
             'image_details': (data.get('image_details') or '').strip(),
             'scene_prompt': (data.get('scene_prompt') or '').strip(),
             'custom_solo_prompts': data.get('custom_solo_prompts') or {},
+            'season_id': data.get('season_id') or '',
         }
         error = S._validate_flyer_payload(payload)
         if error:
