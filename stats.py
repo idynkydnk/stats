@@ -1501,6 +1501,8 @@ if _stats_db_path() == '/home/Idynkydnk/stats/stats.db':
     correct_john_trent(_stats_db_path())
     from migrations.restore_dan_tyler_ownership import migrate as restore_game_owners
     restore_game_owners(_stats_db_path())
+    from migrations.restore_aaron_ownership import migrate as restore_aaron_games
+    restore_aaron_games(_stats_db_path())
     from migrations.clearwater_may_2019 import migrate as correct_clearwater_may_2019
     correct_clearwater_may_2019(_stats_db_path())
 from migrations.normalize_other_game_categories import normalize_other_game_categories

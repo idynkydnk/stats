@@ -78,7 +78,9 @@ jobs:
       env:
         PA_USERNAME: ${{ secrets.PA_USERNAME }}
         PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
-      run: python3 scripts/verify_restored_ownership.py
+      run: |
+        python3 scripts/verify_restored_ownership.py
+        python3 scripts/verify_aaron_ownership.py
 
     - name: Prepare common public pages
       env:
