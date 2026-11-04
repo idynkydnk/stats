@@ -71,13 +71,14 @@ class CategoryStatsTests(unittest.TestCase):
         original_loader = app.jinja_loader
         from jinja2 import ChoiceLoader
         app.jinja_loader = ChoiceLoader([DictLoader({
-            'test_base.html': '{% block content %}{% endblock %}',
-            'partials/page_header_actions.html': '',
+            'test_base.html': '{% block content %}{% endblock %}{% block extra_js %}{% endblock %}',
             'partials/section_tabs.html': '',
         }), original_loader])
         @app.context_processor
         def context():
-            return dict(base_template='test_base.html')
+            return dict(base_template='test_base.html', active_tab='other',
+                        year_route_base='other_stats', stats_location_url=lambda **kw: '/stats',
+                        navigation_locations=['Park'], inline_stats_script='// shared stats script')
         service = SimpleNamespace(_stats_db_path=lambda: self.path)
         for filename, name in [('stats.py', 'other_stats'), ('ios_api.py', 'api_other_stats')]:
             tree = ast.parse(Path(filename).read_text())
@@ -94,6 +95,12 @@ class CategoryStatsTests(unittest.TestCase):
         self.assertIn(b'2 games', response.data)
         self.assertIn(b'Horse', response.data)
         self.assertNotIn(b'Chess', response.data)
+        self.assertIn(b'sr-table sr-standings-table', response.data)
+        self.assertIn(b'id="sr-search"', response.data)
+        self.assertIn(b'aria-label="Locations"', response.data)
+        self.assertIn(b'/other_stats/2025/?category=Basketball', response.data)
+        self.assertIn(b'// shared stats script', response.data)
+
         response = client.get('/api/other/stats?year=2026&category=Basketball')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['game_cards'][0]['total_games'], 2)

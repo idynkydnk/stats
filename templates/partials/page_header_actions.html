@@ -53,7 +53,11 @@
                 <option value="{{ url_for('other_games', year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
                 {% endif %}
             {% else %}
+            {% if category|default('') %}
+            <option value="{{ url_for('other_stats', year=yr_option, category=category, player=player or none) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+            {% else %}
             <option value="{{ url_for(year_base, year=yr_option, format=format_name) if tab == 'vollis' else url_for(year_base, year=yr_option) }}" {% if yr_option|string == yr|string %}selected{% endif %}>{{ yr_option }}</option>
+            {% endif %}
             {% endif %}
             {% endfor %}
         </select>

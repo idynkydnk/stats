@@ -1,18 +1,11 @@
-/* Category results do not use the rank/player sticky columns of .sr-table. */
-.sr-category-page { display: grid; gap: 20px; }
-.sr-category-page > .sr-card { margin: 0; min-width: 0; }
-.sr-category-table { width: 100%; border-collapse: collapse; table-layout: auto; font-variant-numeric: tabular-nums; }
-.sr-category-table th, .sr-category-table td { padding: 12px 10px; border-bottom: 1px solid var(--sr-line); text-align: left; vertical-align: middle; }
-.sr-category-table th { color: var(--sr-muted); font-size: 12px; font-weight: 600; }
-.sr-category-table td { font-size: 15px; }
-.sr-category-table th[data-sort] { cursor: pointer; }
-.sr-category-table .sr-sorted { color: var(--sr-accent); }
-.sr-category-table .sr-numeric { width: 1%; text-align: right; white-space: nowrap; }
-.sr-category-table .sr-player { width: auto; min-width: 130px; white-space: normal; overflow-wrap: normal; word-break: normal; font-weight: 600; }
-.sr-category-table .sr-player a { color: var(--sr-text); text-decoration: none; }
-.sr-category-table .sr-player a:hover { color: var(--sr-accent); }
-.sr-category-table tbody tr:last-child td { border-bottom: 0; }
-.sr-category-table tbody tr:hover { background: var(--sr-accent-dim); }
+.sr-category-page > .sr-table-section { margin-top: 0; }
+/* Keep W/L/Win% visible on phones; totals and ties follow to the right. */
+@media (max-width: 768px) {
+    .sr-table.sr-category-table { width: calc(100% + 86px); }
+    .sr-table.sr-category-table tr {
+        grid-template-columns: 24px minmax(0, 1fr) 36px 36px 46px 50px 36px;
+    }
+}
 .sr-category-game-list { list-style: none; padding: 0; margin: 0; }
 .sr-category-game { padding: 16px 0; border-bottom: 1px solid var(--sr-line); }
 .sr-category-game:first-child { padding-top: 0; }
@@ -23,9 +16,3 @@
 .sr-category-result { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; }
 .sr-category-result-label { color: var(--sr-muted); font-size: 12px; }
 .sr-category-score { font-variant-numeric: tabular-nums; }
-@media (max-width: 480px) {
-    .sr-category-page { gap: 16px; }
-    .sr-category-table th, .sr-category-table td { padding: 12px 5px; }
-    .sr-category-table td { font-size: 14px; }
-    .sr-category-table .sr-player { min-width: 112px; }
-}

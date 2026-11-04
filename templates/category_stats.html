@@ -2,45 +2,50 @@
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ year }} {{ category }} Stats{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/category-stats.css', v='20261103') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/category-stats.css', v='20261104') }}">
 {% endblock %}
 {% block content %}
 <header class="sr-header sr-header-compact">
-    <h1 class="sr-title">{{ year }} {{ category }}{% if player %} · {{ player }}{% endif %}</h1>
+    <h1 class="sr-title">{{ year }} {{ category }} Stats{% if player %} · {{ player }}{% endif %}</h1>
     <div class="sr-header-actions">
-        <a href="#category-games" class="sr-link-btn">Games</a>
-        {% if not stats_date_range %}
-        <div class="sr-year-select-wrap"><select class="sr-year-select" onchange="window.location.href=this.value" aria-label="Select year">
-            {% for yr in all_years %}
-            <option value="{{ url_for('other_stats', year=yr, category=category, player=player or none) }}" {% if yr|string == year|string %}selected{% endif %}>{{ yr }}</option>
-            {% endfor %}
-        </select></div>
-        {% endif %}
-        {% set header_custom_nav = true %}
+        {% set header_back_url = '#category-games' %}
+        {% set header_back_label = 'Games' %}
         {% include 'partials/page_header_actions.html' %}
     </div>
 </header>
 {% include 'partials/section_tabs.html' %}
-<div class="sr-container sr-category-page">
-    <section class="sr-card sr-card-compact">
+<div class="sr-category-page">
+    <section class="sr-table-section"><div class="sr-card sr-card-compact">
         <p class="sr-section-label">{{ total_games }} game{{ 's' if total_games != 1 else '' }} · Combined standings</p>
         {% if player %}<a class="sr-link-btn" href="{{ url_for('other_stats', year=year, category=category) }}">All players</a>{% endif %}
         {% if stats %}
+        <div class="sr-search-wrap">
+            <i class="fas fa-search sr-search-icon" aria-hidden="true"></i>
+            <input type="search" id="sr-search" class="sr-search" placeholder="Search players..." aria-label="Search players">
+        </div>
         <div class="sr-table-wrap">
-            <table class="sr-category-table" data-default-sort="winpct" data-default-dir="desc">
-                <thead><tr><th data-column="player" data-sort="player" scope="col">Player</th><th data-sort="games" class="sr-numeric">Games</th><th data-sort="wins" class="sr-numeric">W</th><th data-sort="losses" class="sr-numeric">L</th><th data-sort="ties" class="sr-numeric">T</th><th data-sort="winpct" class="sr-numeric">Win%</th></tr></thead>
+            <table class="sr-table sr-standings-table sr-category-table" data-default-sort="winpct" data-default-dir="desc">
+                <thead><tr>
+                    <th class="sr-numeric" scope="col">#</th>
+                    <th data-column="player" data-sort="player" scope="col">Player</th>
+                    {% for key, label in [('wins', 'W'), ('losses', 'L'), ('winpct', 'Win%'), ('games', 'Games'), ('ties', 'T')] %}
+                    <th data-sort="{{ key }}" class="sr-numeric" scope="col">{{ label }} <span class="sr-sort-arrow">▼</span></th>
+                    {% endfor %}
+                </tr></thead>
                 <tbody>{% for row in stats %}<tr>
+                    <td class="sr-rank" data-value="{{ loop.index }}">{{ loop.index }}</td>
                     <td class="sr-player"><a href="{{ url_for('other_stats', year=year, category=category, player=row[0]) }}">{{ row[0] }}</a></td>
-                    <td class="sr-numeric" data-value="{{ row[4] }}">{{ row[4] }}</td>
                     <td class="sr-numeric sr-win" data-value="{{ row[1] }}">{{ row[1] }}</td>
                     <td class="sr-numeric sr-loss" data-value="{{ row[2] }}">{{ row[2] }}</td>
-                    <td class="sr-numeric" data-value="{{ row[5] }}">{{ row[5] }}</td>
                     <td class="sr-numeric" data-value="{{ row[3] }}">{{ '%.0f'|format(row[3] * 100) }}%</td>
+                    <td class="sr-numeric" data-value="{{ row[4] }}">{{ row[4] }}</td>
+                    <td class="sr-numeric" data-value="{{ row[5] }}">{{ row[5] }}</td>
                 </tr>{% endfor %}</tbody>
             </table>
         </div>
+        <div id="sr-no-results" class="sr-no-results"><p>No players found matching your search.</p></div>
         {% else %}<p>No games match these filters.</p>{% endif %}
-    </section>
+    </div></section>
     <section id="category-games" class="sr-card sr-card-compact">
         <h2 class="sr-section-label">Games</h2>
         <ul class="sr-category-game-list">
@@ -65,4 +70,7 @@
         </ul>
     </section>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>{{ inline_stats_script }}</script>
 {% endblock %}
