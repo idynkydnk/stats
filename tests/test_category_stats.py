@@ -79,12 +79,16 @@ class CategoryStatsTests(unittest.TestCase):
             return dict(base_template='test_base.html', active_tab='other',
                         year_route_base='other_stats', stats_location_url=lambda **kw: '/stats',
                         navigation_locations=['Park'], inline_stats_script='// shared stats script')
+        allowed = set()
+        for endpoint in ('update', 'update_vollis_game', 'update_other_game'):
+            app.add_url_rule('/edit/' + endpoint + '/<int:id>', endpoint, lambda id: '')
         service = SimpleNamespace(_stats_db_path=lambda: self.path)
         for filename, name in [('stats.py', 'other_stats'), ('ios_api.py', 'api_other_stats')]:
             tree = ast.parse(Path(filename).read_text())
             node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == name)
             namespace = dict(app=app, request=request, jsonify=jsonify, render_template=render_template,
                              _stats_db_path=lambda: self.path, _S=lambda: service,
+                             _editable_game_ids=lambda table, ids: set(ids) if table in allowed else set(),
                              _year_arg=lambda default: request.args.get('year', default),
                              _other_ranking=lambda row: row, _card_stats=lambda card: card,
                              local_game_snapshot=lambda fn: fn)
@@ -100,8 +104,24 @@ class CategoryStatsTests(unittest.TestCase):
         self.assertIn(b'aria-label="Locations"', response.data)
         self.assertIn(b'/other_stats/2025/?category=Basketball', response.data)
         self.assertIn(b'// shared stats script', response.data)
+        self.assertIn(b'class="sr-game-team winners"', response.data)
+        self.assertIn(b'class="sr-game-team losers"', response.data)
+        self.assertIn(b'id="category-games-search"', response.data)
+        self.assertIn(b'02/01/26', response.data)
+        self.assertNotIn(b'aria-label="Edit game"', response.data)
 
         response = client.get('/api/other/stats?year=2026&category=Basketball')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['game_cards'][0]['total_games'], 2)
         self.assertEqual(response.json['stats'][0][1:5], [1, 1, .5, 2])
+        allowed.update(['games', 'vollis_games', 'other_games'])
+        response = client.get('/other_stats/2026/?category=Volleyball')
+        for endpoint, game_id in [('update', 1), ('update_vollis_game', 1), ('update_other_game', 5)]:
+            self.assertIn(f'/edit/{endpoint}/{game_id}?games_year=2026'.encode(), response.data)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('ALTER TABLE other_games ADD COLUMN winner_score INTEGER')
+            conn.execute('ALTER TABLE other_games ADD COLUMN loser_score INTEGER')
+            conn.execute('UPDATE other_games SET winner_score=0, loser_score=0 WHERE id=4')
+        response = client.get('/other_stats/2026/?category=Board+games')
+        self.assertEqual(response.data.count(b'class="sr-game-team tied"'), 2)
+        self.assertEqual(response.data.count(b'class="sr-team-score">0</span>'), 2)

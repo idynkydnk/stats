@@ -6,13 +6,3 @@
         grid-template-columns: 24px minmax(0, 1fr) 36px 36px 46px 50px 36px;
     }
 }
-.sr-category-game-list { list-style: none; padding: 0; margin: 0; }
-.sr-category-game { padding: 16px 0; border-bottom: 1px solid var(--sr-line); }
-.sr-category-game:first-child { padding-top: 0; }
-.sr-category-game:last-child { border-bottom: 0; padding-bottom: 0; }
-.sr-category-game-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; margin-bottom: 10px; }
-.sr-category-game-heading strong { font-size: 15px; }
-.sr-category-game-heading time { color: var(--sr-muted); font-size: 12px; white-space: nowrap; }
-.sr-category-result { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; }
-.sr-category-result-label { color: var(--sr-muted); font-size: 12px; }
-.sr-category-score { font-variant-numeric: tabular-nums; }

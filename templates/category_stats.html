@@ -2,7 +2,8 @@
 {% block active_tab %}other{% endblock %}
 {% block title %}{{ year }} {{ category }} Stats{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/category-stats.css', v='20261104') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/game-cards.css', v='20261104') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/category-stats.css', v='20261104b') }}">
 {% endblock %}
 {% block content %}
 <header class="sr-header sr-header-compact">
@@ -48,29 +49,56 @@
     </div></section>
     <section id="category-games" class="sr-card sr-card-compact">
         <h2 class="sr-section-label">Games</h2>
-        <ul class="sr-category-game-list">
+        <div class="sr-search-wrap">
+            <i class="fas fa-search sr-search-icon" aria-hidden="true"></i>
+            <input type="search" id="category-games-search" class="sr-search" placeholder="Search players or dates..." aria-label="Search games by player, date, or game name">
+        </div>
+        <p class="sr-section-label" id="category-games-count">{{ total_games }} game{{ 's' if total_games != 1 else '' }}</p>
+        <div class="sr-games-grid" id="category-games-grid">
             {% for game in games %}
-            <li class="sr-category-game">
-                <div class="sr-category-game-heading">
-                    <strong>{{ game.game_name }}</strong>
-                    <time datetime="{{ game.game_date }}">{{ (game.game_date|string)[:10] }}</time>
+            <article class="sr-game-card" data-search="{{ game.game_name }} {{ game.game_date }} {{ game.display_date }} {{ game.winners|join(' ') }} {{ game.losers|join(' ') }}">
+                <h3 class="sr-section-label">{{ game.game_name }}</h3>
+                <div class="sr-game-row">
+                    <time class="sr-game-date" datetime="{{ game.game_date }}">
+                        {% set date_parts = game.display_date.split(' ', 1) %}
+                        {{ date_parts[0] }}{% if date_parts|length > 1 %}<br>{{ date_parts[1] }}{% endif %}
+                    </time>
+                    {% for names, score, outcome, label in [(game.winners, game.winner_score, 'winners', 'Won'), (game.losers, game.loser_score, 'losers', 'Lost')] %}
+                    {% if not loop.first %}<span class="sr-vs">vs</span>{% endif %}
+                    <div class="sr-game-team {{ 'tied' if game.is_tie else outcome }}" aria-label="{{ 'Tied' if game.is_tie else label }}">
+                        {% if score is defined and score is not none %}
+                        <span class="sr-team-score">{{ score }}</span>
+                        {% else %}
+                        <span class="sr-team-result">{{ 'Tied' if game.is_tie else label }}</span>
+                        {% endif %}
+                        <div class="sr-game-player">
+                            {% for name in names %}
+                            <a href="{{ url_for('other_stats', year=year, category=category, player=name) }}">{{ name }}</a>{% if not loop.last %}<br>{% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="sr-category-result">
-                    <span class="sr-category-result-label">{{ 'Tied' if game.is_tie else 'Won' }}</span>
-                    <span>{{ game.winners|join(', ') }}</span>
-                    <span class="sr-category-score">{{ game.winner_score if game.winner_score is defined and game.winner_score is not none else '' }}</span>
-                </div>
-                <div class="sr-category-result">
-                    <span class="sr-category-result-label">{{ 'Tied' if game.is_tie else 'Lost' }}</span>
-                    <span>{{ game.losers|join(', ') }}</span>
-                    <span class="sr-category-score">{{ game.loser_score if game.loser_score is defined and game.loser_score is not none else '' }}</span>
-                </div>
-            </li>
-            {% else %}<li>No games match these filters.</li>{% endfor %}
-        </ul>
+                {% if game.editable and not stats_shared_read_only %}
+                <div class="sr-game-actions"><a href="{{ url_for(game.edit_endpoint, id=game.id, games_year=year) }}" class="sr-link-btn" aria-label="Edit game"><i class="fas fa-pen" aria-hidden="true"></i> Edit</a></div>
+                {% endif %}
+            </article>
+            {% else %}<p>No games match these filters.</p>{% endfor %}
+        </div>
+        <div id="category-games-empty" class="sr-no-results" style="display: none;"><p>No games found matching your search.</p></div>
     </section>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script>{{ inline_stats_script }}</script>
+<script>
+srSearch.bindCardSearch({
+    input: document.getElementById('category-games-search'),
+    container: document.getElementById('category-games-grid'),
+    cardSelector: '.sr-game-card',
+    countEl: document.getElementById('category-games-count'),
+    noResultsEl: document.getElementById('category-games-empty'),
+    countNoun: 'game',
+});
+</script>
 {% endblock %}

@@ -2163,6 +2163,14 @@ def other_stats(year):
         from category_stats import category_results
         result = category_results(_stats_db_path(), request.args['category'], year,
                                   request.args.get('player', ''))
+        from time_display import format_game_time
+        for table, endpoint in [('games', 'update'), ('vollis_games', 'update_vollis_game'), ('other_games', 'update_other_game')]:
+            rows = [g for g in result['games'] if g['source'] == table]
+            editable = _editable_game_ids(table, [g['id'] for g in rows]) if rows else set()
+            for game in rows:
+                game['display_date'] = format_game_time(game.get('game_date'), game.get('entered_timezone'))
+                game['editable'] = game['id'] in editable
+                game['edit_endpoint'] = endpoint
         return render_template('category_stats.html', **result)
     current_year = str(date.today().year)
     showing_previous_year = False
