@@ -74,6 +74,12 @@ jobs:
           python3 scripts/verify_john_trent_cloud.py
         fi
 
+    - name: Verify restored game ownership
+      env:
+        PA_USERNAME: ${{ secrets.PA_USERNAME }}
+        PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+      run: python3 scripts/verify_restored_ownership.py
+
     - name: Prepare common public pages
       env:
         PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
