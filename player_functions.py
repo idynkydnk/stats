@@ -1249,17 +1249,23 @@ def collect_solo_reference_images(name, max_pixels=768):
 
 
 def collect_illustration_reference_images(name):
-    """Prefer the saved AI character sheet; otherwise the cropped face photo."""
+    """Keep the real face for likeness alongside the saved character for its scene."""
     display_name = (name or '').strip()
     entry = {'name': display_name, 'parts': [], 'kind': None}
     if not display_name:
         return entry
+
+    refs = collect_player_reference_images([display_name], max_players=1)
+    if refs:
+        entry['parts'] = [dict(part, kind='face_photo') for part in refs[0].get('parts') or []]
+        entry['kind'] = 'face_photo' if entry['parts'] else None
 
     ai_path = get_player_ai_image_path(display_name)
     raw, mime = read_player_image_file(ai_path) if ai_path else (None, None)
     if raw:
         entry['kind'] = 'ai_portrait'
         entry['parts'].append({
+            'kind': 'ai_portrait',
             'label': (
                 f'Illustrated character sheet for {display_name}. '
                 'Complete character picture: keep the player and every companion, background person, pet, object, scene detail, and text together in the group picture.'
@@ -1267,12 +1273,6 @@ def collect_illustration_reference_images(name):
             'mime': mime,
             'data_b64': base64.b64encode(raw).decode('ascii'),
         })
-        return entry
-
-    refs = collect_player_reference_images([display_name], max_players=1)
-    if refs:
-        entry['parts'] = refs[0].get('parts') or []
-        entry['kind'] = 'face_photo' if entry['parts'] else None
     return entry
 
 

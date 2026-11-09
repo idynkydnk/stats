@@ -112,11 +112,15 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             parts = generate.call_args.kwargs['reference_parts']
             text = '\n'.join(part.get('text', '') for part in parts)
             images = [part['inline_data']['data'] for part in parts if 'inline_data' in part]
-            self.assertEqual(images, [references[name]['parts'][0]['data_b64'] for name in players])
+            self.assertEqual(images[1:], [references[name]['parts'][0]['data_b64'] for name in players])
+            self.assertTrue(parts[2]['is_identity_sheet'])
             self.assertIn('Kevin 3-0 (+12)', text)
             self.assertIn('Jordan 0-3 (-12)', text)
             self.assertFalse(generate.call_args.kwargs['add_body_side_convention'])
-            for removed in ('LOCK', 'PRESERVATION', 'BODY-SIDE', 'Wilson'):
+            self.assertIn('IDENTITY LOCK', prompt)
+            self.assertIn('FACE LIKENESS', prompt)
+            self.assertIn(CHARACTER_PRESERVATION_RULE, text)
+            for removed in ('BODY-SIDE', 'Wilson'):
                 self.assertNotIn(removed, prompt + text)
             if custom:
                 self.assertTrue(prompt.startswith(custom))

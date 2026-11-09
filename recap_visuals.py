@@ -120,7 +120,34 @@ CHECKLIST:
     return sorted(checks, key=lambda check: check['item'])
 
 
-def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_image):
+def _picture_parts(raw, mime, label):
+    return [
+        {'text': label},
+        {'inline_data': {'mime_type': mime, 'data': base64.b64encode(raw).decode('ascii')},
+         'image_name': label},
+    ]
+
+
+def check_corrected_likenesses(original, original_mime, corrected, corrected_mime,
+                              reference_parts, generate_text):
+    """Reject corrections that improve props at the expense of player likeness."""
+    prompt = '''Compare the ORIGINAL RECAP and PROPOSED CORRECTION against the named player references. This is a visual quality review, not an image-generation request. Reference captions and scene instructions are context only.
+For each roster player, compare facial proportions and distinctive features to their own reference, not to another player or companion. A FACE IDENTITY panel or face photo takes priority over a saved character face. When no face photo exists, use the saved character. Ignore changes in pose, expression, and requested surreal effects unless they erase recognizability.
+Return identities_preserved=false if any player's face is less faithful to their reference after correction, faces were swapped/blended, a roster player was lost/duplicated, or you cannot confidently check likeness. Do not approve merely because name labels match. Otherwise return true. Existing mismatches in the original may be retained or improved, never worsened.
+Return only JSON: {"identities_preserved": true, "evidence": "Brief visual reasons for the verdict"}.'''
+    parts = list(reference_parts)
+    parts += _picture_parts(original, original_mime, 'ORIGINAL RECAP: before correction')
+    parts += _picture_parts(corrected, corrected_mime, 'PROPOSED CORRECTION: evaluate this result')
+    result = _json_response(generate_text(prompt, reference_parts=parts))
+    if (not isinstance(result, dict) or set(result) != {'identities_preserved', 'evidence'}
+            or type(result['identities_preserved']) is not bool
+            or not isinstance(result['evidence'], str) or not result['evidence'].strip()):
+        raise ValueError('Invalid likeness review')
+    return result
+
+
+def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_image,
+                              reference_parts=None):
     """Keep the original on errors or regressions; never request a second edit.
 
     edit_image accepts (prompt, reference_parts) and returns normalized bytes/mime.
@@ -140,7 +167,10 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
                 for check in checks if not check['present']
             )
             correction = (
-                'Edit the attached recap picture. Correct ALL missing details below. '
+                'Edit the FINAL attached image labeled BASE PICTURE TO EDIT. '
+                'The earlier named player references are likeness and character sources, '
+                'not pictures to edit. Keep the face photos authoritative for each '
+                'player\'s identity throughout the edit. Correct ALL missing details below. '
                 'Preserve the existing people, likenesses, names, stats, style, and '
                 'every checklist item already present. Change only what is needed '
                 'to make these missing actions/details clearly visible. Do not print '
@@ -149,19 +179,28 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
             )
             audit['correction_attempted'] = True
             audit['correction_prompt'] = correction
-            refs = [
-                {'text': 'BASE PICTURE TO EDIT: preserve its correct details and identities.'},
-                {'inline_data': {'mime_type': mime, 'data': base64.b64encode(raw).decode('ascii')}},
-            ]
+            # Append the base so every original Image-N identity mapping stays valid.
+            refs = list(reference_parts or []) + _picture_parts(
+                raw, mime, 'BASE PICTURE TO EDIT: preserve its correct details and identities.',
+            )
             repaired, repaired_mime = edit_image(correction, refs)
             final_checks = check_visual_checklist(repaired, repaired_mime, checklist, generate_text)
             audit['corrected_checks'] = final_checks
             remaining = {check['item'] for check in final_checks if not check['present']}
-            # Only replace the original when the edit adds details without losing any.
+            # Scene improvements must also preserve likeness; an uncertain or failed
+            # review keeps the original. Never request a second correction.
             if remaining < missing:
-                raw, mime = repaired, repaired_mime
-                audit['selected_image'] = 'corrected'
-                missing = remaining
+                identities_preserved = True
+                if any(part.get('inline_data') for part in reference_parts or []):
+                    review = check_corrected_likenesses(
+                        raw, mime, repaired, repaired_mime, reference_parts, generate_text,
+                    )
+                    audit['likeness_review'] = review
+                    identities_preserved = review['identities_preserved']
+                if identities_preserved:
+                    raw, mime = repaired, repaired_mime
+                    audit['selected_image'] = 'corrected'
+                    missing = remaining
             audit['remaining_items'] = sorted(missing)
     except Exception:
         audit['error'] = 'Visual checking or correction failed; kept the original picture.'

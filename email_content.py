@@ -119,18 +119,25 @@ def ai_api_key_error_message():
     )
 
 
-def _generate_ai_text_openai(prompt, api_key, image_bytes=None, image_mime='image/png'):
+def _generate_ai_text_openai(prompt, api_key, image_bytes=None, image_mime='image/png',
+                             reference_parts=None):
     import requests
 
     content = prompt
-    if image_bytes is not None:
-        content = [
-            {'type': 'text', 'text': prompt},
-            {'type': 'image_url', 'image_url': {
+    if image_bytes is not None or reference_parts:
+        content = [{'type': 'text', 'text': prompt}]
+        if image_bytes is not None:
+            content.append({'type': 'image_url', 'image_url': {
                 'url': f'data:{image_mime};base64,' + base64.b64encode(image_bytes).decode('ascii'),
                 'detail': 'high',
-            }},
-        ]
+            }})
+        for part in _openai_responses_content('', reference_parts):
+            if part['type'] == 'input_text':
+                content.append({'type': 'text', 'text': part['text']})
+            else:
+                content.append({'type': 'image_url', 'image_url': {
+                    'url': part['image_url'], 'detail': 'high',
+                }})
     resp = requests.post(
         'https://api.openai.com/v1/chat/completions',
         headers={
@@ -156,7 +163,8 @@ def _generate_ai_text_openai(prompt, api_key, image_bytes=None, image_mime='imag
     return text
 
 
-def _generate_ai_text_gemini(prompt, api_key, image_bytes=None, image_mime='image/png'):
+def _generate_ai_text_gemini(prompt, api_key, image_bytes=None, image_mime='image/png',
+                            reference_parts=None):
     import google.generativeai as genai
 
     genai.configure(api_key=api_key)
@@ -167,6 +175,15 @@ def _generate_ai_text_gemini(prompt, api_key, image_bytes=None, image_mime='imag
             content = prompt if image_bytes is None else [
                 prompt, {'mime_type': image_mime, 'data': image_bytes},
             ]
+            if reference_parts:
+                content = [content] if isinstance(content, str) else content
+                for part in reference_parts:
+                    if part.get('text'):
+                        content.append(part['text'])
+                    inline = part.get('inline_data') or {}
+                    if inline.get('data'):
+                        content.append({'mime_type': inline['mime_type'],
+                                        'data': base64.b64decode(inline['data'])})
             response = model.generate_content(content)
             try:
                 text = (response.text or '') if hasattr(response, 'text') else ''
@@ -181,7 +198,7 @@ def _generate_ai_text_gemini(prompt, api_key, image_bytes=None, image_mime='imag
     raise ValueError(f'AI summary generation failed on all Gemini models: {" | ".join(errors)}')
 
 
-def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
+def generate_ai_text(prompt, image_bytes=None, image_mime='image/png', reference_parts=None):
     """Generate text with the active AI provider (OpenAI preferred, else Gemini).
 
     Returns the generated text (stripped). Raises ValueError if no key is
@@ -194,6 +211,8 @@ def generate_ai_text(prompt, image_bytes=None, image_mime='image/png'):
         reject_unsupported_ai_provider()
     validate_content(prompt, image_bytes=image_bytes)
     image_args = {} if image_bytes is None else {'image_bytes': image_bytes, 'image_mime': image_mime}
+    if reference_parts:
+        image_args['reference_parts'] = reference_parts
     if provider == 'openai':
         result = _generate_ai_text_openai(prompt, require_ai_api_key(), **image_args)
     elif provider == 'gemini':
@@ -959,9 +978,24 @@ def _append_body_side_convention(prompt):
     return f'{prompt}\n\n{BODY_SIDE_CONVENTION}' if prompt else BODY_SIDE_CONVENTION
 
 
+FACE_LIKENESS_RULE = (
+    'FACE LIKENESS — each named face photo is the authoritative reference for that '
+    "player's facial identity. Keep their facial proportions, eyes, nose, mouth, "
+    'jaw, skin tone, and distinctive features recognizable across poses and expressions. '
+    'Do not replace them with generic faces, beautify them, or blend features between '
+    'people. When a face photo and a saved AI character picture belong to the same '
+    'player, they depict ONE player: use the face photo for facial identity and the '
+    'character picture for clothing, body, accessories, companions, and scene details. '
+    'If they disagree about the face, the face photo wins. When no face photo is '
+    'attached for a player, preserve the face from their saved character picture. '
+    'Reference-sheet captions are identification aids, not text to copy into the scene.'
+)
+
+
 CHARACTER_PRESERVATION_RULE = (
     'FULL CHARACTER PICTURE PRESERVATION — use every attached AI character picture '
-    'as the source of truth, including the entire scene, not just the main player. '
+    'as the source for character styling and the entire scene, not just the main player. '
+    'A separately supplied face photo takes priority for the roster player\'s facial identity. '
     'Ignore that player\'s separate signature traits, including any in the scene prompt. '
     'Carry EVERYTHING visible into the group picture: the player, spouses, partners, '
     'friends, other companions and background people, pets, vehicles, objects, props, '
@@ -1041,18 +1075,18 @@ def _group_identity_lock_text(player_count, map_lines, has_identity_sheet=False)
     ]
     if has_identity_sheet:
         lines.append(
-            'Image 1 is a labeled identity sheet: each cell contains a player\'s '
-            'complete reference picture, possibly with companions, and a player name '
-            'painted underneath. Keep every cell\'s people and details together. '
-            'The added cell captions identify the player, not every person in that cell. '
-            'Use the supplied current name/stats labels in the final picture. '
-            'Text within the original character pictures may remain.'
+            'Image 1 is a labeled likeness overview. Each cell uses that player\'s '
+            'face photo when available, otherwise their character picture. The caption '
+            'identifies the roster player, not any companions. Use the individual '
+            'references below for detail and the supplied current name/stats labels '
+            'in the final picture.'
         )
         lines.append('Later images are the complete individual player references:')
     else:
         lines.append('Image 1 is the first attached photo, Image 2 the second, and so on:')
     lines.extend(map_lines)
     lines.append(CHARACTER_PRESERVATION_RULE)
+    lines.append(FACE_LIKENESS_RULE)
     lines.append(
         'For an illustrated character picture, bring its complete cast and scene '
         'into the requested composition, keeping each player identifiable. '
@@ -1121,14 +1155,8 @@ def _placeholder_identity_cell(caption, box_w, box_h):
     return canvas
 
 
-def _build_labeled_identity_sheet(cells):
-    """Contact sheet with each person's name painted under them.
-
-    OpenAI keeps extra face detail from the first input image. Sending eight
-    separate photos therefore preserves person 1 and lets 2–N mix. Putting
-    everyone on one labeled sheet (OpenAI's multi-face recipe) plus ChatGPT-style
-    name-next-to-photo binding stops swaps.
-    """
+def _build_labeled_identity_sheet(cells, cell_size=384, strict=False):
+    """Labeled overview to supplement, never replace, individual likeness refs."""
     import io
     from PIL import Image, ImageDraw, ImageOps
 
@@ -1142,7 +1170,7 @@ def _build_labeled_identity_sheet(cells):
         prepared.append({**cell, 'caption': caption})
 
     rows, cols = _identity_sheet_grid(len(prepared))
-    cell_w, portrait_h, caption_h = 384, 384, 64
+    cell_w, portrait_h, caption_h = cell_size, cell_size, 64
     pad, gap = 16, 12
     sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
     sheet_h = pad * 2 + rows * (portrait_h + caption_h) + (rows - 1) * gap
@@ -1162,6 +1190,8 @@ def _build_labeled_identity_sheet(cells):
                 img = ImageOps.exif_transpose(img)
                 portrait = _fit_rgb_in_box(img, cell_w, portrait_h, (28, 34, 44))
             except Exception:
+                if strict:
+                    raise ValueError('A player reference picture could not be read.')
                 portrait = None
         if portrait is None:
             portrait = _placeholder_identity_cell(
@@ -1186,6 +1216,24 @@ def _build_labeled_identity_sheet(cells):
     buf = io.BytesIO()
     sheet.save(buf, format='PNG')
     return buf.getvalue(), [cell['caption'] for cell in prepared]
+
+
+def _pair_face_and_character(refs, caption):
+    """Keep both sources at 768px in one labeled image per player.
+
+    A pair uses one upload slot, so an eight-player roster still fits the
+    image-edit fallback without dropping any faces or character pictures.
+    """
+    face = next((ref for ref in refs if ref.get('kind') == 'face_photo'), None)
+    character = next((ref for ref in refs if ref.get('kind') == 'ai_portrait'), None)
+    if not face or not character:
+        return refs
+    raw, _ = _build_labeled_identity_sheet([
+        {'caption': f'{caption}: FACE IDENTITY', 'raw': base64.b64decode(face['data_b64'])},
+        {'caption': f'{caption}: CHARACTER SCENE', 'raw': base64.b64decode(character['data_b64'])},
+    ], cell_size=768, strict=True)
+    return [{'kind': 'face_and_character', 'mime': 'image/png',
+             'data_b64': base64.b64encode(raw).decode('ascii')}]
 
 
 def _scene_setting_line(game_type, game_name=None):
@@ -2008,21 +2056,12 @@ def _image_labels_for_players(players, player_stats=None):
 
 
 def _reference_parts_from_uploaded_photos(
-    players, labels_by_name=None, player_stats=None, simple=False,
+    players, labels_by_name=None, player_stats=None,
 ):
-    """Build likeness refs for a single group image call.
+    """Bind every face and character reference to its player, without truncating.
 
-    Prefers each player's saved AI character sheet when one exists; otherwise
-    uses their face photo. Includes a player when they have an AI sheet, a face
-    photo, and/or signature looks. Skips players with none of those. Raises
-    ValueError if nobody can be illustrated.
-
-    Each person uses the compact format:
-    'Brian 3-3 (-8)' illustrate broken leg. puerto rican. (no text).
-
-    Reference images (when present) are attached immediately before that
-    person's text line so the model can match likeness to stats/looks by order.
-
+    Face photos establish identity; saved characters supply styling and scenes.
+    Players with only signature looks are described without borrowing other faces.
     Returns (reference_parts, included_players).
     """
     from player_functions import (
@@ -2064,31 +2103,7 @@ def _reference_parts_from_uploaded_photos(
             'Add those on the Players page, then try again.'
         )
 
-    if simple:
-        parts = []
-        image_index = 0
-        for name in included:
-            label = labels_by_name.get(name) or name
-            phrases = phrases_by_name.get(name) or []
-            parts.append({'text': f"{name}: {label}" + (
-                f". Signature look: {'; '.join(phrases)}" if phrases else ''
-            )})
-            for ref in (photos_by_name.get(name) or [])[:1]:
-                if image_index >= 16:
-                    break
-                image_index += 1
-                parts.append({
-                    'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']},
-                    'image_index': image_index,
-                    'image_name': name,
-                })
-        return parts, included
-
-    # OpenAI edits accepts up to 16 files. A labeled identity sheet uses slot 1.
-    included = included[:15] if len(included) >= 2 else included[:16]
-    phrases_by_name = _merge_beach_royalty_phrases(
-        included, player_stats, phrases_by_name,
-    )
+    # Royal outfits are scene directions, not part of a player's facial identity.
     sheet_cells = []
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
@@ -2106,7 +2121,8 @@ def _reference_parts_from_uploaded_photos(
         })
     sheet_bytes = None
     sheet_captions = []
-    if len(included) >= 2 and any(cell.get('raw') for cell in sheet_cells):
+    # Reserve one slot for the base picture on a recap correction.
+    if 2 <= len(included) <= 14 and any(cell.get('raw') for cell in sheet_cells):
         try:
             sheet_bytes, sheet_captions = _build_labeled_identity_sheet(sheet_cells)
         except Exception:
@@ -2129,8 +2145,8 @@ def _reference_parts_from_uploaded_photos(
             'text': (
                 'Image 1 is the labeled identity sheet. Each cell is one player reference, '
                 f'with the player name underneath, in this order: {order}. '
-                'Copy the complete contents of every character picture, including '
-                'all companions and text. Never swap players or their companions.'
+                'This overview anchors likeness; use the individual face and character '
+                'references for detail. Never swap players or their companions.'
             ),
         })
         parts.append({
@@ -2145,46 +2161,54 @@ def _reference_parts_from_uploaded_photos(
     for name in included:
         label = (labels_by_name.get(name) or name).strip()
         refs = photos_by_name.get(name) or []
+        refs = _pair_face_and_character(refs, _player_display_from_label(label, full_name=name))
         phrases = phrases_by_name.get(name) or []
         quoted = _player_quoted_bits(label, phrases)
         if refs:
-            kind = kinds_by_name.get(name)
             indices = []
-            image_parts = []
             for ref in refs:
                 image_index += 1
                 indices.append(image_index)
-                image_parts.append({
+                kind = ref.get('kind') or kinds_by_name.get(name)
+                ids = f'Image {image_index}'
+                if kind == 'face_and_character':
+                    instruction = (
+                        f'{ids} contains TWO references for ONE player, {name}. '
+                        'The LEFT panel (FACE IDENTITY) is the real face photo and '
+                        'takes priority for facial likeness. The RIGHT panel '
+                        '(CHARACTER SCENE) supplies the body, clothing, companions, '
+                        'props, and full scene. Preserve those details, using the '
+                        'left face for the roster player. Do not draw the panels '
+                        f'or duplicate {name}. Do not use this face on another player.'
+                    )
+                elif kind == 'ai_portrait':
+                    instruction = (
+                        f'{ids} is the complete AI character picture for {name}. '
+                        'Keep the clothing, body, accessories, companions, animals, '
+                        'objects, scene details, and text with this player. '
+                        'If a separate face photo is attached for this player, use '
+                        'that photo for facial identity; this is not another player. '
+                        f'Do not use {ids} for any other player.'
+                    )
+                else:
+                    instruction = (
+                        f'{ids} is the face photo of {name} only, the authoritative '
+                        f'reference for {name}\'s facial identity. Match this face '
+                        'even if the saved character picture looks different. '
+                        f'Do not use {ids} for any other player.'
+                    )
+                map_lines.append(instruction)
+                parts.append({'text': instruction})
+                parts.append({
                     'inline_data': {
                         'mime_type': ref['mime'],
                         'data': ref['data_b64'],
                     },
                     'image_index': image_index,
                     'image_name': name,
+                    'reference_kind': kind,
                 })
             ids = _image_ids_phrase(indices)
-            map_lines.append(
-                f'{ids} belongs to {name}. Copy {name}\'s face, hair, skin, and body from {ids} '
-                f'onto {name}. Never put this face on anyone else.'
-            )
-            if kind == 'ai_portrait':
-                parts.append({
-                    'text': (
-                        f'{ids} is the complete AI character picture for {name}. '
-                        'Include this player AND every spouse, friend, companion, '
-                        'background person, animal, object, scene detail, and text shown. '
-                        'Keep this entire cast and its details together with this player. '
-                        f'Do not use {ids} for any other player.'
-                    ),
-                })
-            else:
-                parts.append({
-                    'text': (
-                        f'{ids} is the face photo of {name} only. Match {name}\'s likeness. '
-                        f'Do not use {ids} for any other player.'
-                    ),
-                })
-            parts.extend(image_parts)
             if quoted:
                 parts.append({
                     'text': f'{quoted} This is {name}, the person from {ids}.',
@@ -2471,21 +2495,9 @@ def _generate_image_bytes_openai_responses(
         timeout=timeout,
     )
     if resp.status_code >= 400:
-        detail = _rest_error_detail(resp)
-        if resp.status_code == 400 and not edit:
-            payload['tools'] = [{
-                'type': 'image_generation',
-                'quality': OPENAI_IMAGE_QUALITY,
-                'size': size,
-            }]
-            resp = requests.post(
-                'https://api.openai.com/v1/responses',
-                headers=headers,
-                json=payload,
-                timeout=timeout,
-            )
-        if resp.status_code >= 400:
-            raise ValueError(_rest_error_detail(resp) or detail)
+        # Never retry without the configured image model. The caller can use
+        # images/edits with the same model and all references instead.
+        raise ValueError(_rest_error_detail(resp))
     data = resp.json()
     return _openai_image_from_responses_payload(data)
 
@@ -2536,9 +2548,14 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                         pass
                     # Same attempt continues on /v1/images/edits.
             if images:
+                if len(images) > 16:
+                    raise ValueError(
+                        'The image service could not use all player references. '
+                        'Please try again or select fewer players.'
+                    ) from last_error
                 # Rebuild file buffers each attempt — BytesIO is consumed on read.
                 files = []
-                for index, item in enumerate(images[:16]):
+                for index, item in enumerate(images):
                     raw = item[0]
                     mime = item[1] if len(item) > 1 else 'image/png'
                     ext = 'png' if 'png' in (mime or '') else 'jpg'
@@ -3891,9 +3908,9 @@ def generate_flyer_image(
 ):
     """Generate Instagram 4:5 flyer from saved AI characters and/or face photos (one API call).
 
-    Does not create per-player caricatures. Prefers each player's saved AI character
-    sheet when one exists; otherwise uses their face photo. Signature looks are
-    exaggerated in-prompt when using a face photo.
+    Does not create per-player caricatures. Uses each face photo for identity and
+    the saved AI character for styling and scene details. Signature looks are
+    used when no character is saved.
 
     existing_solo_images / reuse_existing_solos / custom_solo_prompts are ignored
     (kept for call-site compatibility).
@@ -4096,12 +4113,12 @@ def generate_email_hero_image(
     selected_players=None, player_stats=None, location='', animation=False, weather_games=None,
     visual_source=None,
 ):
-    """Generate one group hero image from saved AI characters and/or face photos.
+    """Generate one group hero image from face photos and saved AI characters.
 
     Does not create per-player caricatures. Prefers each player's saved AI
-    character sheet when one exists; otherwise uses their face photo on the site
-    as a likeness reference. Signature looks are exaggerated in-prompt when
-    using a face photo. Image labels use nickname (or first name) plus session
+    character sheet for styling while keeping their face photo as the likeness
+    reference. Signature looks are used when no character is saved.
+    Image labels use nickname (or first name) plus session
     stats when available.
 
     existing_solo_images / reuse_existing_solos are ignored (kept for call-site
@@ -4129,7 +4146,7 @@ def generate_email_hero_image(
 
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
-        all_players, labels_by_name=labels_by_name, player_stats=player_stats, simple=True,
+        all_players, labels_by_name=labels_by_name, player_stats=player_stats,
     )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
@@ -4178,7 +4195,7 @@ def generate_email_hero_image(
         ])
     else:
         scene_prompt = prioritize_visual_checklist(scene_prompt, checklist)
-    api_prompt = scene_prompt
+    api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
     image_prompt = _image_prompt_bundle(scene_refs, api_prompt, add_body_side_convention=False)
     try:
         if animation:
@@ -4188,7 +4205,7 @@ def generate_email_hero_image(
             )
             moving_player, action = animation_subject(image_details, scene_players)
             moving_player, action = safe_names(moving_player), safe_names(action)
-            first_prompt = animation_first_frame_prompt(scene_prompt, moving_player)
+            first_prompt = animation_first_frame_prompt(api_prompt, moving_player)
             first_raw, first_mime = _generate_image_bytes(
                 first_prompt, api_key, reference_parts=scene_refs, aspect_ratio='4:5',
                 add_body_side_convention=False,
@@ -4220,13 +4237,15 @@ def generate_email_hero_image(
         raw, mime = _normalize_image_bytes_to_aspect(raw, ratio_w=4, ratio_h=5)
         def edit_picture(correction_prompt, base_parts):
             corrected, corrected_mime = _generate_image_bytes(
-                correction_prompt, api_key, reference_parts=base_parts,
+                _prompt_with_identity_lock(correction_prompt, scene_refs),
+                api_key, reference_parts=base_parts,
                 aspect_ratio='4:5', add_body_side_convention=False, edit=True,
             )
             return _normalize_image_bytes_to_aspect(corrected, ratio_w=4, ratio_h=5)
 
         raw, mime, visual_audit = check_and_correct_picture(
             raw, mime, checklist, scene_prompt, generate_ai_text, edit_picture,
+            reference_parts=scene_refs,
         )
         image_prompt += visual_audit
     url, path = _save_email_image(raw, _mime_to_ext(mime))

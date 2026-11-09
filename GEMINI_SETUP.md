@@ -31,7 +31,23 @@ Or put the same values in your local `.env` (see `.env.example`).
 
 ### 3. Cost note
 
-OpenAI is paid (per token / per image). Image generation with reference photos (solo caricatures + group scenes) uses the Images **edits** endpoint and can cost more than text alone.
+OpenAI is paid (per token / per image). Reference-based pictures use the Responses
+image tool, with the Images **edits** endpoint as a fallback using the same selected
+image model. Neither path retries with an unspecified image model.
+
+Recaps and flyers use the uploaded face photo for facial likeness and the saved
+AI character for styling, props, and companions. When both exist, they are sent
+as one labeled pair per player, with a 768-pixel panel for each source. Missing
+face photos fall back to the saved character. Players with only signature looks
+still receive an invented appearance.
+
+Recap corrections retain the original player references. A correction that
+improves the requested scene details also receives a separate vision review for
+likeness before replacing the original. A failed, uncertain, or negative likeness
+review keeps the original picture. This adds one text/vision request when a
+correction would otherwise be accepted; it does not generate another image.
+These instructions and reviews improve reference handling but cannot guarantee
+an exact face match. Existing pictures are unchanged until remade.
 
 ---
 
