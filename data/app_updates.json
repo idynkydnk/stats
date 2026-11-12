@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-11-11-add-game-tabs",
+    "date": "2026-11-11",
+    "subject": "iPhone: Keep game tabs visible when adding a game",
+    "body": "Opening a game form or switching between Doubles, 1v1, and Other keeps the game tabs visible while the first field’s suggestions open. Later fields still scroll into place as you fill them in."
+  },
+  {
     "id": "ios-2026-11-04-flyer-season-stats",
     "date": "2026-11-04",
     "subject": "iPhone: Choose a season for flyer stats",
