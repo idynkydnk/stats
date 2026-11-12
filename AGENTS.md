@@ -2,9 +2,23 @@
 
 ## Computer use
 
-Always use a cloud computer for browser and desktop interaction. Never inspect
-or control the user's local computer, apps, or browser. If a cloud computer is
-unavailable, explain the limitation instead of falling back to local computer use.
+Use a cloud computer for browser and desktop interaction, except for the
+TestFlight workflow below. Outside that exception, do not inspect or control
+the user's local computer, apps, or browser; explain when cloud access is
+unavailable.
+
+## TestFlight updates
+
+When the user asks to update TestFlight, take the iPhone app in
+`/Users/mila/stats ios` through build preparation and upload. The user has given
+standing authorization to control their local Mac, Xcode, and related upload
+screens for this workflow. This is an explicit exception to the cloud-only
+computer-use rule; do not ask for that permission again.
+
+Follow `/Users/mila/stats ios/TESTFLIGHT.md`, including its agent workflow.
+Use Xcode Organizer to upload if command-line account access fails. Verify
+the actual upload confirmation and report the version/build; do not stop at
+an exported archive or hand routine Xcode steps back to the user.
 
 ## Push requests
 
