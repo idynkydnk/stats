@@ -3,13 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../static/js/theme.js'), 'utf8');
-function boot(saved = {}, unavailable = false) {
+function boot(saved = {}, unavailable = false, seasonPage = false) {
     const values = { ...saved }, attributes = {}, classes = new Set(), events = {}, windowEvents = {};
     const controls = ['mode', 'palette', 'style'].map(name => ({ value: '', getAttribute: () => name }));
     const context = {
         document: {
             readyState: 'loading',
             documentElement: {
+                hasAttribute(name) { return seasonPage && name === 'data-season-page'; },
                 classList: { toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); } },
                 setAttribute(name, value) { attributes[name] = value; }
             },
@@ -69,4 +70,14 @@ blocked.change('palette', 'sunset');
 blocked.change('mode', 'light');
 assert.equal(blocked.attributes['data-sr-palette'], 'sunset');
 assert(blocked.classes.has('sr-light'), 'controls still work when storage is blocked');
+const saved = { srTheme: 'light', srPalette: 'forest', srStyle: 'sharp' };
+const season = boot(saved, false, true);
+assert.equal(season.classes.size, 0, 'saved light mode cannot restyle a season');
+assert.deepEqual(season.attributes, {}, 'saved palette and style cannot restyle a season');
+assert.deepEqual(season.values, saved, 'opening a season must not overwrite saved appearance');
+assert.equal(season.windowEvents.storage, undefined, 'appearance changes in another tab cannot restyle a season');
+const afterSeason = boot(season.values);
+assert(afterSeason.classes.has('sr-light'), 'other pages still use the saved appearance');
+assert.equal(afterSeason.attributes['data-sr-palette'], 'forest');
+assert.equal(afterSeason.attributes['data-sr-style'], 'sharp');
 console.log('Appearance: defaults, persistence, legacy preferences, independent choices, cross-tab sync, and blocked storage pass.');

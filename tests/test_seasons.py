@@ -304,6 +304,40 @@ class SeasonTests(unittest.TestCase):
         self.a.delete('/api/account', headers=self.headers)
         self.assertEqual(visitor.get(urlsplit(again).path + 'image.png').status_code, 404)
 
+    def test_season_colors_follow_the_season_across_pages_and_sharing(self):
+        from bs4 import BeautifulSoup
+        from season_visuals import season_theme
+
+        self.game(1)
+        first = self.create(name='Winter league')['season']
+        second = self.create(name='Winter league')['season']
+        first_style = season_theme(first)['css']
+        self.assertNotEqual(first_style, season_theme(second)['css'])
+        first_path = '/seasons/' + first['id'] + '/'
+        shared = self.a.post('/api/seasons/' + first['id'] + '/share', headers=self.headers).json['season']['share_url']
+        for path in (first_path, first_path + '?group=doubles%3Aopen&player=A', first_path + 'edit/', shared):
+            html = BeautifulSoup(self.a.get(path, headers=self.headers).data, 'html.parser')
+            self.assertIsNotNone(html.select_one('html[data-season-page]'))
+            self.assertEqual(html.html['style'], first_style)
+            self.assertFalse(html.select('[data-sr-appearance]'))
+            self.assertTrue(html.select_one('#menu-location'), 'Other menu controls remain available')
+        library = BeautifulSoup(self.a.get('/seasons/', headers=self.headers).data, 'html.parser')
+        card = library.select_one(f'.season-card[href="{first_path}"]')
+        self.assertEqual(card['style'], first_style)
+        ids = [element['id'] for element in library.select('svg [id]')]
+        self.assertEqual(len(ids), len(set(ids)), 'Card artwork cannot reuse another card’s gradient colors')
+
+        image = self.app.test_client().get(urlsplit(shared).path + 'image.png').data
+        other = self.a.post('/api/seasons/' + second['id'] + '/share', headers=self.headers).json['season']['share_url']
+        other_image = self.app.test_client().get(urlsplit(other).path + 'image.png').data
+        self.assertNotEqual(image, other_image, 'Same-named seasons have images matching their own palettes')
+        self.a.put('/api/seasons/' + first['id'], headers=self.headers, json=dict(self.defaults, name='Winter finals'))
+        edited = BeautifulSoup(self.a.get(first_path, headers=self.headers).data, 'html.parser')
+        self.assertEqual(edited.html['style'], first_style, 'An ordinary rename retains the season’s identity')
+        lights = self.create(name='Under the Lights')['season']
+        self.assertEqual(season_theme(lights)['hero'], '#101c2a')
+        self.assertEqual(season_theme(lights)['accent'], '#f3cd87')
+
     def test_web_form_csrf_validation_rendering_and_scoped_player_links(self):
         form = self.a.get('/seasons/new/', headers=self.headers)
         self.assertEqual(form.status_code, 200)

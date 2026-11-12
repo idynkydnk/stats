@@ -1,4 +1,5 @@
 {% extends 'season_base.html' %}
+{% from 'partials/season_art.html' import arena %}
 {% block title %}Seasons{% endblock %}
 {% block season_content %}
 <p>Browse shared seasons for standings, player stats, and awards.{% if session.logged_in %} Your private seasons appear here too.{% endif %}</p>
@@ -7,8 +8,8 @@
 {% endif %}
 <div class="season-grid season-library" id="season-library" data-season-items>
 {% for season in seasons %}
-<a class="sr-card season-card" href="{{ url_for('season_detail', season_id=season.id) }}">
-    <div class="season-card-cover"><img src="{{ url_for('static', filename='images/season-arena.svg') }}" alt="" width="480" height="320" loading="lazy"><span class="season-status season-status-{{ season.status|lower }}">{{ season.status }}</span><span class="season-card-label">Season</span><h2>{{ season.name }}</h2></div>
+<a class="sr-card season-card" style="{{ season_theme(season).css }}" href="{{ url_for('season_detail', season_id=season.id) }}">
+    <div class="season-card-cover">{{ arena('season-card-' ~ loop.index, 'season-card-art') }}<span class="season-status season-status-{{ season.status|lower }}">{{ season.status }}</span><span class="season-card-label">Season</span><h2>{{ season.name }}</h2></div>
     <div class="season-card-info"><p class="sr-muted">{{ 'Your season' if season.can_manage else season.owner }} · {{ 'Shared' if season.share_url else 'Private' }}</p>
     <p><time datetime="{{ season.start_date }}">{{ season.start_date|season_date }}</time> – <time datetime="{{ season.end_date }}">{{ season.end_date|season_date }}</time></p>
     <p class="sr-muted">{{ 'Automatic minimum games' if season.minimum_games is none else (season.minimum_games|string + ' games to qualify') }}</p><span class="season-card-cta">Explore season <span aria-hidden="true">↗</span></span></div>

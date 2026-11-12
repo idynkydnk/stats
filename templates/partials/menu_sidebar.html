@@ -1,7 +1,7 @@
 <ul class="menu-list">
     <li class="menu-section-label">General</li>
     <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
-    <li class="sr-appearance">
+    {% if not season_appearance %}<li class="sr-appearance">
         <details>
             <summary><i class="fas fa-palette" aria-hidden="true"></i> Appearance</summary>
             <div class="sr-appearance-controls">
@@ -26,7 +26,7 @@
             <p>Changes apply instantly. Saved in this browser.</p>
             </div>
         </details>
-    </li>
+    </li>{% endif %}
 
     <li class="menu-section-label">Browse</li>
     <li><a href="{{ url_for('seasons_list') }}"><i class="fas fa-calendar-day"></i> Seasons</a></li>

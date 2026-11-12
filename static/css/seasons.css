@@ -1,3 +1,34 @@
+/* Each page and directory card owns its palette, including shared site controls. */
+html[data-season-page], .season-card {
+    --sr-bg: var(--season-bg);
+    --sr-panel: var(--season-panel);
+    --sr-panel-hover: var(--season-hover);
+    --sr-text: var(--season-text);
+    --sr-muted: var(--season-muted);
+    --sr-line: var(--season-line);
+    --sr-accent: var(--season-accent);
+    --sr-accent-dim: color-mix(in srgb, var(--season-accent) 12%, transparent);
+    --sr-gold: var(--season-accent);
+    --sr-win: #a4edbf;
+    --sr-loss: #ffabb0;
+    --sr-surface-radius: 16px;
+    --sr-control-radius: 8px;
+    color-scheme: dark;
+}
+html[data-season-page] { background: var(--sr-bg); }
+html[data-season-page] .sr-page {
+    background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--season-glow) 45%, transparent), transparent 700px), var(--sr-bg);
+}
+html[data-season-page] .menu-sidebar { background: var(--sr-panel); }
+html[data-season-page] .sr-card { border-radius: var(--sr-surface-radius); }
+html[data-season-page] .sr-link-btn-accent { border-color: var(--season-accent); }
+html[data-season-page] .sr-table th { background: var(--season-raised); }
+html[data-season-page] .sr-table tbody tr:nth-child(odd),
+html[data-season-page] .sr-table tbody tr:nth-child(odd) td:is(:nth-child(1), :nth-child(2)) { background: var(--sr-panel); }
+html[data-season-page] .sr-table tbody tr:nth-child(even),
+html[data-season-page] .sr-table tbody tr:nth-child(even) td:is(:nth-child(1), :nth-child(2)) { background: var(--season-raised); }
+html[data-season-page] .sr-table tbody tr:hover,
+html[data-season-page] .sr-table tbody tr:hover td:is(:nth-child(1), :nth-child(2)) { background: var(--sr-panel-hover); }
 .season-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .season-header .sr-title { max-width: 100%; overflow-wrap: anywhere; }
 .season-card { display: block; color: var(--sr-text); text-decoration: none; overflow-wrap: anywhere; padding: 0; overflow: hidden; }
@@ -54,50 +85,49 @@
 
 .season-card:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 3px; }
 
-/* A consistent season identity, with readable tables in every site theme. */
-.season-page { --season-gold: #f3cd87; --season-night: #101c2a; }
+/* The banner and everything below it use the same season colors. */
 .season-brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 750; }
 .season-mark { color: var(--sr-gold); }
 .season-hero {
     isolation: isolate; position: relative; overflow: hidden; border-radius: var(--sr-surface-radius, 16px);
-    border: 1px solid #33404e; color: #f9f4e9; background: #101c2a;
-    background-image: radial-gradient(ellipse at 80% 0, #2c3f4d 0, transparent 65%);
+    border: 1px solid var(--season-line); color: var(--season-text); background: var(--season-hero);
+    background-image: radial-gradient(ellipse at 80% 0, var(--season-glow) 0, transparent 65%);
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     margin: 8px 0 24px;
 }
 .season-hero-copy { position: relative; z-index: 1; padding: clamp(24px, 4vw, 48px); }
-.season-eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--season-gold); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .13em; }
-.season-status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #536472; border-radius: 100px; padding: 5px 10px; color: #e3e9f0; background: #1b2b3c; font-size: 11px; font-weight: 650; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
+.season-eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--season-accent); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .13em; }
+.season-status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--season-line); border-radius: 100px; padding: 5px 10px; color: var(--season-secondary); background: var(--season-panel); font-size: 11px; font-weight: 650; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
 .season-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.season-status-active { color: #a4edbf; border-color: #426955; background: #1a352e; }
-.season-status-completed { color: #f3cd87; border-color: #76613e; background: #382e20; }
+.season-status-active { color: var(--season-accent); border-color: var(--season-accent); }
+.season-status-completed { color: var(--season-text); background: var(--season-raised); }
 .season-hero h1 { font-size: clamp(36px, 5.2vw, 64px); font-weight: 800; letter-spacing: -.045em; line-height: 1.04; overflow-wrap: anywhere; text-wrap: balance; margin: 24px 0 16px; max-width: 15ch; }
-.season-host { color: #b9c7d3; font-size: 14px; margin: 0 0 20px; overflow-wrap: anywhere; }
-.season-host strong { color: #f9f4e9; font-weight: 600; }
-.season-dates { display: flex; flex-wrap: wrap; gap: 7px; color: #d7dfe7; font-size: 13px; margin: 0; }
+.season-host { color: var(--season-muted); font-size: 14px; margin: 0 0 20px; overflow-wrap: anywhere; }
+.season-host strong { color: var(--season-text); font-weight: 600; }
+.season-dates { display: flex; flex-wrap: wrap; gap: 7px; color: var(--season-muted); font-size: 13px; margin: 0; }
 .season-hero-art { align-self: center; width: 100%; height: auto; min-width: 0; padding-right: 24px; box-sizing: border-box; }
-.season-scoreboard { display: flex; grid-column: 1 / -1; gap: 28px; align-items: center; border-top: 1px solid #ffffff20; background: #090f1880; padding: 20px clamp(24px, 4vw, 48px); }
+.season-scoreboard { display: flex; grid-column: 1 / -1; gap: 28px; align-items: center; border-top: 1px solid var(--season-line); background: var(--season-bg); padding: 20px clamp(24px, 4vw, 48px); }
 .season-scoreboard > div { display: grid; gap: 3px; min-width: 0; }
-.season-scoreboard > div + div { border-left: 1px solid #ffffff26; padding-left: 28px; }
+.season-scoreboard > div + div { border-left: 1px solid var(--season-line); padding-left: 28px; }
 .season-scoreboard strong { font-size: 28px; line-height: 1.2; font-weight: 750; font-variant-numeric: tabular-nums; }
-.season-scoreboard span { font-size: 12px; color: #b9c7d3; }
+.season-scoreboard span { font-size: 12px; color: var(--season-muted); }
 .season-scoreboard .season-scoreboard-story { margin-left: auto; border: 0; text-align: right; }
-.season-scoreboard-story span:first-child { color: var(--season-gold); font-size: 14px; font-weight: 650; }
+.season-scoreboard-story span:first-child { color: var(--season-accent); font-size: 14px; font-weight: 650; }
 .season-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .season-section-heading h2, .season-section-heading h3, .season-section-heading p { margin: 0; }
 .season-section-heading > .sr-muted { font-size: 12px; }
 .season-kicker { color: var(--sr-muted); text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 700; margin: 0 0 6px !important; }
 .season-award { position: relative; border: 1px solid var(--sr-line); border-radius: var(--sr-surface-radius, 12px); padding: 22px; min-width: 0; }
 .season-award-champion { background: color-mix(in srgb, var(--sr-gold) 7%, var(--sr-panel)); border-color: color-mix(in srgb, var(--sr-gold) 28%, var(--sr-line)); }
-.season-award-improved { background: color-mix(in srgb, var(--sr-accent) 5%, var(--sr-panel)); }
+.season-award-improved { background: color-mix(in srgb, var(--season-secondary) 5%, var(--sr-panel)); }
 .season-award-symbol { display: block; color: var(--sr-gold); font-size: 30px; line-height: 1; margin-bottom: 12px; }
-.season-award-improved .season-award-symbol { color: var(--sr-accent); }
+.season-award-improved .season-award-symbol { color: var(--season-secondary); }
 .season-award h3 { font-size: 12px; font-weight: 650; color: var(--sr-muted); margin: 0 0 12px; }
 .season-award p { margin: 10px 0 0; }
 .season-award-winner a { font-size: 22px; font-weight: 750; color: var(--sr-text); line-height: 1.25; display: inline-block; overflow-wrap: anywhere; }
 .season-award-winner a:hover { color: var(--sr-accent); }
 .season-award-winner span { display: block; color: var(--sr-gold); font-size: 13px; margin-top: 4px; }
-.season-award-improved .season-award-winner span { color: var(--sr-accent); }
+.season-award-improved .season-award-winner span { color: var(--season-secondary); }
 .season-standings-heading { margin-bottom: 12px; }
 .season-standings-heading > span { font-size: 12px; }
 .season-player-name { font-size: 30px; margin: 0 0 20px; }
@@ -111,11 +141,11 @@
 .season-result-win { color: var(--sr-win); }
 .season-result-loss { color: var(--sr-loss); }
 .season-library { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
-.season-card-cover { position: relative; isolation: isolate; overflow: hidden; color: #f9f4e9; background: #101c2a; padding: 24px; min-height: 200px; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; }
-.season-card-cover::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #101c2a 0%, #101c2a26 100%); }
-.season-card-cover img { position: absolute; z-index: -2; width: 250px; height: auto; top: -30px; right: -20px; opacity: .8; }
+.season-card-cover { position: relative; isolation: isolate; overflow: hidden; color: var(--season-text); background: var(--season-hero); padding: 24px; min-height: 200px; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; }
+.season-card-cover::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, var(--season-hero) 0%, transparent 100%); }
+.season-card-art { position: absolute; z-index: -2; width: 250px; height: auto; top: -30px; right: -20px; opacity: .8; }
 .season-card-cover .season-status { margin-bottom: 34px; }
-.season-card-label { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--season-gold); }
+.season-card-label { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--season-accent); }
 .season-card-cover h2 { font-size: 28px; letter-spacing: -.03em; line-height: 1.15; margin: 8px 0 0; }
 .season-card-info { padding: 20px 24px; }
 .season-card-info p { font-size: 12px; margin: 0 0 10px; }
@@ -128,7 +158,7 @@
     .season-hero-art { position: absolute; top: -15px; right: -35px; width: 280px; opacity: .16; z-index: -1; }
     .season-scoreboard { flex-wrap: wrap; gap: 16px; padding: 18px 24px; }
     .season-scoreboard > div + div { padding-left: 20px; }
-    .season-scoreboard .season-scoreboard-story { flex: 1 1 100%; text-align: left; margin: 0; padding: 12px 0 0; border-top: 1px solid #ffffff20; }
+    .season-scoreboard .season-scoreboard-story { flex: 1 1 100%; text-align: left; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--season-line); }
     .season-awards { gap: 12px; }
     .season-award { padding: 18px; }
     .season-player-numbers { gap: 20px; }

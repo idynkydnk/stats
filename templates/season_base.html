@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% set season_appearance = season_theme(season if season is defined else none) %}
+{% block page_attributes %}data-season-page style="{{ season_appearance.css }}"{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/seasons.css') }}">{% endblock %}
 {% block extra_js %}<script src="{{ url_for('static', filename='js/seasons.js') }}" defer></script>{% endblock %}
 {% block content %}

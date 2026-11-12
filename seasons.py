@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Response, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from season_stats import AWARDS_EXPLANATION, MINIMUM_EXPLANATION, season_results, season_status
-from season_visuals import preview_version, season_date, season_share_image
+from season_visuals import preview_version, season_date, season_share_image, season_theme
 from stats_date_filter import validate_date_range
 
 ENDPOINTS = {'seasons_list', 'season_create', 'season_detail', 'season_edit', 'season_delete',
@@ -66,6 +66,7 @@ def validate_season(body):
 
 def register_seasons(app, service):
     app.add_template_filter(season_date, 'season_date')
+    app.jinja_env.globals['season_theme'] = season_theme
     site_path = service._stats_db_path()
     with sqlite3.connect(site_path) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS seasons (
@@ -299,7 +300,7 @@ def register_seasons(app, service):
                                         group=request.form.get('group') or None))
         cancel_url = (url_for('season_detail', season_id=existing['id'], group=request.values.get('group') or None)
                       if existing else url_for('seasons_list'))
-        return render_template('season_form.html', values=values, editing=bool(existing), error=error,
+        return render_template('season_form.html', values=values, season=existing, editing=bool(existing), error=error,
                                cancel_url=cancel_url, season_back_url=cancel_url,
                                season_back_label='Back to season' if existing else 'Seasons',
                                csrf_token=csrf_token(), minimum_explanation=MINIMUM_EXPLANATION), 400 if error else 200
@@ -364,5 +365,5 @@ def register_seasons(app, service):
     def season_preview_image(token):
         # Recheck sharing and account access before serving even a cached image.
         with reading(token=token) as season:
-            return Response(season_share_image(season['name'], season['start_date'], season['end_date']),
+            return Response(season_share_image(season['name'], season['start_date'], season['end_date'], season['id']),
                             mimetype='image/png')

@@ -65,8 +65,16 @@ revokes their links along with the account's other data.
 
 Season pages, player spotlights, and directory cards share a floodlit court design.
 The banner keeps the season name, creator, dates, status, game count, and format
-count visible. Leader and improvement cards link to that season's player stats;
-the rest of the page follows the visitor's chosen site colors.
+count visible. Leader and improvement cards link to that season's player stats.
+The entire page uses that season's colors, including tables, menus, controls,
+and background. Appearance settings do not apply on season pages and remain
+saved for other pages. The Appearance controls are omitted from season menus.
+
+Under the Lights uses midnight blue and warm gold. Other seasons receive a
+stable palette derived from their ID, retained when their name or dates change.
+Directory cards, player pages, edit forms, court illustrations, and sharing
+images use the same palette. The directory and new-season form use the midnight
+palette. Colors are generated on the server without changing season records.
 
 Shared season pages declare a named 600px PNG emblem for messaging previews,
 including when opened through the directory or a player's season stats. The image
@@ -74,7 +82,7 @@ route checks the same sharing and account restrictions as the season itself.
 Private seasons do not publish preview metadata. Stopping sharing or deleting the
 owner disables image access, including previously generated images.
 
-Copy link adds a preview version based on the season name and dates so newly
+Copy link adds a preview version based on the season name, dates, and colors so newly
 shared messages can request a fresh preview after edits. Existing messages may
 retain a messaging app's cached thumbnail. The stable API share URL stays unchanged.
 

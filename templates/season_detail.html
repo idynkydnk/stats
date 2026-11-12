@@ -1,4 +1,5 @@
 {% extends 'season_base.html' %}
+{% from 'partials/season_art.html' import arena %}
 {% block title %}{{ season.name }}{% if player %} · {{ player.stats.name }}{% endif %}{% endblock %}
 {% block season_heading %}<div class="season-brand"><span class="season-mark" aria-hidden="true">✦</span> Seasons</div>{% endblock %}
 {% block season_header_tools %}
@@ -58,7 +59,7 @@
         <p class="season-host">A season by <strong>{{ season.owner }}</strong></p>
         <p class="season-dates"><time datetime="{{ season.start_date }}">{{ season.start_date|season_date }}</time><span aria-hidden="true">—</span><time datetime="{{ season.end_date }}">{{ season.end_date|season_date }}</time></p>
     </div>
-    <img class="season-hero-art" src="{{ url_for('static', filename='images/season-arena.svg') }}" alt="" width="480" height="320">
+    {{ arena('season-hero', 'season-hero-art') }}
     <div class="season-scoreboard" aria-label="Season overview">
         <div><strong>{{ game_count }}</strong><span>Games played</span></div>
         <div><strong>{{ groups|length }}</strong><span>Game format{{ 's' if groups|length != 1 else '' }}</span></div>

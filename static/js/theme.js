@@ -1,6 +1,9 @@
 // Apply saved appearance before first paint; default to Light, Forest, and Soft.
 (function() {
     var root = document.documentElement;
+    // Seasons render their own complete identity before first paint. Leave the
+    // visitor's saved appearance untouched for the rest of the site.
+    if (root.hasAttribute('data-season-page')) return;
     var choices = {
         mode: { key: 'srTheme', values: ['dark', 'light'], fallback: 'light' },
         palette: { key: 'srPalette', values: ['ocean', 'forest', 'sunset', 'violet'], fallback: 'forest' },
