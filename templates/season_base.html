@@ -2,8 +2,9 @@
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/seasons.css') }}">{% endblock %}
 {% block extra_js %}<script src="{{ url_for('static', filename='js/seasons.js') }}" defer></script>{% endblock %}
 {% block content %}
+<div class="season-page">
 <header class="sr-header sr-header-compact season-header">
-    <h1 class="sr-title">{% block season_title %}Seasons{% endblock %}</h1>
+    {% block season_heading %}<h1 class="sr-title"><span class="season-mark" aria-hidden="true">✦</span> {% block season_title %}Seasons{% endblock %}</h1>{% endblock %}
     <div class="sr-header-actions">
         {% if season_back_url %}<a class="sr-link-btn" href="{{ season_back_url }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> {{ season_back_label }}</a>{% endif %}
         {% block season_header_tools %}{% endblock %}
@@ -11,4 +12,5 @@
     </div>
 </header>
 {% block season_content %}{% endblock %}
+</div>
 {% endblock %}

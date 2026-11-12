@@ -1,6 +1,7 @@
 """Render production season templates with isolated synthetic accounts for DOM checks."""
 from pathlib import Path
 import sys
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tests.test_seasons import SeasonTests
@@ -16,9 +17,10 @@ def render(destination):
         case.game(100, division='women', winner='Women’s player')
         season = case.create()['season']
         sid = season['id']
-        case.a.post('/api/seasons/' + sid + '/share', headers=case.headers)
+        shared = case.a.post('/api/seasons/' + sid + '/share', headers=case.headers).json['season']['share_url']
         pages = {'form': '/seasons/new/', 'detail': '/seasons/' + sid + '/?group=doubles%3Awomen',
-                 'player': '/seasons/' + sid + '/?group=doubles%3Aopen&player=B'}
+                 'player': '/seasons/' + sid + '/?group=doubles%3Aopen&player=B',
+                 'shared': urlsplit(shared).path + '?group=doubles%3Awomen'}
         destination.mkdir(parents=True, exist_ok=True)
         for name, path in pages.items():
             response = case.a.get(path, headers=case.headers)

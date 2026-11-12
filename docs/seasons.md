@@ -61,6 +61,23 @@ Shared pages are excluded from search indexing and set no-store/no-referrer.
 Blocked or suspended authors are hidden. Account deletion removes seasons and
 revokes their links along with the account's other data.
 
+## Website season identity and sharing previews
+
+Season pages, player spotlights, and directory cards share a floodlit court design.
+The banner keeps the season name, creator, dates, status, game count, and format
+count visible. Leader and improvement cards link to that season's player stats;
+the rest of the page follows the visitor's chosen site colors.
+
+Shared season pages declare a named 600px PNG emblem for messaging previews,
+including when opened through the directory or a player's season stats. The image
+route checks the same sharing and account restrictions as the season itself.
+Private seasons do not publish preview metadata. Stopping sharing or deleting the
+owner disables image access, including previously generated images.
+
+Copy link adds a preview version based on the season name and dates so newly
+shared messages can request a fresh preview after edits. Existing messages may
+retain a messaging app's cached thumbnail. The stable API share URL stays unchanged.
+
 ## Checks
 
 Run `venv/bin/python -m unittest tests.test_seasons tests.test_game_ratings

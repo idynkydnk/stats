@@ -92,8 +92,10 @@ document.addEventListener('DOMContentLoaded', function () {
         button.setAttribute('aria-live', 'polite');
         button.addEventListener('click', async function () {
             if (button.disabled) return;
-            const field = document.getElementById(button.dataset.seasonCopy);
-            const link = field ? field.value : window.location.href;
+            const field = button.dataset.seasonCopy ? document.getElementById(button.dataset.seasonCopy) : null;
+            const current = new URL(window.location.href);
+            if (button.dataset.seasonPreview) current.searchParams.set('preview', button.dataset.seasonPreview);
+            const link = field ? field.value : current.href;
             button.disabled = true;
             try {
                 await navigator.clipboard.writeText(link);

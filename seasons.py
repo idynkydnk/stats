@@ -7,13 +7,14 @@ import sqlite3
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Response, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from season_stats import AWARDS_EXPLANATION, MINIMUM_EXPLANATION, season_results, season_status
+from season_visuals import preview_version, season_date, season_share_image
 from stats_date_filter import validate_date_range
 
 ENDPOINTS = {'seasons_list', 'season_create', 'season_detail', 'season_edit', 'season_delete',
-             'season_share', 'season_public', 'api_seasons', 'api_season', 'api_season_share'}
+             'season_share', 'season_public', 'season_preview_image', 'api_seasons', 'api_season', 'api_season_share'}
 
 
 def available_seasons():
@@ -64,6 +65,7 @@ def validate_season(body):
 
 
 def register_seasons(app, service):
+    app.add_template_filter(season_date, 'season_date')
     site_path = service._stats_db_path()
     with sqlite3.connect(site_path) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS seasons (
@@ -332,11 +334,21 @@ def register_seasons(app, service):
                         data['groups'][0]['id'] if data['groups'] else '')
         player_back_url = request.path + '?' + urlencode({'group': selected})
         back_url = player_back_url if data.get('player') else url_for('seasons_list')
+        version = preview_version(season)
+        preview_url = (url_for('season_preview_image', token=season['share_token'], v=version, _external=True)
+                       if season['share_token'] else None)
+        share_url = (url_for('season_public', token=season['share_token'], preview=version, _external=True)
+                     if season['share_token'] else None)
         return render_template('season_detail.html', **data, is_owner=is_owner,
                                selected_group=selected, season_back_url=back_url,
                                season_back_label='Back to season' if data.get('player') else 'Seasons',
                                csrf_token=csrf_token() if is_owner else None,
-                               detail_url=request.path)
+                               detail_url=request.path, share_preview_url=share_url,
+                               share_preview_version=version,
+                               og_image_url=preview_url, og_image_type='image/png', og_type='website',
+                               og_image_alt=season['name'] + ' season emblem',
+                               og_description=f"{season_date(season['start_date'])} – {season_date(season['end_date'])}. "
+                                              'Follow the season standings, player stats, and awards.')
 
     @app.get('/seasons/<season_id>/')
     def season_detail(season_id):
@@ -347,3 +359,10 @@ def register_seasons(app, service):
     def season_public(token):
         with reading(token=token) as season:
             return show(season, False)
+
+    @app.get('/season/s/<token>/image.png')
+    def season_preview_image(token):
+        # Recheck sharing and account access before serving even a cached image.
+        with reading(token=token) as season:
+            return Response(season_share_image(season['name'], season['start_date'], season['end_date']),
+                            mimetype='image/png')

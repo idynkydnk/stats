@@ -253,6 +253,57 @@ class SeasonTests(unittest.TestCase):
         with sqlite3.connect(self.path) as conn:
             self.assertEqual(conn.execute('SELECT COUNT(*) FROM seasons').fetchone()[0], 0)
 
+    def test_season_link_previews_use_named_images_and_refresh_after_edits(self):
+        from bs4 import BeautifulSoup
+        from io import BytesIO
+        from PIL import Image
+        from urllib.parse import parse_qs
+
+        self.game(1)
+        sid = self.create(name='Under the Lights')['season']['id']
+        owner_path = '/seasons/' + sid + '/'
+        private = BeautifulSoup(self.a.get(owner_path, headers=self.headers).data, 'html.parser')
+        self.assertIsNone(private.select_one('meta[property="og:image"]'))
+        shared = self.a.post('/api/seasons/' + sid + '/share', headers=self.headers).json['season']['share_url']
+        visitor = self.app.test_client()
+        image_url = None
+        for path in (owner_path, urlsplit(shared).path, urlsplit(shared).path + '?group=doubles%3Aopen&player=A'):
+            html = BeautifulSoup(visitor.get(path).data, 'html.parser')
+            self.assertEqual(html.select_one('meta[property="og:type"]')['content'], 'website')
+            self.assertEqual(html.select_one('meta[property="og:image:type"]')['content'], 'image/png')
+            self.assertEqual(html.select_one('meta[property="og:image:alt"]')['content'], 'Under the Lights season emblem')
+            image_url = html.select_one('meta[property="og:image"]')['content']
+            self.assertTrue(image_url.startswith('http://localhost/season/s/'))
+            self.assertEqual(html.select_one('meta[name="twitter:image"]')['content'], image_url)
+        response = visitor.get(image_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'image/png')
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        with Image.open(BytesIO(response.data)) as image:
+            self.assertEqual(image.size, (600, 600))
+            self.assertEqual(image.mode, 'RGB')
+        self.assertLess(len(response.data), 600000)
+        owner = BeautifulSoup(self.a.get(owner_path, headers=self.headers).data, 'html.parser')
+        copied = owner.select_one('#season-share-url')['value']
+        self.assertEqual(parse_qs(urlsplit(copied).query)['preview'], parse_qs(urlsplit(image_url).query)['v'])
+        self.assertEqual(parse_qs(urlsplit(copied).query)['group'], ['doubles:open'])
+
+        self.a.put('/api/seasons/' + sid, headers=self.headers, json=dict(self.defaults, name='Finals under the lights'))
+        changed = BeautifulSoup(visitor.get(shared).data, 'html.parser')
+        new_url = changed.select_one('meta[property="og:image"]')['content']
+        self.assertNotEqual(new_url, image_url)
+        self.assertNotEqual(visitor.get(new_url).data, response.data)
+        # Access checks run even when the image bytes were cached previously.
+        with patch('content_safety.restricted_authors', return_value={'alice'}):
+            self.assertEqual(visitor.get(new_url).status_code, 404)
+        self.a.delete('/api/seasons/' + sid + '/share', headers=self.headers)
+        self.assertEqual(visitor.get(image_url).status_code, 404)
+        self.assertEqual(visitor.get(new_url).status_code, 404)
+        again = self.a.post('/api/seasons/' + sid + '/share', headers=self.headers).json['season']['share_url']
+        self.assertEqual(visitor.get(urlsplit(again).path + 'image.png').status_code, 200)
+        self.a.delete('/api/account', headers=self.headers)
+        self.assertEqual(visitor.get(urlsplit(again).path + 'image.png').status_code, 404)
+
     def test_web_form_csrf_validation_rendering_and_scoped_player_links(self):
         form = self.a.get('/seasons/new/', headers=self.headers)
         self.assertEqual(form.status_code, 200)

@@ -1,6 +1,6 @@
 .season-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .season-header .sr-title { max-width: 100%; overflow-wrap: anywhere; }
-.season-card { display: block; color: var(--sr-text); text-decoration: none; overflow-wrap: anywhere; }
+.season-card { display: block; color: var(--sr-text); text-decoration: none; overflow-wrap: anywhere; padding: 0; overflow: hidden; }
 .season-card:hover { border-color: var(--sr-accent); }
 .season-card h2 { margin: 12px 0; }
 .season-form { max-width: 680px; margin: 0 auto; }
@@ -18,7 +18,7 @@
 .season-block h2, .season-block h3 { overflow-wrap: anywhere; }
 .season-block summary { cursor: pointer; font-weight: 600; }
 .season-block p { line-height: 1.6; }
-.season-awards { border-top: 1px solid var(--sr-line); border-bottom: 1px solid var(--sr-line); margin: 16px 0; padding: 4px 0 12px; }
+.season-awards { margin: 24px 0 28px; }
 .season-game + .season-game { border-top: 1px solid var(--sr-line); }
 .season-game p { overflow-wrap: anywhere; }
 .season-block .sr-table-wrap { max-width: 100%; overflow-x: auto; }
@@ -53,3 +53,83 @@
 }
 
 .season-card:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 3px; }
+
+/* A consistent season identity, with readable tables in every site theme. */
+.season-page { --season-gold: #f3cd87; --season-night: #101c2a; }
+.season-brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 750; }
+.season-mark { color: var(--sr-gold); }
+.season-hero {
+    isolation: isolate; position: relative; overflow: hidden; border-radius: var(--sr-surface-radius, 16px);
+    border: 1px solid #33404e; color: #f9f4e9; background: #101c2a;
+    background-image: radial-gradient(ellipse at 80% 0, #2c3f4d 0, transparent 65%);
+    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    margin: 8px 0 24px;
+}
+.season-hero-copy { position: relative; z-index: 1; padding: clamp(24px, 4vw, 48px); }
+.season-eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--season-gold); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .13em; }
+.season-status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #536472; border-radius: 100px; padding: 5px 10px; color: #e3e9f0; background: #1b2b3c; font-size: 11px; font-weight: 650; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
+.season-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.season-status-active { color: #a4edbf; border-color: #426955; background: #1a352e; }
+.season-status-completed { color: #f3cd87; border-color: #76613e; background: #382e20; }
+.season-hero h1 { font-size: clamp(36px, 5.2vw, 64px); font-weight: 800; letter-spacing: -.045em; line-height: 1.04; overflow-wrap: anywhere; text-wrap: balance; margin: 24px 0 16px; max-width: 15ch; }
+.season-host { color: #b9c7d3; font-size: 14px; margin: 0 0 20px; overflow-wrap: anywhere; }
+.season-host strong { color: #f9f4e9; font-weight: 600; }
+.season-dates { display: flex; flex-wrap: wrap; gap: 7px; color: #d7dfe7; font-size: 13px; margin: 0; }
+.season-hero-art { align-self: center; width: 100%; height: auto; min-width: 0; padding-right: 24px; box-sizing: border-box; }
+.season-scoreboard { display: flex; grid-column: 1 / -1; gap: 28px; align-items: center; border-top: 1px solid #ffffff20; background: #090f1880; padding: 20px clamp(24px, 4vw, 48px); }
+.season-scoreboard > div { display: grid; gap: 3px; min-width: 0; }
+.season-scoreboard > div + div { border-left: 1px solid #ffffff26; padding-left: 28px; }
+.season-scoreboard strong { font-size: 28px; line-height: 1.2; font-weight: 750; font-variant-numeric: tabular-nums; }
+.season-scoreboard span { font-size: 12px; color: #b9c7d3; }
+.season-scoreboard .season-scoreboard-story { margin-left: auto; border: 0; text-align: right; }
+.season-scoreboard-story span:first-child { color: var(--season-gold); font-size: 14px; font-weight: 650; }
+.season-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.season-section-heading h2, .season-section-heading h3, .season-section-heading p { margin: 0; }
+.season-section-heading > .sr-muted { font-size: 12px; }
+.season-kicker { color: var(--sr-muted); text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 700; margin: 0 0 6px !important; }
+.season-award { position: relative; border: 1px solid var(--sr-line); border-radius: var(--sr-surface-radius, 12px); padding: 22px; min-width: 0; }
+.season-award-champion { background: color-mix(in srgb, var(--sr-gold) 7%, var(--sr-panel)); border-color: color-mix(in srgb, var(--sr-gold) 28%, var(--sr-line)); }
+.season-award-improved { background: color-mix(in srgb, var(--sr-accent) 5%, var(--sr-panel)); }
+.season-award-symbol { display: block; color: var(--sr-gold); font-size: 30px; line-height: 1; margin-bottom: 12px; }
+.season-award-improved .season-award-symbol { color: var(--sr-accent); }
+.season-award h3 { font-size: 12px; font-weight: 650; color: var(--sr-muted); margin: 0 0 12px; }
+.season-award p { margin: 10px 0 0; }
+.season-award-winner a { font-size: 22px; font-weight: 750; color: var(--sr-text); line-height: 1.25; display: inline-block; overflow-wrap: anywhere; }
+.season-award-winner a:hover { color: var(--sr-accent); }
+.season-award-winner span { display: block; color: var(--sr-gold); font-size: 13px; margin-top: 4px; }
+.season-award-improved .season-award-winner span { color: var(--sr-accent); }
+.season-standings-heading { margin-bottom: 12px; }
+.season-standings-heading > span { font-size: 12px; }
+.season-player-name { font-size: 30px; margin: 0 0 20px; }
+.season-player-numbers { display: flex; flex-wrap: wrap; gap: 24px; padding: 20px 0; border-block: 1px solid var(--sr-line); }
+.season-player-numbers > div { display: flex; flex-direction: column-reverse; gap: 4px; }
+.season-player-numbers dt { color: var(--sr-muted); font-size: 12px; }
+.season-player-numbers dd { font-size: 28px; font-weight: 750; margin: 0; line-height: 1.2; }
+.season-game { padding: 10px 0; }
+.season-game time { color: var(--sr-muted); font-size: 12px; margin-left: 8px; }
+.season-result { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--sr-line); border-radius: 5px; padding: 3px 8px; }
+.season-result-win { color: var(--sr-win); }
+.season-result-loss { color: var(--sr-loss); }
+.season-library { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.season-card-cover { position: relative; isolation: isolate; overflow: hidden; color: #f9f4e9; background: #101c2a; padding: 24px; min-height: 200px; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; }
+.season-card-cover::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #101c2a 0%, #101c2a26 100%); }
+.season-card-cover img { position: absolute; z-index: -2; width: 250px; height: auto; top: -30px; right: -20px; opacity: .8; }
+.season-card-cover .season-status { margin-bottom: 34px; }
+.season-card-label { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--season-gold); }
+.season-card-cover h2 { font-size: 28px; letter-spacing: -.03em; line-height: 1.15; margin: 8px 0 0; }
+.season-card-info { padding: 20px 24px; }
+.season-card-info p { font-size: 12px; margin: 0 0 10px; }
+.season-card-cta { display: flex; justify-content: space-between; gap: 12px; color: var(--sr-accent); font-size: 13px; font-weight: 650; padding-top: 14px; margin-top: 16px; border-top: 1px solid var(--sr-line); }
+.season-card:hover .season-card-cta { text-decoration: underline; }
+@media (max-width: 600px) {
+    .season-hero { grid-template-columns: minmax(0, 1fr); }
+    .season-hero-copy { padding: 26px 24px; }
+    .season-hero h1 { max-width: 100%; }
+    .season-hero-art { position: absolute; top: -15px; right: -35px; width: 280px; opacity: .16; z-index: -1; }
+    .season-scoreboard { flex-wrap: wrap; gap: 16px; padding: 18px 24px; }
+    .season-scoreboard > div + div { padding-left: 20px; }
+    .season-scoreboard .season-scoreboard-story { flex: 1 1 100%; text-align: left; margin: 0; padding: 12px 0 0; border-top: 1px solid #ffffff20; }
+    .season-awards { gap: 12px; }
+    .season-award { padding: 18px; }
+    .season-player-numbers { gap: 20px; }
+}

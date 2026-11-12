@@ -142,6 +142,7 @@ async function run() {
     const copy = detail.document.querySelector('[data-season-copy]');
     detail.dispatch(copy, 'click'); await new Promise(setImmediate);
     assert.equal(detail.state.copied[0], detail.byId('season-share-url').value);
+    assert(new URL(detail.state.copied[0]).searchParams.get('preview'), 'Owner copies retain the current preview version after changing game formats');
     detail.state.clipboardDenied = true; detail.dispatch(copy, 'click'); await new Promise(setImmediate);
     assert(detail.state.selected === detail.byId('season-share-url'), 'Denied clipboard access selects the link for manual copying');
     const shareForm = menu.querySelector('form'); const stop = shareForm.querySelector('button');
@@ -153,6 +154,17 @@ async function run() {
     detail.state.confirm = false;
     assert.equal(detail.dispatch(deletion, 'submit', { submitter: deletion.querySelector('button') }).defaultPrevented, true);
     assert.equal(deletion.dataset.busy, undefined);
+
+    const shared = setup('shared', 'https://stats.test/season/s/example/?group=doubles%3Awomen');
+    const publicCopy = shared.document.querySelector('[data-season-copy]');
+    shared.dispatch(publicCopy, 'click'); await new Promise(setImmediate);
+    const copied = new URL(shared.state.copied[0]);
+    assert.equal(copied.searchParams.get('preview'), publicCopy.dataset.seasonPreview);
+    assert.equal(copied.searchParams.get('group'), 'doubles:women');
+    assert.equal(copied.pathname, '/season/s/example/');
+    shared.state.clipboardDenied = true;
+    shared.dispatch(publicCopy, 'click'); await new Promise(setImmediate);
+    assert.equal(shared.state.prompts[0][1], copied.href, 'Manual copying also uses the refreshed preview');
 
     const player = setup('player', 'https://stats.test/seasons/example/?group=doubles%3Aopen&player=B');
     const list = player.byId('season-player-games'); const more = player.document.querySelector('[data-season-expand]');

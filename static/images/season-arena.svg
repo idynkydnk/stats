@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" fill="none">
+  <defs>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffdc91" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#ffdc91" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#ffe9b7" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#ffe9b7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="240" y1="180" x2="240" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#273d49"/><stop offset="1" stop-color="#101c2a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="88" cy="68" r="65" fill="url(#glow)"/>
+  <circle cx="392" cy="68" r="65" fill="url(#glow)"/>
+  <path d="M62 72h52l172 228H0L62 72ZM366 72h52l62 228H194L366 72Z" fill="url(#beam)"/>
+  <path d="M88 73v161M392 73v161" stroke="#647887" stroke-width="5"/>
+  <g fill="#ffdfa0" stroke="#fff3d2" stroke-width="2">
+    <rect x="58" y="51" width="60" height="28" rx="5"/>
+    <rect x="362" y="51" width="60" height="28" rx="5"/>
+  </g>
+  <path d="M78 52v26M98 52v26M58 65h60M382 52v26M402 52v26M362 65h60" stroke="#9c895f" stroke-width="3"/>
+  <path d="m120 197 240 0 100 103H20l100-103Z" fill="url(#floor)" stroke="#d5bb85" stroke-width="2"/>
+  <path d="M90 228h300M64 254h352M240 197v103" stroke="#d5bb85" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M100 233V168M380 233V168M100 176h280M100 210h280" stroke="#f4ddab" stroke-width="3"/>
+  <path d="M100 183h280M100 192h280M100 201h280M114 176v34M128 176v34M142 176v34M156 176v34M170 176v34M184 176v34M198 176v34M212 176v34M226 176v34M240 176v34M254 176v34M268 176v34M282 176v34M296 176v34M310 176v34M324 176v34M338 176v34M352 176v34M366 176v34" stroke="#b9c9ce" stroke-opacity=".36"/>
+  <g stroke="#ffe2a4" stroke-width="2" stroke-linecap="round">
+    <path d="M240 50v14M233 57h14M190 106v8M186 110h8M303 92v8M299 96h8"/>
+  </g>
+  <circle cx="276" cy="135" r="14" fill="#f5dfad"/>
+  <path d="M264 129q15 2 22 15M274 121q-6 15-5 25M288 129q-7 5-18 7" stroke="#ac8d55" stroke-width="1.5"/>
+</svg>

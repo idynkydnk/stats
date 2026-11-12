@@ -1,6 +1,6 @@
 {% extends 'season_base.html' %}
 {% block title %}{{ season.name }}{% if player %} · {{ player.stats.name }}{% endif %}{% endblock %}
-{% block season_title %}{{ player.stats.name if player else season.name }}{% endblock %}
+{% block season_heading %}<div class="season-brand"><span class="season-mark" aria-hidden="true">✦</span> Seasons</div>{% endblock %}
 {% block season_header_tools %}
 {% if is_owner and not player %}
 <a class="sr-link-btn" data-season-group-link href="{{ url_for('season_edit', season_id=season.id, group=selected_group) }}">Edit</a>
@@ -9,7 +9,7 @@
     <div class="sr-card season-sharing-panel">
         {% if season.share_url %}
         <label for="season-share-url">Read-only season link</label>
-        <input id="season-share-url" readonly data-base-url="{{ season.share_url }}" value="{{ season.share_url }}?{{ {'group': selected_group}|urlencode }}">
+        <input id="season-share-url" readonly data-base-url="{{ share_preview_url }}" value="{{ share_preview_url }}&{{ {'group': selected_group}|urlencode }}">
         <button class="sr-link-btn" type="button" data-season-copy="season-share-url">Copy link</button>
         <p class="sr-muted">Everyone can find this season in Seasons and view its standings and player stats.</p>
         {% else %}<p>Your season is private. Sharing adds it to Seasons for everyone to browse and creates a read-only link.</p>{% endif %}
@@ -21,7 +21,7 @@
     </div>
 </details>
 {% elif not is_owner %}
-<button class="sr-link-btn" type="button" data-season-copy="">Copy link</button>
+<button class="sr-link-btn" type="button" data-season-copy="" data-season-preview="{{ share_preview_version }}">Copy link</button>
 {% endif %}
 {% endblock %}
 {% macro standings(rows, group, qualifying, table_id) %}
@@ -51,16 +51,36 @@
 {% if rows|length > 25 %}<button type="button" class="sr-link-btn season-show-more" data-season-expand="{{ table_id }}" aria-controls="{{ table_id }}" aria-expanded="false" hidden>Show all {{ rows|length }} players</button>{% endif %}
 {% endmacro %}
 {% block season_content %}
-<p class="sr-muted">{% if player %}{{ season.name }} · {% endif %}{{ season.start_date }} – {{ season.end_date }} · {{ season.status }}{% if not player %} · {{ game_count }} games{% endif %}</p>
+<section class="season-hero" aria-labelledby="season-name-heading">
+    <div class="season-hero-copy">
+        <div class="season-eyebrow"><span>Season {{ 'player spotlight' if player else 'overview' }}</span><span class="season-status season-status-{{ season.status|lower }}">{{ season.status }}</span></div>
+        <h1 id="season-name-heading">{{ season.name }}</h1>
+        <p class="season-host">A season by <strong>{{ season.owner }}</strong></p>
+        <p class="season-dates"><time datetime="{{ season.start_date }}">{{ season.start_date|season_date }}</time><span aria-hidden="true">—</span><time datetime="{{ season.end_date }}">{{ season.end_date|season_date }}</time></p>
+    </div>
+    <img class="season-hero-art" src="{{ url_for('static', filename='images/season-arena.svg') }}" alt="" width="480" height="320">
+    <div class="season-scoreboard" aria-label="Season overview">
+        <div><strong>{{ game_count }}</strong><span>Games played</span></div>
+        <div><strong>{{ groups|length }}</strong><span>Game format{{ 's' if groups|length != 1 else '' }}</span></div>
+        <div class="season-scoreboard-story"><span>{{ 'The final standings' if season.status == 'Completed' else ('The story starts soon' if season.status == 'Upcoming' else 'The season is in play') }}</span><span>{{ 'Celebrate the champions.' if season.status == 'Completed' else ('Every game will count.' if season.status == 'Upcoming' else 'Follow the race to the top.') }}</span></div>
+    </div>
+</section>
 {% if player %}
 <section class="sr-card season-block">
-    <h2>{{ player.group_title }}</h2>
-    <p>{{ player.stats.wins }} wins · {{ player.stats.losses }} losses{% if player.stats.ties %} · {{ player.stats.ties }} ties{% endif %} · {{ '%.0f'|format(player.stats.win_pct * 100) }}% wins · {{ player.stats.games }} games</p>
+    <p class="season-kicker">Player spotlight · {{ player.group_title }}</p>
+    <h2 class="season-player-name">{{ player.stats.name }}</h2>
+    <dl class="season-player-numbers">
+        <div><dt>Wins</dt><dd>{{ player.stats.wins }}</dd></div>
+        <div><dt>Losses</dt><dd>{{ player.stats.losses }}</dd></div>
+        {% if player.stats.ties %}<div><dt>Ties</dt><dd>{{ player.stats.ties }}</dd></div>{% endif %}
+        <div><dt>Win rate</dt><dd>{{ '%.0f'|format(player.stats.win_pct * 100) }}%</dd></div>
+        <div><dt>Games</dt><dd>{{ player.stats.games }}</dd></div>
+    </dl>
     {% if player.stats.rating is not none %}<p>Rating: {{ '%.2f'|format(player.stats.rating) }}{% if player.stats.rating_gain is not none %} · Change since first playing day: {{ '%+.2f'|format(player.stats.rating_gain) }}{% endif %}</p>{% endif %}
     <p class="sr-muted">{{ 'Qualified' if player.stats.qualified else (player.stats.games_needed|string + ' more games to qualify') }}</p>
     <h3>Games in this season</h3>
     <div id="season-player-games" data-season-items>
-    {% for game in player.games %}<article class="season-game"><p><strong>{{ game.result }}</strong> · {{ game.day }}</p><p>{{ game.winners|join(' & ') }} {{ game.winner_score if game.winner_score is not none else '' }} — {{ game.loser_score if game.loser_score is not none else '' }} {{ game.losers|join(' & ') }}</p></article>{% endfor %}
+    {% for game in player.games %}<article class="season-game"><p><strong class="season-result season-result-{{ game.result|lower }}">{{ game.result }}</strong> <time datetime="{{ game.day }}">{{ game.day|season_date }}</time></p><p>{{ game.winners|join(' & ') }} {{ game.winner_score if game.winner_score is not none else '' }} — {{ game.loser_score if game.loser_score is not none else '' }} {{ game.losers|join(' & ') }}</p></article>{% endfor %}
     </div>
     {% if player.games|length > 25 %}<button type="button" class="sr-link-btn season-show-more" data-season-expand="season-player-games" aria-controls="season-player-games" aria-expanded="false" hidden>Show all {{ player.games|length }} games</button>{% endif %}
 </section>
@@ -77,15 +97,14 @@
 <div id="season-groups">
 {% for group in groups %}
 <section class="sr-card season-block" data-season-group="{{ group.id }}" {% if group.id != selected_group %}hidden{% endif %}>
-    <h2>{{ group.title }}</h2>
-    <p class="sr-muted">{{ group.game_count }} games · {{ group.minimum_games }} games per player to qualify</p>
+    <div class="season-section-heading"><div><p class="season-kicker">{{ 'Season results' if season.status == 'Completed' else 'The season race' }}</p><h2>{{ group.title }}</h2></div><p class="sr-muted">{{ group.game_count }} games · {{ (group.stats|length) + (group.rare_stats|length) }} players<br>{{ group.minimum_games }} game{{ 's' if group.minimum_games != 1 else '' }} per player to qualify</p></div>
     <div class="season-grid season-awards">
-        <div><h3>{{ 'Season champion' if season.status == 'Completed' else 'Championship leader' }}</h3>
-        {% for row in group.champions %}<p><a href="{{ detail_url }}?{{ {'group': group.id, 'player': row.name}|urlencode }}">{{ row.name }}</a> · {{ '%.2f'|format(row.rating) + ' rating' if group.award_metric == 'rating' else ('%.0f'|format(row.win_pct * 100) + '% wins') }}</p>{% else %}<p class="sr-muted">No qualifying players yet.</p>{% endfor %}</div>
-        <div><h3>{{ 'Most improved' if season.status == 'Completed' else 'Most improved so far' }}</h3>
-        {% for row in group.most_improved %}<p><a href="{{ detail_url }}?{{ {'group': group.id, 'player': row.name}|urlencode }}">{{ row.name }}</a> · +{{ '%.2f'|format(row.rating_gain) }}</p>{% else %}<p class="sr-muted">{{ 'No qualifying rating gain yet.' if group.rating_enabled else 'No skill ratings for this format.' }}</p>{% endfor %}</div>
+        <div class="season-award season-award-champion"><span class="season-award-symbol" aria-hidden="true">♛</span><h3>{{ 'Season champion' if season.status == 'Completed' else 'Championship leader' }}</h3>
+        {% for row in group.champions %}<p class="season-award-winner"><a href="{{ detail_url }}?{{ {'group': group.id, 'player': row.name}|urlencode }}">{{ row.name }}</a><span>{{ '%.2f'|format(row.rating) + ' rating' if group.award_metric == 'rating' else ('%.0f'|format(row.win_pct * 100) + '% wins') }}</span></p>{% else %}<p class="sr-muted">The title is waiting.<br>No qualifying players yet.</p>{% endfor %}</div>
+        <div class="season-award season-award-improved"><span class="season-award-symbol" aria-hidden="true">↗</span><h3>{{ 'Most improved' if season.status == 'Completed' else 'Most improved so far' }}</h3>
+        {% for row in group.most_improved %}<p class="season-award-winner"><a href="{{ detail_url }}?{{ {'group': group.id, 'player': row.name}|urlencode }}">{{ row.name }}</a><span>+{{ '%.2f'|format(row.rating_gain) }} rating gain</span></p>{% else %}<p class="sr-muted">{{ 'The next breakthrough is coming.' if group.rating_enabled else 'No skill ratings for this format.' }}{% if group.rating_enabled %}<br>No qualifying rating gain yet.{% endif %}</p>{% endfor %}</div>
     </div>
-    <h3>Standings</h3>
+    <div class="season-section-heading season-standings-heading"><h3>Standings</h3><span class="sr-muted">{{ group.stats|length }} qualified · Select a player to explore</span></div>
     {% if group.stats %}{{ standings(group.stats, group, true, 'season-standings-' ~ loop.index) }}{% else %}<p>No players have reached the minimum yet.</p>{% endif %}
     {% if group.rare_stats %}<details class="season-qualification"><summary>Working toward qualification · {{ group.rare_stats|length }}</summary>{{ standings(group.rare_stats, group, false, 'season-qualifying-' ~ loop.index) }}</details>{% endif %}
     {% if group.rating_enabled and group.unrated_games %}<p class="sr-muted season-rating-coverage">{{ group.rated_games }} rated · {{ group.unrated_games }} excluded from ratings</p>{% endif %}
