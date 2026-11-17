@@ -80,6 +80,9 @@ def sources_for_user(path, username, admin=False):
     from content_safety import restricted_authors
     restricted = restricted_authors(username or '')
     sources = []
+    if (username or '').casefold() == 'kyle':
+        sources.append(dict(owner='kyle', title='My stats (KT Stats)', enabled=selected.get('kyle', True),
+                            number=0, account_id=None))
     if own and 'kyle' not in restricted:
         sources.append(dict(owner='kyle', title='KT Stats', enabled=selected.get('kyle', bool(own['show_starter_stats'])), number=1, account_id=None))
     for row in rows:
@@ -93,6 +96,23 @@ def sources_for_user(path, username, admin=False):
         sources.append(dict(owner=owner, title=display_names[owner.casefold()] + "’s stats", enabled=selected.get(owner.casefold(), False),
                             number=row['source_number'] + 1, account_id=row['id']))
     return sources
+
+
+def _includes_own_stats(sources):
+    # Namespace zero represents the viewer's database. Accounts without an
+    # explicit own-source choice keep the existing always-included behavior.
+    return next((source['enabled'] for source in sources if source.get('number') == 0), True)
+
+
+def _selected_databases(site_path, own_path, sources):
+    databases = [(own_path, 0)] if _includes_own_stats(sources) else []
+    return databases + [(_database_path(site_path, source), source['number'])
+                        for source in sources if source['enabled'] and source.get('number') != 0]
+
+
+def _needs_stats_snapshot(sources):
+    return not _includes_own_stats(sources) or any(
+        source['enabled'] and source.get('number') != 0 for source in sources)
 
 
 def _database_path(site_path, source):
@@ -147,7 +167,7 @@ def build_stats_view(site_path, own_path, sources):
             from mobile_game_sync import ensure_receipts
             ensure_receipts(target)
             # Owner first: their player metadata wins when names overlap.
-            databases = [(own_path, 0)] + [(_database_path(site_path, s), s['number']) for s in sources if s['enabled']]
+            databases = _selected_databases(site_path, own_path, sources)
             names = set()
             for path, namespace in databases:
                 if not Path(path).is_file():
@@ -211,7 +231,7 @@ def selected_stats_context():
     from private_accounts import private_database
     site_path, is_admin = settings
     sources = sources_for_user(site_path, username, is_admin(username))
-    if not any(source['enabled'] for source in sources):
+    if not _needs_stats_snapshot(sources):
         yield
         return
     snapshot = build_stats_view(site_path, private_database() or site_path, sources)
@@ -251,8 +271,8 @@ def register_stats_views(app, service, site_path):
         # have been resolved. A cache hit can then skip the expensive snapshot.
         if request.method != 'GET':
             return None
-        databases = [(base_path, 0)] + [(_database_path(site_path, source), source['number'])
-                                      for source in sources if source['enabled']]
+        g.stats_includes_own_stats = _includes_own_stats(sources) and not getattr(g, 'stats_shared_read_only', False)
+        databases = _selected_databases(site_path, base_path, sources)
         from stats_snapshot_cache import source_revision
         try:
             g.stats_source_databases = databases
@@ -283,8 +303,7 @@ def register_stats_views(app, service, site_path):
 
     def snapshot_for(base_path, sources):
         from stats_snapshot_cache import prepared_snapshot
-        databases = [(str(base_path), 0)] + [(str(_database_path(site_path, source)), source['number'])
-                                           for source in sources if source['enabled']]
+        databases = [(str(path), number) for path, number in _selected_databases(site_path, base_path, sources)]
         build = lambda: build_stats_view(site_path, base_path, sources)
         try:
             return prepared_snapshot(response_cache.directory, databases, build)
@@ -299,14 +318,17 @@ def register_stats_views(app, service, site_path):
         own = account_for_user(site_path, username)
         # An admin's access to somebody's private stats is not permission to
         # publish them. Their owner must enable sharing first.
-        selected = [source for source in sources if source['enabled']]
+        selected = [source for source in sources if source['enabled'] and source.get('number') != 0]
         for source in selected:
             if source['account_id'] is not None:
                 account = account_for_user(site_path, source['owner'])
                 if not account or not account['share_stats']:
                     return None
-        return signer.dumps(dict(base=own['id'] if own else None,
-                                 sources=[source['account_id'] for source in selected]))
+        selection = dict(base=own['id'] if own else None,
+                         sources=[source['account_id'] for source in selected])
+        if not _includes_own_stats(sources):
+            selection['include_own'] = False
+        return signer.dumps(selection)
 
     def read_selection(token):
         from content_safety import restricted_authors
@@ -317,7 +339,10 @@ def register_stats_views(app, service, site_path):
             abort(404, description='This stats link is invalid or no longer available.')
         if not isinstance(selection, dict) or 'base' not in selection or not isinstance(selection.get('sources'), list):
             abort(404, description='This stats link is invalid or no longer available.')
-        if selection['base'] is None and not selection['sources']:
+        include_own = selection.get('include_own', True)
+        if type(include_own) is not bool:
+            abort(404, description='This stats link is invalid or no longer available.')
+        if include_own and selection['base'] is None and not selection['sources']:
             # The public archive has no personal sources to authorize or label.
             # Avoid scanning every account and roster to resolve this common link.
             if 'kyle' in restricted:
@@ -346,7 +371,9 @@ def register_stats_views(app, service, site_path):
                 abort(404, description='This stats link is no longer available.')
             return source
 
-        return resolve(selection['base'], base=True), [resolve(value) for value in selection['sources']]
+        base = (resolve(selection['base'], base=True) if include_own else
+                dict(owner='kyle', title='KT Stats', account_id=None, number=0, enabled=False))
+        return base, [resolve(value) for value in selection['sources']]
 
     @app.url_defaults
     def preserve_shared_stats(endpoint, values):
@@ -368,7 +395,8 @@ def register_stats_views(app, service, site_path):
         visible_sources = [{k: source[k] for k in ('owner', 'title', 'enabled')}
                            for source in sources_for_user(site_path, username, service.is_admin(username))]
         return dict(sources=visible_sources,
-                    share_stats=bool(own and own['share_stats']), is_private=bool(own))
+                    share_stats=bool(own and own['share_stats']), is_private=bool(own),
+                    can_select_only=username.casefold() == 'kyle')
 
     @app.before_request
     def combine_selected_stats():
@@ -382,13 +410,15 @@ def register_stats_views(app, service, site_path):
             base, sources = read_selection(token)
             g.stats_share_token = token
             g.stats_share_available = True
-            g.stats_shared_titles = [base['title']] + [source['title'] for source in sources]
-            g.stats_shared_read_only = base['owner'].casefold() != (current_user() or '').casefold()
-            if base['account_id'] is None and not sources:
+            g.stats_shared_titles = ([base['title']] if base['enabled'] else []) + [source['title'] for source in sources]
+            g.stats_shared_read_only = not base['enabled'] or base['owner'].casefold() != (current_user() or '').casefold()
+            if base['enabled'] and base['account_id'] is None and not sources:
                 # Public KT links must also override a signed-in recipient's
                 # personal database, without copying the whole public archive.
                 g.private_database = None
                 return prepared_stats(site_path, [])
+            if not base['enabled']:
+                sources = [base, *sources]
             cached = prepared_stats(_database_path(site_path, base), sources)
             if cached is not None:
                 return cached
@@ -437,7 +467,7 @@ def register_stats_views(app, service, site_path):
         cached = prepared_stats(private_database() or site_path, sources)
         if cached is not None:
             return cached
-        if any(s['enabled'] for s in sources):
+        if _needs_stats_snapshot(sources):
             g.stats_view_database = snapshot_for(private_database() or site_path, sources)
 
     @app.after_request
@@ -489,11 +519,20 @@ def register_stats_views(app, service, site_path):
             body = request.get_json(silent=True)
             if not isinstance(body, dict) or not isinstance(body.get('owner'), str) or type(body.get('enabled')) is not bool:
                 return jsonify(error='Choose a stats source and whether to include it.'), 400
-            available = {s['owner'].casefold(): s['owner'] for s in payload(username)['sources']}
+            only = body.get('only', False)
+            if type(only) is not bool or (only and not body['enabled']):
+                return jsonify(error='Choose one stats source to include.'), 400
+            choices = payload(username)
+            if only and not choices['can_select_only']:
+                return jsonify(error='Your own stats must stay included.'), 403
+            available = {s['owner'].casefold(): s['owner'] for s in choices['sources']}
             owner = available.get(body['owner'].casefold())
             if owner is None:
                 return jsonify(error='This database is not shared with you.'), 403
             with sqlite3.connect(site_path) as conn:
+                if only:
+                    conn.executemany('INSERT INTO account_stats_sources VALUES (?, ?, 0) ON CONFLICT(viewer,owner) DO UPDATE SET enabled=0',
+                                     [(username, value) for value in available.values()])
                 conn.execute('INSERT INTO account_stats_sources VALUES (?, ?, ?) ON CONFLICT(viewer,owner) DO UPDATE SET enabled=excluded.enabled',
                              (username, owner, int(body['enabled'])))
                 if owner.casefold() == 'kyle':
@@ -522,8 +561,12 @@ def register_stats_views(app, service, site_path):
             token = session.get('stats_sources_csrf', '')
             if not token or not secrets.compare_digest(token, request.form.get('csrf', '')):
                 return 'Please reload and try again.', 400
-            available = payload(username)['sources']
-            chosen = set(request.form.getlist('owner'))
+            choices = payload(username)
+            available = choices['sources']
+            only_owner = request.form.get('only_owner')
+            if only_owner is not None and not choices['can_select_only']:
+                return 'Your own stats must stay included.', 403
+            chosen = {only_owner} if only_owner is not None else set(request.form.getlist('owner'))
             if chosen - {s['owner'] for s in available}:
                 return 'This database is not shared with you.', 403
             with sqlite3.connect(site_path) as conn:

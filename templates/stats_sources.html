@@ -1,12 +1,30 @@
 {% extends 'base.html' %}
+{% block extra_css %}
+<style>
+.stats-source-choice { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.stats-source-choice input { width: 20px; height: 20px; flex-shrink: 0; }
+.stats-source-name { background: none; border: 0; color: var(--sr-accent); font: inherit; text-align: left; text-decoration: underline; padding: 12px 0; cursor: pointer; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container" style="max-width:680px;padding:24px">
 <h1>Stats to include</h1>
+{% if can_select_only %}
+<p>Tap a name to show only that account’s stats. Use the checkboxes and Save choices to combine accounts, or uncheck My stats to leave yours out. Other accounts’ games are read-only here.</p>
+{% else %}
 <p>Your own games are always included. Choose other databases to combine with yours for games, stats, and ratings. Their games stay in their own databases and are read-only here.</p>
+{% endif %}
 <form method="post">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 {% for source in sources %}
-<p><label><input type="checkbox" name="owner" value="{{ source.owner }}" {% if source.enabled %}checked{% endif %}> {{ source.title }}</label></p>
+{% if can_select_only and source.owner != 'kyle' %}
+<div class="stats-source-choice">
+<input type="checkbox" name="owner" value="{{ source.owner }}" aria-label="Include {{ source.title }}" {% if source.enabled %}checked{% endif %}>
+<button class="stats-source-name" type="submit" name="only_owner" value="{{ source.owner }}" aria-label="Show only {{ source.title }}">{{ source.title }}</button>
+</div>
+{% else %}
+<p class="stats-source-choice"><label><input type="checkbox" name="owner" value="{{ source.owner }}" {% if source.enabled %}checked{% endif %}> {{ source.title }}</label></p>
+{% endif %}
 {% endfor %}
 {% if is_private %}
 <hr><p><label><input type="checkbox" name="share_stats" {% if share_stats %}checked{% endif %}> Let the existing group include my stats</label></p>

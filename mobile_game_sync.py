@@ -127,6 +127,7 @@ def local_game_snapshot(view):
         if response.status_code == 200 and response.is_json:
             body = response.get_json()
             body['synced_local_game_ids'] = ids
+            body['includes_own_stats'] = getattr(g, 'stats_includes_own_stats', True)
             response.set_data(json.dumps(body))
             response.headers['Cache-Control'] = 'no-store'
         return response

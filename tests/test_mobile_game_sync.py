@@ -135,10 +135,10 @@ class MobileSyncTests(unittest.TestCase):
     def test_snapshot_and_receipts_change_together(self):
         p = self.payload()
         before = self.client.get('/snapshot', headers={'X-Stats-Local-Snapshot': '1'})
-        self.assertEqual(before.json, {'total': 0, 'synced_local_game_ids': []})
+        self.assertEqual(before.json, {'total': 0, 'synced_local_game_ids': [], 'includes_own_stats': True})
         self.client.post('/doubles', json=p)
         after = self.client.get('/snapshot', headers={'X-Stats-Local-Snapshot': '1'})
-        self.assertEqual(after.json, {'total': 1, 'synced_local_game_ids': [p['client_game_id']]})
+        self.assertEqual(after.json, {'total': 1, 'synced_local_game_ids': [p['client_game_id']], 'includes_own_stats': True})
         self.race_snapshot = True
         self.assertEqual(self.client.get('/snapshot', headers={'X-Stats-Local-Snapshot': '1'}).status_code, 503)
 
@@ -156,7 +156,7 @@ class MobileSyncTests(unittest.TestCase):
             session['username'] = 'alice'
             g.stats_view_database = snapshot
             response = self.app.view_functions['snapshot']()
-            self.assertEqual(response.json, {'total': 1, 'synced_local_game_ids': [p['client_game_id']]})
+            self.assertEqual(response.json, {'total': 1, 'synced_local_game_ids': [p['client_game_id']], 'includes_own_stats': True})
 
     def test_actual_insert_functions_commit_game_and_receipt_together(self):
         from create_games_database import create_game

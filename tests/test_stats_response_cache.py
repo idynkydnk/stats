@@ -100,6 +100,27 @@ class StatsResponseCacheTests(unittest.TestCase):
             conn.execute("UPDATE site_users SET active=0 WHERE username='alice'")
         self.assertEqual(self.a.get('/api/api_doubles_stats?year=All+years', headers=a).status_code, 401)
 
+    def test_kyle_source_changes_isolate_cached_standings(self):
+        alice = self.register(self.a, 'alice')
+        self.a.post('/api/games', headers=alice, json={'name': 'Alice game'})
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token', 'X-Stats-Combined': '1'}
+        for owner, enabled, only, expected in [
+            ('alice', True, False, [['Shared player'], ['Alice game']]),
+            ('alice', True, True, [['Alice game']]),
+            ('alice', False, False, []),
+            ('kyle', True, False, [['Shared player']]),
+            ('alice', True, True, [['Alice game']]),
+        ]:
+            response = admin.put('/api/account/stats-sources', headers=headers,
+                                 json={'owner': owner, 'enabled': enabled, 'only': only})
+            self.assertEqual(response.status_code, 200)
+            for endpoint in STATS_ENDPOINTS:
+                self.assertEqual(self.get(admin, headers, endpoint=endpoint)['rows'], expected)
+                before = len(self.calls)
+                self.assertEqual(self.get(admin, headers, endpoint=endpoint)['rows'], expected)
+                self.assertEqual(len(self.calls), before)
+
     def test_cached_share_link_rechecks_permission(self):
         a = self.register(self.a, 'alice')
         self.a.post('/api/games', headers=a, json={'name': 'Alice game'})

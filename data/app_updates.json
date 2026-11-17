@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-11-16-select-account-stats",
+    "date": "2026-11-16",
+    "subject": "iPhone: View another account’s stats on their own",
+    "body": "Kyle can tap a name in Stats to include to see only that account’s stats. Turn off My stats to leave Kyle’s games out, or use the switches to combine selected accounts."
+  },
+  {
     "id": "ios-2026-11-11-add-game-tabs",
     "date": "2026-11-11",
     "subject": "iPhone: Keep game tabs visible when adding a game",

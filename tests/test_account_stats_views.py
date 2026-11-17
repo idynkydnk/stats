@@ -119,7 +119,7 @@ class StatsSourceAPITests(unittest.TestCase):
         admin_headers = {'Authorization': 'Bearer shared-token'}
         payload = self.app.test_client().get('/api/account/stats-sources', headers=admin_headers).json
         self.assertEqual({source['owner']: source['title'] for source in payload['sources']},
-                         {'tyler': 'Tyler Weston’s stats', 'jen': 'Jen Example’s stats'})
+                         {'kyle': 'My stats (KT Stats)', 'tyler': 'Tyler Weston’s stats', 'jen': 'Jen Example’s stats'})
         own = self.a.get('/api/account/stats-sources').json
         self.assertEqual(own['sources'][0]['title'], 'KT Stats')
         self.assertEqual(own['sources'][0]['owner'], 'kyle')
@@ -131,16 +131,105 @@ class StatsSourceAPITests(unittest.TestCase):
         owner = response.json['username']
         admin_headers = {'Authorization': 'Bearer shared-token'}
         payload = self.b.get('/api/account/stats-sources', headers=admin_headers).json
-        self.assertEqual(payload['sources'][0]['owner'], owner)
-        self.assertEqual(payload['sources'][0]['title'], 'Jamie McDonald’s stats')
+        source = next(s for s in payload['sources'] if s['owner'] == owner)
+        self.assertEqual(source['title'], 'Jamie McDonald’s stats')
         response = self.b.put('/api/account/stats-sources', headers=admin_headers,
                               json={'owner': owner, 'enabled': True})
         self.assertEqual(response.status_code, 200)
         with sqlite3.connect(self.path) as conn:
             conn.execute('UPDATE site_users SET display_name=NULL WHERE username=?', (owner,))
         payload = self.b.get('/api/account/stats-sources', headers=admin_headers).json
-        self.assertEqual(payload['sources'][0]['title'], 'Google account’s stats')
-        self.assertTrue(payload['sources'][0]['enabled'])
+        source = next(s for s in payload['sources'] if s['owner'] == owner)
+        self.assertEqual(source['title'], 'Google account’s stats')
+        self.assertTrue(source['enabled'])
+
+    def test_kyle_can_select_only_one_account_and_uncheck_own_stats(self):
+        a = self.register(self.a, 'alice')
+        b = self.register(self.b, 'bob')
+        self.a.post('/api/games', headers=a, json={'name': 'Alice game'})
+        self.b.post('/api/games', headers=b, json={'name': 'Bob game'})
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token', 'X-Stats-Combined': '1'}
+        payload = admin.get('/api/account/stats-sources', headers=headers).json
+        self.assertTrue(payload['can_select_only'])
+        self.assertEqual(payload['sources'][0], dict(owner='kyle', title='My stats (KT Stats)', enabled=True))
+        admin.put('/api/account/stats-sources', headers=headers, json={'owner': 'bob', 'enabled': True})
+        response = admin.put('/api/account/stats-sources', headers=headers,
+                             json={'owner': 'ALICE', 'enabled': True, 'only': True})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([s['owner'] for s in response.json['sources'] if s['enabled']], ['alice'])
+        rows = admin.get('/api/games', headers=headers).json['rows']
+        self.assertEqual([r[1] for r in rows], ['Alice game'])
+        self.assertGreater(rows[0][0], SOURCE_ID_STRIDE)
+        init_stats_views(self.path)
+        self.assertEqual(admin.get('/api/games', headers=headers).json['rows'], rows)
+        for enabled, expected in [(True, {'Shared player', 'Alice game'}), (False, {'Alice game'})]:
+            admin.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': enabled})
+            self.assertEqual({r[1] for r in admin.get('/api/games', headers=headers).json['rows']}, expected)
+        # Deselecting everything must produce an empty view, never the KT fallback.
+        admin.put('/api/account/stats-sources', headers=headers, json={'owner': 'alice', 'enabled': False})
+        self.assertEqual(admin.get('/api/games', headers=headers).json['rows'], [])
+        # The owned/sync view and writes still address Kyle's original database.
+        owned = {'Authorization': 'Bearer shared-token', 'X-Stats-Owned': '1'}
+        self.assertEqual(admin.get('/api/games', headers=owned).json['rows'], [[1, 'Shared player']])
+        admin.post('/api/games', headers=headers, json={'name': 'Kyle new game'})
+        self.assertEqual(admin.get('/api/games', headers=headers).json['rows'], [])
+        self.assertEqual(self.a.get('/api/games', headers=a).json['rows'], [[2, 'Alice game']])
+        self.assertEqual(len(admin.get('/api/games', headers=owned).json['rows']), 2)
+
+    def test_select_only_validates_before_changing_any_preferences(self):
+        a = self.register(self.a, 'alice')
+        self.assertFalse(self.a.get('/api/account/stats-sources', headers=a).json['can_select_only'])
+        self.assertEqual(self.a.put('/api/account/stats-sources', headers=a,
+                         json={'owner': 'kyle', 'enabled': True, 'only': True}).status_code, 403)
+        self.assertEqual(self.a.put('/api/account/stats-sources', headers=a,
+                         json={'owner': 'alice', 'enabled': False}).status_code, 403)
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token'}
+        before = admin.get('/api/account/stats-sources', headers=headers).json
+        for body, status in [({'owner': 'missing', 'enabled': True, 'only': True}, 403),
+                             ({'owner': 'alice', 'enabled': False, 'only': True}, 400),
+                             ({'owner': 'alice', 'enabled': True, 'only': 'true'}, 400)]:
+            self.assertEqual(admin.put('/api/account/stats-sources', headers=headers, json=body).status_code, status)
+            self.assertEqual(admin.get('/api/account/stats-sources', headers=headers).json, before)
+
+    def test_selected_stats_context_respects_an_empty_selection(self):
+        from account_stats_views import selected_stats_context
+
+        @self.app.post('/selected-stats')
+        def selected():
+            with selected_stats_context(), connect_data(self.path) as conn:
+                return jsonify(rows=conn.execute('SELECT * FROM games').fetchall())
+
+        admin = {'Authorization': 'Bearer shared-token'}
+        self.a.put('/api/account/stats-sources', headers=admin, json={'owner': 'kyle', 'enabled': False})
+        self.assertEqual(self.a.post('/selected-stats', headers=admin).json['rows'], [])
+
+    def test_mobile_snapshots_do_not_add_local_games_when_own_stats_are_off(self):
+        from mobile_game_sync import local_game_snapshot
+
+        @self.app.get('/api/standings', endpoint='api_vollis_stats')
+        @local_game_snapshot
+        def standings():
+            with connect_data(self.path) as conn:
+                return jsonify(rows=conn.execute('SELECT winner1 FROM games').fetchall())
+
+        alice = self.register(self.a, 'alice')
+        self.a.post('/api/games', headers=alice, json={'name': 'Alice game'})
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token', 'X-Stats-Combined': '1', 'X-Stats-Local-Snapshot': '1'}
+        with patch.dict('sys.modules', {'stats': SimpleNamespace(_stats_db_path=lambda: self.path)}):
+            self.assertTrue(admin.get('/api/standings', headers=headers).json['includes_own_stats'])
+            admin.put('/api/account/stats-sources', headers=headers,
+                      json={'owner': 'alice', 'enabled': True, 'only': True})
+            for _ in range(2):  # Cached snapshots must keep the exclusion too.
+                response = admin.get('/api/standings', headers=headers)
+                self.assertEqual(response.json['rows'], [['Alice game']])
+                self.assertFalse(response.json['includes_own_stats'])
+                self.assertEqual(response.json['synced_local_game_ids'], [])
+            owned = {k: v for k, v in headers.items() if k != 'X-Stats-Combined'}
+            owned['X-Stats-Owned'] = '1'
+            self.assertTrue(admin.get('/api/standings', headers=owned).json['includes_own_stats'])
 
     def test_default_combined_view_and_owned_writes(self):
         a = self.register(self.a, 'alice')
@@ -362,6 +451,79 @@ class SharedStatsLinkTests(unittest.TestCase):
         self.own_game(self.a, 'dan')
         self.assertEqual(self.a.get(link).json['rows'], [[1, 'Shared player']])
         self.assertIsNone(guest.get(link).json['snapshot'])
+
+    def test_kyle_only_selection_survives_web_and_app_share_links(self):
+        alice = self.own_game(self.a, 'alice')
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token'}
+        admin.put('/api/account/stats-sources', headers=headers,
+                  json={'owner': 'alice', 'enabled': True, 'only': True})
+        # Admin access does not grant permission to publish another user's stats.
+        page = admin.get('/stats/2026/', headers=headers)
+        self.assertEqual([r[1] for r in page.json['rows']], ['alice game'])
+        self.assertIsNone(page.json['token'])
+        self.assertEqual(admin.get('/api/account/stats-share', headers=headers).status_code, 403)
+        self.a.put('/api/account/stats-sharing', headers=alice, json={'share_stats': True})
+        web_link = admin.get('/stats/2026/', headers=headers).location
+        app_token = admin.get('/api/account/stats-share', headers=headers).json['view']
+        guest = self.app.test_client()
+        for link in [web_link, '/stats/2026/?view=' + app_token]:
+            for viewer in [guest, admin, self.a]:
+                response = viewer.get(link)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual([r[1] for r in response.json['rows']], ['alice game'])
+                self.assertGreater(response.json['rows'][0][0], SOURCE_ID_STRIDE)
+                self.assertEqual(response.json['titles'], ['Alice’s stats'])
+                self.assertTrue(response.json['read_only'])
+        admin.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': True})
+        self.assertEqual([r[1] for r in guest.get(web_link).json['rows']], ['alice game'])
+        self.a.put('/api/account/stats-sharing', headers=alice, json={'share_stats': False})
+        self.assertEqual(guest.get(web_link).status_code, 404)
+
+    def test_kyle_empty_selection_share_link_stays_empty(self):
+        headers = {'Authorization': 'Bearer shared-token'}
+        self.a.put('/api/account/stats-sources', headers=headers, json={'owner': 'kyle', 'enabled': False})
+        link = self.a.get('/stats/2026/', headers=headers).location
+        for client in [self.a, self.app.test_client()]:
+            response = client.get(link)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['rows'], [])
+            self.assertEqual(response.json['titles'], [])
+        owned = self.a.get('/api/account/stats-share?owned=1', headers=headers).json['view']
+        self.assertEqual(self.b.get('/stats/2026/?view=' + owned).json['rows'], [[1, 'Shared player']])
+
+    def test_web_names_select_only_and_checkboxes_allow_excluding_kyle(self):
+        from flask import redirect
+        from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
+        self.app.add_url_rule('/stats/', 'stats_default', lambda: redirect(url_for('stats', year='2026')))
+        self.app.jinja_loader = ChoiceLoader([
+            DictLoader({'base.html': '{% block extra_css %}{% endblock %}{% block content %}{% endblock %}'}),
+            FileSystemLoader(str(Path(__file__).resolve().parents[1] / 'templates')),
+        ])
+        self.own_game(self.a, 'alice')
+        admin = self.app.test_client()
+        headers = {'Authorization': 'Bearer shared-token'}
+        page = admin.get('/account/stats-sources/', headers=headers)
+        self.assertIn('My stats (KT Stats)', page.text)
+        self.assertIn('name="only_owner" value="alice"', page.text)
+        with admin.session_transaction() as session:
+            csrf = session['stats_sources_csrf']
+        self.assertEqual(admin.post('/account/stats-sources/', data={'only_owner': 'alice'}).status_code, 400)
+        response = admin.post('/account/stats-sources/', data={
+            'csrf': csrf, 'owner': ['kyle', 'alice'], 'only_owner': 'alice'}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r[1] for r in response.json['rows']], ['alice game'])
+        for owners, expected in [(['kyle', 'alice'], {'Shared player', 'alice game'}),
+                                 (['alice'], {'alice game'}), ([], set())]:
+            response = admin.post('/account/stats-sources/', data={'csrf': csrf, 'owner': owners}, follow_redirects=True)
+            self.assertEqual({r[1] for r in response.json['rows']}, expected)
+        page = self.a.get('/account/stats-sources/')
+        self.assertNotIn('name="only_owner"', page.text)
+        self.assertIn('Your own games are always included.', page.text)
+        with self.a.session_transaction() as session:
+            csrf = session['stats_sources_csrf']
+        self.assertEqual(self.a.post('/account/stats-sources/', data={
+            'csrf': csrf, 'only_owner': 'kyle'}).status_code, 403)
 
     def test_tampering_and_writes_fail_without_falling_back(self):
         self.own_game(self.a, 'dan')
