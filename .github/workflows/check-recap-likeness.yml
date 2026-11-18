@@ -1,0 +1,38 @@
+name: Preview recap character likeness
+on:
+  workflow_dispatch:
+    inputs:
+      share_id:
+        description: Existing recap to preview without publishing
+        required: true
+        type: string
+      model:
+        description: Image model to evaluate
+        type: choice
+        options:
+          - gpt-image-2.6-sunburst
+          - gpt-image-2.5-sunburst
+          - gpt-image-2
+        default: gpt-image-2.6-sunburst
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate a detached preview on the website server
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+          RECAP_SHARE_ID: ${{ inputs.share_id }}
+          RECAP_TEST_MODEL: ${{ inputs.model }}
+        run: python3 scripts/check_recap_likeness.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recap-likeness-preview
+          path: output/recap-likeness-preview/
+          retention-days: 3
