@@ -333,6 +333,7 @@ class PersonalRecapAccessTests(unittest.TestCase):
 
     def test_management_controls_on_public_and_creator_views(self):
         self.register(self.a, 'alice')
+        admin.update_ai_recap_page('alice-own', hero_image_error='Image service timed out')
         with patch('email_content.list_instagram_slide_paths', return_value=[]):
             for suffix in ['', '?published=1']:
                 for share_id, allowed in [('alice-own', True), ('bob-own', False)]:
@@ -340,9 +341,12 @@ class PersonalRecapAccessTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.json['can_manage'], allowed)
                     self.assertEqual(response.json['can_remake'], allowed and bool(suffix))
+                    self.assertEqual(response.json['hero_image_error'],
+                                     'Image service timed out' if allowed else '')
                 public = self.app.test_client().get(f'/recap/alice-own/{suffix}')
                 self.assertFalse(public.json['can_manage'])
                 self.assertFalse(public.json['can_remake'])
+                self.assertEqual(public.json['hero_image_error'], '')
 
     def test_remake_summary_uses_owner_games_and_restores_admin_identity(self):
         from private_accounts import private_database, account_for_user, provision_database
@@ -461,11 +465,14 @@ class PersonalRecapAccessTests(unittest.TestCase):
             entry = dict(share_id='recap', can_manage=allowed, subject='Recap')
             context = dict(base_template='base.html', entries=[entry], page=1, total_pages=1,
                            session={'logged_in': True}, share_id='recap', can_manage=allowed,
-                           recap_html='<p>Recap</p>', show_creator_view=False)
+                           recap_html='<p>Recap</p>', show_creator_view=False,
+                           hero_image_error='Image service timed out')
             for template in ['ai_recaps.html', 'recap.html']:
                 html = environment.get_template(template).render(**context)
                 self.assertEqual('> Edit' in html, allowed)
                 self.assertEqual('/my_ai_recaps_delete' in html, allowed)
+                if template == 'recap.html':
+                    self.assertEqual('Picture unavailable: Image service timed out' in html, allowed)
 
 
 if __name__ == '__main__':

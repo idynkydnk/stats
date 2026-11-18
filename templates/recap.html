@@ -732,8 +732,8 @@
         <p class="recap-meta">Published {{ created_at_fmt }}</p>
         {% endif %}
 
-        {% if show_creator_view and hero_image_error %}
-        <div class="recap-warning"><i class="fas fa-exclamation-triangle"></i> {{ hero_image_error }}</div>
+        {% if can_manage and hero_image_error %}
+        <div class="recap-warning" role="status"><i class="fas fa-exclamation-triangle"></i> Picture unavailable: {{ hero_image_error }}</div>
         {% endif %}
 
         <div class="recap-body-wrap">

@@ -1,9 +1,12 @@
-"""Generate a detached recap preview on the host; never publish it or send email.
+"""Preview a recap on the host, or explicitly repair its missing picture.
 
 API keys stay on the website server. CI receives only this recap's generated
 images, saved character references, scene prompt and review. A one-shot marker
 and deadline prevent a restarted host task from generating another paid image.
+Preview is the default. Repair only fills an empty image on the specified recap
+and never sends email or overwrites an existing picture.
 """
+import base64
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -20,10 +23,18 @@ import uuid
 MODELS = {'gpt-image-2', 'gpt-image-2.5-sunburst', 'gpt-image-2.6-sunburst'}
 
 
-def render(prefix, deadline, share_id, model):
+def can_repair(before, current):
+    return bool(current and not current.get('hero_image_url') and all(
+        before.get(key) == current.get(key)
+        for key in ('share_id', 'username', 'game_ids_json', 'image_details')
+    ))
+
+
+def render(prefix, deadline, share_id, model, mode='preview', details=''):
     if not re.fullmatch(r'/home/Idynkydnk/\.stats-recap-check-[a-f0-9]{32}', prefix):
         raise ValueError('Invalid preview destination')
-    if model not in MODELS or not re.fullmatch(r'[A-Za-z0-9_-]{6,80}', share_id):
+    if (model not in MODELS or mode not in ('preview', 'repair') or len(details) > 5000
+            or not re.fullmatch(r'[A-Za-z0-9_-]{6,80}', share_id)):
         raise ValueError('Invalid preview input')
     if not time.time() < deadline <= time.time() + 1205:
         return
@@ -52,7 +63,6 @@ def render(prefix, deadline, share_id, model):
         os.environ['OPENAI_RECAP_IMAGE_MODEL'] = model
         os.environ['OPENAI_IMAGE_RETRIES'] = '1'
         from unittest.mock import patch
-        import base64
         import email_content as content
         from stats import app, _stats_db_path, _load_games_and_players_for_recap
         import admin_functions
@@ -61,6 +71,9 @@ def render(prefix, deadline, share_id, model):
         row = admin_functions.get_ai_recap_page(share_id)
         if not row:
             raise ValueError('Recap not found')
+        if mode == 'repair' and not can_repair(row, row):
+            raise ValueError('This recap already has a picture; left it unchanged')
+        picture_details = details.strip() or row.get('image_details') or ''
         generate = content._generate_image_bytes
         calls = []
 
@@ -94,10 +107,29 @@ def render(prefix, deadline, share_id, model):
                     started = time.monotonic()
                     preview = content.generate_email_hero_image(
                         content.require_ai_api_key(), game_type, games, players,
-                        game_name=game_name, image_details=row.get('image_details') or '',
-                        visual_source=row.get('custom_prompt') or row.get('image_details') or '',
+                        game_name=game_name, image_details=picture_details,
+                        # Exercise the same combined-request routing as creation:
+                        # summary-only jokes must not become picture instructions.
+                        visual_source='\n\n'.join(part for part in (
+                            row.get('custom_prompt') or '', picture_details,
+                        ) if part),
                         location=location, weather_games=weather,
                     )
+                if mode == 'repair':
+                    current = admin_functions.get_ai_recap_page(share_id)
+                    if not can_repair(row, current):
+                        raise ValueError('The recap changed during generation; saved preview only')
+                    selected_path = Path(preview[1])
+                    url, _ = content._save_email_image(
+                        selected_path.read_bytes(), selected_path.suffix.lstrip('.'),
+                    )
+                    html = content.replace_recap_hero_image(current.get('html_body') or '', url)
+                    admin_functions.update_ai_recap_page(
+                        share_id, html_body=html, hero_image_url=url, hero_image_error='',
+                        image_mode='image', scene_prompt=preview[4], image_details=picture_details,
+                    )
+                    content.ensure_recap_og_image(url)
+                    result.update(repaired=True, hero_image_url=url)
         result.update(ok=True, seconds=round(time.monotonic() - started, 1),
                       prompt=preview[2], scene=preview[4], image_calls=len(calls))
     except Exception as error:
@@ -119,7 +151,10 @@ def main():
         raise SystemExit('Run this paid preview manually through GitHub Actions.')
     from install_passkeys_cloud import python_command
     share_id, model = os.environ['RECAP_SHARE_ID'], os.environ['RECAP_TEST_MODEL']
-    if model not in MODELS or not re.fullmatch(r'[A-Za-z0-9_-]{6,80}', share_id):
+    mode = os.environ.get('RECAP_TEST_MODE') or 'preview'
+    details = os.environ.get('RECAP_TEST_DETAILS') or ''
+    if (model not in MODELS or mode not in ('preview', 'repair') or len(details) > 5000
+            or not re.fullmatch(r'[A-Za-z0-9_-]{6,80}', share_id)):
         raise ValueError('Invalid preview input')
     base = 'https://www.pythonanywhere.com/api/v0/user/' + os.environ['PA_USERNAME']
 
@@ -136,7 +171,8 @@ def main():
     prefix = '/home/Idynkydnk/.stats-recap-check-' + uuid.uuid4().hex
     deadline = time.time() + 1050
     command = shlex.join(executable + ['/home/Idynkydnk/stats/scripts/check_recap_likeness.py',
-                                      '--render', prefix, str(deadline), share_id, model])
+                                      '--render', prefix, str(deadline), share_id, model, mode,
+                                      base64.b64encode(details.encode()).decode()])
     endpoint = '/always_on/'
     task_data = dict(command=command, description='Temporary recap likeness preview', enabled='true')
     try:
@@ -184,7 +220,8 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 6 and sys.argv[1] == '--render':
-        render(sys.argv[2], float(sys.argv[3]), sys.argv[4], sys.argv[5])
+    if len(sys.argv) == 8 and sys.argv[1] == '--render':
+        render(sys.argv[2], float(sys.argv[3]), sys.argv[4], sys.argv[5],
+               sys.argv[6], base64.b64decode(sys.argv[7], validate=True).decode())
     else:
         main()

@@ -3,9 +3,20 @@ on:
   workflow_dispatch:
     inputs:
       share_id:
-        description: Existing recap to preview without publishing
+        description: Existing recap to preview or repair
         required: true
         type: string
+      mode:
+        description: Preview only, or fill a missing recap picture
+        type: choice
+        options:
+          - preview
+          - repair
+        default: preview
+      picture_details:
+        description: Optional explicit picture instructions for this run
+        type: string
+        default: ''
       model:
         description: Image model to evaluate
         type: choice
@@ -29,6 +40,8 @@ jobs:
           PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
           RECAP_SHARE_ID: ${{ inputs.share_id }}
           RECAP_TEST_MODEL: ${{ inputs.model }}
+          RECAP_TEST_MODE: ${{ inputs.mode }}
+          RECAP_TEST_DETAILS: ${{ inputs.picture_details }}
         run: python3 scripts/check_recap_likeness.py
       - uses: actions/upload-artifact@v4
         if: always()

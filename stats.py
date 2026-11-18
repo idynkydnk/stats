@@ -3561,7 +3561,7 @@ def view_ai_recap(share_id):
         og_image_type='image/jpeg' if og_image_url else '',
         og_image_width=og_image_width,
         og_image_height=og_image_height,
-        hero_image_error=row.get('hero_image_error') or '' if show_creator_view else '',
+        hero_image_error=(row.get('hero_image_error') or '') if can_manage else '',
         created_at_fmt=created_at_fmt if show_creator_view else '',
         game_type=game_type,
         remake_summary_prompt=remake_summary_prompt,

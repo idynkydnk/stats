@@ -4202,7 +4202,9 @@ def generate_email_hero_image(
     )
     source = safe_names(source)
     try:
-        checklist = extract_visual_checklist(source, generate_ai_text)
+        checklist = extract_visual_checklist(
+            source, generate_ai_text, sport=_sport_desc_for_image(game_type, game_name),
+        )
     except Exception:
         logging.getLogger(__name__).warning(
             'Picture checklist unavailable; using the complete visual request.', exc_info=True,
