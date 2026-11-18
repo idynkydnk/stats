@@ -1248,14 +1248,14 @@ def collect_solo_reference_images(name, max_pixels=768):
     return {'name': name, 'parts': [], 'kind': None}
 
 
-def collect_illustration_reference_images(name):
-    """Keep the real face for likeness alongside the saved character for its scene."""
+def collect_illustration_reference_images(name, include_face_photos=True):
+    """Load saved character references, optionally with real face photos."""
     display_name = (name or '').strip()
     entry = {'name': display_name, 'parts': [], 'kind': None}
     if not display_name:
         return entry
 
-    refs = collect_player_reference_images([display_name], max_players=1)
+    refs = collect_player_reference_images([display_name], max_players=1) if include_face_photos else []
     if refs:
         entry['parts'] = [dict(part, kind='face_photo') for part in refs[0].get('parts') or []]
         entry['kind'] = 'face_photo' if entry['parts'] else None

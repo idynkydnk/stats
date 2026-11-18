@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 from email_content import (
     CHARACTER_PRESERVATION_RULE,
-    GROUP_REFERENCE_DETAILS,
+    RECAP_IMAGE_PROMPT,
+    _append_recap_winner,
     _reference_parts_from_uploaded_photos,
     build_flyer_scene_prompt,
     build_scene_image_prompt,
@@ -44,10 +45,23 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 'doubles', players, player_stats=stats,
                 labels_by_name={name: name for name in players},
             )
-        self.assertIn('Dress Rating Leader as the king', prompt)
-        self.assertNotIn('Dress Win Leader', prompt)
-        self.assertIn('Show Win Leader lying flat on the ground in bad shape', prompt)
-        self.assertIn(GROUP_REFERENCE_DETAILS, prompt)
+        self.assertIn('Winner: Rating Leader.', prompt)
+        self.assertNotIn('Winner: Win Leader.', prompt)
+        self.assertIn('Give only the winner a king’s crown.', prompt)
+        self.assertIn(RECAP_IMAGE_PROMPT, prompt)
+        for removed in ('robe', 'lying flat', 'lowest', 'defeated', 'face photo'):
+            self.assertNotIn(removed, prompt)
+
+    def test_winner_context_refreshes_without_crowning_another_player(self):
+        stats = [['Alex', 3, 0, 1.0, 12, 8.0], ['Sam', 0, 3, 0.0, -12, 1.0]]
+        prompt = _append_recap_winner('Scene\n\nWinner: Sam.', ['Alex', 'Sam'], stats)
+        self.assertEqual(prompt.count('Winner:'), 1)
+        self.assertIn('Winner: Alex.', prompt)
+        prompt = _append_recap_winner(prompt, ['Sam'], stats)
+        self.assertNotIn('Winner:', prompt)
+        self.assertIn('omit the crown', prompt)
+        tied = [['Alex', 1, 1, .5, 0, 5.0], ['Sam', 1, 1, .5, 0, 5.0]]
+        self.assertIn('Winners (tied): Alex, Sam.', _append_recap_winner('Scene', ['Alex', 'Sam'], tied))
 
     def test_reference_bundle_ignores_traits_only_for_attached_characters(self):
         players = ['Saved Player', 'Fallback Player']
@@ -94,7 +108,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 patch('player_functions.collect_player_ai_image_traits', return_value=[]),
                 patch('player_functions.get_player_ai_image_path', return_value='saved.png'),
                 patch('player_functions.collect_illustration_reference_images',
-                      side_effect=lambda name: references[name]),
+                      side_effect=lambda name, **kwargs: references[name]),
                 patch('email_content._build_labeled_identity_sheet',
                       return_value=(b'full contact sheet', ['Kevin', 'Jordan'])),
                 patch('recap_visuals.extract_visual_checklist', return_value=[]),
@@ -112,22 +126,21 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             parts = generate.call_args.kwargs['reference_parts']
             text = '\n'.join(part.get('text', '') for part in parts)
             images = [part['inline_data']['data'] for part in parts if 'inline_data' in part]
-            self.assertEqual(images[1:], [references[name]['parts'][0]['data_b64'] for name in players])
-            self.assertTrue(parts[2]['is_identity_sheet'])
+            self.assertEqual(images, [references[name]['parts'][0]['data_b64'] for name in players])
+            self.assertFalse(any(part.get('is_identity_sheet') for part in parts))
             self.assertIn('Kevin 3-0 (+12)', text)
             self.assertIn('Jordan 0-3 (-12)', text)
             self.assertFalse(generate.call_args.kwargs['add_body_side_convention'])
-            self.assertIn('IDENTITY LOCK', prompt)
-            self.assertIn('FACE LIKENESS', prompt)
-            self.assertIn(CHARACTER_PRESERVATION_RULE, text)
-            for removed in ('BODY-SIDE', 'Wilson'):
+            for removed in ('BODY-SIDE', 'Wilson', 'IDENTITY LOCK', 'FACE LIKENESS',
+                            'face photo', 'robe', 'lying flat', 'lowest', 'defeated'):
                 self.assertNotIn(removed, prompt + text)
+            self.assertLess(len((prompt + text).split()), 160)
             if custom:
                 self.assertTrue(prompt.startswith(custom))
-            self.assertEqual(prompt.count(GROUP_REFERENCE_DETAILS), 1)
+            else:
+                self.assertEqual(prompt.count(RECAP_IMAGE_PROMPT), 1)
             self.assertNotIn('Kevin Cleary', prompt + text)
-            self.assertEqual(prompt.count("Dress Kevin as the king"), 1)
-            self.assertEqual(prompt.count("Show Jordan lying flat on the ground in bad shape"), 1)
+            self.assertEqual(prompt.count('Winner: Kevin.'), 1)
 
 
 if __name__ == '__main__':

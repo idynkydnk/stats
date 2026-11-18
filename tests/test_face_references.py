@@ -23,6 +23,43 @@ def reference(raw, kind):
 
 
 class FaceReferenceTests(unittest.TestCase):
+    def test_recap_reference_loader_never_reads_face_photos(self):
+        character = picture('blue')
+        for has_character in (True, False):
+            with (
+                self.subTest(character=has_character),
+                patch('player_functions.collect_player_reference_images') as faces,
+                patch('player_functions.get_player_ai_image_path', return_value='character.png'),
+                patch('player_functions.read_player_image_file',
+                      return_value=(character, 'image/png') if has_character else (None, None)),
+            ):
+                result = collect_illustration_reference_images('Alex', include_face_photos=False)
+            faces.assert_not_called()
+            self.assertEqual([ref['kind'] for ref in result['parts']],
+                             ['ai_portrait'] if has_character else [])
+
+    def test_recap_skips_players_without_saved_characters(self):
+        sources = [
+            {'kind': 'ai_portrait', 'parts': [reference(picture('blue'), 'ai_portrait')]},
+            {'kind': 'face_photo', 'parts': [reference(picture('red'), 'face_photo')]},
+            {'kind': None, 'parts': []},
+        ]
+        with (
+            patch('player_functions.collect_illustration_reference_images', side_effect=sources),
+            patch('player_functions.collect_player_ai_image_traits') as traits,
+        ):
+            parts, included = content._reference_parts_from_uploaded_photos(
+                ['Character', 'Face', 'Traits'], saved_characters_only=True,
+            )
+        traits.assert_not_called()
+        self.assertEqual(included, ['Character'])
+        self.assertEqual([p['image_name'] for p in parts if p.get('inline_data')], ['Character'])
+        with (
+            patch('player_functions.collect_illustration_reference_images', return_value=sources[1]),
+            self.assertRaisesRegex(ValueError, 'saved AI characters'),
+        ):
+            content._reference_parts_from_uploaded_photos(['Face'], saved_characters_only=True)
+
     def test_saved_character_does_not_replace_real_face_and_missing_sources_still_work(self):
         face, character = picture('red'), picture('blue')
         for has_face, has_character in ((True, True), (True, False), (False, True), (False, False)):
@@ -87,7 +124,7 @@ class FaceReferenceTests(unittest.TestCase):
         self.assertEqual(included, players)
         self.assertEqual([part['image_name'] for part in parts if part.get('inline_data')], players)
 
-    def test_both_generation_flows_send_face_character_pairs_and_identity_instructions(self):
+    def test_recap_sends_only_characters_while_flyer_keeps_face_character_pairs(self):
         sources = {'kind': 'ai_portrait', 'parts': [
             reference(picture('red'), 'face_photo'), reference(picture('blue'), 'ai_portrait'),
         ]}
@@ -114,13 +151,19 @@ class FaceReferenceTests(unittest.TestCase):
                         content.generate_flyer_image('key', ['Alex'], 'doubles',
                                                      custom_scene_prompt=custom)
                 prompt = generate.call_args.args[0]
-                self.assertIn('IDENTITY LOCK', prompt)
-                self.assertIn('FACE LIKENESS', prompt)
                 parts = generate.call_args.kwargs['reference_parts']
                 images = [p for p in parts if p.get('inline_data')]
                 self.assertEqual(len(images), 1)
                 self.assertEqual(images[0]['image_name'], 'Alex')
-                self.assertEqual(images[0]['reference_kind'], 'face_and_character')
+                if flow == 'recap':
+                    self.assertNotIn('IDENTITY LOCK', prompt)
+                    self.assertNotIn('FACE LIKENESS', prompt)
+                    self.assertEqual(images[0]['reference_kind'], 'ai_portrait')
+                    self.assertEqual(images[0]['inline_data']['data'], sources['parts'][1]['data_b64'])
+                else:
+                    self.assertIn('IDENTITY LOCK', prompt)
+                    self.assertIn('FACE LIKENESS', prompt)
+                    self.assertEqual(images[0]['reference_kind'], 'face_and_character')
 
 
 class ImageTransportTests(unittest.TestCase):

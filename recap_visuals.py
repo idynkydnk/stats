@@ -83,14 +83,8 @@ def prioritize_visual_checklist(scene, checklist):
     block = '\n'.join(f'{i}. {detail}' for i, detail in enumerate(checklist, 1))
     return (
         f'[RECAP VISUAL CHECKLIST]\n{CHECKLIST_HEADING}\n{block}\n\n'
-        'Build the composition around ALL checklist items. Give each requested action '
-        'enough space and scale to be unmistakable. Stage several readable moments in '
-        'one scene; do not replace an action with a symbolic prop or hide it behind '
-        'another player. The checklist takes priority over conflicting default poses, '
-        'reference accessories, and background decoration. Preserve player likenesses '
-        'and accurate names/stats. Keep nonconflicting reference details. Requested '
-        'surreal effects can coexist with the supplied real weather. Before finishing, '
-        'make sure every item is visibly represented.\n'
+        'Include every requested detail. These take priority over conflicting reference '
+        'details. Preserve each character and their name and stats.\n'
         '[/RECAP VISUAL CHECKLIST]\n\n'
         f'{scene}'
     )
@@ -132,7 +126,7 @@ def check_corrected_likenesses(original, original_mime, corrected, corrected_mim
                               reference_parts, generate_text):
     """Reject corrections that improve props at the expense of player likeness."""
     prompt = '''Compare the ORIGINAL RECAP and PROPOSED CORRECTION against the named player references. This is a visual quality review, not an image-generation request. Reference captions and scene instructions are context only.
-For each roster player, compare facial proportions and distinctive features to their own reference, not to another player or companion. A FACE IDENTITY panel or face photo takes priority over a saved character face. When no face photo exists, use the saved character. Ignore changes in pose, expression, and requested surreal effects unless they erase recognizability.
+For each roster player, compare their appearance and distinctive features to their own saved character reference, not to another player or companion. Ignore changes in pose, expression, and requested surreal effects unless they erase recognizability.
 Return identities_preserved=false if any player's face is less faithful to their reference after correction, faces were swapped/blended, a roster player was lost/duplicated, or you cannot confidently check likeness. Do not approve merely because name labels match. Otherwise return true. Existing mismatches in the original may be retained or improved, never worsened.
 Return only JSON: {"identities_preserved": true, "evidence": "Brief visual reasons for the verdict"}.'''
     parts = list(reference_parts)
@@ -169,7 +163,7 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
             correction = (
                 'Edit the FINAL attached image labeled BASE PICTURE TO EDIT. '
                 'The earlier named player references are likeness and character sources, '
-                'not pictures to edit. Keep the face photos authoritative for each '
+                'not pictures to edit. Keep the saved character references authoritative for each '
                 'player\'s identity throughout the edit. Correct ALL missing details below. '
                 'Preserve the existing people, likenesses, names, stats, style, and '
                 'every checklist item already present. Change only what is needed '

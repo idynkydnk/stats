@@ -206,7 +206,7 @@
 
                 <div class="sr-illustration-section">
                     <h2 class="sr-card-title" style="margin-bottom: 4px;">Illustration</h2>
-                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses each player's saved AI character when they have one; otherwise face photos and/or signature looks. Players with none of those are skipped.{% if worker_alive %} Illustration can take about 5 minutes — you can leave after you tap generate; it keeps running in the background.{% else %} Illustration can take about 5 minutes — stay on this page until it finishes.{% endif %}</p>
+                    <p style="color: var(--sr-muted); font-size: 13px; margin: 0;">Include one AI-generated group illustration, or publish text only. Uses saved AI character references. Players without a saved AI character are skipped.{% if worker_alive %} Illustration can take about 5 minutes — you can leave after you tap generate; it keeps running in the background.{% else %} Illustration can take about 5 minutes — stay on this page until it finishes.{% endif %}</p>
                     <div class="sr-illustration-options">
                         <button type="submit" class="sr-generate-btn sr-generate-btn-outline sr-illustration-btn" id="generate-btn-none" onclick="setImageMode('none')">
                             <strong><i class="fas fa-bolt"></i> Text only</strong>

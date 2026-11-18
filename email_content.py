@@ -777,7 +777,7 @@ def _player_can_illustrate(has_reference_photos, trait_phrases):
     return bool(has_reference_photos) or bool(trait_phrases)
 
 
-def _player_has_illustration_likeness(name):
+def _player_has_illustration_likeness(name, saved_characters_only=False):
     """True if they have an AI character, face photo, or signature looks."""
     from player_functions import (
         get_player_ai_image_path,
@@ -788,16 +788,20 @@ def _player_has_illustration_likeness(name):
     name = (name or '').strip()
     if not name:
         return False
-    if get_player_ai_image_path(name) or get_player_photo_path(name):
+    if get_player_ai_image_path(name):
+        return True
+    if saved_characters_only:
+        return False
+    if get_player_photo_path(name):
         return True
     return bool(get_player_ai_image_traits(name))
 
 
-def filter_illustratable_players(player_names):
+def filter_illustratable_players(player_names, saved_characters_only=False):
     """Keep only players who can appear in a group AI photo."""
     return [
         name for name in _dedupe_players_preserve_order(player_names)
-        if _player_has_illustration_likeness(name)
+        if _player_has_illustration_likeness(name, saved_characters_only)
     ]
 
 
@@ -1521,56 +1525,32 @@ def build_flyer_scene_prompt(
     return '\n\n'.join(section for section in sections if section)
 
 
-GROUP_REFERENCE_DETAILS = (
-    'Include everything in the reference photos. '
-    'Place each player’s name and selected-game stats directly next to that same player.'
+RECAP_IMAGE_PROMPT = (
+    'Create a fun group recap illustration using the saved character reference photos. '
+    'Keep each character’s appearance, clothing, props, and companions. '
+    'Put their name and game stats beside them. Give only the winner a king’s crown. '
+    'Include the game location and requested scene details. Vertical 4:5.'
 )
 
 
-def _append_group_picture_details(prompt, players, player_stats):
-    """Keep reference details and selected-game ranking poses in previews and remakes."""
+def _append_recap_winner(prompt, players, player_stats):
+    """Identify the selected-game winner without prescribing other players' poses."""
+    import re
+
     prompt = (prompt or '').strip()
-    if GROUP_REFERENCE_DETAILS not in prompt:
-        prompt += f'\n\n{GROUP_REFERENCE_DETAILS}'
-    # Only rated selected-game results can award the crown here.
     rated_rows = [row for row in player_stats or [] if row and len(row) > 5]
     leaders = _session_beach_royalty_names(rated_rows)
     visible = set(players)
     leaders = [name for name in leaders if name in visible]
     if leaders:
         names = ', '.join(leaders)
-        rule = (
-            f'Dress {names} as {"the king" if len(leaders) == 1 else "joint kings"}, '
-            'with a crown and royal robe: '
-            f'{"this player has" if len(leaders) == 1 else "these players share"} '
-            'the highest rating calculated from only the selected games. '
-            'Add the royal outfit while retaining the recognizable clothing, '
-            'accessories, and other details from the references. '
-            'Do not award new royal outfits to any other player.'
-        )
-        if rule not in prompt:
-            prompt += f'\n\n{rule}'
-    ranked = []
-    for row in rated_rows:
-        try:
-            rating = float(row[5])
-        except (TypeError, ValueError):
-            continue
-        if float('-inf') < rating < float('inf'):
-            ranked.append((row[0], rating))
-    # An all-tied session has no distinct worst player.
-    if ranked and min(rating for _, rating in ranked) < max(rating for _, rating in ranked):
-        worst = min(rating for _, rating in ranked)
-        lowest = [name for name, rating in ranked if rating == worst and name in visible]
-        if lowest:
-            rule = (
-                f'Show {", ".join(lowest)} lying flat on the ground in bad shape, '
-                f'{"the player with" if len(lowest) == 1 else "the players tied for"} '
-                'the lowest rating from the selected games.'
-            )
-            if rule not in prompt:
-                prompt += f'\n\n{rule}'
-    return prompt.strip()
+        rule = f'{"Winner" if len(leaders) == 1 else "Winners (tied)"}: {names}.'
+    else:
+        rule = 'No pictured winner identified; omit the crown.'
+    # Refresh this context on remakes instead of accumulating stale winners.
+    prompt = re.sub(r'^(?:Winner:|Winners \(tied\):|No pictured winner identified;)[^\n]*\n?',
+                    '', prompt, flags=re.MULTILINE).strip()
+    return f'{prompt}\n\n{rule}' if prompt else rule
 
 
 def build_scene_image_prompt(
@@ -1578,11 +1558,11 @@ def build_scene_image_prompt(
     player_stats=None, location='',
 ):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
-    players = filter_illustratable_players(players)
+    players = filter_illustratable_players(players, saved_characters_only=True)
     labels = labels_by_name or _image_labels_for_players(players, player_stats)
     sections = [
-        f"Create a group picture of all these players with their names and stats. "
-        f"Use the attached player references. Sport: {_sport_desc_for_image(game_type, game_name)}.",
+        RECAP_IMAGE_PROMPT,
+        f'Sport: {_sport_desc_for_image(game_type, game_name)}.',
         '\n'.join(labels.get(name) or name for name in players),
     ]
     if (image_details or '').strip():
@@ -1590,8 +1570,7 @@ def build_scene_image_prompt(
     if (location or '').strip():
         from recap_weather import picture_location
         sections.append(f'Location: {picture_location(location)}.')
-    sections.append('Vertical 4:5.')
-    return _append_group_picture_details(
+    return _append_recap_winner(
         '\n\n'.join(section for section in sections if section), players, player_stats,
     )
 
@@ -2056,7 +2035,7 @@ def _image_labels_for_players(players, player_stats=None):
 
 
 def _reference_parts_from_uploaded_photos(
-    players, labels_by_name=None, player_stats=None,
+    players, labels_by_name=None, player_stats=None, saved_characters_only=False,
 ):
     """Bind every face and character reference to its player, without truncating.
 
@@ -2071,6 +2050,31 @@ def _reference_parts_from_uploaded_photos(
 
     players = _dedupe_players_preserve_order(players)
     labels_by_name = labels_by_name or {}
+    if saved_characters_only:
+        parts, included = [], []
+        image_index = 0
+        for name in players:
+            entry = collect_illustration_reference_images(name, include_face_photos=False)
+            refs = [ref for ref in (entry or {}).get('parts') or []
+                    if (ref.get('kind') or entry.get('kind')) == 'ai_portrait']
+            if not refs:
+                continue
+            included.append(name)
+            for ref in refs:
+                image_index += 1
+                parts.extend([
+                    {'text': f'Reference for {labels_by_name.get(name) or name}.'},
+                    {'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']},
+                     'image_index': image_index, 'image_name': name,
+                     'reference_kind': 'ai_portrait'},
+                ])
+        if not included:
+            raise ValueError(
+                'No selected players have saved AI characters. '
+                'Create them on the Players page, then try again.'
+            )
+        return parts, included
+
     trait_entries = collect_player_ai_image_traits(players)
     traits_by_name = {
         (entry.get('name') or '').strip().lower(): entry for entry in trait_entries
@@ -4113,11 +4117,9 @@ def generate_email_hero_image(
     selected_players=None, player_stats=None, location='', animation=False, weather_games=None,
     visual_source=None,
 ):
-    """Generate one group hero image from face photos and saved AI characters.
+    """Generate one group hero image using only saved AI character references.
 
-    Does not create per-player caricatures. Prefers each player's saved AI
-    character sheet for styling while keeping their face photo as the likeness
-    reference. Signature looks are used when no character is saved.
+    Does not create per-player caricatures or attach face photos.
     Image labels use nickname (or first name) plus session
     stats when available.
 
@@ -4129,11 +4131,11 @@ def generate_email_hero_image(
     """
     _ = (games, existing_solo_images, reuse_existing_solos, selected_players)
 
-    all_players = filter_illustratable_players(player_names)
+    all_players = filter_illustratable_players(player_names, saved_characters_only=True)
     if not all_players:
         raise ValueError(
-            'No selected players have an AI character, face photo, or signature looks. '
-            'Add those on the Players page, then try again.'
+            'No selected players have saved AI characters. '
+            'Create them on the Players page, then try again.'
         )
 
     if player_stats is None and games:
@@ -4147,6 +4149,7 @@ def generate_email_hero_image(
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
         all_players, labels_by_name=labels_by_name, player_stats=player_stats,
+        saved_characters_only=True,
     )
     if (custom_scene_prompt or '').strip():
         scene_prompt = custom_scene_prompt.strip()
@@ -4157,7 +4160,7 @@ def generate_email_hero_image(
         )
     if (custom_scene_prompt or '').strip() and (location or '').strip():
         scene_prompt += f'\n\nLocation: {location.strip()}.'
-    scene_prompt = _append_group_picture_details(scene_prompt, scene_players, player_stats)
+    scene_prompt = _append_recap_winner(scene_prompt, scene_players, player_stats)
     from recap_weather import append_recap_weather
     scene_prompt = append_recap_weather(scene_prompt, weather_games or [])
     safe_names = _recap_name_replacer(player_names)
