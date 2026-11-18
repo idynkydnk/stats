@@ -4190,7 +4190,6 @@ def generate_email_hero_image(
     ]
     from recap_visuals import (
         extract_visual_checklist, prioritize_visual_checklist, check_and_correct_picture,
-        CharacterLikenessError,
     )
     # The full creation request bypasses the potentially lossy summary/image split.
     # A manually edited scene is authoritative on remakes. Older callers still work.
@@ -4283,15 +4282,10 @@ def generate_email_hero_image(
             )
             return _normalize_image_bytes_to_aspect(corrected, ratio_w=4, ratio_h=5)
 
-        try:
-            raw, mime, visual_audit = check_and_correct_picture(
-                raw, mime, checklist, scene_prompt, generate_ai_text, edit_picture,
-                reference_parts=scene_refs, require_character_match=True,
-            )
-        except CharacterLikenessError as error:
-            raise ImageGenerationError(
-                str(error), image_prompt=image_prompt + error.audit, solo_images=[],
-            ) from error
+        raw, mime, visual_audit = check_and_correct_picture(
+            raw, mime, checklist, scene_prompt, generate_ai_text, edit_picture,
+            reference_parts=scene_refs, check_characters=True,
+        )
         image_prompt += visual_audit
     url, path = _save_email_image(raw, _mime_to_ext(mime))
     return url, path, image_prompt, [], scene_prompt

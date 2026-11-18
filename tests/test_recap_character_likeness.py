@@ -7,7 +7,7 @@ import requests
 
 import email_content as content
 from recap_visuals import (
-    CharacterLikenessError, check_and_correct_picture, check_character_likenesses,
+    check_and_correct_picture, check_character_likenesses,
 )
 
 
@@ -60,7 +60,7 @@ class RecapCharacterLikenessTests(unittest.TestCase):
         edit = Mock()
         raw, _, audit = check_and_correct_picture(
             b'original', 'image/png', [], 'scene', ai, edit,
-            reference_parts=references(), require_character_match=True,
+            reference_parts=references(), check_characters=True,
         )
         self.assertEqual(raw, b'original')
         ai.assert_called_once()
@@ -73,7 +73,7 @@ class RecapCharacterLikenessTests(unittest.TestCase):
         refs = references()
         raw, _, audit = check_and_correct_picture(
             b'original', 'image/png', [], 'scene', ai, edit,
-            reference_parts=refs, require_character_match=True,
+            reference_parts=refs, check_characters=True,
         )
         self.assertEqual(raw, b'corrected')
         edit.assert_called_once()
@@ -83,28 +83,87 @@ class RecapCharacterLikenessTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(sent[-1]['inline_data']['data']), b'original')
         self.assertIn('"selected_image": "corrected"', audit)
 
-    def test_failed_or_unverified_correction_cannot_publish_mismatched_characters(self):
+    def test_failed_or_unverified_correction_keeps_the_completed_picture(self):
         for final in (json.dumps(review(False)), '{}', ValueError('Review unavailable')):
-            with self.subTest(final=final), self.assertRaises(CharacterLikenessError) as error:
+            with self.subTest(final=final), patch('recap_visuals.logging.getLogger'):
                 ai = Mock(side_effect=[json.dumps(review(False)), final])
                 edit = Mock(return_value=(b'still wrong', 'image/png'))
-                check_and_correct_picture(
+                raw, mime, audit = check_and_correct_picture(
                     b'original', 'image/png', [], 'scene', ai, edit,
-                    reference_parts=references(), require_character_match=True,
+                    reference_parts=references(), check_characters=True,
                 )
             edit.assert_called_once()
-            self.assertIn('"selected_image": "rejected"', error.exception.audit)
+            self.assertEqual((raw, mime), (b'original', 'image/png'))
+            self.assertIn('"selected_image": "original"', audit)
 
-    def test_unavailable_initial_review_cannot_silently_accept_an_image(self):
-        edit = Mock()
-        with self.assertRaisesRegex(CharacterLikenessError, 'Could not verify'):
-            check_and_correct_picture(
-                b'original', 'image/png', [], 'scene', Mock(side_effect=ValueError('Unavailable')), edit,
-                reference_parts=references(), require_character_match=True,
-            )
-        edit.assert_not_called()
+    def test_incomplete_improvement_is_saved_without_requiring_every_character_to_pass(self):
+        initial = review(False)
+        initial['players'][1]['matches'] = False
+        ai = Mock(side_effect=[json.dumps(initial), json.dumps(review(False))])
+        edit = Mock(return_value=(b'better', 'image/png'))
+        raw, _, audit = check_and_correct_picture(
+            b'original', 'image/png', [], 'scene', ai, edit,
+            reference_parts=references(), check_characters=True,
+        )
+        self.assertEqual(raw, b'better')
+        self.assertIn('"selected_image": "corrected"', audit)
+        edit.assert_called_once()
 
-    def test_generation_does_not_save_a_rejected_picture(self):
+    def test_correction_does_not_trade_one_players_likeness_for_another(self):
+        corrected = review(True)
+        corrected['players'][1]['matches'] = False
+        ai = Mock(side_effect=[json.dumps(review(False)), json.dumps(corrected)])
+        raw, _, _ = check_and_correct_picture(
+            b'original', 'image/jpeg', [], 'scene', ai, Mock(return_value=(b'worse', 'image/png')),
+            reference_parts=references(), check_characters=True,
+        )
+        self.assertEqual(raw, b'original')
+
+    def test_review_or_correction_outage_does_not_discard_the_completed_picture(self):
+        for phase in ('initial', 'edit'):
+            with self.subTest(phase=phase), self.assertLogs('recap_visuals', level='WARNING'):
+                ai = Mock(side_effect=ValueError('Unavailable')) if phase == 'initial' else Mock(
+                    return_value=json.dumps(review(False)))
+                edit = Mock(side_effect=requests.Timeout('Correction timed out'))
+                raw, mime, audit = check_and_correct_picture(
+                    b'original', 'image/jpeg', [], 'scene', ai, edit,
+                    reference_parts=references(), check_characters=True,
+                )
+            self.assertEqual((raw, mime), (b'original', 'image/jpeg'))
+            self.assertIn('"error":', audit)
+            self.assertIn('"selected_image": "original"', audit)
+            self.assertEqual(edit.call_count, 0 if phase == 'initial' else 1)
+
+    def test_scene_improvement_can_be_used_when_likeness_has_not_regressed(self):
+        ai = Mock(side_effect=[
+            json.dumps(review(False)),
+            json.dumps({'checks': [{'item': 1, 'present': False, 'evidence': 'Ball missing'}]}),
+            json.dumps({'checks': [{'item': 1, 'present': True, 'evidence': 'Ball visible'}]}),
+            json.dumps(review(False)),
+        ])
+        raw, _, audit = check_and_correct_picture(
+            b'original', 'image/png', ['Add a ball'], 'scene', ai,
+            Mock(return_value=(b'better scene', 'image/png')),
+            reference_parts=references(), check_characters=True,
+        )
+        self.assertEqual(raw, b'better scene')
+        self.assertIn('"selected_image": "corrected"', audit)
+
+    def test_character_improvement_does_not_drop_existing_scene_details(self):
+        ai = Mock(side_effect=[
+            json.dumps(review(False)),
+            json.dumps({'checks': [{'item': 1, 'present': True, 'evidence': 'Ball visible'}]}),
+            json.dumps({'checks': [{'item': 1, 'present': False, 'evidence': 'Ball missing'}]}),
+        ])
+        raw, _, audit = check_and_correct_picture(
+            b'original', 'image/png', ['Add a ball'], 'scene', ai,
+            Mock(return_value=(b'less complete', 'image/png')),
+            reference_parts=references(), check_characters=True,
+        )
+        self.assertEqual(raw, b'original')
+        self.assertIn('"selected_image": "original"', audit)
+
+    def test_generation_saves_a_picture_even_if_likeness_remains_imperfect(self):
         with (
             patch('email_content.filter_illustratable_players', return_value=['Goshow', 'Koki']),
             patch('email_content._image_labels_for_players', return_value={'Goshow': 'Goshow', 'Koki': 'Koki'}),
@@ -112,17 +171,23 @@ class RecapCharacterLikenessTests(unittest.TestCase):
             patch('email_content._reference_parts_from_uploaded_photos', return_value=(references(), ['Goshow', 'Koki'])),
             patch('recap_visuals.extract_visual_checklist', return_value=[]),
             patch('email_content.generate_ai_text', return_value=json.dumps(review(False))),
-            patch('email_content._generate_image_bytes', return_value=(b'wrong', 'image/png')) as generate,
+            patch('email_content._generate_image_bytes', side_effect=[
+                (b'original', 'image/png'), (b'corrected', 'image/png'),
+            ]) as generate,
             patch('email_content._normalize_image_bytes_to_aspect', side_effect=lambda raw, **kw: (raw, 'image/png')),
-            patch('email_content._save_email_image') as save,
-            self.assertRaises(content.ImageGenerationError) as error,
+            patch('email_content._save_email_image', return_value=('url', 'path')) as save,
+            patch('email_content._illustration_meta', return_value={}),
         ):
-            content.generate_email_hero_image('key', 'doubles', [], ['Goshow', 'Koki'])
+            result = content._try_generate_email_hero_image(
+                'key', 'doubles', [], ['Goshow', 'Koki'], image_mode='image',
+            )
         self.assertEqual(generate.call_count, 2)
         self.assertTrue(all(call.kwargs['reference_edit'] for call in generate.call_args_list))
         self.assertTrue(generate.call_args.kwargs['edit'])
-        save.assert_not_called()
-        self.assertIn('"selected_image": "rejected"', error.exception.image_prompt)
+        save.assert_called_once_with(b'original', 'png')
+        self.assertEqual(result[:3], ('url', 'path', None))
+        self.assertIn('"selected_image": "original"', result[3])
+        self.assertTrue(result[4]['scene_prompt'])
 
     def test_saved_prompt_gets_the_brief_character_rule_only_once(self):
         scene = content._recap_character_prompt(content._LEGACY_RECAP_IMAGE_PROMPT + '\nAdd blue balls.')

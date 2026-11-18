@@ -179,32 +179,26 @@ def _visual_audit(audit):
     return '\n\nVISUAL CHECK RESULTS\n' + json.dumps(audit, ensure_ascii=False, indent=2)
 
 
-class CharacterLikenessError(ValueError):
-    def __init__(self, message, audit):
-        super().__init__(message)
-        self.audit = _visual_audit(audit)
-
-
 def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_image,
-                              reference_parts=None, require_character_match=False):
-    """Try one repair; never accept a recap that failed its character comparison.
+                              reference_parts=None, check_characters=False):
+    """Try one repair and keep the better result without blocking a finished image.
 
     edit_image accepts (prompt, reference_parts) and returns normalized bytes/mime.
     The audit is saved with the existing image prompt history, without image bytes.
     """
-    compare_characters = require_character_match and any(
+    compare_characters = check_characters and any(
         part.get('inline_data') for part in reference_parts or []
     )
     if not checklist and not compare_characters:
         return raw, mime, ''
     audit = {'correction_attempted': False, 'selected_image': 'original'}
-    original_matches = not compare_characters
     try:
         character_fixes = []
+        mismatched = set()
         if compare_characters:
             review = check_character_likenesses(raw, mime, reference_parts, scene, generate_text)
             audit['initial_character_review'] = review
-            original_matches = all(player['matches'] for player in review['players'])
+            mismatched = {player['image'] for player in review['players'] if not player['matches']}
             character_fixes = [
                 f'Restore the character from reference Image {player["image"]}: {player["evidence"]}'
                 for player in review['players'] if not player['matches']
@@ -236,16 +230,22 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
             final_checks = check_visual_checklist(repaired, repaired_mime, checklist, generate_text) if checklist else []
             audit['corrected_checks'] = final_checks
             remaining = {check['item'] for check in final_checks if not check['present']}
-            # Scene improvements must also preserve likeness; an uncertain or failed
-            # review keeps the original. Never request a second correction.
-            if remaining < missing or (not original_matches and remaining <= missing):
+            # Compare the two results rather than requiring a perfect match for
+            # every player. A failed review must not discard a finished picture.
+            if remaining < missing or (mismatched and remaining <= missing):
                 identities_preserved = True
                 if compare_characters:
                     review = check_character_likenesses(
                         repaired, repaired_mime, reference_parts, scene, generate_text,
                     )
                     audit['corrected_character_review'] = review
-                    identities_preserved = all(player['matches'] for player in review['players'])
+                    still_mismatched = {
+                        player['image'] for player in review['players'] if not player['matches']
+                    }
+                    identities_preserved = (
+                        still_mismatched <= mismatched
+                        and (still_mismatched < mismatched or remaining < missing)
+                    )
                 elif any(part.get('inline_data') for part in reference_parts or []):
                     review = check_corrected_likenesses(
                         raw, mime, repaired, repaired_mime, reference_parts, generate_text,
@@ -257,22 +257,7 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
                     audit['selected_image'] = 'corrected'
                     missing = remaining
             audit['remaining_items'] = sorted(missing)
-        if compare_characters and not original_matches and audit['selected_image'] != 'corrected':
-            audit['selected_image'] = 'rejected'
-            raise CharacterLikenessError(
-                'The picture did not match the saved AI characters after one correction. '
-                'Please try remaking the picture.', audit,
-            )
-    except CharacterLikenessError:
-        raise
-    except Exception as error:
-        if compare_characters and not original_matches:
-            audit['selected_image'] = 'rejected'
-            audit['error'] = 'Could not verify a match to the saved AI characters.'
-            raise CharacterLikenessError(
-                'Could not verify that the picture matches the saved AI characters. '
-                'Please try remaking the picture.', audit,
-            ) from error
+    except Exception:
         audit['error'] = 'Visual checking or correction failed; kept the original picture.'
         logging.getLogger(__name__).warning(audit['error'], exc_info=True)
     return raw, mime, _visual_audit(audit)
