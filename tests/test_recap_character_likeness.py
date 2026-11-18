@@ -201,16 +201,37 @@ class RecapImageEditTransportTests(unittest.TestCase):
     def test_saved_character_files_and_exact_prompt_go_directly_to_image_editing(self):
         response = Mock(status_code=200)
         response.json.return_value = {'data': [{'b64_json': 'cmVzdWx0'}]}
-        with patch('requests.post', return_value=response) as post:
+        with (
+            patch('requests.post', return_value=response) as post,
+            patch('email_content.OPENAI_RECAP_IMAGE_MODEL', 'recap-edit-model'),
+            patch('email_content.OPENAI_IMAGE_MODEL', 'other-image-model'),
+        ):
             result = content._generate_image_bytes_openai(
                 content.RECAP_IMAGE_PROMPT, 'key', reference_parts=references(), reference_edit=True,
             )
         self.assertEqual(result, (b'result', 'image/png'))
         post.assert_called_once()
         self.assertTrue(post.call_args.args[0].endswith('/images/edits'))
+        self.assertEqual(post.call_args.kwargs['data']['model'], 'recap-edit-model')
+        self.assertNotIn('input_fidelity', post.call_args.kwargs['data'])
         self.assertTrue(post.call_args.kwargs['data']['prompt'].endswith(content.RECAP_IMAGE_PROMPT))
         self.assertEqual([item[1][1].getvalue() for item in post.call_args.kwargs['files']],
                          [b'Goshow', b'Koki'])
+
+    def test_automatic_correction_uses_the_same_recap_model(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {'data': [{'b64_json': 'cmVzdWx0'}]}
+        with (
+            patch('requests.post', return_value=response) as post,
+            patch('email_content.OPENAI_RECAP_IMAGE_MODEL', 'recap-edit-model'),
+            patch('email_content.OPENAI_IMAGE_MODEL', 'other-image-model'),
+        ):
+            content._generate_image_bytes_openai(
+                'Restore saved character faces', 'key', reference_parts=references(),
+                reference_edit=True, edit=True,
+            )
+        self.assertEqual(post.call_args.kwargs['data']['model'], 'recap-edit-model')
+        post.assert_called_once()
 
     def test_missing_references_never_turn_into_a_new_image_request(self):
         with patch('requests.post') as post, self.assertRaisesRegex(ValueError, 'Saved character pictures'):

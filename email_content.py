@@ -31,6 +31,9 @@ GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image'
 # OpenAI models (override via env). gpt-image-2 supports reference-image edits.
 OPENAI_TEXT_MODEL = os.environ.get('OPENAI_TEXT_MODEL', 'gpt-4.1')
 OPENAI_IMAGE_MODEL = os.environ.get('OPENAI_IMAGE_MODEL', 'gpt-image-2')
+# Recaps need precise multi-character reference edits; tune this independently
+# from standalone portraits and flyers.
+OPENAI_RECAP_IMAGE_MODEL = os.environ.get('OPENAI_RECAP_IMAGE_MODEL', 'gpt-image-2.6-sunburst')
 OPENAI_IMAGE_QUALITY = os.environ.get('OPENAI_IMAGE_QUALITY', 'high')
 # Text model for image flows that use Responses. Recaps use images/edits directly.
 OPENAI_RESPONSES_MODEL = os.environ.get('OPENAI_RESPONSES_MODEL') or OPENAI_TEXT_MODEL
@@ -2539,6 +2542,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
     full_prompt, images = _openai_prompt_and_images(prompt, reference_parts)
     if reference_edit and not images:
         raise ValueError('Saved character pictures are required to create this recap image.')
+    model = OPENAI_RECAP_IMAGE_MODEL if reference_edit else OPENAI_IMAGE_MODEL
     size = output_size or _openai_size_for_aspect(aspect_ratio)
     headers = {'Authorization': f'Bearer {api_key}'}
     # Group edits with several face refs + high quality often exceed 3 minutes.
@@ -2591,7 +2595,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                         (filename, io.BytesIO(raw), content_type),
                     ))
                 data = {
-                    'model': OPENAI_IMAGE_MODEL,
+                    'model': model,
                     'prompt': full_prompt,
                     'size': size,
                     'quality': OPENAI_IMAGE_QUALITY,
@@ -2608,7 +2612,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                     'https://api.openai.com/v1/images/generations',
                     headers={**headers, 'Content-Type': 'application/json'},
                     json={
-                        'model': OPENAI_IMAGE_MODEL,
+                        'model': model,
                         'prompt': full_prompt,
                         'size': size,
                         'quality': OPENAI_IMAGE_QUALITY,
