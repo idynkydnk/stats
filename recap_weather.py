@@ -13,16 +13,16 @@ from zoneinfo import ZoneInfo
 import requests
 
 
-HOURLY = 'weather_code,cloud_cover,precipitation,temperature_2m,wind_speed_10m,is_day'
+HOURLY = 'weather_code,temperature_2m,wind_speed_10m,is_day'
 WEATHER_CODES = {
-    0: 'clear sky', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
-    45: 'fog', 48: 'freezing fog', 51: 'light drizzle', 53: 'drizzle',
-    55: 'heavy drizzle', 56: 'freezing drizzle', 57: 'heavy freezing drizzle',
-    61: 'light rain', 63: 'rain', 65: 'heavy rain', 66: 'freezing rain',
-    67: 'heavy freezing rain', 71: 'light snow', 73: 'snow', 75: 'heavy snow',
-    77: 'snow grains', 80: 'light rain showers', 81: 'rain showers',
-    82: 'heavy rain showers', 85: 'snow showers', 86: 'heavy snow showers',
-    95: 'thunderstorm', 96: 'thunderstorm with hail', 99: 'severe hailstorm',
+    0: 'clear', 1: 'clear', 2: 'partly cloudy', 3: 'cloudy',
+    45: 'foggy', 48: 'foggy', 51: 'rainy', 53: 'rainy',
+    55: 'rainy', 56: 'rainy', 57: 'rainy',
+    61: 'rainy', 63: 'rainy', 65: 'rainy', 66: 'rainy',
+    67: 'rainy', 71: 'snowy', 73: 'snowy', 75: 'snowy',
+    77: 'snowy', 80: 'rainy', 81: 'rainy',
+    82: 'rainy', 85: 'snowy', 86: 'snowy',
+    95: 'stormy', 96: 'stormy', 99: 'stormy',
 }
 
 
@@ -118,49 +118,37 @@ def recap_weather_context(games):
         if when:
             target = when.strftime('%Y-%m-%dT%H:00')
             indices = [hours.index(target)] if target in hours else []
-            timing = f'{day.isoformat()} at {when:%H:%M} ({zone})'
         else:
             # Date-only records cannot support a claim about a particular hour.
             indices = [i for i, value in enumerate(hours) if value[:10] == day.isoformat()]
-            timing = f'{day.isoformat()} (game time not recorded; daily conditions only)'
-        descriptions = []
+        conditions, temperatures, winds = [], [], []
         for i in indices:
             values = {key: (hourly.get(key) or [])[i] for key in HOURLY.split(',')}
             condition = WEATHER_CODES.get(values['weather_code'])
             if condition is None:
                 continue
-            bits = [condition]
-            for key, label, unit in (
-                ('cloud_cover', 'cloud cover', '%'), ('precipitation', 'precipitation', ' mm'),
-                ('temperature_2m', 'temperature', '°F'), ('wind_speed_10m', 'wind', ' mph'),
-            ):
-                if values[key] is not None:
-                    bits.append(f'{label} {values[key]}{unit}')
-            if when and values['is_day'] in (0, 1):
-                bits.append('daylight' if values['is_day'] else 'nighttime')
-            # For date-only records, summarize the range of weather types;
-            # there is no basis for selecting an exact hour or lighting.
-            description = ', '.join(bits) if when else condition
-            if description not in descriptions:
-                descriptions.append(description)
-        if not descriptions:
+            if when and condition == 'clear' and values['is_day'] == 1:
+                condition = 'sunny'
+            if condition not in conditions:
+                conditions.append(condition)
+            if values['temperature_2m'] is not None:
+                temperatures.append(float(values['temperature_2m']))
+            if values['wind_speed_10m'] is not None:
+                winds.append(float(values['wind_speed_10m']))
+            if when and values['is_day'] == 0:
+                conditions.append('nighttime')
+        if not conditions:
             raise ValueError('No weather available for the selected game time')
-        return (
-            f'Picture location: {picture_location(location)}.\n'
-            f'Weather source: Open-Meteo, {place["name"]}, {place.get("admin1", "")}.\n'
-            f'Picture setting: {timing}. Conditions: {"; ".join(descriptions)}.\n'
-            'Match the sky, cloud cover, rain/fog, wind cues, clothing and lighting '
-            'to these conditions. These conditions take precedence over generic '
-            'sunny beach or sunset scenery and conflicting picture instructions. '
-            'Do not print weather labels or invent weather-related game events. '
-            'For multiple sessions, this setting represents the session with the most '
-            'selected games (latest on ties).'
-        )
+        if temperatures:
+            low, high = min(temperatures), max(temperatures)
+            conditions.append(f'{low:g}°F' if low == high else f'{low:g}–{high:g}°F')
+        if winds and max(winds) >= 15:
+            conditions.append(f'windy ({max(winds):g} mph)')
+        label = 'Weather' if when else 'Daily weather (game time unknown)'
+        return f'{label}: {", ".join(conditions)}.'
     except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
         logging.getLogger(__name__).warning('Recap weather unavailable for %s: %s', location, exc)
-        return (f'Weather unavailable for {picture_location(location)} on {day.isoformat()}. '
-                'Do not invent specific weather or claim it was verified. Use a neutral '
-                'background without a prominent sunny sky, rain, fog, or sunset.')
+        return 'Weather unavailable; use a neutral sky.'
 
 
 def append_recap_weather(prompt, games):

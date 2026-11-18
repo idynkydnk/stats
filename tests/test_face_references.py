@@ -140,6 +140,9 @@ class FaceReferenceTests(unittest.TestCase):
                     patch('email_content.build_flyer_scene_prompt', return_value='Play volleyball'),
                     patch('email_content._refresh_flyer_stats', side_effect=lambda prompt, *args: prompt),
                     patch('recap_visuals.extract_visual_checklist', return_value=[]),
+                    patch('recap_visuals.check_character_likenesses', return_value={
+                        'players': [{'image': 1, 'matches': True, 'evidence': 'Same saved character.'}],
+                    }),
                     patch('email_content._generate_image_bytes', return_value=(b'result', 'image/png')) as generate,
                     patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'result', 'image/png')),
                     patch('email_content._save_email_image', return_value=('url', 'path')),
@@ -222,9 +225,10 @@ class CorrectionLikenessTests(unittest.TestCase):
             patch('email_content._reference_parts_from_uploaded_photos', return_value=(refs, ['Alex'])),
             patch('recap_visuals.extract_visual_checklist', return_value=['Add a ball']),
             patch('email_content.generate_ai_text', side_effect=[
+                json.dumps({'players': [{'image': 1, 'matches': True, 'evidence': 'Original matches Alex.'}]}),
                 json.dumps({'checks': [{'item': 1, 'present': False, 'evidence': 'Missing ball'}]}),
                 json.dumps({'checks': [{'item': 1, 'present': True, 'evidence': 'Ball visible'}]}),
-                json.dumps({'identities_preserved': False, 'evidence': 'Alex has a different face.'}),
+                json.dumps({'players': [{'image': 1, 'matches': False, 'evidence': 'Alex has a different face.'}]}),
             ]),
             patch('email_content._generate_image_bytes', side_effect=[
                 (b'original', 'image/png'), (b'corrected', 'image/png')]) as generate,
@@ -236,7 +240,7 @@ class CorrectionLikenessTests(unittest.TestCase):
         self.assertTrue(correction.kwargs['edit'])
         self.assertEqual(correction.kwargs['reference_parts'][:len(refs)], refs)
         self.assertIn('IDENTITY LOCK', correction.args[0])
-        self.assertIn('"identities_preserved": false', result[2])
+        self.assertIn('"matches": false', result[2])
         save.assert_called_once_with(b'original', 'png')
 
     def test_correction_keeps_reference_indexes_and_rejects_face_regressions(self):

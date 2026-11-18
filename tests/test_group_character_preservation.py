@@ -112,6 +112,9 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 patch('email_content._build_labeled_identity_sheet',
                       return_value=(b'full contact sheet', ['Kevin', 'Jordan'])),
                 patch('recap_visuals.extract_visual_checklist', return_value=[]),
+                patch('recap_visuals.check_character_likenesses', return_value={
+                    'players': [{'image': 1, 'matches': True, 'evidence': 'Same saved character.'}],
+                }),
                 patch('email_content._generate_image_bytes',
                       return_value=(b'result', 'image/png')) as generate,
                 patch('email_content._normalize_image_bytes_to_aspect',
@@ -131,6 +134,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             self.assertIn('Kevin 3-0 (+12)', text)
             self.assertIn('Jordan 0-3 (-12)', text)
             self.assertFalse(generate.call_args.kwargs['add_body_side_convention'])
+            self.assertTrue(generate.call_args.kwargs['reference_edit'])
             for removed in ('BODY-SIDE', 'Wilson', 'IDENTITY LOCK', 'FACE LIKENESS',
                             'face photo', 'robe', 'lying flat', 'lowest', 'defeated'):
                 self.assertNotIn(removed, prompt + text)

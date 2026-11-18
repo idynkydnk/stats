@@ -37,8 +37,7 @@ class RecapWeatherTests(unittest.TestCase):
                     'Scene\n[RECAP WEATHER]\nAlaska weather\n[/RECAP WEATHER]',
                     [game(location=location, zone="America/New_York")],
                 )
-                self.assertIn("Tyler's house in Dunedin, Florida", result)
-                self.assertIn('overcast', result)
+                self.assertIn('Weather: cloudy, 64°F.', result)
                 self.assertEqual(get.call_args_list[-2].args[1]['name'], 'Dunedin')
                 self.assertEqual(get.call_args.args[1]['latitude'], place['latitude'])
                 self.assertEqual(get.call_args.args[1]['timezone'], 'America/New_York')
@@ -54,7 +53,7 @@ class RecapWeatherTests(unittest.TestCase):
                                                admin1=state, country_code=country)]}
             result = recap_weather_context([game(location='The Oasis')])
             self.assertIn('Weather unavailable', result)
-            self.assertIn("Tyler's house in Dunedin, Florida", result)
+            self.assertEqual(result, 'Weather unavailable; use a neutral sky.')
         self.assertEqual(get.call_count, 2)
 
     @patch('recap_weather._get_json')
@@ -66,16 +65,13 @@ class RecapWeatherTests(unittest.TestCase):
         params = get.call_args.args[1]
         self.assertEqual(params['start_date'], '2020-06-01')
         self.assertEqual(params['latitude'], PLACE['latitude'])
-        self.assertIn('overcast', result)
-        self.assertIn('cloud cover 100%', result)
-        self.assertIn('15:30', result)
-        self.assertIn('daylight', result)
+        self.assertEqual(result, 'Weather: cloudy, 64°F.')
 
     @patch('recap_weather._get_json')
     def test_recent_weather_uses_forecast_endpoint(self, get):
         today = datetime.now(timezone.utc).date().isoformat()
         get.side_effect = [{'results': [PLACE]}, weather(today)]
-        self.assertIn('overcast', recap_weather_context([game(today + ' 15:00:00')]))
+        self.assertIn('cloudy', recap_weather_context([game(today + ' 15:00:00')]))
         self.assertIn('api.open-meteo.com/v1/forecast', get.call_args.args[0])
 
     @patch('recap_weather._get_json')
@@ -83,25 +79,66 @@ class RecapWeatherTests(unittest.TestCase):
         get.side_effect = [{'results': [PLACE]}, weather(hour=22)]
         result = recap_weather_context([game('2020-06-02 05:30:00', zone='UTC')])
         self.assertEqual(get.call_args.args[1]['start_date'], '2020-06-01')
-        self.assertIn('22:30', result)
-        self.assertIn('nighttime', result)
+        self.assertEqual(result, 'Weather: cloudy, nighttime, 64°F.')
 
     @patch('recap_weather._get_json')
     def test_date_only_does_not_invent_game_time(self, get):
         get.side_effect = [{'results': [PLACE]}, weather()]
         result = recap_weather_context([game('2020-06-01')])
-        self.assertIn('game time not recorded', result)
+        self.assertIn('game time unknown', result)
         self.assertNotIn('daylight', result)
-        self.assertIn('overcast', result)
+        self.assertIn('cloudy', result)
+        self.assertIn('64°F', result)
 
     @patch('recap_weather._get_json')
     def test_multiple_locations_use_one_real_session(self, get):
         get.side_effect = [{'results': [PLACE]}, weather(hour=16)]
         result = recap_weather_context([game(), game('2020-06-01 16:00:00'),
                                        game('2020-06-02 13:00:00', 'Boston')])
-        self.assertIn('overcast', result)
+        self.assertIn('cloudy', result)
         self.assertEqual(get.call_args_list[0].args[1]['name'], 'Hermosa Beach, California')
         self.assertEqual(get.call_args.args[1]['start_date'], '2020-06-01')
+
+    @patch('recap_weather._get_json')
+    def test_reported_recap_weather_is_one_short_line(self, get):
+        data = weather()
+        data['hourly'].update(weather_code=[0], temperature_2m=[65.4], wind_speed_10m=[4.0])
+        get.side_effect = [{'results': [PLACE]}, data]
+        self.assertEqual(recap_weather_context([game()]), 'Weather: sunny, 65.4°F.')
+
+    @patch('recap_weather._get_json')
+    def test_wind_is_only_included_at_fifteen_mph_or_above(self, get):
+        for speed in (0, 4, 14.9, 15, 22.5):
+            with self.subTest(speed=speed):
+                data = weather()
+                data['hourly']['wind_speed_10m'] = [speed]
+                get.side_effect = [{'results': [PLACE]}, data]
+                result = recap_weather_context([game()])
+                if speed >= 15:
+                    self.assertIn(f'windy ({speed:g} mph)', result)
+                else:
+                    self.assertNotIn('wind', result)
+                self.assertIn('64°F', result)
+
+    @patch('recap_weather._get_json')
+    def test_rain_and_clear_nights_use_simple_accurate_conditions(self, get):
+        for code, hour, expected in ((61, 15, 'Weather: rainy, 64°F.'),
+                                     (0, 22, 'Weather: clear, nighttime, 64°F.')):
+            with self.subTest(code=code, hour=hour):
+                data = weather(hour=hour)
+                data['hourly']['weather_code'] = [code]
+                get.side_effect = [{'results': [PLACE]}, data]
+                self.assertEqual(recap_weather_context([game(f'2020-06-01 {hour}:30:00')]), expected)
+
+    @patch('recap_weather._get_json')
+    def test_date_only_weather_keeps_temperature_range_without_guessing_an_hour(self, get):
+        get.side_effect = [{'results': [PLACE]}, {'hourly': {
+            'time': ['2020-06-01T10:00', '2020-06-01T15:00'],
+            'weather_code': [0, 3], 'temperature_2m': [64, 72],
+            'wind_speed_10m': [12, 16], 'is_day': [1, 1],
+        }}]
+        self.assertEqual(recap_weather_context([game('2020-06-01')]),
+                         'Daily weather (game time unknown): clear, cloudy, 64–72°F, windy (16 mph).')
 
     @patch('recap_weather._get_json')
     def test_missing_location_skips_lookup(self, get):

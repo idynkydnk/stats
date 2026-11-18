@@ -159,6 +159,48 @@ class VisualChecklistTests(unittest.TestCase):
 
 
 class RecapVisualIntegrationTests(unittest.TestCase):
+    def test_picture_requests_appear_once_in_new_recaps_and_remakes(self):
+        original = ('Show goshow with two huge blue balls.\n\n'
+                    'Show chow tangled in the net')
+        checklist = ['Show Goshow with two huge blue balls.',
+                     'Show Chow tangled in the net.',
+                     'Add a rocket labeled btc.']
+        legacy = prioritize_visual_checklist(
+            'Create a group picture.\n\n' + original + '\n\nLocation: Hermosa Beach.',
+            checklist,
+        )
+        single = 'Show Goshow with two huge blue balls.'
+        legacy_single = prioritize_visual_checklist(
+            'Create a group picture.\n\n' + single, checklist,
+        )
+        for custom in (None, original, legacy, legacy_single):
+            with (
+                self.subTest(custom=custom),
+                patch('email_content.filter_illustratable_players', return_value=['Goshow', 'Chow']),
+                patch('email_content._image_labels_for_players', return_value={'Goshow': 'Goshow', 'Chow': 'Chow'}),
+                patch('email_content._recap_name_replacer', return_value=lambda s: s or ''),
+                patch('email_content._reference_parts_from_uploaded_photos', return_value=([], ['Goshow', 'Chow'])),
+                patch('recap_visuals.extract_visual_checklist', return_value=checklist),
+                patch('recap_visuals.check_and_correct_picture', return_value=(b'img', 'image/png', '')) as audit,
+                patch('email_content._generate_image_bytes', return_value=(b'img', 'image/png')) as generate,
+                patch('email_content._normalize_image_bytes_to_aspect', return_value=(b'img', 'image/png')),
+                patch('email_content._save_email_image', return_value=('url', 'path')),
+            ):
+                result = generate_email_hero_image(
+                    'key', 'doubles', [], ['Goshow', 'Chow'],
+                    image_details=single if custom == legacy_single else original,
+                    visual_source=original + '\nAdd a rocket labeled btc.',
+                    custom_scene_prompt=custom, location='Hermosa Beach',
+                )
+                prompt = generate.call_args.args[0]
+                for text in (prompt, result[4]):
+                    self.assertEqual(text.lower().count('two huge blue balls'), 1)
+                    self.assertEqual(text.lower().count('tangled in the net'), 1)
+                    self.assertEqual(text.count('Location: Hermosa Beach.'), 1)
+                    if custom != original:
+                        self.assertEqual(text.count('rocket labeled btc'), 1)
+                self.assertEqual(audit.call_args.args[2], checklist)
+
     def test_failed_extraction_still_generates_picture_with_complete_safe_source(self):
         for custom in (None, 'Remove honey. Keep the sun inside Evan\'s eyes.'):
             for response in ('not json', ValueError('Provider unavailable')):
@@ -184,7 +226,8 @@ class RecapVisualIntegrationTests(unittest.TestCase):
                     self.assertEqual(result[:2], ('url', 'path'))
                     generate.assert_called_once()
                     prompt = generate.call_args.args[0]
-                    expected_source = json.dumps((custom or SOURCE).replace('Evan', 'Ace'))
+                    expected_source = (custom.replace('Evan', 'Ace') if custom else
+                                       json.dumps(SOURCE.replace('Evan', 'Ace')))
                     self.assertIn(expected_source, prompt)
                     self.assertIn(expected_source, result[2])
                     self.assertIn(expected_source, result[4])
@@ -216,8 +259,11 @@ class RecapVisualIntegrationTests(unittest.TestCase):
                 self.assertEqual(extract.call_args.args[0], custom or SOURCE)
                 self.assertEqual(generate.call_count, 2)
                 self.assertTrue(generate.call_args.kwargs['edit'])
-                self.assertIn(DETAILS[1], generate.call_args_list[0].args[0])
-                self.assertIn(DETAILS[1], result[4])
+                expected_details = custom or DETAILS[1]
+                self.assertIn(expected_details, generate.call_args_list[0].args[0])
+                self.assertIn(expected_details, result[4])
+                if custom:
+                    self.assertNotIn('[RECAP VISUAL CHECKLIST]', result[4])
                 self.assertIn('"selected_image": "corrected"', result[2])
                 save.assert_called_once_with(b'corrected', 'jpg')
 
