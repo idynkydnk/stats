@@ -143,8 +143,9 @@ Return only JSON: {"identities_preserved": true, "evidence": "Brief visual reaso
 
 
 def check_character_likenesses(raw, mime, reference_parts, scene, generate_text):
-    """Compare every finished character against its own saved reference pixels."""
+    """Compare every player against their character picture or fallback face photo."""
     roster = {}
+    face_photos = []
     next_index = 1
     for part in reference_parts or []:
         if not part.get('inline_data'):
@@ -154,13 +155,16 @@ def check_character_likenesses(raw, mime, reference_parts, scene, generate_text)
         if index in roster:
             raise ValueError('Duplicate character reference index')
         roster[index] = part.get('image_name') or f'Character {index}'
+        if part.get('reference_kind') == 'face_photo':
+            face_photos.append(index)
     if not roster:
         raise ValueError('Missing character references')
-    prompt = '''Compare the FINAL RECAP against every saved character reference below. Judge the actual pixels. A matching hat, prop, name or clothing color does not establish a match.
-Check the same face, body proportions, hairstyle, distinctive exaggerated/caricature features, outfit, rendering style, props and companions. A giant mouth must not become an ordinary smile; an exaggerated body must not become a generic athletic body. These are comparison examples, not features to add. Different poses, placement, lighting and explicitly requested scene changes are allowed; redesigning the character is not.
+    prompt = '''Compare the FINAL RECAP against every player reference below. Judge the actual pixels. A matching hat, prop, name or clothing color does not establish a match.
+For saved AI characters, check the same face, body proportions, hairstyle, distinctive exaggerated/caricature features, outfit, rendering style, props and companions. A giant mouth must not become an ordinary smile; an exaggerated body must not become a generic athletic body. These are comparison examples, not features to add. Different poses, placement, lighting and explicitly requested scene changes are allowed; redesigning a saved character is not.
+For face photos, check facial identity and the player's supplied signature looks. Allow illustration style, exaggerated signature looks, different clothing, body pose and scene. Do not require the photo's outfit, background, bystanders or photographic rendering to be copied.
 For each reference, return matches=false if the character is missing, duplicated, swapped, redesigned, missing distinctive features or companions, or cannot be confidently compared. Explain the concrete differences to fix. Return matches=true only for a faithful match.
 Return only JSON: {"players": [{"image": 1, "matches": true, "evidence": "Specific visual comparison"}]}. Include every reference exactly once, using its image number.
-Reference roster: ''' + json.dumps(roster, ensure_ascii=False) + '\nScene context: ' + json.dumps(scene, ensure_ascii=False)
+Reference roster: ''' + json.dumps(roster, ensure_ascii=False) + '\nFace photo image numbers: ' + json.dumps(face_photos) + '\nScene context: ' + json.dumps(scene, ensure_ascii=False)
     parts = list(reference_parts) + _picture_parts(raw, mime, 'FINAL RECAP TO CHECK')
     result = _json_response(generate_text(prompt, reference_parts=parts))
     if (not isinstance(result, dict) or set(result) != {'players'}
@@ -220,6 +224,8 @@ def check_and_correct_picture(raw, mime, checklist, scene, generate_text, edit_i
                 'Edit the FINAL attached image labeled BASE PICTURE TO EDIT. '
                 'Use the earlier saved character pictures as the authority for each character’s '
                 'face, proportions, exaggerated features, outfit, art style and companions. '
+                'For face photo references, match facial identity and signature looks; '
+                'do not copy photo backgrounds, bystanders or outfits. '
                 'Replace mismatched character designs; keep the base composition, correct '
                 'details, names and stats. Fix the differences below. Do not print review notes.\n\n'
                 f'MISSING DETAILS TO CORRECT\n{fixes}\n\n{scene}'

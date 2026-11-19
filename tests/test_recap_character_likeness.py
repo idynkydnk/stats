@@ -55,6 +55,19 @@ class RecapCharacterLikenessTests(unittest.TestCase):
                 check_character_likenesses(b'image', 'image/png', references(), 'scene',
                                           Mock(return_value=json.dumps(value)))
 
+    def test_mixed_review_distinguishes_faces_from_complete_character_pictures(self):
+        refs = references()
+        refs[3]['reference_kind'] = 'face_photo'
+        refs[2]['text'] += ' Signature looks: green boots.'
+        ai = Mock(return_value=json.dumps(review()))
+        check_character_likenesses(b'finished', 'image/png', refs, 'scene', ai)
+        prompt = ai.call_args.args[0]
+        self.assertIn('Face photo image numbers: [2]', prompt)
+        self.assertIn('check facial identity', prompt)
+        self.assertIn("Do not require the photo's outfit", prompt)
+        self.assertIn('For saved AI characters, check the same face, body proportions', prompt)
+        self.assertEqual(ai.call_args.kwargs['reference_parts'][:len(refs)], refs)
+
     def test_first_image_is_checked_even_without_extra_scene_requests(self):
         ai = Mock(return_value=json.dumps(review()))
         edit = Mock()
@@ -194,6 +207,7 @@ class RecapCharacterLikenessTests(unittest.TestCase):
         scene = content._recap_character_prompt(scene)
         self.assertIn(content.RECAP_IMAGE_PROMPT, scene)
         self.assertEqual(scene.count(content.RECAP_CHARACTER_RULE), 1)
+        self.assertEqual(scene.count(content.RECAP_FACE_RULE), 1)
         self.assertIn('Add blue balls.', scene)
 
 
@@ -234,7 +248,7 @@ class RecapImageEditTransportTests(unittest.TestCase):
         post.assert_called_once()
 
     def test_missing_references_never_turn_into_a_new_image_request(self):
-        with patch('requests.post') as post, self.assertRaisesRegex(ValueError, 'Saved character pictures'):
+        with patch('requests.post') as post, self.assertRaisesRegex(ValueError, 'AI character pictures or face photos'):
             content._generate_image_bytes_openai('scene', 'key', reference_edit=True)
         post.assert_not_called()
 

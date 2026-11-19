@@ -49,7 +49,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
         self.assertNotIn('Winner: Win Leader.', prompt)
         self.assertIn('Give only the winner a king’s crown.', prompt)
         self.assertIn(RECAP_IMAGE_PROMPT, prompt)
-        for removed in ('robe', 'lying flat', 'lowest', 'defeated', 'face photo'):
+        for removed in ('robe', 'lying flat', 'lowest', 'defeated'):
             self.assertNotIn(removed, prompt)
 
     def test_winner_context_refreshes_without_crowning_another_player(self):
@@ -136,9 +136,9 @@ class GroupCharacterPreservationTests(unittest.TestCase):
             self.assertFalse(generate.call_args.kwargs['add_body_side_convention'])
             self.assertTrue(generate.call_args.kwargs['reference_edit'])
             for removed in ('BODY-SIDE', 'Wilson', 'IDENTITY LOCK', 'FACE LIKENESS',
-                            'face photo', 'robe', 'lying flat', 'lowest', 'defeated'):
+                            'robe', 'lying flat', 'lowest', 'defeated'):
                 self.assertNotIn(removed, prompt + text)
-            self.assertLess(len((prompt + text).split()), 160)
+            self.assertLess(len((prompt + text).split()), 190)
             if custom:
                 self.assertTrue(prompt.startswith(custom))
             else:

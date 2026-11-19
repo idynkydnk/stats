@@ -38,7 +38,7 @@ class FaceReferenceTests(unittest.TestCase):
             self.assertEqual([ref['kind'] for ref in result['parts']],
                              ['ai_portrait'] if has_character else [])
 
-    def test_recap_skips_players_without_saved_characters(self):
+    def test_recap_uses_face_and_signature_looks_when_character_is_unavailable(self):
         sources = [
             {'kind': 'ai_portrait', 'parts': [reference(picture('blue'), 'ai_portrait')]},
             {'kind': 'face_photo', 'parts': [reference(picture('red'), 'face_photo')]},
@@ -46,19 +46,90 @@ class FaceReferenceTests(unittest.TestCase):
         ]
         with (
             patch('player_functions.collect_illustration_reference_images', side_effect=sources),
-            patch('player_functions.collect_player_ai_image_traits') as traits,
+            patch('player_functions.collect_player_reference_images', side_effect=[
+                [{'parts': [reference(picture('red'), 'face_photo')]}], [],
+            ]) as faces,
+            patch('player_functions.get_player_ai_image_traits', return_value=['green boots']) as traits,
         ):
             parts, included = content._reference_parts_from_uploaded_photos(
-                ['Character', 'Face', 'Traits'], saved_characters_only=True,
+                ['Character', 'Face', 'Traits'], prefer_saved_characters=True,
             )
-        traits.assert_not_called()
-        self.assertEqual(included, ['Character'])
-        self.assertEqual([p['image_name'] for p in parts if p.get('inline_data')], ['Character'])
+        self.assertEqual([call.args[0] for call in faces.call_args_list], [['Face'], ['Traits']])
+        self.assertNotIn('Character', [call.args[0] for call in traits.call_args_list])
+        self.assertEqual(included, ['Character', 'Face'])
+        images = [p for p in parts if p.get('inline_data')]
+        self.assertEqual([(p['image_name'], p['reference_kind']) for p in images],
+                         [('Character', 'ai_portrait'), ('Face', 'face_photo')])
+        self.assertIn('green boots', '\n'.join(p.get('text', '') for p in parts))
         with (
             patch('player_functions.collect_illustration_reference_images', return_value=sources[1]),
-            self.assertRaisesRegex(ValueError, 'saved AI characters'),
+            patch('player_functions.collect_player_reference_images', return_value=[]),
+            patch('player_functions.get_player_ai_image_traits', return_value=['green boots']),
+            self.assertRaisesRegex(ValueError, 'AI characters or face photos'),
         ):
-            content._reference_parts_from_uploaded_photos(['Face'], saved_characters_only=True)
+            content._reference_parts_from_uploaded_photos(['Face'], prefer_saved_characters=True)
+
+    def test_six_players_reach_new_and_remade_recaps_with_exact_metadata(self):
+        players = ['Ian', 'Sel', 'Aiden', 'Eddie', 'Scott', 'Tyler']
+        characters = {'Sel', 'Eddie', 'Tyler'}
+        roster = players + ['Missing file', 'Traits only']
+        photo = picture('red')
+        character = picture('blue')
+        stats = [[name, 1, 0, 1.0, 1, 10 - i] for i, name in enumerate(players)]
+        labels = {name: f'{name} 1-0 (+1)' for name in players}
+        for custom in (None, 'Beach scene.\nSel 1-0 (+1)\nEddie 1-0 (+1)\nTyler 1-0 (+1)'):
+            with (
+                self.subTest(custom=custom),
+                patch('player_functions.get_player_ai_image_path', side_effect=lambda name:
+                      name if name in characters | {'Ian', 'Missing file'} else None),
+                patch('player_functions.read_player_image_file', side_effect=lambda path:
+                      (character, 'image/png') if path in characters else (None, None)),
+                patch('player_functions.get_player_photo_path', side_effect=lambda name:
+                      name if name in players else None),
+                patch('player_functions.collect_player_reference_images', side_effect=lambda names, **kw:
+                      [{'parts': [reference(photo, 'face_photo')]}] if names[0] in players else []) as faces,
+                patch('player_functions.get_player_ai_image_traits', side_effect=lambda name:
+                      [f'{name} signature hat'] if name != 'Scott' else []),
+                patch('email_content._image_labels_for_players', return_value=labels),
+                patch('email_content._recap_name_replacer', return_value=lambda text: text or ''),
+                patch('recap_visuals.extract_visual_checklist', return_value=[]),
+                patch('recap_visuals.check_character_likenesses', return_value={
+                    'players': [{'image': i + 1, 'matches': True, 'evidence': 'Matches reference.'}
+                                for i in range(6)],
+                }) as review,
+                patch('email_content._generate_image_bytes', return_value=(photo, 'image/png')) as generate,
+                patch('email_content._normalize_image_bytes_to_aspect', return_value=(photo, 'image/png')),
+                patch('email_content._save_email_image', return_value=('url', 'path')),
+            ):
+                result = content._try_generate_email_hero_image(
+                    'key', 'doubles', [], roster, image_mode='image', player_stats=stats,
+                    custom_scene_prompt=custom, selected_players=['Tyler'],
+                )
+            self.assertIsNone(result[2])
+            generate.assert_called_once()
+            prompt = generate.call_args.args[0]
+            parts = generate.call_args.kwargs['reference_parts']
+            images = [part for part in parts if part.get('inline_data')]
+            self.assertEqual([part['image_name'] for part in images], players)
+            self.assertEqual([part['image_index'] for part in images], list(range(1, 7)))
+            for part in images:
+                saved = part['image_name'] in characters
+                self.assertEqual(part['reference_kind'], 'ai_portrait' if saved else 'face_photo')
+                self.assertEqual(base64.b64decode(part['inline_data']['data']), character if saved else photo)
+            captions = '\n'.join(part.get('text', '') for part in parts)
+            for name in players:
+                self.assertIn(labels[name], captions)
+            for name in ('Ian', 'Aiden'):
+                self.assertIn(f'{name} signature hat', captions)
+            for name in characters:
+                self.assertNotIn(f'{name} signature hat', captions)
+                self.assertNotIn([name], [call.args[0] for call in faces.call_args_list])
+            self.assertIn(content.RECAP_FACE_RULE, prompt)
+            self.assertIn('Winner: Ian.', prompt)
+            self.assertEqual(review.call_args.args[2], parts)
+            self.assertEqual(result[4]['illustrated_players'], players)
+            self.assertEqual(result[4]['total_players'], 6)
+            self.assertIn('(6 players)', result[4]['note'])
 
     def test_saved_character_does_not_replace_real_face_and_missing_sources_still_work(self):
         face, character = picture('red'), picture('blue')

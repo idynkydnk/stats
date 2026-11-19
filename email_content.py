@@ -779,7 +779,7 @@ def _player_can_illustrate(has_reference_photos, trait_phrases):
     return bool(has_reference_photos) or bool(trait_phrases)
 
 
-def _player_has_illustration_likeness(name, saved_characters_only=False):
+def _player_has_illustration_likeness(name, require_picture=False):
     """True if they have an AI character, face photo, or signature looks."""
     from player_functions import (
         get_player_ai_image_path,
@@ -792,18 +792,18 @@ def _player_has_illustration_likeness(name, saved_characters_only=False):
         return False
     if get_player_ai_image_path(name):
         return True
-    if saved_characters_only:
-        return False
     if get_player_photo_path(name):
         return True
+    if require_picture:
+        return False
     return bool(get_player_ai_image_traits(name))
 
 
-def filter_illustratable_players(player_names, saved_characters_only=False):
+def filter_illustratable_players(player_names, require_picture=False):
     """Keep only players who can appear in a group AI photo."""
     return [
         name for name in _dedupe_players_preserve_order(player_names)
-        if _player_has_illustration_likeness(name, saved_characters_only)
+        if _player_has_illustration_likeness(name, require_picture)
     ]
 
 
@@ -1540,9 +1540,15 @@ RECAP_CHARACTER_RULE = (
     'outfit, art style, props, and companions. Adapt poses and placement without redesigning them.'
 )
 
+RECAP_FACE_RULE = (
+    'For face photos, match the face and use that player’s signature looks. '
+    'Include every referenced player.'
+)
+
 RECAP_IMAGE_PROMPT = (
-    'Combine the saved character pictures into one group recap scene. '
+    'Combine the player reference pictures into one group recap scene. '
     + RECAP_CHARACTER_RULE + ' '
+    + RECAP_FACE_RULE + ' '
     'Put each player’s name and game stats beside them. Give only the winner a king’s crown. '
     'Use the game location and requested scene details. Vertical 4:5.'
 )
@@ -1557,6 +1563,8 @@ def _recap_character_prompt(prompt):
     ).strip()
     if RECAP_CHARACTER_RULE not in prompt:
         prompt += '\n\n' + RECAP_CHARACTER_RULE
+    if RECAP_FACE_RULE not in prompt:
+        prompt += '\n\n' + RECAP_FACE_RULE
     return prompt
 
 
@@ -1585,7 +1593,7 @@ def build_scene_image_prompt(
     player_stats=None, location='',
 ):
     """Build the default group-scene prompt (for preview/edit in the UI)."""
-    players = filter_illustratable_players(players, saved_characters_only=True)
+    players = filter_illustratable_players(players, require_picture=True)
     labels = labels_by_name or _image_labels_for_players(players, player_stats)
     sections = [
         RECAP_IMAGE_PROMPT,
@@ -2062,7 +2070,7 @@ def _image_labels_for_players(players, player_stats=None):
 
 
 def _reference_parts_from_uploaded_photos(
-    players, labels_by_name=None, player_stats=None, saved_characters_only=False,
+    players, labels_by_name=None, player_stats=None, prefer_saved_characters=False,
 ):
     """Bind every face and character reference to its player, without truncating.
 
@@ -2073,32 +2081,44 @@ def _reference_parts_from_uploaded_photos(
     from player_functions import (
         collect_player_ai_image_traits,
         collect_illustration_reference_images,
+        collect_player_reference_images,
+        get_player_ai_image_traits,
     )
 
     players = _dedupe_players_preserve_order(players)
     labels_by_name = labels_by_name or {}
-    if saved_characters_only:
+    if prefer_saved_characters:
         parts, included = [], []
         image_index = 0
         for name in players:
             entry = collect_illustration_reference_images(name, include_face_photos=False)
             refs = [ref for ref in (entry or {}).get('parts') or []
                     if (ref.get('kind') or entry.get('kind')) == 'ai_portrait']
+            kind = 'ai_portrait'
+            caption = f'Reference for {labels_by_name.get(name) or name}.'
+            if not refs:
+                faces = collect_player_reference_images([name], max_players=1)
+                refs = (faces[0].get('parts') or []) if faces else []
+                kind = 'face_photo'
+                caption = (
+                    f'Face photo for {labels_by_name.get(name) or name}. Match this face. '
+                    + _format_signature_looks_clause(get_player_ai_image_traits(name))
+                )
             if not refs:
                 continue
             included.append(name)
             for ref in refs:
                 image_index += 1
                 parts.extend([
-                    {'text': f'Reference for {labels_by_name.get(name) or name}.'},
+                    {'text': caption},
                     {'inline_data': {'mime_type': ref['mime'], 'data': ref['data_b64']},
                      'image_index': image_index, 'image_name': name,
-                     'reference_kind': 'ai_portrait'},
+                     'reference_kind': kind},
                 ])
         if not included:
             raise ValueError(
-                'No selected players have saved AI characters. '
-                'Create them on the Players page, then try again.'
+                'No selected players have usable AI characters or face photos. '
+                'Add a face photo or AI character on the Players page, then try again.'
             )
         return parts, included
 
@@ -2533,7 +2553,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
                                  output_size=None, edit=False, reference_edit=False):
     """One OpenAI image call.
 
-    Recaps edit the saved character images directly with the exact scene prompt.
+    Recaps edit saved character images or fallback face photos with the scene prompt.
     Other flows use Responses first, with an images/edits fallback.
     """
     import io
@@ -2541,7 +2561,7 @@ def _generate_image_bytes_openai(prompt, api_key, reference_parts=None, aspect_r
 
     full_prompt, images = _openai_prompt_and_images(prompt, reference_parts)
     if reference_edit and not images:
-        raise ValueError('Saved character pictures are required to create this recap image.')
+        raise ValueError('AI character pictures or face photos are required to create this recap image.')
     model = OPENAI_RECAP_IMAGE_MODEL if reference_edit else OPENAI_IMAGE_MODEL
     size = output_size or _openai_size_for_aspect(aspect_ratio)
     headers = {'Authorization': f'Bearer {api_key}'}
@@ -3908,9 +3928,7 @@ def _mime_to_ext(mime):
 
 
 def _illustration_meta(player_names, game_type, games, selected_players=None):
-    all_players = filter_illustratable_players(
-        selected_players if selected_players else player_names
-    )
+    all_players = filter_illustratable_players(player_names, require_picture=True)
     api_calls = 1 if all_players else 0
     return {
         'strategy': 'single',
@@ -4142,11 +4160,11 @@ def generate_email_hero_image(
     api_key, game_type, games, player_names, game_name=None, image_details='',
     existing_solo_images=None, reuse_existing_solos=False, custom_scene_prompt=None,
     selected_players=None, player_stats=None, location='', animation=False, weather_games=None,
-    visual_source=None,
+    visual_source=None, illustration_meta=None,
 ):
-    """Generate one group hero image using only saved AI character references.
+    """Use saved AI characters, falling back to face photos with signature looks.
 
-    Does not create per-player caricatures or attach face photos.
+    Does not create per-player caricatures. Saved characters take precedence.
     Image labels use nickname (or first name) plus session
     stats when available.
 
@@ -4158,11 +4176,11 @@ def generate_email_hero_image(
     """
     _ = (games, existing_solo_images, reuse_existing_solos, selected_players)
 
-    all_players = filter_illustratable_players(player_names, saved_characters_only=True)
+    all_players = filter_illustratable_players(player_names, require_picture=True)
     if not all_players:
         raise ValueError(
-            'No selected players have saved AI characters. '
-            'Create them on the Players page, then try again.'
+            'No selected players have AI characters or face photos. '
+            'Add a face photo or AI character on the Players page, then try again.'
         )
 
     if player_stats is None and games:
@@ -4176,8 +4194,13 @@ def generate_email_hero_image(
     labels_by_name = _image_labels_for_players(all_players, player_stats=player_stats)
     scene_refs, scene_players = _reference_parts_from_uploaded_photos(
         all_players, labels_by_name=labels_by_name, player_stats=player_stats,
-        saved_characters_only=True,
+        prefer_saved_characters=True,
     )
+    if illustration_meta is not None:
+        illustration_meta.update(
+            illustrated_players=list(scene_players), total_players=len(scene_players),
+            note=_illustration_status_note(scene_players),
+        )
     safe_names = _recap_name_replacer(player_names)
     custom_scene = safe_names((custom_scene_prompt or '').strip())
     picture_details = safe_names((image_details or '').strip())
@@ -4322,6 +4345,7 @@ def _try_generate_email_hero_image(
             location=location,
             weather_games=weather_games,
             visual_source=visual_source,
+            illustration_meta=meta,
         )
         meta = {**meta, 'scene_prompt': scene_prompt or ''}
         if solo_images:
