@@ -1,5 +1,11 @@
 [
   {
+    "id": "ios-2026-11-21-dismiss-opened-recap-notice",
+    "date": "2026-11-21",
+    "subject": "iPhone: Clear the ready message when opening a recap",
+    "body": "Tapping Open recap clears the green notification, so it stays out of the way when you return from reading your recap."
+  },
+  {
     "id": "ios-2026-11-16-select-account-stats",
     "date": "2026-11-16",
     "subject": "iPhone: View another account’s stats on their own",

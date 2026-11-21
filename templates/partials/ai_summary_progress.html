@@ -1,5 +1,5 @@
 {% if ai_summary_progress_job %}
-<div class="sr-card" style="padding: 12px 16px; margin-bottom: 16px;" role="status" aria-live="polite">
+<div id="recap-progress-banner" class="sr-card" style="padding: 12px 16px; margin-bottom: 16px;" role="status" aria-live="polite">
     <i id="recap-progress-icon" class="fas fa-spinner fa-spin" aria-hidden="true"></i>
     <span id="recap-progress-text">Generating your recap in the background…</span>
     <a id="recap-progress-link" hidden>Open recap</a>
@@ -16,6 +16,9 @@
             icon.className = 'fas fa-check';
             link.href = data.recap_url;
             link.hidden = false;
+            link.addEventListener('click', function () {
+                document.getElementById('recap-progress-banner').remove();
+            });
             return true;
         }
         if (data.status === 'failed') {
