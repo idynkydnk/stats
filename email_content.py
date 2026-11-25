@@ -1568,13 +1568,24 @@ def _recap_character_prompt(prompt):
     return prompt
 
 
-def _append_recap_winner(prompt, players, player_stats):
-    """Identify the selected-game winner without prescribing other players' poses."""
+def _without_recap_winner(prompt):
+    """Remove computed results from a saved scene before reusing its instructions."""
     import re
 
-    prompt = (prompt or '').strip()
-    rated_rows = [row for row in player_stats or [] if row and len(row) > 5]
-    leaders = _session_beach_royalty_names(rated_rows)
+    return re.sub(r'^(?:Winner:|Winners \(tied\):|No pictured winner identified;)[^\n]*\n?',
+                  '', (prompt or '').strip(), flags=re.MULTILINE).strip()
+
+
+def _append_recap_winner(prompt, players, player_stats, game_type):
+    """Identify the selected-game winner without prescribing other players' poses."""
+    if game_type == 'other':
+        from other_functions import other_session_rank
+        leaders = _session_beach_royalty_names(player_stats, rank_key=other_session_rank)
+    elif game_type == 'doubles':
+        rated_rows = [row for row in player_stats or [] if row and len(row) > 5]
+        leaders = _session_beach_royalty_names(rated_rows)
+    else:
+        leaders = []
     visible = set(players)
     leaders = [name for name in leaders if name in visible]
     if leaders:
@@ -1582,9 +1593,7 @@ def _append_recap_winner(prompt, players, player_stats):
         rule = f'{"Winner" if len(leaders) == 1 else "Winners (tied)"}: {names}.'
     else:
         rule = 'No pictured winner identified; omit the crown.'
-    # Refresh this context on remakes instead of accumulating stale winners.
-    prompt = re.sub(r'^(?:Winner:|Winners \(tied\):|No pictured winner identified;)[^\n]*\n?',
-                    '', prompt, flags=re.MULTILINE).strip()
+    prompt = _without_recap_winner(prompt)
     return f'{prompt}\n\n{rule}' if prompt else rule
 
 
@@ -1606,7 +1615,7 @@ def build_scene_image_prompt(
         from recap_weather import picture_location
         sections.append(f'Location: {picture_location(location)}.')
     return _append_recap_winner(
-        '\n\n'.join(section for section in sections if section), players, player_stats,
+        '\n\n'.join(section for section in sections if section), players, player_stats, game_type,
     )
 
 
@@ -1732,14 +1741,14 @@ def _session_rank(row):
     return (float(row[3] or 0), int(row[4] or 0))
 
 
-def _session_beach_royalty_names(player_stats):
-    """Names tied for the highest session rating (or legacy unrated ranking)."""
+def _session_beach_royalty_names(player_stats, rank_key=_session_rank):
+    """Return everyone who shares the best rank across the selected games."""
     rows = []
     for row in player_stats or []:
         if not row or len(row) < 5 or not (row[0] or '').strip():
             continue
         try:
-            rank = _session_rank(row)
+            rank = rank_key(row)
         except (TypeError, ValueError):
             continue
         if rank[0] != float('-inf'):
@@ -1915,73 +1924,54 @@ def _merge_beach_royalty_phrases(players, player_stats, phrases_by_name=None):
     return merged
 
 
+def _other_recap_record(game):
+    """Accept current standings records and older compact recap inputs."""
+    if not hasattr(game, 'keys'):
+        return {
+            'winner1': game[2], 'winner2': game[3], 'winner_score': game[4],
+            'loser1': game[5], 'loser2': game[6], 'loser_score': game[7],
+        }
+    record = game if isinstance(game, dict) else dict(game)
+    if 'winner1' in record or 'loser1' in record:
+        return record
+    record = record.copy()
+    for side in ('winner', 'loser'):
+        for i, player in enumerate(record.get(f'{side}s') or [], 1):
+            record[f'{side}{i}'] = (player.get('name') or '').strip()
+            record[f'{side}{i}_score'] = player.get('score')
+    return record
+
+
 def session_stats_for_illustration(game_type, games):
-    """Build [name, wins, losses, win_pct, differential] rows for image labels."""
+    """Use selected-game standings for winners and player labels."""
     if not games:
         return []
     if game_type == 'doubles':
         from stat_functions import calculate_stats_from_games
         return calculate_stats_from_games(games)
 
-    player_stats = {}
-    if game_type == 'vollis':
-        for game in games:
-            winner, loser = game[2], game[4]
-            for name in (winner, loser):
-                if name and str(name).strip():
-                    player_stats.setdefault(
-                        name, {'wins': 0, 'losses': 0, 'diff': 0},
-                    )
-            try:
-                margin = int(game[3]) - int(game[5])
-            except (TypeError, ValueError):
-                margin = 0
-            if winner and str(winner).strip():
-                player_stats[winner]['wins'] += 1
-                player_stats[winner]['diff'] += margin
-            if loser and str(loser).strip():
-                player_stats[loser]['losses'] += 1
-                player_stats[loser]['diff'] -= margin
-    elif game_type == 'other':
-        for game in games:
-            if isinstance(game, dict):
-                try:
-                    margin = int(game.get('winner_score') or 0) - int(game.get('loser_score') or 0)
-                except (TypeError, ValueError):
-                    margin = 0
-                for person in game.get('winners') or []:
-                    name = (person.get('name') or '').strip()
-                    if not name:
-                        continue
-                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
-                    entry['wins'] += 1
-                    entry['diff'] += margin
-                for person in game.get('losers') or []:
-                    name = (person.get('name') or '').strip()
-                    if not name:
-                        continue
-                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
-                    entry['losses'] += 1
-                    entry['diff'] -= margin
-            else:
-                try:
-                    margin = int(game[4] or 0) - int(game[7] or 0)
-                except (TypeError, ValueError, IndexError):
-                    margin = 0
-                for name in (game[2], game[3]):
-                    if not name:
-                        continue
-                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
-                    entry['wins'] += 1
-                    entry['diff'] += margin
-                for name in (game[5], game[6]):
-                    if not name:
-                        continue
-                    entry = player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
-                    entry['losses'] += 1
-                    entry['diff'] -= margin
-    else:
+    if game_type == 'other':
+        from other_functions import _other_stats_with_differential
+        return _other_stats_with_differential([_other_recap_record(game) for game in games])
+    if game_type != 'vollis':
         return []
+
+    player_stats = {}
+    for game in games:
+        winner, loser = game[2], game[4]
+        for name in (winner, loser):
+            if name and str(name).strip():
+                player_stats.setdefault(name, {'wins': 0, 'losses': 0, 'diff': 0})
+        try:
+            margin = int(game[3]) - int(game[5])
+        except (TypeError, ValueError):
+            margin = 0
+        if winner and str(winner).strip():
+            player_stats[winner]['wins'] += 1
+            player_stats[winner]['diff'] += margin
+        if loser and str(loser).strip():
+            player_stats[loser]['losses'] += 1
+            player_stats[loser]['diff'] -= margin
 
     stats = []
     for name, entry in player_stats.items():
@@ -4202,7 +4192,7 @@ def generate_email_hero_image(
             note=_illustration_status_note(scene_players),
         )
     safe_names = _recap_name_replacer(player_names)
-    custom_scene = safe_names((custom_scene_prompt or '').strip())
+    custom_scene = safe_names(_without_recap_winner(custom_scene_prompt))
     picture_details = safe_names((image_details or '').strip())
     if '[RECAP VISUAL CHECKLIST]' in custom_scene and picture_details:
         # Older saved scenes contain both the checklist and the original details.
@@ -4255,12 +4245,12 @@ def generate_email_hero_image(
             location_line = f'Location: {picture_location(location)}.'
             if location_line not in scene_prompt:
                 scene_prompt += f'\n\n{location_line}'
+        scene_prompt = _append_recap_winner(scene_prompt, scene_players, player_stats, game_type)
     else:
         scene_prompt = _build_scene_image_prompt(
             game_type, scene_players, game_name=game_name, image_details=picture_details,
             labels_by_name=labels_by_name, player_stats=player_stats, location=location,
         )
-    scene_prompt = _append_recap_winner(scene_prompt, scene_players, player_stats)
     from recap_weather import append_recap_weather
     scene_prompt = safe_names(append_recap_weather(scene_prompt, weather_games or []))
     api_prompt = _prompt_with_identity_lock(scene_prompt, scene_refs)
@@ -5684,7 +5674,7 @@ def build_other_email_payload(
     selected_game_ids, prompt_style='default', custom_prompt='', image_mode='none',
     image_details='', illustration_players=None,
 ):
-    from other_functions import readable_games_data, _is_valid_player_name, _other_game_point_margin
+    from other_functions import readable_games_data, _is_valid_player_name, _other_stats_with_differential
     from player_functions import get_player_by_name
 
     api_key = require_ai_api_key()
@@ -5719,22 +5709,7 @@ def build_other_email_payload(
     games = readable_games_data(raw_games)
     summary_location = _summary_location_from_rows(raw_games)
 
-    # Reuse the same outcomes as standings, so tied sides stay neutral in recaps.
-    from other_functions import all_other_players, total_other_stats
-    stats = []
-    for name in all_other_players(games):
-        total = total_other_stats(name, games)[0]
-        differential = 0
-        for game in games:
-            if game.get('is_tie'):
-                continue
-            margin = _other_game_point_margin(game)
-            if any(player.get('name') == name for player in game.get('winners', [])):
-                differential += margin
-            elif any(player.get('name') == name for player in game.get('losers', [])):
-                differential -= margin
-        stats.append([name, total[1], total[2], total[3], differential, total[5]])
-    stats.sort(key=lambda row: row[3], reverse=True)
+    stats = _other_stats_with_differential(games)
 
     game_dates = sorted(set(str(game.get('game_date', '')).split(' ')[0] for game in games if game.get('game_date')))
     if len(game_dates) == 1:

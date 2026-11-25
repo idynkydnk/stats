@@ -9,6 +9,7 @@ from email_content import (
     build_flyer_scene_prompt,
     build_scene_image_prompt,
     generate_email_hero_image,
+    session_stats_for_illustration,
 )
 
 
@@ -54,14 +55,47 @@ class GroupCharacterPreservationTests(unittest.TestCase):
 
     def test_winner_context_refreshes_without_crowning_another_player(self):
         stats = [['Alex', 3, 0, 1.0, 12, 8.0], ['Sam', 0, 3, 0.0, -12, 1.0]]
-        prompt = _append_recap_winner('Scene\n\nWinner: Sam.', ['Alex', 'Sam'], stats)
+        prompt = _append_recap_winner('Scene\n\nWinner: Sam.', ['Alex', 'Sam'], stats, 'doubles')
         self.assertEqual(prompt.count('Winner:'), 1)
         self.assertIn('Winner: Alex.', prompt)
-        prompt = _append_recap_winner(prompt, ['Sam'], stats)
+        prompt = _append_recap_winner(prompt, ['Sam'], stats, 'doubles')
         self.assertNotIn('Winner:', prompt)
         self.assertIn('omit the crown', prompt)
         tied = [['Alex', 1, 1, .5, 0, 5.0], ['Sam', 1, 1, .5, 0, 5.0]]
-        self.assertIn('Winners (tied): Alex, Sam.', _append_recap_winner('Scene', ['Alex', 'Sam'], tied))
+        self.assertIn('Winners (tied): Alex, Sam.', _append_recap_winner('Scene', ['Alex', 'Sam'], tied, 'doubles'))
+
+    def test_other_recap_sweep_uses_standings_and_replaces_saved_tie(self):
+        players = ['Kyle Thomson', 'Alex Amylon']
+        scores = [(15, 13), (11, 6), (11, 9), (11, 4), (11, 5),
+                  (11, 7), (11, 6), (11, 9), (11, 7), (11, 3)]
+        games = [dict(winner1=players[0], loser1=players[1], winner_score=w, loser_score=l)
+                 for w, l in scores]
+        stats = session_stats_for_illustration('other', games)
+        self.assertEqual(stats, [[players[0], 10, 0, 1.0, 45, 0],
+                                 [players[1], 0, 10, 0.0, -45, 0]])
+        with patch('email_content.filter_illustratable_players', return_value=players):
+            prompt = build_scene_image_prompt('other', players, player_stats=stats,
+                                             labels_by_name={name: name for name in players})
+        self.assertEqual(prompt.splitlines()[-1], 'Winner: Kyle Thomson.')
+        saved = 'Windy court.\n\nWinners (tied): KT, Alex.'
+        self.assertEqual(_append_recap_winner(saved, players, stats, 'other'),
+                         'Windy court.\n\nWinner: Kyle Thomson.')
+        self.assertIn('omit the crown', _append_recap_winner(saved, players[1:], stats, 'other'))
+
+    def test_other_recap_counts_draws_and_only_shares_crown_on_equal_standings(self):
+        def game(winner, loser, w, l, draw=False):
+            return dict(winners=[{'name': winner}], losers=[{'name': loser}],
+                        winner_score=w, loser_score=l, is_tie=draw)
+
+        games = [game('Alex', 'KT', 11, 9), game('KT', 'Alex', 11, 9),
+                 game('Alex', 'KT', 8, 8, draw=True)]
+        stats = session_stats_for_illustration('other', games)
+        self.assertEqual(stats, [['Alex', 1, 1, 1 / 3, 0, 1], ['KT', 1, 1, 1 / 3, 0, 1]])
+        self.assertEqual(_append_recap_winner('', ['Alex', 'KT'], stats, 'other'),
+                         'Winners (tied): Alex, KT.')
+        games[1] = game('KT', 'Alex', 11, 7)
+        stats = session_stats_for_illustration('other', games)
+        self.assertEqual(_append_recap_winner('', ['Alex', 'KT'], stats, 'other'), 'Winner: KT.')
 
     def test_reference_bundle_ignores_traits_only_for_attached_characters(self):
         players = ['Saved Player', 'Fallback Player']
@@ -97,7 +131,12 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 {'mime': 'image/png', 'data_b64': 'am9yZGFuLXdpdGgtZnJpZW5k'},
             ]},
         }
-        for custom in (None, 'Put them on a pirate ship. No extra people. No text.'):
+        custom_scene = 'Put them on a pirate ship. No extra people. No text.'
+        other_stats = [[players[0], 3, 0, 1.0, 12, 0], [players[1], 0, 3, 0.0, -12, 0]]
+        for game_type, rows, custom in (
+            ('doubles', stats, None), ('doubles', stats, custom_scene),
+            ('other', other_stats, custom_scene + '\n\nWinners (tied): Kevin, Jordan.'),
+        ):
             with (
                 self.subTest(custom=custom),
                 patch('email_content.filter_illustratable_players', return_value=players),
@@ -111,7 +150,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                       side_effect=lambda name, **kwargs: references[name]),
                 patch('email_content._build_labeled_identity_sheet',
                       return_value=(b'full contact sheet', ['Kevin', 'Jordan'])),
-                patch('recap_visuals.extract_visual_checklist', return_value=[]),
+                patch('recap_visuals.extract_visual_checklist', return_value=[]) as extract,
                 patch('recap_visuals.check_character_likenesses', return_value={
                     'players': [{'image': 1, 'matches': True, 'evidence': 'Same saved character.'}],
                 }),
@@ -122,7 +161,7 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 patch('email_content._save_email_image', return_value=('url', 'path')),
             ):
                 generate_email_hero_image(
-                    'test-key', 'doubles', [], players, player_stats=stats,
+                    'test-key', game_type, [], players, player_stats=rows,
                     custom_scene_prompt=custom,
                 )
             prompt = generate.call_args.args[0]
@@ -140,9 +179,11 @@ class GroupCharacterPreservationTests(unittest.TestCase):
                 self.assertNotIn(removed, prompt + text)
             self.assertLess(len((prompt + text).split()), 190)
             if custom:
-                self.assertTrue(prompt.startswith(custom))
+                self.assertTrue(prompt.startswith(custom_scene))
+                self.assertEqual(extract.call_args.args[0], custom_scene)
             else:
                 self.assertEqual(prompt.count(RECAP_IMAGE_PROMPT), 1)
+            self.assertNotIn('Winners (tied)', prompt)
             self.assertNotIn('Kevin Cleary', prompt + text)
             self.assertEqual(prompt.count('Winner: Kevin.'), 1)
 

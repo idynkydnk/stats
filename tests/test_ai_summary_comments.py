@@ -2,6 +2,7 @@ import ast
 import json
 from pathlib import Path
 import sqlite3
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -17,6 +18,7 @@ from email_content import (
     build_doubles_email_payload,
     build_other_email_payload,
     build_vollis_email_payload,
+    session_stats_for_illustration,
 )
 
 
@@ -30,8 +32,17 @@ LONG_SUMMARY = '\n\n'.join(f'Paragraph {i}: ' + 'A funny story. ' * 30 for i in 
 
 class RecapCommentTests(unittest.TestCase):
     def setUp(self):
-        self.conn = sqlite3.connect(':memory:')
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        database = Path(temp.name) / 'games.db'
+        self.conn = sqlite3.connect(database, isolation_level=None)
         self.addCleanup(self.conn.close)
+
+        def connect(_path):
+            conn = sqlite3.connect(database)
+            self.addCleanup(conn.close)
+            return conn
+
         self.conn.execute('''CREATE TABLE games (id INTEGER PRIMARY KEY, game_date TEXT,
             winner1 TEXT, winner2 TEXT, winner_score INTEGER, loser1 TEXT, loser2 TEXT,
             loser_score INTEGER, updated_at TEXT, comments TEXT)''')
@@ -57,7 +68,7 @@ class RecapCommentTests(unittest.TestCase):
         for replacement in (
             patch('email_content.require_ai_api_key', return_value='test-key'),
             patch('email_content.set_cur', side_effect=self.conn.cursor),
-            patch('database_functions.create_connection', return_value=self.conn),
+            patch('database_functions.create_connection', side_effect=connect),
             patch('stat_functions.get_current_streaks_last_365_days', return_value=[]),
             patch('player_functions.get_player_by_name', return_value=None),
             patch('email_content._phrases_by_player_name', return_value={'Alex': ['Always wears a lucky hat']}),
@@ -72,6 +83,16 @@ class RecapCommentTests(unittest.TestCase):
         ):
             replacement.start()
             self.addCleanup(replacement.stop)
+
+    def test_new_and_remade_other_images_get_the_same_standings_as_the_recap(self):
+        self.conn.execute('ALTER TABLE other_games ADD COLUMN is_tie INTEGER DEFAULT 0')
+        self.conn.execute('UPDATE other_games SET is_tie=1, loser_score=winner_score WHERE id=1')
+        self.conn.execute("UPDATE other_games SET winner1='Sam', loser1='Alex', loser_score=10 WHERE id=2")
+        payload = build_other_email_payload([1, 2, 3], image_mode='image')
+        expected = [['Sam', 1, 1, 1 / 3, 9, 1], ['Alex', 1, 1, 1 / 3, -9, 1]]
+        self.assertEqual(payload['stats'], expected)
+        self.assertEqual(self.image.call_args.kwargs['player_stats'], expected)
+        self.assertEqual(session_stats_for_illustration('other', payload['games']), expected)
 
     def test_all_selected_comments_reach_ai_for_default_and_long_custom_prompts(self):
         custom = ('Tell the full story of the day.\n' + 'Include partnerships and comebacks. ' * 100).strip()

@@ -884,6 +884,11 @@ def total_other_stats(name, games):
     win_percent = wins / total_games if total_games else 0
     return [[name, wins, losses, win_percent, total_games, ties]]
 
+def other_session_rank(row):
+    """Rank a session by win percentage, point differential, then wins."""
+    return row[3], row[4], row[1]
+
+
 def _other_stats_with_differential(games):
     stats = total_game_name_stats(games)
     margins = {row[0]: 0 for row in stats}
@@ -901,7 +906,7 @@ def _other_stats_with_differential(games):
                 margins[name] -= margin
     for row in stats:
         row[4] = margins[row[0]]
-    stats.sort(key=lambda row: (row[3], row[4], row[1]), reverse=True)
+    stats.sort(key=other_session_rank, reverse=True)
     return stats
 
 
